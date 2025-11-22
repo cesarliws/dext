@@ -34,6 +34,7 @@ type
     FResponseInfo: TIdHTTPResponseInfo;
   public
     constructor Create(AResponseInfo: TIdHTTPResponseInfo);
+    function GetStatusCode: Integer;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure Write(const AContent: string);
@@ -53,6 +54,7 @@ type
     procedure SetRouteParams(const AParams: TDictionary<string, string>);
     function GetRequest: IHttpRequest;
     function GetResponse: IHttpResponse;
+    procedure SetResponse(const AValue: IHttpResponse);
     function GetServices: IServiceProvider;
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
@@ -179,6 +181,11 @@ begin
   FResponseInfo.CustomHeaders.AddValue(AName, AValue);
 end;
 
+function TIndyHttpResponse.GetStatusCode: Integer;
+begin
+  Result := FResponseInfo.ResponseNo;
+end;
+
 procedure TIndyHttpResponse.SetStatusCode(AValue: Integer);
 begin
   FResponseInfo.ResponseNo := AValue;
@@ -221,6 +228,11 @@ end;
 function TIndyHttpContext.GetResponse: IHttpResponse;
 begin
   Result := FResponse;
+end;
+
+procedure TIndyHttpContext.SetResponse(const AValue: IHttpResponse);
+begin
+  FResponse := AValue;
 end;
 
 function TIndyHttpContext.GetServices: IServiceProvider;

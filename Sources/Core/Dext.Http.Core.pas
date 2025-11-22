@@ -10,6 +10,7 @@ uses
   System.TypInfo,
   Dext.DI.Interfaces,
   Dext.Core.HandlerInvoker,
+  Dext.Core.Activator,
   Dext.Http.Interfaces,
   Dext.Http.Routing;
 
@@ -37,7 +38,6 @@ type
     FRoutePatterns: TDictionary<TRoutePattern, TRequestDelegate>;
     FServiceProvider: IServiceProvider;
 
-    function CreateMiddlewareInstance(AMiddlewareClass: TClass; const AParameters: TArray<TValue>): IMiddleware;
     function CreateMiddlewarePipeline(const ARegistration: TMiddlewareRegistration; ANext: TRequestDelegate): TRequestDelegate;
   public
     constructor Create(AServiceProvider: IServiceProvider);
@@ -87,8 +87,6 @@ begin
   FDelegate(AContext, ANext);
 end;
 
-// ... (Rest of implementation)
-
 function TApplicationBuilder.Use(AMiddleware: TMiddlewareDelegate): IApplicationBuilder;
 var
   Registration: TMiddlewareRegistration;
@@ -106,7 +104,10 @@ end;
 
 function TApplicationBuilder.CreateMiddlewarePipeline(const ARegistration: TMiddlewareRegistration;
   ANext: TRequestDelegate): TRequestDelegate;
+var
+  LServiceProvider: IServiceProvider;
 begin
+  LServiceProvider := FServiceProvider;
   Result :=
     procedure(AContext: IHttpContext)
     var
@@ -120,8 +121,14 @@ begin
       else
       begin
         // Handle Class Middleware
-        MiddlewareInstance := CreateMiddlewareInstance(
-          ARegistration.MiddlewareClass, ARegistration.Parameters);
+        var Obj := TActivator.CreateInstance(LServiceProvider, ARegistration.MiddlewareClass, ARegistration.Parameters);
+        try
+          if not Supports(Obj, IMiddleware, MiddlewareInstance) then
+            raise EArgumentException.Create('Middleware must implement IMiddleware');
+        except
+          Obj.Free;
+          raise;
+        end;
       end;
 
       try
@@ -176,6 +183,8 @@ begin
     raise EArgumentException.Create('Middleware must inherit from TMiddleware');
 
   Registration.MiddlewareClass := AMiddleware;
+  Registration.IsDelegate := False;
+  Registration.MiddlewareDelegate := nil;
   SetLength(Registration.Parameters, 1);
   Registration.Parameters[0] := AParam;
 
@@ -197,6 +206,8 @@ begin
     raise EArgumentException.Create('Middleware must inherit from TMiddleware');
 
   Registration.MiddlewareClass := AMiddleware;
+  Registration.IsDelegate := False;
+  Registration.MiddlewareDelegate := nil;
   SetLength(Registration.Parameters, Length(AParams));
 
   for I := 0 to High(AParams) do
@@ -213,78 +224,7 @@ begin
   Result := Self;
 end;
 
-function TApplicationBuilder.CreateMiddlewareInstance(AMiddlewareClass: TClass;
-  const AParameters: TArray<TValue>): IMiddleware;
-var
-  Instance: TObject;
-  Context: TRttiContext;
-  InstanceType: TRttiType;
-  ConstructorMethod: TRttiMethod;
-  Parameters: TArray<TRttiParameter>;
-  Arguments: TArray<TValue>;
-  I: Integer;
-begin
-  // Se não há parâmetros, criar instância normalmente
-  if Length(AParameters) = 0 then
-  begin
-    Instance := AMiddlewareClass.Create;
-    if not Supports(Instance, IMiddleware, Result) then
-    begin
-      Instance.Free;
-      raise EArgumentException.Create('Middleware class must implement IMiddleware');
-    end;
-    Exit;
-  end;
 
-  // ✅ NOVO: Criar instância com parâmetros via RTTI
-  Context := TRttiContext.Create;
-  try
-    InstanceType := Context.GetType(AMiddlewareClass);
-
-    // Encontrar construtor que aceite os parâmetros
-    for ConstructorMethod in InstanceType.GetMethods do
-    begin
-      if ConstructorMethod.IsConstructor then
-      begin
-        Parameters := ConstructorMethod.GetParameters;
-
-        if Length(Parameters) = Length(AParameters) then
-        begin
-          // Verificar compatibilidade de tipos
-          var Compatible := True;
-          for I := 0 to High(Parameters) do
-          begin
-            if not AParameters[I].IsObject and (AParameters[I].TypeInfo <> Parameters[I].ParamType.Handle) then
-            begin
-              Compatible := False;
-              Break;
-            end;
-          end;
-
-          if Compatible then
-          begin
-            Arguments := AParameters;
-            Instance := ConstructorMethod.Invoke(AMiddlewareClass, Arguments).AsObject;
-
-            if Supports(Instance, IMiddleware, Result) then
-              Exit
-            else
-            begin
-              Instance.Free;
-              raise EArgumentException.Create('Middleware class must implement IMiddleware');
-            end;
-          end;
-        end;
-      end;
-    end;
-
-    // Se não encontrou construtor compatível, erro
-    raise EArgumentException.Create('No compatible constructor found for middleware with given parameters');
-
-  finally
-    Context.Free;
-  end;
-end;
 
 function TApplicationBuilder.UseMiddleware(AMiddleware: TClass): IApplicationBuilder;
 var
@@ -295,6 +235,8 @@ begin
 
   // ✅ CRIAR REGISTRATION SEM PARÂMETROS
   Registration.MiddlewareClass := AMiddleware;
+  Registration.IsDelegate := False;
+  Registration.MiddlewareDelegate := nil;
   SetLength(Registration.Parameters, 0); // Array vazio
 
   FMiddlewares.Add(Registration);

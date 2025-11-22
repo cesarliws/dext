@@ -1,4 +1,4 @@
-program Dext.MinimalAPITest;
+﻿program Dext.MinimalAPITest;
 
 {$APPTYPE CONSOLE}
 
@@ -11,26 +11,28 @@ uses
   Dext.Core.ApplicationBuilder.Extensions,
   Dext.Core.HandlerInvoker,
   Dext.Http.Results,
-  Dext.Validation; // ✅ Validation Framework
+  Dext.Caching,
+  Dext.Validation,
+  Dext.Logging,
+  Dext.Logging.Extensions,
+  Dext.Http.Middleware,
+  Dext.Http.Middleware.Extensions;
 
 {$R *.res}
 
 type
-  // ✅ Service Interface
   IUserService = interface
     ['{8F3A2B1C-4D5E-6F7A-8B9C-0D1E2F3A4B5C}']
     function GetUserName(UserId: Integer): string;
     function DeleteUser(UserId: Integer): Boolean;
   end;
 
-  // ✅ Service Implementation
   TUserService = class(TInterfacedObject, IUserService)
   public
     function GetUserName(UserId: Integer): string;
     function DeleteUser(UserId: Integer): Boolean;
   end;
 
-  // ✅ Request/Response Records with Validation
   TCreateUserRequest = record
     [Required]
     [StringLength(3, 50)]
@@ -49,13 +51,6 @@ type
     Email: string;
   end;
 
-  TUserResponse = record
-    Id: Integer;
-    Name: string;
-    Email: string;
-    Message: string;
-  end;
-
 { TUserService }
 
 function TUserService.GetUserName(UserId: Integer): string;
@@ -65,62 +60,74 @@ end;
 
 function TUserService.DeleteUser(UserId: Integer): Boolean;
 begin
-  WriteLn(Format('  🗑️  Deleting user %d from database...', [UserId]));
+  WriteLn(Format('  Deleting user %d from database...', [UserId]));
   Result := True;
 end;
 
 begin
   try
-    WriteLn('🚀 Dext Minimal API - Complete Feature Demo');
+    WriteLn('Dext Minimal API - Complete Feature Demo');
     WriteLn('============================================');
     WriteLn;
 
     var Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
-        WriteLn('📦 Registering services...');
+        WriteLn('Registering services...');
+
+        TServiceCollectionExtensions.AddSingleton<ILoggerFactory, TLoggerFactory>(Services);
         TServiceCollectionExtensions.AddSingleton<IUserService, TUserService>(Services);
-        WriteLn('  ✅ IUserService registered');
+
+        // Add Logging
+        TServiceCollectionLoggingExtensions.AddLogging(Services,
+          procedure(Builder: ILoggingBuilder)
+          begin
+            Builder.AddConsole;
+            Builder.SetMinimumLevel(TLogLevel.Information);
+          end);
+
+        WriteLn('  IUserService registered');
+        WriteLn('  Logging registered');
         WriteLn;
       end)
       .Configure(procedure(App: IApplicationBuilder)
       begin
-        WriteLn('🔧 Configuring routes with Generic Extensions...');
+        // 1. Exception Handler (First to catch everything)
+        TApplicationBuilderMiddlewareExtensions.UseExceptionHandler(App);
+        
+        // 2. HTTP Logging
+        TApplicationBuilderMiddlewareExtensions.UseHttpLogging(App);
+        
+        // 3. Response Cache
+        TApplicationBuilderCacheExtensions.UseResponseCache(App, 10);
+        
+        WriteLn('Configuring routes...');
         WriteLn;
 
-        // ========================================
-        // 1️⃣ GET with Route Parameter (Integer) + Results
-        // ========================================
-        WriteLn('1️⃣  GET /api/users/{id} - Route param binding (Integer)');
+        WriteLn('1. GET /api/users/{id}');
         TApplicationBuilderExtensions.MapGetR<Integer, IResult>(
           App,
           '/api/users/{id}',
           function(UserId: Integer): IResult
           begin
-            WriteLn(Format('  → GET User: %d', [UserId]));
+            WriteLn(Format('  GET User: %d', [UserId]));
             Result := Results.Json(Format('{"userId":%d,"message":"User retrieved"}', [UserId]));
           end
         );
 
-        // ========================================
-        // 2️⃣ GET with Route Parameter + Service Injection
-        // ========================================
-        WriteLn('2️⃣  GET /api/users/{id}/name - Route param + Service injection');
+        WriteLn('2. GET /api/users/{id}/name');
         TApplicationBuilderExtensions.MapGet<Integer, IUserService, IHttpContext>(
           App,
           '/api/users/{id}/name',
           procedure(UserId: Integer; UserService: IUserService; Ctx: IHttpContext)
           begin
             var UserName := UserService.GetUserName(UserId);
-            WriteLn(Format('  → User %d name: %s', [UserId, UserName]));
+            WriteLn(Format('  User %d name: %s', [UserId, UserName]));
             Ctx.Response.Json(Format('{"userId":%d,"name":"%s"}', [UserId, UserName]));
           end
         );
 
-        // ========================================
-        // 3️⃣ POST with Body Binding + Validation + Results
-        // ========================================
-        WriteLn('3️⃣  POST /api/users - Body binding with Validation');
+        WriteLn('3. POST /api/users');
         TApplicationBuilderExtensions.MapPostR<TCreateUserRequest, IResult>(
           App,
           '/api/users',
@@ -131,13 +138,12 @@ begin
             Error: TValidationError;
             ErrorsJson: string;
           begin
-            // ✅ Validate the request
             Validator := TValidator<TCreateUserRequest>.Create;
             ValidationResult := Validator.Validate(Request);
             
             if not ValidationResult.IsValid then
             begin
-              WriteLn('  ❌ Validation failed:');
+              WriteLn('  Validation failed:');
               ErrorsJson := '[';
               for Error in ValidationResult.Errors do
               begin
@@ -156,7 +162,7 @@ begin
             
             ValidationResult.Free;
             
-            WriteLn(Format('  ✅ Creating user: %s <%s>, Age: %d', 
+            WriteLn(Format('  Creating user: %s <%s>, Age: %d', 
               [Request.Name, Request.Email, Request.Age]));
             
             Result := Results.Created('/api/users/1', 
@@ -165,110 +171,95 @@ begin
           end
         );
 
-        // ========================================
-        // 4️⃣ PUT with Route Parameter + Body
-        // ========================================
-        WriteLn('4️⃣  PUT /api/users/{id} - Route param + Body binding');
+        WriteLn('4. PUT /api/users/{id}');
         TApplicationBuilderExtensions.MapPut<Integer, TUpdateUserRequest, IHttpContext>(
           App,
           '/api/users/{id}',
           procedure(UserId: Integer; Request: TUpdateUserRequest; Ctx: IHttpContext)
           begin
-            WriteLn(Format('  → Updating user %d: %s <%s>', 
+            WriteLn(Format('  Updating user %d: %s <%s>', 
               [UserId, Request.Name, Request.Email]));
             Ctx.Response.Json(Format('{"userId":%d,"name":"%s","email":"%s","message":"User updated"}', 
               [UserId, Request.Name, Request.Email]));
           end
         );
 
-        // ========================================
-        // 5️⃣ DELETE with Route Parameter + Service
-        // ========================================
-        WriteLn('5️⃣  DELETE /api/users/{id} - Route param + Service injection');
+        WriteLn('5. DELETE /api/users/{id}');
         TApplicationBuilderExtensions.MapDelete<Integer, IUserService, IHttpContext>(
           App,
           '/api/users/{id}',
           procedure(UserId: Integer; UserService: IUserService; Ctx: IHttpContext)
           begin
-            WriteLn(Format('  → DELETE User: %d', [UserId]));
+            WriteLn(Format('  DELETE User: %d', [UserId]));
             var Success := UserService.DeleteUser(UserId);
             Ctx.Response.Json(Format('{"userId":%d,"deleted":%s}', 
               [UserId, BoolToStr(Success, True).ToLower]));
           end
         );
 
-        // ========================================
-        // 6️⃣ GET with String Route Parameter
-        // ========================================
-        WriteLn('6️⃣  GET /api/posts/{slug} - Route param binding (String)');
+        WriteLn('6. GET /api/posts/{slug}');
         TApplicationBuilderExtensions.MapGet<string, IHttpContext>(
           App,
           '/api/posts/{slug}',
           procedure(Slug: string; Ctx: IHttpContext)
           begin
-            WriteLn(Format('  → GET Post: %s', [Slug]));
+            WriteLn(Format('  GET Post: %s', [Slug]));
             Ctx.Response.Json(Format('{"slug":"%s","title":"Post about %s"}', [Slug, Slug]));
           end
         );
 
-        // ========================================
-        // 7️⃣ GET with Context (traditional) -> Results
-        // ========================================
-        WriteLn('7️⃣  GET /api/health - Results.Ok');
+        WriteLn('7. GET /api/health');
         TApplicationBuilderExtensions.MapGetR<IResult>(
           App,
           '/api/health',
           function: IResult
           begin
-            WriteLn('  → Health check');
+            WriteLn('  Health check');
             Result := Results.Ok('{"status":"healthy","timestamp":"' + 
               DateTimeToStr(Now) + '"}');
           end
         );
 
-        WriteLn;
-        WriteLn('✅ All routes configured successfully!');
-        WriteLn;
+        WriteLn('8. GET /api/cached');
+        TApplicationBuilderExtensions.MapGetR<IResult>(
+          App,
+          '/api/cached',
+          function: IResult
+          begin
+            WriteLn('  Generating fresh response for /api/cached');
+            Result := Results.Ok(Format('{"time":"%s","message":"This response is cached for 10s"}', 
+              [DateTimeToStr(Now)]));
+          end
+        );
+        
+        WriteLn('9. GET /api/error (Test Exception Handling)');
+        TApplicationBuilderExtensions.MapGetR<IResult>(
+          App,
+          '/api/error',
+          function: IResult
+          begin
+            raise Exception.Create('This is a test exception to verify the Exception Handler Middleware');
+          end
+        );
       end)
       .Build;
 
-    WriteLn('═══════════════════════════════════════════');
-    WriteLn('🌐 Server running on http://localhost:8080');
-    WriteLn('═══════════════════════════════════════════');
+    WriteLn('===========================================');
+    WriteLn('Server running on http://localhost:8080');
+    WriteLn('===========================================');
     WriteLn;
-    WriteLn('📝 Test Commands:');
+    WriteLn('Test Commands:');
     WriteLn;
-    WriteLn('# 1. GET with route param (Integer)');
     WriteLn('curl http://localhost:8080/api/users/123');
-    WriteLn;
-    WriteLn('# 2. GET with route param + service');
     WriteLn('curl http://localhost:8080/api/users/456/name');
-    WriteLn;
-    WriteLn('# 3. POST with body (VALID)');
-    WriteLn('curl -X POST http://localhost:8080/api/users ^');
-    WriteLn('  -H "Content-Type: application/json" ^');
-    WriteLn('  -d "{\"name\":\"John Doe\",\"email\":\"john@example.com\",\"age\":30}"');
-    WriteLn;
-    WriteLn('# 3b. POST with body (INVALID - will fail validation)');
-    WriteLn('curl -X POST http://localhost:8080/api/users ^');
-    WriteLn('  -H "Content-Type: application/json" ^');
-    WriteLn('  -d "{\"name\":\"Jo\",\"email\":\"invalid-email\",\"age\":15}"');
-    WriteLn;
-    WriteLn('# 4. PUT with route param + body');
-    WriteLn('curl -X PUT http://localhost:8080/api/users/789 ^');
-    WriteLn('  -H "Content-Type: application/json" ^');
-    WriteLn('  -d "{\"name\":\"Jane Smith\",\"email\":\"jane@example.com\"}"');
-    WriteLn;
-    WriteLn('# 5. DELETE with route param + service');
+    WriteLn('curl -X POST http://localhost:8080/api/users -H "Content-Type: application/json" -d "{\"name\":\"John Doe\",\"email\":\"john@example.com\",\"age\":30}"');
+    WriteLn('curl -X PUT http://localhost:8080/api/users/789 -H "Content-Type: application/json" -d "{\"name\":\"Jane Smith\",\"email\":\"jane@example.com\"}"');
     WriteLn('curl -X DELETE http://localhost:8080/api/users/999');
-    WriteLn;
-    WriteLn('# 6. GET with string route param');
     WriteLn('curl http://localhost:8080/api/posts/hello-world');
-    WriteLn;
-    WriteLn('# 7. Health check');
     WriteLn('curl http://localhost:8080/api/health');
+    WriteLn('curl -v http://localhost:8080/api/cached');
+    WriteLn('curl -v http://localhost:8080/api/error');
     WriteLn;
-    WriteLn('═══════════════════════════════════════════');
     WriteLn('Press Enter to stop the server...');
     WriteLn;
 
@@ -277,12 +268,12 @@ begin
     Host.Stop;
 
     WriteLn;
-    WriteLn('✅ Server stopped successfully');
+    WriteLn('Server stopped successfully');
 
   except
     on E: Exception do
     begin
-      WriteLn('❌ Error: ', E.Message);
+      WriteLn('Error: ', E.Message);
       WriteLn('Press Enter to exit...');
       Readln;
     end;

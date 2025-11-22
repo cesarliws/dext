@@ -40,11 +40,12 @@ type
   TServiceProviderExtensions = class
   public
     // Para classes
-//    class function GetService<T: class>(const AProvider: IServiceProvider): T; overload; static;
-//    class function GetRequiredService<T: class>(const AProvider: IServiceProvider): T; overload; static;
+    // Para classes
+    class function GetServiceObject<T: class>(const AProvider: IServiceProvider): T; overload; static;
+    class function GetRequiredServiceObject<T: class>(const AProvider: IServiceProvider): T; overload; static;
 
     // Para interfaces
-    class function GetService<T: IInterface>(const AProvider: IServiceProvider): T;overload; static;
+    class function GetService<T: IInterface>(const AProvider: IServiceProvider): T; overload; static;
     class function GetRequiredService<T: IInterface>(const AProvider: IServiceProvider): T; overload; static;
   end;
 
@@ -108,6 +109,24 @@ begin
   Guid := GetTypeData(TypeInfo(TService))^.Guid;
   Result := ACollection.AddScoped(
     TServiceType.FromInterface(Guid), TImplementation, AFactory);
+end;
+
+// Para classes
+class function TServiceProviderExtensions.GetServiceObject<T>(
+  const AProvider: IServiceProvider): T;
+begin
+  Result := T(AProvider.GetService(TServiceType.FromClass(TypeInfo(T))));
+end;
+
+class function TServiceProviderExtensions.GetRequiredServiceObject<T>(
+  const AProvider: IServiceProvider): T;
+var
+  Obj: TObject;
+begin
+  Obj := AProvider.GetService(TServiceType.FromClass(TypeInfo(T)));
+  if Obj = nil then
+    raise EDextDIException.Create('Service not registered: ' + string(PTypeInfo(TypeInfo(T))^.Name));
+  Result := T(Obj);
 end;
 
 // Para interfaces

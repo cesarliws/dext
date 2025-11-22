@@ -39,7 +39,7 @@ type
     FPassword: string;
     FDatabase: Integer;
     // FRedisClient: TRedisClient;  // Placeholder for actual Redis client
-    
+  protected
     function GetRedisKey(const AKey: string): string;
   public
     constructor Create(const AHost: string = 'localhost'; APort: Integer = 6379; 

@@ -45,23 +45,25 @@ type
 
   IHttpResponse = interface
     ['{D4F9E2A1-5B8C-4D3A-8E7B-6F5A2D1C9E8F}']
+    function GetStatusCode: Integer;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure Write(const AContent: string);
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
-    property StatusCode: Integer write SetStatusCode;
+    property StatusCode: Integer read GetStatusCode write SetStatusCode;
   end;
 
   IHttpContext = interface
     ['{E5F8D2C1-9A4E-4B7D-8C3B-6F5A1D2E8C9F}']
     function GetRequest: IHttpRequest;
     function GetResponse: IHttpResponse;
+    procedure SetResponse(const AValue: IHttpResponse);
     function GetServices: IServiceProvider;
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
     property Request: IHttpRequest read GetRequest;
-    property Response: IHttpResponse read GetResponse;
+    property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
   end;

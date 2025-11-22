@@ -62,7 +62,8 @@ implementation
 
 uses
   System.Rtti,
-  System.TypInfo;
+  System.TypInfo,
+  Dext.Core.Activator;
 
 { TServiceDescriptor }
 
@@ -180,8 +181,8 @@ begin
   if Assigned(ADescriptor.Factory) then
     Result := ADescriptor.Factory(Self)
   else
-    // Resolução simples por construtor padrão
-    Result := ADescriptor.ImplementationClass.Create;
+    // Resolução via TActivator (suporta injeção de dependência no construtor)
+    Result := TActivator.CreateInstance(Self, ADescriptor.ImplementationClass, []);
 end;
 
 function TDextServiceProvider.GetService(const AServiceType: TServiceType): TObject;

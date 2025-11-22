@@ -58,6 +58,9 @@
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <SanitizedProjectName>Dext_Core</SanitizedProjectName>
+        <DCC_RunTimeTypeInfo>true</DCC_RunTimeTypeInfo>
+        <VerInfo_Locale>1046</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
@@ -86,6 +89,8 @@
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -102,34 +107,49 @@
         <DCCReference Include="IndyProtocols.dcp"/>
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="TextEditor.Delphi.Runtime.dcp"/>
-        <DCCReference Include="Dext.DI.Interfaces.pas"/>
-        <DCCReference Include="Dext.DI.Core.pas"/>
-        <DCCReference Include="Dext.Http.Interfaces.pas"/>
-        <DCCReference Include="Dext.Http.Indy.Server.pas"/>
-        <DCCReference Include="Dext.DI.Extensions.pas"/>
-        <DCCReference Include="Dext.DI.Comparers.pas"/>
-        <DCCReference Include="Dext.Http.Core.pas"/>
-        <DCCReference Include="Dext.Http.Middleware.pas"/>
-        <DCCReference Include="Dext.Http.Indy.pas"/>
-        <DCCReference Include="Dext.WebHost.pas"/>
-        <DCCReference Include="Dext.Http.Pipeline.pas"/>
-        <DCCReference Include="Dext.Http.Injection.pas"/>
-        <DCCReference Include="Dext.Http.Routing.pas"/>
-        <DCCReference Include="Dext.Http.Cors.pas"/>
-        <DCCReference Include="Dext.Http.RoutingMiddleware.pas"/>
-        <DCCReference Include="Dext.Utils.pas"/>
-        <DCCReference Include="Dext.Json.pas"/>
-        <DCCReference Include="Drivers\JsonDataObjects.pas"/>
-        <DCCReference Include="Dext.Core.ModelBinding.pas"/>
-        <DCCReference Include="Dext.Core.ModelBinding.Extensions.pas"/>
-        <DCCReference Include="Dext.Core.Routing.pas"/>
-        <DCCReference Include="Dext.Core.WebApplication.pas"/>
-        <DCCReference Include="Dext.Core.ControllerScanner.pas"/>
-        <DCCReference Include="Dext.Core.Controllers.pas"/>
-        <DCCReference Include="Dext.Core.HandlerInvoker.pas"/>
         <DCCReference Include="Drivers\Dext.Json.Driver.JsonDataObjects.pas"/>
         <DCCReference Include="Drivers\Dext.Json.Driver.SystemJson.pas"/>
+        <DCCReference Include="Drivers\JsonDataObjects.pas"/>
+        <DCCReference Include="Dext.Auth.Attributes.pas"/>
+        <DCCReference Include="Dext.Auth.Identity.pas"/>
+        <DCCReference Include="Dext.Auth.JWT.pas"/>
+        <DCCReference Include="Dext.Auth.Middleware.pas"/>
+        <DCCReference Include="Dext.Caching.pas"/>
+        <DCCReference Include="Dext.Caching.Redis.pas"/>
+        <DCCReference Include="Dext.Core.ApplicationBuilder.Extensions.pas"/>
+        <DCCReference Include="Dext.Core.Controllers.pas"/>
+        <DCCReference Include="Dext.Core.ControllerScanner.pas"/>
+        <DCCReference Include="Dext.Core.HandlerInvoker.pas"/>
+        <DCCReference Include="Dext.Core.ModelBinding.Extensions.pas"/>
+        <DCCReference Include="Dext.Core.ModelBinding.pas"/>
+        <DCCReference Include="Dext.Core.Routing.pas"/>
+        <DCCReference Include="Dext.Core.WebApplication.pas"/>
+        <DCCReference Include="Dext.DI.Comparers.pas"/>
+        <DCCReference Include="Dext.DI.Core.pas"/>
+        <DCCReference Include="Dext.DI.Extensions.pas"/>
+        <DCCReference Include="Dext.DI.Interfaces.pas"/>
+        <DCCReference Include="Dext.Http.Core.pas"/>
+        <DCCReference Include="Dext.Http.Cors.pas"/>
+        <DCCReference Include="Dext.Http.Indy.pas"/>
+        <DCCReference Include="Dext.Http.Indy.Server.pas"/>
+        <DCCReference Include="Dext.Http.Injection.pas"/>
+        <DCCReference Include="Dext.Http.Interfaces.pas"/>
+        <DCCReference Include="Dext.Http.Middleware.Extensions.pas"/>
+        <DCCReference Include="Dext.Http.Middleware.pas"/>
+        <DCCReference Include="Dext.Http.Pipeline.pas"/>
+        <DCCReference Include="Dext.Http.Results.pas"/>
+        <DCCReference Include="Dext.Http.Routing.pas"/>
+        <DCCReference Include="Dext.Http.RoutingMiddleware.pas"/>
+        <DCCReference Include="Dext.Json.pas"/>
         <DCCReference Include="Dext.Json.Types.pas"/>
+        <DCCReference Include="Dext.Logging.Console.pas"/>
+        <DCCReference Include="Dext.Logging.Extensions.pas"/>
+        <DCCReference Include="Dext.Logging.pas"/>
+        <DCCReference Include="Dext.RateLimiting.pas"/>
+        <DCCReference Include="Dext.Utils.pas"/>
+        <DCCReference Include="Dext.Validation.pas"/>
+        <DCCReference Include="Dext.WebHost.pas"/>
+        <DCCReference Include="Dext.Core.Activator.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -150,6 +170,10 @@
                 <Source>
                     <Source Name="MainSource">Dext.Core.dpk</Source>
                 </Source>
+                <Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k370.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp370.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                </Excluded_Packages>
             </Delphi.Personality>
             <Deployment Version="5">
                 <DeployFile LocalName="$(BDS)\Redist\iossimulator\libcgunwind.1.0.dylib" Class="DependencyModule">

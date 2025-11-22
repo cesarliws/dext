@@ -1,4 +1,4 @@
-unit Dext.Caching;
+﻿unit Dext.Caching;
 
 interface
 
@@ -112,6 +112,28 @@ type
   end;
 
   /// <summary>
+  ///   Wrapper for capturing response body for caching purposes.
+  /// </summary>
+  TResponseCaptureWrapper = class(TInterfacedObject, IHttpResponse)
+  private
+    FOriginal: IHttpResponse;
+    FBodyBuffer: TStringBuilder;
+  public
+    constructor Create(AOriginal: IHttpResponse);
+    destructor Destroy; override;
+    
+    // IHttpResponse
+    procedure SetStatusCode(AValue: Integer);
+    procedure SetContentType(const AValue: string);
+    procedure Write(const AContent: string);
+    procedure Json(const AJson: string);
+    procedure AddHeader(const AName, AValue: string);
+
+    function GetCapturedBody: string;
+    function GetStatusCode: Integer;
+  end;
+
+  /// <summary>
   ///   Middleware that caches HTTP responses.
   /// </summary>
   TResponseCacheMiddleware = class(TMiddleware)
@@ -122,7 +144,7 @@ type
     function GenerateCacheKey(AContext: IHttpContext): string;
     function IsCacheable(AContext: IHttpContext): Boolean;
     function TryServeFromCache(AContext: IHttpContext; const AKey: string): Boolean;
-    procedure CacheResponse(AContext: IHttpContext; const AKey: string);
+    procedure CacheResponse(AContext: IHttpContext; const AKey: string; AWrapper: TResponseCaptureWrapper);
   public
     constructor Create(const AOptions: TResponseCacheOptions);
     destructor Destroy; override;
@@ -454,16 +476,108 @@ begin
   if TryServeFromCache(AContext, CacheKey) then
     Exit; // response already written, stop pipeline
 
-  // MISS – add cache‑control headers and continue processing
+  // MISS – add cache‑control headers
   AContext.Response.AddHeader('X-Cache', 'MISS');
   AContext.Response.AddHeader('Cache-Control',
     Format('public, max-age=%d', [FOptions.DefaultDuration]));
-  ANext(AContext);
 
-  // Store a placeholder value in the cache (real body capture to be added later)
-  FStore.SetValue(CacheKey, '{"cached":true}', FOptions.DefaultDuration);
+  // Wrap the response to capture the body
+  var OriginalResponse := AContext.Response;
+  var Wrapper := TResponseCaptureWrapper.Create(OriginalResponse);
+  AContext.Response := Wrapper;
+  
+  try
+    // Continue pipeline
+    ANext(AContext);
+    
+    // Cache the captured response
+    CacheResponse(AContext, CacheKey, Wrapper);
+  finally
+    // Restore original response (optional but good practice)
+    AContext.Response := OriginalResponse;
+  end;
 end;
 
+function TResponseCacheMiddleware.TryServeFromCache(AContext: IHttpContext; const AKey: string): Boolean;
+var
+  CachedValue: string;
+begin
+  if FStore.TryGet(AKey, CachedValue) then
+  begin
+    AContext.Response.AddHeader('X-Cache', 'HIT');
+    // Simple detection of JSON vs Text
+    if CachedValue.StartsWith('{') or CachedValue.StartsWith('[') then
+      AContext.Response.Json(CachedValue)
+    else
+      AContext.Response.Write(CachedValue);
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+procedure TResponseCacheMiddleware.CacheResponse(AContext: IHttpContext; const AKey: string; AWrapper: TResponseCaptureWrapper);
+begin
+  // Store the captured body in the cache
+  var Body := AWrapper.GetCapturedBody;
+  if not Body.IsEmpty then
+  begin
+    FStore.SetValue(AKey, Body, FOptions.DefaultDuration);
+  end;
+end;
+
+{ TResponseCaptureWrapper }
+
+constructor TResponseCaptureWrapper.Create(AOriginal: IHttpResponse);
+begin
+  inherited Create;
+  FOriginal := AOriginal;
+  FBodyBuffer := TStringBuilder.Create;
+end;
+
+destructor TResponseCaptureWrapper.Destroy;
+begin
+  FBodyBuffer.Free;
+  inherited;
+end;
+
+procedure TResponseCaptureWrapper.SetStatusCode(AValue: Integer);
+begin
+  FOriginal.StatusCode := AValue;
+end;
+
+procedure TResponseCaptureWrapper.SetContentType(const AValue: string);
+begin
+  FOriginal.SetContentType(AValue);
+end;
+
+procedure TResponseCaptureWrapper.Write(const AContent: string);
+begin
+  FBodyBuffer.Append(AContent);
+  FOriginal.Write(AContent);
+end;
+
+procedure TResponseCaptureWrapper.Json(const AJson: string);
+begin
+  FBodyBuffer.Append(AJson);
+  FOriginal.Json(AJson);
+end;
+
+procedure TResponseCaptureWrapper.AddHeader(const AName, AValue: string);
+begin
+  FOriginal.AddHeader(AName, AValue);
+end;
+
+function TResponseCaptureWrapper.GetCapturedBody: string;
+begin
+  Result := FBodyBuffer.ToString;
+end;
+
+
+function TResponseCaptureWrapper.GetStatusCode: Integer;
+begin
+  Result := FOriginal.StatusCode;
+end;
 
 { TResponseCacheBuilder }
 
