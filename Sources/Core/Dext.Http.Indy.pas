@@ -34,6 +34,7 @@ type
     FResponseInfo: TIdHTTPResponseInfo;
   public
     constructor Create(AResponseInfo: TIdHTTPResponseInfo);
+    function Status(AValue: Integer): IHttpResponse;
     function GetStatusCode: Integer;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
@@ -189,6 +190,12 @@ end;
 procedure TIndyHttpResponse.SetStatusCode(AValue: Integer);
 begin
   FResponseInfo.ResponseNo := AValue;
+end;
+
+function TIndyHttpResponse.Status(AValue: Integer): IHttpResponse;
+begin
+  SetStatusCode(AValue);
+  Result := Self;
 end;
 
 procedure TIndyHttpResponse.SetContentType(const AValue: string);

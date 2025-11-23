@@ -3,6 +3,7 @@
 interface
 
 uses
+  Dext.Core.ControllerScanner,
   Dext.DI.Interfaces,
   Dext.Http.Interfaces;
 
@@ -12,6 +13,7 @@ type
     FServices: IServiceCollection;
     FServiceProvider: IServiceProvider;
     FAppBuilder: IApplicationBuilder;
+    FScanner: IControllerScanner;
   public
     constructor Create;
     destructor Destroy; override;
@@ -29,7 +31,6 @@ type
 implementation
 
 uses
-  Dext.Core.ControllerScanner,
   Dext.DI.Core, // ✅ Para TDextServiceCollection
   Dext.Http.Core,
   Dext.Http.Indy.Server; // ✅ Para TIndyWebServer
@@ -59,41 +60,22 @@ begin
   Result := FServices;
 end;
 
-//function TDextApplication.MapControllers: IWebApplication;
-//var
-//  Scanner: IControllerScanner;
-//  RouteCount: Integer;
-//begin
-//  WriteLn('🔍 Scanning for controllers...');
-//
-//  Scanner := TControllerScanner.Create(FServiceProvider);
-//  RouteCount := Scanner.RegisterRoutes(FAppBuilder);
-//
-//  if RouteCount > 0 then
-//    WriteLn('✅ Auto-mapped ', RouteCount, ' routes from controllers')
-//  else
-//    WriteLn('⚠️  No controllers found with routing attributes');
-//
-//  Result := Self;
-//end;
-
 function TDextApplication.MapControllers: IWebApplication;
 var
-  Scanner: IControllerScanner;
   RouteCount: Integer;
 begin
   WriteLn('🔍 Scanning for controllers...');
 
   // ✅ CRITICAL: Rebuild ServiceProvider to include controllers registered via AddControllers
   FServiceProvider := FServices.BuildServiceProvider;
-  
-  Scanner := TControllerScanner.Create(FServiceProvider);
-  RouteCount := Scanner.RegisterRoutes(FAppBuilder);
+
+  FScanner := TControllerScanner.Create(FServiceProvider);
+  RouteCount := FScanner.RegisterRoutes(FAppBuilder);
 
   if RouteCount = 0 then
   begin
     WriteLn('⚠️  No controllers found with routing attributes - using manual fallback');
-    Scanner.RegisterControllerManual(FAppBuilder);
+    FScanner.RegisterControllerManual(FAppBuilder);
   end
   else
     WriteLn('✅ Auto-mapped ', RouteCount, ' routes from controllers');

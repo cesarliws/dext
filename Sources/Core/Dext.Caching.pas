@@ -123,6 +123,7 @@ type
     destructor Destroy; override;
     
     // IHttpResponse
+    function Status(AValue: Integer): IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure Write(const AContent: string);
@@ -544,6 +545,12 @@ end;
 procedure TResponseCaptureWrapper.SetStatusCode(AValue: Integer);
 begin
   FOriginal.StatusCode := AValue;
+end;
+
+function TResponseCaptureWrapper.Status(AValue: Integer): IHttpResponse;
+begin
+  SetStatusCode(AValue);
+  Result := Self;
 end;
 
 procedure TResponseCaptureWrapper.SetContentType(const AValue: string);

@@ -27,9 +27,18 @@ type
     ControllerAttribute: DextControllerAttribute;
   end;
 
+  // Novo tipo para cache de métodos
+  TCachedMethod = record
+    TypeName: string;
+    MethodName: string;
+    IsClass: Boolean;
+    FullPath: string;
+    HttpMethod: string;
+  end;
+
   IControllerScanner = interface
     function FindControllers: TArray<TControllerInfo>;
-    procedure RegisterServices(Services: IServiceCollection); // New method
+    procedure RegisterServices(Services: IServiceCollection);
     function RegisterRoutes(AppBuilder: IApplicationBuilder): Integer;
     procedure RegisterControllerManual(AppBuilder: IApplicationBuilder);
   end;
@@ -38,8 +47,11 @@ type
   private
     FCtx: TRttiContext;
     FServiceProvider: IServiceProvider;
+    FCachedMethods: TList<TCachedMethod>;
+    procedure ExecuteCachedMethod(Context: IHttpContext; const CachedMethod: TCachedMethod);
   public
     constructor Create(AServiceProvider: IServiceProvider);
+    destructor Destroy; override;
     function FindControllers: TArray<TControllerInfo>;
     procedure RegisterServices(Services: IServiceCollection);
     function RegisterRoutes(AppBuilder: IApplicationBuilder): Integer;
@@ -59,6 +71,7 @@ begin
   inherited Create;
   FCtx := TRttiContext.Create;
   FServiceProvider := AServiceProvider;
+  FCachedMethods := TList<TCachedMethod>.Create;
 end;
 
 //function TControllerScanner.FindControllers: TArray<TControllerInfo>;
@@ -174,7 +187,7 @@ begin
             // ✅ APENAS MÉTODOS ESTÁTICOS (para records) ou PÚBLICOS (para classes)
             if (RttiType.TypeKind = tkRecord) and (not Method.IsStatic) then
               Continue;
-            
+
             // Para classes, aceitamos métodos de instância
             if (RttiType.TypeKind = tkClass) and (Method.Visibility <> mvPublic) and (Method.Visibility <> mvPublished) then
                Continue;
@@ -241,7 +254,7 @@ var
 begin
   Controllers := FindControllers;
   WriteLn('🔧 Registering ', Length(Controllers), ' controllers in DI...');
-  
+
   for Controller in Controllers do
   begin
     if Controller.RttiType.TypeKind = tkClass then
@@ -266,6 +279,7 @@ begin
 
   WriteLn('🔍 Found ', Length(Controllers), ' controllers:');
 
+  // ✅ CACHE DE MÉTODOS PARA EVITAR PROBLEMAS DE REFERÊNCIA RTTI
   for Controller in Controllers do
   begin
     // ✅ CALCULAR PREFIXO DO CONTROLLER
@@ -297,40 +311,42 @@ begin
         Continue;
       end;
 
-      // ✅ REGISTRAR ROTA NO APPLICATION BUILDER
-      // Usamos MapEndpoint para registrar explicitamente o método HTTP correto
+      // ✅ CRIAR CACHE DO MÉTODO
+      var CachedMethod: TCachedMethod;
+      CachedMethod.TypeName := Controller.RttiType.QualifiedName;
+      CachedMethod.MethodName := ControllerMethod.Method.Name;
+      CachedMethod.IsClass := (Controller.RttiType.TypeKind = tkClass);
+      CachedMethod.FullPath := FullPath;
+      CachedMethod.HttpMethod := ControllerMethod.HttpMethod;
+      FCachedMethods.Add(CachedMethod);
+
+      // ✅ REGISTRAR ROTA USANDO CACHE (EVITA PROBLEMAS DE REFERÊNCIA RTTI)
       AppBuilder.MapEndpoint(ControllerMethod.HttpMethod, FullPath,
         procedure(Context: IHttpContext)
         begin
-          // Capturar variáveis para o closure
-          var ControllerType := Controller.RttiType;
-          var TargetMethod := ControllerMethod.Method;
+          // Buscar o método cacheado correspondente
+          var FoundCachedMethod: TCachedMethod;
+          var Found := False;
 
-          // Se for classe, resolver instância e invocar
-          if ControllerType.TypeKind = tkClass then
+          for var Cached in FCachedMethods do
           begin
-            var ControllerInstance := Context.GetServices.GetService(
-              TServiceType.FromClass(ControllerType.AsInstance.MetaclassType));
-              
-            if ControllerInstance = nil then
-              raise Exception.CreateFmt('Controller %s not found in DI container', [ControllerType.Name]);
-              
-            var Binder: IModelBinder := TModelBinder.Create;
-            var Invoker := THandlerInvoker.Create(Context, Binder);
-            try
-              Invoker.InvokeAction(ControllerInstance, TargetMethod);
-            finally
-              Invoker.Free;
-              Binder := nil; // Interface managed
-              // ControllerInstance lifecycle managed by DI (Transient/Scoped)
+            if (Cached.FullPath = FullPath) and (Cached.HttpMethod = ControllerMethod.HttpMethod) then
+            begin
+              FoundCachedMethod := Cached;
+              Found := True;
+              Break;
             end;
-          end
-          else
-          begin
-            // Fallback para records estáticos (apenas log por enquanto, ou implementar InvokeStatic)
-            Context.Response.Json(Format('{"message": "Auto-route: %s (%s) - Static Record not fully supported yet"}',
-              [FullPath, ControllerMethod.HttpMethod]));
           end;
+
+          if Found then
+            ExecuteCachedMethod(Context, FoundCachedMethod)
+          else
+           // Context.Response.Status(500).Json('{"error": "Cached method not found"}');
+        begin
+          // Fallback para records estáticos (apenas log por enquanto, ou implementar InvokeStatic)
+          Context.Response.Json(Format('{"message": "Auto-route: %s (%s) - Static Record not fully supported yet"}',
+            [FullPath, ControllerMethod.HttpMethod]));
+        end;
         end);
 
       // ✅ PROCESSAR ATRIBUTOS DE SEGURANÇA (SwaggerAuthorize)
@@ -381,8 +397,8 @@ begin
             if Length(OpAttr.Tags) > 0 then Metadata.Tags := OpAttr.Tags;
             Updated := True;
           end;
-          // Note: SwaggerResponseAttribute would require extending TEndpointMetadata to support custom responses
-          // For now, we only support default 200 OK response generation
+        // Note: SwaggerResponseAttribute would require extending TEndpointMetadata to support custom responses
+        // For now, we only support default 200 OK response generation
         end;
 
         if Updated then
@@ -394,9 +410,100 @@ begin
   end;
 
   WriteLn('✅ Registered ', Result, ' auto-routes');
+  WriteLn('💾 Cached ', FCachedMethods.Count, ' methods for runtime execution');
 end;
 
-// No TControllerScanner, adicionar método para registro manual
+destructor TControllerScanner.Destroy;
+begin
+  FCachedMethods.Free;
+  inherited;
+end;
+
+procedure TControllerScanner.ExecuteCachedMethod(Context: IHttpContext; const CachedMethod: TCachedMethod);
+var
+  Ctx: TRttiContext;
+  ControllerType: TRttiType;
+  Method: TRttiMethod;
+  ControllerInstance: TObject;
+begin
+  WriteLn('🔄 Executing cached method: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+
+  Ctx := TRttiContext.Create;
+  try
+    // ✅ RE-OBTER O TIPO EM TEMPO DE EXECUÇÃO
+    ControllerType := Ctx.FindType(CachedMethod.TypeName);
+    if ControllerType = nil then
+    begin
+      WriteLn('❌ Controller type not found: ', CachedMethod.TypeName);
+      Context.Response.Status(500).Json(Format('{"error": "Controller type not found: %s"}', [CachedMethod.TypeName]));
+      Exit;
+    end;
+
+    // ✅ ENCONTRAR O MÉTODO EM TEMPO DE EXECUÇÃO
+    Method := nil;
+    for var M in ControllerType.GetMethods do
+    begin
+      if M.Name = CachedMethod.MethodName then
+      begin
+        Method := M;
+        Break;
+      end;
+    end;
+
+    if Method = nil then
+    begin
+      WriteLn('❌ Method not found: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+      Context.Response.Status(500).Json(Format('{"error": "Method not found: %s.%s"}', [CachedMethod.TypeName, CachedMethod.MethodName]));
+      Exit;
+    end;
+
+     WriteLn('✅ Found method: ', Method.Name, ' with ', Length(Method.GetParameters), ' parameters');
+
+    // ✅ EXECUTAR CONFORME O TIPO (CLASSE OU RECORD)
+    if CachedMethod.IsClass then
+    begin
+      // ✅ RESOLVER INSTÂNCIA VIA DI
+      ControllerInstance := Context.GetServices.GetService(
+        TServiceType.FromClass(ControllerType.AsInstance.MetaclassType));
+
+      if ControllerInstance = nil then
+      begin
+        WriteLn('❌ Controller instance not found: ', CachedMethod.TypeName);
+        Context.Response.Status(500).Json(Format('{"error": "Controller instance not found: %s"}', [CachedMethod.TypeName]));
+        Exit;
+      end;
+
+      WriteLn('✅ Controller instance resolved: ', ControllerInstance.ClassName);
+
+      // ✅ INVOCAR O MÉTODO
+      var Binder: IModelBinder := TModelBinder.Create;
+      var Invoker := THandlerInvoker.Create(Context, Binder);
+      try
+        Invoker.InvokeAction(ControllerInstance, Method);
+        WriteLn('✅ Method invoked successfully: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+      finally
+        Invoker.Free;
+        Binder := nil;
+      end;
+    end
+    else
+    begin
+      // ✅ RECORDS ESTÁTICOS (implementação futura)
+      WriteLn('📝 Static record method - not fully implemented yet');
+      Context.Response.Json(Format('{"message": "Auto-route: %s (%s) - Static Record"}',
+        [CachedMethod.FullPath, CachedMethod.HttpMethod]));
+    end;
+
+  except
+    on E: Exception do
+    begin
+      WriteLn('❌ Error executing cached method ', CachedMethod.TypeName, '.', CachedMethod.MethodName, ': ', E.ClassName, ': ', E.Message);
+      Context.Response.Status(500).Json(Format('{"error": "Execution failed: %s"}', [E.Message]));
+    end;
+  end;
+end;
+
+// Mantenha o método RegisterControllerManual existente...
 procedure TControllerScanner.RegisterControllerManual(AppBuilder: IApplicationBuilder);
 begin
   WriteLn('🔧 Registering TTaskHandlers manually...');
@@ -462,6 +569,5 @@ begin
         end);
   end;
 end;
-
 
 end.

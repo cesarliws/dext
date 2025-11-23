@@ -27,13 +27,13 @@ type
   // Controller Class (Instance-based with DI)
   [DextController('/api/greet')]
   {$METHODINFO ON}
-  TGreetingController = class{(TPersistent)}
+  TGreetingController = class(TPersistent)
   private
     FService: IGreetingService;
   public
     // Constructor Injection!
     constructor Create(AService: IGreetingService);
-
+  published
     [DextGet('/{name}')]
     procedure GetGreeting(Ctx: IHttpContext; const Name: string); virtual;
   end;
@@ -57,7 +57,7 @@ end;
 procedure TGreetingController.GetGreeting(Ctx: IHttpContext; const Name: string);
 begin
   var Message := FService.GetGreeting(Name);
-  Ctx.Response.Json(Format('{"message": "%s"}', [Message]));
+  Ctx.Response.Json(Format('{"message": "%s" - %s}', [Message, FormatDateTime('hh:nn:ss.zzz', Now)]));
 end;
 
 initialization

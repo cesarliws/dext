@@ -428,20 +428,42 @@ var
   I: Integer;
   Pair: TPair<string, string>;
 begin
-  WriteLn('🔍 InvokeAction (Convention-Based): ', AMethod.Name);
-  
+  // ✅ VERIFICAÇÃO DE SEGURANÇA APRIMORADA
+  if not Assigned(AMethod) then
+  begin
+    WriteLn('❌ AMethod is nil in InvokeAction');
+    FContext.Response.Status(500).Json('{"error": "Internal server error: Method reference lost"}');
+    Exit(False);
+  end;
+
+  try
+    // Testar se o método é válido
+    var MethodName := AMethod.Name;
+    var Parameters := AMethod.GetParameters;
+    var ParamCountCheck := Length(Parameters);
+
+    WriteLn('🔍 InvokeAction: ', MethodName, ' (', ParamCountCheck, ' declared params)');
+  except
+    on E: Exception do
+    begin
+      WriteLn('❌ AMethod is invalid in InvokeAction: ', E.ClassName, ': ', E.Message);
+      FContext.Response.Status(500).Json('{"error": "Internal server error: Invalid method reference"}');
+      Exit(False);
+    end;
+  end;
+
   RouteParams := FContext.Request.RouteParams;
-  
-  // Convention: First param is ALWAYS IHttpContext, rest are route params
+
+  // ✅ CONVENTION: First param is ALWAYS IHttpContext, rest are route params
   ParamCount := 1 + RouteParams.Count;
   SetLength(Args, ParamCount);
-  
+
   WriteLn('  Building ', ParamCount, ' arguments (1 context + ', RouteParams.Count, ' route params)');
-  
+
   // Arg 0: Always IHttpContext
   Args[0] := TValue.From<IHttpContext>(FContext);
   WriteLn('  Args[0] = IHttpContext');
-  
+
   // Args 1..N: Route params as strings
   I := 1;
   for Pair in RouteParams do
@@ -450,24 +472,45 @@ begin
     WriteLn('  Args[', I, '] = "', Pair.Value, '" (from route param "', Pair.Key, '")');
     Inc(I);
   end;
-  
+
   WriteLn('🚀 Invoking ', AMethod.Name, ' with ', Length(Args), ' args...');
-  
+
   try
     ResultValue := AMethod.Invoke(AInstance, Args);
-    WriteLn('✅ Method invoked successfully');
+
+    // ✅ LIDAR COM PROCEDURES (SEM RETORNO)
+    if ResultValue.IsEmpty then
+    begin
+      WriteLn('✅ Procedure invoked successfully (no return value)');
+      // Não faz nada - o controller já setou a resposta via Ctx.Response
+    end
+    else
+    begin
+      WriteLn('✅ Function invoked successfully - Has return value');
+
+      // ✅ VERIFICAR SE RETORNOU IResult (APENAS SE NÃO ESTIVER VAZIO)
+      if ResultValue.TryAsType<IResult>(ResIntf) then
+      begin
+        WriteLn('🔄 Executing IResult...');
+        ResIntf.Execute(FContext);
+      end
+      else
+      begin
+        WriteLn('📝 Method returned non-IResult value - Auto-json serialization could be implemented here');
+        // Opcional: Serializar automaticamente o retorno como JSON
+        // FContext.Response.Json(TDextJson.Serialize(ResultValue));
+      end;
+    end;
+
   except
     on E: Exception do
     begin
       WriteLn('❌ Invoke failed: ', E.ClassName, ': ', E.Message);
-      raise;
+      FContext.Response.Status(500).Json(Format('{"error": "Method invocation failed: %s"}', [E.Message]));
+      Exit(False);
     end;
   end;
-  
-  // Handle IResult return
-  if ResultValue.TryAsType<IResult>(ResIntf) then
-    ResIntf.Execute(FContext);
-    
+
   Result := True;
 end;
 

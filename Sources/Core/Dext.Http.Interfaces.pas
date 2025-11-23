@@ -56,6 +56,7 @@ type
   IHttpResponse = interface
     ['{D4F9E2A1-5B8C-4D3A-8E7B-6F5A2D1C9E8F}']
     function GetStatusCode: Integer;
+    function Status(AValue: Integer): IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure Write(const AContent: string);
