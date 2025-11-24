@@ -238,6 +238,11 @@ type
     ///   Serializes a value of type T into a JSON string using custom settings.
     /// </summary>
     class function Serialize<T>(const AValue: T; const ASettings: TDextSettings): string; overload; static;
+
+    /// <summary>
+    ///   Serializes a TValue into a JSON string using default settings.
+    /// </summary>
+    class function Serialize(const AValue: TValue): string; overload; static;
   end;
 
   /// <summary>
@@ -271,7 +276,8 @@ type
     constructor Create(const ASettings: TDextSettings);
     function Deserialize<T>(const AJson: string): T;
     function DeserializeRecord(AJson: IDextJsonObject; AType: PTypeInfo): TValue;
-    function Serialize<T>(const AValue: T): string;
+    function Serialize<T>(const AValue: T): string; overload;
+    function Serialize(const AValue: TValue): string; overload;
   end;
 
 implementation
@@ -623,6 +629,18 @@ begin
   end;
 end;
 
+class function TDextJson.Serialize(const AValue: TValue): string;
+var
+  Serializer: TDextSerializer;
+begin
+  Serializer := TDextSerializer.Create(TDextSettings.Default);
+  try
+    Result := Serializer.Serialize(AValue);
+  finally
+    Serializer.Free;
+  end;
+end;
+
 { TDextSerializer }
 
 constructor TDextSerializer.Create(const ASettings: TDextSettings);
@@ -883,14 +901,28 @@ begin
   else
     JsonNode := ValueToJson(TValue.From<T>(AValue));
     
-  try
-    if FSettings.Formatting = TDextFormatting.Indented then
-      Result := JsonNode.ToJson(True)
-    else
-      Result := JsonNode.ToJson(False);
-  finally
-    // Interface handles destruction
-  end;
+  if FSettings.Formatting = TDextFormatting.Indented then
+    Result := JsonNode.ToJson(True)
+  else
+    Result := JsonNode.ToJson(False);
+end;
+
+function TDextSerializer.Serialize(const AValue: TValue): string;
+var
+  JsonNode: IDextJsonNode;
+begin
+  // Check if root is array or list
+  if IsArrayType(AValue.TypeInfo) then
+    JsonNode := SerializeArray(AValue)
+  else if IsListType(AValue.TypeInfo) then
+    JsonNode := SerializeList(AValue)
+  else
+    JsonNode := ValueToJson(AValue);
+    
+  if FSettings.Formatting = TDextFormatting.Indented then
+    Result := JsonNode.ToJson(True)
+  else
+    Result := JsonNode.ToJson(False);
 end;
 
 function TDextSerializer.SerializeRecord(const AValue: TValue): IDextJsonObject;

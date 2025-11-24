@@ -135,6 +135,7 @@ type
   TModelBinder = class(TInterfacedObject, IModelBinder)
   private
     function ReadStreamToString(Stream: TStream): string;
+    function ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
   public
     constructor Create;
     destructor Destroy; override;
@@ -315,115 +316,23 @@ begin
         SourceProvider.Free;
       end;
 
-      // Buscar valor do query parameter
-      if QueryParams.IndexOfName(FieldName) >= 0 then
-      begin
-        FieldValue := QueryParams.Values[FieldName];
+        // Buscar valor do query parameter
+        if QueryParams.IndexOfName(FieldName) >= 0 then
+        begin
+          FieldValue := QueryParams.Values[FieldName];
+          // ✅ CORREÇÃO 1: URL Decode
+          FieldValue := TNetEncoding.URL.Decode(FieldValue);
 
-        // ✅ CORREÇÃO 1: URL Decode
-        FieldValue := TNetEncoding.URL.Decode(FieldValue);
-
-        // ✅ CONVERSÃO COM TRATAMENTO DE ERRO
-        try
-          case Field.FieldType.TypeKind of
-            tkInteger:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<Integer>(StrToIntDef(FieldValue, 0)));
-
-            tkInt64:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<Int64>(StrToInt64Def(FieldValue, 0)));
-
-            tkFloat:
-              begin
-                if Field.FieldType.Handle = TypeInfo(TDateTime) then
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.From<TDateTime>(StrToDateTimeDef(FieldValue, 0)))
-                else
-                begin
-                  // ✅ CORREÇÃO 2: Float com locale invariante
-                  var FloatValue: Double;
-                  if TryStrToFloat(FieldValue, FloatValue, TFormatSettings.Invariant) then
-                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(FloatValue))
-                  else
-                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(0));
-                end;
-              end;
-
-            tkString, tkLString, tkWString, tkUString:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<string>(FieldValue));
-
-            tkEnumeration:
-              begin
-                if Field.FieldType.Handle = TypeInfo(Boolean) then
-                begin
-                  // ✅ Boolean melhorado
-                  var BoolValue := SameText(FieldValue, 'true') or
-                                   SameText(FieldValue, '1') or
-                                   SameText(FieldValue, 'yes') or
-                                   SameText(FieldValue, 'on');
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.From<Boolean>(BoolValue));
-                end
-                else
-                begin
-                  // Enum numérico
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.FromOrdinal(Field.FieldType.Handle,
-                      StrToIntDef(FieldValue, 0)));
-                end;
-              end;
-
-            tkRecord:
-              begin
-                // ✅ CORREÇÃO 3: GUID com tratamento robusto
-                if Field.FieldType.Handle = TypeInfo(TGUID) then
-                begin
-                  var GuidValue: TGUID;
-                  var GuidStr := FieldValue.Trim;
-
-                  try
-                    if GuidStr.StartsWith('{') and GuidStr.EndsWith('}') then
-                    begin
-                      // Formato com chaves
-                      GuidValue := StringToGUID(GuidStr);
-                    end
-                    else if GuidStr.Length = 36 then // Formato sem chaves
-                    begin
-                      // Adicionar chaves
-                      GuidValue := StringToGUID('{' + GuidStr + '}');
-                    end
-                    else
-                    begin
-                      // Tentar conversão direta
-                      GuidValue := StringToGUID(GuidStr);
-                    end;
-
-                    Field.SetValue(Result.GetReferenceToRawData,
-                      TValue.From<TGUID>(GuidValue));
-                  except
-                    on E: EConvertError do
-                    begin
-                      // ✅ CORREÇÃO 5: Silenciosamente usar GUID vazio
-                      Field.SetValue(Result.GetReferenceToRawData,
-                        TValue.From<TGUID>(TGUID.Empty));
-                    end;
-                  end;
-                end;
-              end;
-          end; // case
-
-        except
-          on E: Exception do
-          begin
-            Writeln(Format('⚠️ BindQuery warning: Error converting field "%s" value "%s": %s',
-              [FieldName, FieldValue, E.Message]));
-            // Continua com outros campos
+          try
+            var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
+            Field.SetValue(Result.GetReferenceToRawData, Val);
+          except
+            on E: Exception do
+              Writeln(Format('⚠️ BindQuery warning: Error converting field "%s" value "%s": %s',
+                [FieldName, FieldValue, E.Message]));
           end;
-        end; // try
-      end; // if parameter exists
-    end; // for each field
+        end; // if parameter exists
+      end; // for each field
 
   finally
     ContextRtti.Free;
@@ -461,40 +370,7 @@ begin
       end;
       
       try
-        if AType = TypeInfo(TGUID) then
-        begin
-          Result := TValue.From<TGUID>(StringToGUID(SingleParamValue));
-          Exit;
-        end;
-
-        case AType.Kind of
-          tkInteger: Result := TValue.From<Integer>(StrToIntDef(SingleParamValue, 0));
-          tkInt64: Result := TValue.From<Int64>(StrToInt64Def(SingleParamValue, 0));
-          tkFloat: 
-            begin
-              if AType = TypeInfo(TDateTime) then
-                Result := TValue.From<TDateTime>(StrToDateTimeDef(SingleParamValue, 0))
-              else
-              begin
-                var F: Double;
-                if TryStrToFloat(SingleParamValue, F, TFormatSettings.Invariant) then
-                  Result := TValue.From<Double>(F)
-                else
-                  Result := TValue.From<Double>(0);
-              end;
-            end;
-          tkString, tkLString, tkWString, tkUString: Result := TValue.From<string>(SingleParamValue);
-          tkEnumeration:
-            begin
-               if AType = TypeInfo(Boolean) then
-               begin
-                 var B := SameText(SingleParamValue, 'true') or SameText(SingleParamValue, '1') or SameText(SingleParamValue, 'on');
-                 Result := TValue.From<Boolean>(B);
-               end
-               else
-                 Result := TValue.FromOrdinal(AType, StrToIntDef(SingleParamValue, 0));
-            end;
-        end;
+        Result := ConvertStringToType(SingleParamValue, AType);
         Exit;
       except
         on E: Exception do
@@ -532,79 +408,8 @@ begin
 
         // ✅ MESMA CONVERSÃO ROBUSTA DO BINDQUERY
         try
-          case Field.FieldType.TypeKind of
-            tkInteger:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<Integer>(StrToIntDef(FieldValue, 0)));
-
-            tkInt64:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<Int64>(StrToInt64Def(FieldValue, 0)));
-
-            tkFloat:
-              begin
-                if Field.FieldType.Handle = TypeInfo(TDateTime) then
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.From<TDateTime>(StrToDateTimeDef(FieldValue, 0)))
-                else
-                begin
-                  var FloatValue: Double;
-                  if TryStrToFloat(FieldValue, FloatValue, TFormatSettings.Invariant) then
-                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(FloatValue))
-                  else
-                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(0));
-                end;
-              end;
-
-            tkString, tkLString, tkWString, tkUString:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<string>(FieldValue));
-
-            tkEnumeration:
-              begin
-                if Field.FieldType.Handle = TypeInfo(Boolean) then
-                begin
-                  var BoolValue := SameText(FieldValue, 'true') or
-                                   SameText(FieldValue, '1') or
-                                   SameText(FieldValue, 'yes') or
-                                   SameText(FieldValue, 'on');
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.From<Boolean>(BoolValue));
-                end
-                else
-                begin
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.FromOrdinal(Field.FieldType.Handle,
-                      StrToIntDef(FieldValue, 0)));
-                end;
-              end;
-
-            tkRecord:
-              begin
-                if Field.FieldType.Handle = TypeInfo(TGUID) then
-                begin
-                  var GuidValue: TGUID;
-                  var GuidStr := FieldValue.Trim;
-
-                  try
-                    if GuidStr.StartsWith('{') and GuidStr.EndsWith('}') then
-                      GuidValue := StringToGUID(GuidStr)
-                    else if GuidStr.Length = 36 then
-                      GuidValue := StringToGUID('{' + GuidStr + '}')
-                    else
-                      GuidValue := StringToGUID(GuidStr);
-
-                    Field.SetValue(Result.GetReferenceToRawData,
-                      TValue.From<TGUID>(GuidValue));
-                  except
-                    on E: EConvertError do
-                      Field.SetValue(Result.GetReferenceToRawData,
-                        TValue.From<TGUID>(TGUID.Empty));
-                  end;
-                end;
-              end;
-          end; // case
-
+          var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
+          Field.SetValue(Result.GetReferenceToRawData, Val);
         except
           on E: Exception do
           begin
@@ -910,38 +715,38 @@ begin
   WriteLn(Format('    🔍 Binding parameter: %s (Type: %s)',
     [AParam.Name, AParam.ParamType.Name]));
 
-  // ✅ VERIFICAR ATRIBUTOS DE BINDING
+  // 1. IHttpContext
+  if AParam.ParamType.Handle = TypeInfo(IHttpContext) then
+  begin
+    Result := TValue.From<IHttpContext>(AContext);
+    Exit;
+  end;
+
+  // 2. Explicit Attributes
   for Attr in AParam.GetAttributes do
   begin
     if Attr is FromQueryAttribute then
     begin
       ParamName := FromQueryAttribute(Attr).Name;
-      if ParamName = '' then
-        ParamName := AParam.Name;
+      if ParamName = '' then ParamName := AParam.Name;
 
       WriteLn(Format('    📋 FromQuery: %s', [ParamName]));
-
-      // ✅ CORREÇÃO: Usar BindQuery existente
-//      var QueryFilter := TTaskFilter.CreateDefault; // Placeholder - precisamos criar o filtro certo
-//      Result := TValue.From<TTaskFilter>(QueryFilter);
-      // Result := BindQuery(AParam.ParamType.Handle, AContext); // Precisamos implementar isso
+      var QueryParams := AContext.Request.Query;
+      if QueryParams.IndexOfName(ParamName) >= 0 then
+        Result := ConvertStringToType(TNetEncoding.URL.Decode(QueryParams.Values[ParamName]), AParam.ParamType.Handle)
+      else
+        Result := ConvertStringToType('', AParam.ParamType.Handle); // Default
       Exit;
     end
     else if Attr is FromRouteAttribute then
     begin
       ParamName := FromRouteAttribute(Attr).Name;
-      if ParamName = '' then
-        ParamName := AParam.Name;
+      if ParamName = '' then ParamName := AParam.Name;
 
       WriteLn(Format('    🛣️  FromRoute: %s', [ParamName]));
-
-      // ✅ CORREÇÃO: Usar parâmetro de rota
       var RouteParams := AContext.Request.RouteParams;
       if RouteParams.ContainsKey(ParamName) then
-      begin
-        var Value := RouteParams[ParamName];
-        Result := TValue.From<string>(Value); // Placeholder - converter para tipo correto
-      end
+        Result := ConvertStringToType(RouteParams[ParamName], AParam.ParamType.Handle)
       else
         raise EBindingException.CreateFmt('Route parameter not found: %s', [ParamName]);
       Exit;
@@ -961,30 +766,34 @@ begin
     else if Attr is FromHeaderAttribute then
     begin
       ParamName := FromHeaderAttribute(Attr).Name;
-      if ParamName = '' then
-        ParamName := AParam.Name;
+      if ParamName = '' then ParamName := AParam.Name;
 
       WriteLn(Format('    📨 FromHeader: %s', [ParamName]));
-
-      // ✅ CORREÇÃO: Usar BindHeader existente
       var Headers := AContext.Request.Headers;
       if Headers.ContainsKey(LowerCase(ParamName)) then
-      begin
-        var Value := Headers[LowerCase(ParamName)];
-        Result := TValue.From<string>(Value); // Placeholder - converter para tipo correto
-      end;
+        Result := ConvertStringToType(Headers[LowerCase(ParamName)], AParam.ParamType.Handle)
+      else
+        Result := ConvertStringToType('', AParam.ParamType.Handle); // Default
       Exit;
     end;
   end;
 
-  // ✅ SE NÃO TEM ATRIBUTO, TENTAR INFERIR
+  // 3. Inference
   WriteLn('    🤔 No binding attribute - trying inference');
 
-  // Inferir baseado no tipo do parâmetro
   if (AParam.ParamType.TypeKind = tkRecord) then
   begin
-    WriteLn('    📦 Inferring FromBody (record)');
-    Result := BindBody(AParam.ParamType.Handle, AContext);
+    // Smart Binding for Records: GET/DELETE -> Query, Others -> Body
+    if (AContext.Request.Method = 'GET') or (AContext.Request.Method = 'DELETE') then
+    begin
+      WriteLn('    📋 Inferring FromQuery (record, GET/DELETE)');
+      Result := BindQuery(AParam.ParamType.Handle, AContext);
+    end
+    else
+    begin
+      WriteLn('    📦 Inferring FromBody (record, POST/PUT/...)');
+      Result := BindBody(AParam.ParamType.Handle, AContext);
+    end;
   end
   else if (AParam.ParamType.TypeKind = tkInterface) then
   begin
@@ -993,16 +802,23 @@ begin
   end
   else
   begin
-    WriteLn('    📋 Inferring FromQuery (simple type)');
-    // Placeholder - criar valor padrão baseado no tipo
-    case AParam.ParamType.TypeKind of
-      tkInteger: Result := TValue.From<Integer>(0);
-      tkString, tkUString: Result := TValue.From<string>('');
-      tkEnumeration:
-        if AParam.ParamType.Handle = TypeInfo(Boolean) then
-          Result := TValue.From<Boolean>(False);
+    // Primitives: Route -> Query
+    ParamName := AParam.Name;
+    var RouteParams := AContext.Request.RouteParams;
+    
+    if RouteParams.ContainsKey(ParamName) then
+    begin
+      WriteLn(Format('    🛣️  Inferred FromRoute: %s', [ParamName]));
+      Result := ConvertStringToType(RouteParams[ParamName], AParam.ParamType.Handle);
+    end
+    else
+    begin
+      WriteLn(Format('    📋 Inferred FromQuery: %s', [ParamName]));
+      var QueryParams := AContext.Request.Query;
+      if QueryParams.IndexOfName(ParamName) >= 0 then
+        Result := ConvertStringToType(TNetEncoding.URL.Decode(QueryParams.Values[ParamName]), AParam.ParamType.Handle)
       else
-        Result := TValue.From<string>('default');
+        Result := ConvertStringToType('', AParam.ParamType.Handle); // Default
     end;
   end;
 end;
@@ -1120,6 +936,68 @@ begin
   Stream.Position := 0;
   Stream.Read(Bytes[0], Stream.Size);
   Result := TEncoding.UTF8.GetString(Bytes);
+end;
+
+function TModelBinder.ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
+begin
+  try
+    case AType.Kind of
+      tkInteger: Result := TValue.From<Integer>(StrToIntDef(AValue, 0));
+      tkInt64: Result := TValue.From<Int64>(StrToInt64Def(AValue, 0));
+      tkFloat:
+        begin
+          if AType = TypeInfo(TDateTime) then
+            Result := TValue.From<TDateTime>(StrToDateTimeDef(AValue, 0))
+          else
+          begin
+            var F: Double;
+            if TryStrToFloat(AValue, F, TFormatSettings.Invariant) then
+              Result := TValue.From<Double>(F)
+            else
+              Result := TValue.From<Double>(0);
+          end;
+        end;
+      tkString, tkLString, tkWString, tkUString: Result := TValue.From<string>(AValue);
+      tkEnumeration:
+        begin
+          if AType = TypeInfo(Boolean) then
+          begin
+            var B := SameText(AValue, 'true') or SameText(AValue, '1') or SameText(AValue, 'on');
+            Result := TValue.From<Boolean>(B);
+          end
+          else
+            Result := TValue.FromOrdinal(AType, StrToIntDef(AValue, 0));
+        end;
+      tkRecord:
+        begin
+          if AType = TypeInfo(TGUID) then
+          begin
+            var GuidStr := AValue.Trim;
+            if GuidStr = '' then
+            begin
+              Result := TValue.From<TGUID>(TGUID.Empty);
+              Exit;
+            end;
+
+            if GuidStr.StartsWith('{') and GuidStr.EndsWith('}') then
+              Result := TValue.From<TGUID>(StringToGUID(GuidStr))
+            else if GuidStr.Length = 36 then
+              Result := TValue.From<TGUID>(StringToGUID('{' + GuidStr + '}'))
+            else
+              Result := TValue.From<TGUID>(StringToGUID(GuidStr));
+          end
+          else
+            raise EBindingException.Create('Cannot convert string to Record (except GUID)');
+        end;
+      else
+        // Default for unknown types
+        TValue.Make(nil, AType, Result);
+    end;
+  except
+    on E: Exception do
+      // Return default on error
+      TValue.Make(nil, AType, Result);
+  end;
 end;
 
 { TModelBinderHelper }

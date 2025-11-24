@@ -66,8 +66,8 @@ type
   private
     FOptions: TCorsOptions;
     FEnableDebugLog: Boolean;
-    procedure AddCorsHeaders(AContext: IHttpContext);
     function IsOriginAllowed(const AOrigin: string): Boolean;
+    procedure AddCorsHeaders(AContext: IHttpContext);
     procedure DebugLog(const AMessage: string);
   public
     constructor Create; overload;
@@ -192,7 +192,7 @@ end;
 
 class function TCorsOptions.Create: TCorsOptions;
 begin
-  Result.AllowedOrigins := [];
+  Result.AllowedOrigins := ['*'];
   Result.AllowedMethods := ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
   Result.AllowedHeaders := ['Content-Type', 'Authorization'];
   Result.ExposedHeaders := [];

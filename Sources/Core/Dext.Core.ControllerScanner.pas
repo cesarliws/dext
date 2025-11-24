@@ -34,6 +34,7 @@ type
     IsClass: Boolean;
     FullPath: string;
     HttpMethod: string;
+    RequiresAuth: Boolean; // ✅ NEW: Store auth requirement
   end;
 
   IControllerScanner = interface
@@ -61,6 +62,7 @@ type
 implementation
 
 uses
+  Dext.Auth.Attributes,
   Dext.Core.ModelBinding,
   Dext.Core.HandlerInvoker;
 
@@ -318,6 +320,32 @@ begin
       CachedMethod.IsClass := (Controller.RttiType.TypeKind = tkClass);
       CachedMethod.FullPath := FullPath;
       CachedMethod.HttpMethod := ControllerMethod.HttpMethod;
+      
+      // ✅ CHECK AUTH ATTRIBUTES (Controller or Method level)
+      CachedMethod.RequiresAuth := False;
+      for var Attr in Controller.RttiType.GetAttributes do
+        if Attr is SwaggerAuthorizeAttribute then
+        begin
+          CachedMethod.RequiresAuth := True;
+          Break;
+        end;
+      
+      if not CachedMethod.RequiresAuth then
+      begin
+        var HasAuthorizeAttribute := False;
+        var HasAllowAnonymousAttribute := False;
+        for var Attr in ControllerMethod.Method.GetAttributes do
+        begin
+          if Attr is SwaggerAuthorizeAttribute then
+            HasAuthorizeAttribute := True;
+
+          if Attr is AllowAnonymousAttribute then
+            HasAllowAnonymousAttribute := True;
+        end;
+
+        CachedMethod.RequiresAuth := HasAuthorizeAttribute and not HasAllowAnonymousAttribute;
+      end;
+
       FCachedMethods.Add(CachedMethod);
 
       // ✅ REGISTRAR ROTA USANDO CACHE (EVITA PROBLEMAS DE REFERÊNCIA RTTI)
@@ -428,6 +456,17 @@ var
 begin
   WriteLn('🔄 Executing cached method: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
 
+  // ✅ ENFORCE AUTHORIZATION
+  if CachedMethod.RequiresAuth then
+  begin
+    if (Context.User = nil) or (Context.User.Identity = nil) or (not Context.User.Identity.IsAuthenticated) then
+    begin
+      WriteLn('⛔ Authorization failed: User not authenticated');
+      Context.Response.Status(401).Json('{"error": "Unauthorized"}');
+      Exit;
+    end;
+  end;
+
   Ctx := TRttiContext.Create;
   try
     // ✅ RE-OBTER O TIPO EM TEMPO DE EXECUÇÃO
@@ -488,10 +527,19 @@ begin
     end
     else
     begin
-      // ✅ RECORDS ESTÁTICOS (implementação futura)
-      WriteLn('📝 Static record method - not fully implemented yet');
-      Context.Response.Json(Format('{"message": "Auto-route: %s (%s) - Static Record"}',
-        [CachedMethod.FullPath, CachedMethod.HttpMethod]));
+      // ✅ RECORDS ESTÁTICOS (Functional Controllers)
+      WriteLn('⚡ Executing static record method: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+      
+      var Binder: IModelBinder := TModelBinder.Create;
+      var Invoker := THandlerInvoker.Create(Context, Binder);
+      try
+        // Pass nil as instance for static methods
+        Invoker.InvokeAction(nil, Method);
+        WriteLn('✅ Static method invoked successfully');
+      finally
+        Invoker.Free;
+        Binder := nil;
+      end;
     end;
 
   except

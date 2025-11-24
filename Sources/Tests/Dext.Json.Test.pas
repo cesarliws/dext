@@ -1174,7 +1174,7 @@ begin
 
   try
     // Criar binder
-    Binder := TModelBinder.Create(nil);
+    Binder := TModelBinder.Create;
 
     Writeln('✓ ModelBinder criado com sucesso');
     Writeln('✓ Interface corrigida (sem genéricos)');

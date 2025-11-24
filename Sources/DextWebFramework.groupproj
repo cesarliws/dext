@@ -6,25 +6,25 @@
         <Projects Include="Tests\Dext.AppBuilderTest.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Tests\Dext.DITest.dproj">
-            <Dependencies/>
-        </Projects>
         <Projects Include="Tests\Dext.ServerTest.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="Tests\Dext.ServerTest.Cors.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Examples\TaskFlowAPI\TaskFlowAPI.dproj">
+        <Projects Include="..\Examples\SwaggerExample.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Core\Dext.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Tests\Dext.DITest.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="Tests\Dext.MinimalAPITest.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\Examples\SwaggerExample.dproj">
-            <Dependencies/>
-        </Projects>
-        <Projects Include="Core\Dext.Core.dproj">
+        <Projects Include="Examples\TaskFlowAPI\TaskFlowAPI.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="..\Examples\ControllerExample.dproj">
@@ -47,15 +47,6 @@
     <Target Name="Dext_AppBuilderTest:Make">
         <MSBuild Projects="Tests\Dext.AppBuilderTest.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Dext_DITest">
-        <MSBuild Projects="Tests\Dext.DITest.dproj"/>
-    </Target>
-    <Target Name="Dext_DITest:Clean">
-        <MSBuild Projects="Tests\Dext.DITest.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Dext_DITest:Make">
-        <MSBuild Projects="Tests\Dext.DITest.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Dext_ServerTest">
         <MSBuild Projects="Tests\Dext.ServerTest.dproj"/>
     </Target>
@@ -73,24 +64,6 @@
     </Target>
     <Target Name="Dext_ServerTest_Cors:Make">
         <MSBuild Projects="Tests\Dext.ServerTest.Cors.dproj" Targets="Make"/>
-    </Target>
-    <Target Name="TaskFlowAPI">
-        <MSBuild Projects="Examples\TaskFlowAPI\TaskFlowAPI.dproj"/>
-    </Target>
-    <Target Name="TaskFlowAPI:Clean">
-        <MSBuild Projects="Examples\TaskFlowAPI\TaskFlowAPI.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="TaskFlowAPI:Make">
-        <MSBuild Projects="Examples\TaskFlowAPI\TaskFlowAPI.dproj" Targets="Make"/>
-    </Target>
-    <Target Name="Dext_MinimalAPITest">
-        <MSBuild Projects="Tests\Dext.MinimalAPITest.dproj"/>
-    </Target>
-    <Target Name="Dext_MinimalAPITest:Clean">
-        <MSBuild Projects="Tests\Dext.MinimalAPITest.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Dext_MinimalAPITest:Make">
-        <MSBuild Projects="Tests\Dext.MinimalAPITest.dproj" Targets="Make"/>
     </Target>
     <Target Name="SwaggerExample">
         <MSBuild Projects="..\Examples\SwaggerExample.dproj"/>
@@ -110,6 +83,33 @@
     <Target Name="Dext_Core:Make">
         <MSBuild Projects="Core\Dext.Core.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Dext_DITest">
+        <MSBuild Projects="Tests\Dext.DITest.dproj"/>
+    </Target>
+    <Target Name="Dext_DITest:Clean">
+        <MSBuild Projects="Tests\Dext.DITest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_DITest:Make">
+        <MSBuild Projects="Tests\Dext.DITest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_MinimalAPITest">
+        <MSBuild Projects="Tests\Dext.MinimalAPITest.dproj"/>
+    </Target>
+    <Target Name="Dext_MinimalAPITest:Clean">
+        <MSBuild Projects="Tests\Dext.MinimalAPITest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_MinimalAPITest:Make">
+        <MSBuild Projects="Tests\Dext.MinimalAPITest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TaskFlowAPI">
+        <MSBuild Projects="Examples\TaskFlowAPI\TaskFlowAPI.dproj"/>
+    </Target>
+    <Target Name="TaskFlowAPI:Clean">
+        <MSBuild Projects="Examples\TaskFlowAPI\TaskFlowAPI.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TaskFlowAPI:Make">
+        <MSBuild Projects="Examples\TaskFlowAPI\TaskFlowAPI.dproj" Targets="Make"/>
+    </Target>
     <Target Name="ControllerExample">
         <MSBuild Projects="..\Examples\ControllerExample.dproj"/>
     </Target>
@@ -120,13 +120,13 @@
         <MSBuild Projects="..\Examples\ControllerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_AppBuilderTest;Dext_DITest;Dext_ServerTest;Dext_ServerTest_Cors;TaskFlowAPI;Dext_MinimalAPITest;SwaggerExample;Dext_Core;ControllerExample"/>
+        <CallTarget Targets="Dext_AppBuilderTest;Dext_ServerTest;Dext_ServerTest_Cors;SwaggerExample;Dext_Core;Dext_DITest;Dext_MinimalAPITest;TaskFlowAPI;ControllerExample"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_AppBuilderTest:Clean;Dext_DITest:Clean;Dext_ServerTest:Clean;Dext_ServerTest_Cors:Clean;TaskFlowAPI:Clean;Dext_MinimalAPITest:Clean;SwaggerExample:Clean;Dext_Core:Clean;ControllerExample:Clean"/>
+        <CallTarget Targets="Dext_AppBuilderTest:Clean;Dext_ServerTest:Clean;Dext_ServerTest_Cors:Clean;SwaggerExample:Clean;Dext_Core:Clean;Dext_DITest:Clean;Dext_MinimalAPITest:Clean;TaskFlowAPI:Clean;ControllerExample:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_AppBuilderTest:Make;Dext_DITest:Make;Dext_ServerTest:Make;Dext_ServerTest_Cors:Make;TaskFlowAPI:Make;Dext_MinimalAPITest:Make;SwaggerExample:Make;Dext_Core:Make;ControllerExample:Make"/>
+        <CallTarget Targets="Dext_AppBuilderTest:Make;Dext_ServerTest:Make;Dext_ServerTest_Cors:Make;SwaggerExample:Make;Dext_Core:Make;Dext_DITest:Make;Dext_MinimalAPITest:Make;TaskFlowAPI:Make;ControllerExample:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -179,8 +179,8 @@ function TApplicationBuilder.UseMiddleware(AMiddleware: TClass; const AParam: TV
 var
   Registration: TMiddlewareRegistration;
 begin
-  if not AMiddleware.InheritsFrom(TMiddleware) then
-    raise EArgumentException.Create('Middleware must inherit from TMiddleware');
+  if not Supports(AMiddleware, IMiddleware) then
+    raise EArgumentException.Create('Middleware must supports IMiddleware');
 
   Registration.MiddlewareClass := AMiddleware;
   Registration.IsDelegate := False;

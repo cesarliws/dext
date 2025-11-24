@@ -59,7 +59,9 @@ type
     function Status(AValue: Integer): IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
-    procedure Write(const AContent: string);
+    procedure SetContentLength(const AValue: Int64); // ✅ Added
+    procedure Write(const AContent: string); overload;
+    procedure Write(const ABuffer: TBytes); overload; // ✅ Added
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
     property StatusCode: Integer read GetStatusCode write SetStatusCode;

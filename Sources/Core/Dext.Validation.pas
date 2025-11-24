@@ -100,6 +100,14 @@ type
     function Validate(const AValue: T): TValidationResult;
   end;
 
+  /// <summary>
+  ///   Non-generic validator helper.
+  /// </summary>
+  TValidator = class
+  public
+    class function Validate(const AValue: TValue): TValidationResult;
+  end;
+
 implementation
 
 { TValidationResult }
@@ -266,6 +274,47 @@ begin
     for Field in RttiType.GetFields do
     begin
       FieldValue := Field.GetValue(@AValue);
+      
+      for Attr in Field.GetAttributes do
+      begin
+        if Attr is ValidationAttribute then
+        begin
+          ValidationAttr := ValidationAttribute(Attr);
+          if not ValidationAttr.IsValid(FieldValue) then
+          begin
+            Result.AddError(Field.Name, ValidationAttr.GetErrorMessage(Field.Name));
+          end;
+        end;
+      end;
+    end;
+  finally
+    Context.Free;
+  end;
+end;
+
+{ TValidator (Non-generic) }
+
+class function TValidator.Validate(const AValue: TValue): TValidationResult;
+var
+  Context: TRttiContext;
+  RttiType: TRttiType;
+  Field: TRttiField;
+  Attr: TCustomAttribute;
+  FieldValue: TValue;
+  ValidationAttr: ValidationAttribute;
+begin
+  Result := TValidationResult.Create;
+  
+  if AValue.Kind <> tkRecord then
+    Exit; // Only validate records for now
+
+  Context := TRttiContext.Create;
+  try
+    RttiType := Context.GetType(AValue.TypeInfo);
+    
+    for Field in RttiType.GetFields do
+    begin
+      FieldValue := Field.GetValue(AValue.GetReferenceToRawData);
       
       for Attr in Field.GetAttributes do
       begin

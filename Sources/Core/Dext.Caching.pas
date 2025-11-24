@@ -126,7 +126,9 @@ type
     function Status(AValue: Integer): IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
-    procedure Write(const AContent: string);
+    procedure SetContentLength(const AValue: Int64);
+    procedure Write(const AContent: string); overload;
+    procedure Write(const ABuffer: TBytes); overload;
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
 
@@ -558,10 +560,22 @@ begin
   FOriginal.SetContentType(AValue);
 end;
 
+procedure TResponseCaptureWrapper.SetContentLength(const AValue: Int64);
+begin
+  FOriginal.SetContentLength(AValue);
+end;
+
 procedure TResponseCaptureWrapper.Write(const AContent: string);
 begin
   FBodyBuffer.Append(AContent);
   FOriginal.Write(AContent);
+end;
+
+procedure TResponseCaptureWrapper.Write(const ABuffer: TBytes);
+begin
+  // For binary data, we can't easily cache it in a string buffer
+  // Just pass through to original response
+  FOriginal.Write(ABuffer);
 end;
 
 procedure TResponseCaptureWrapper.Json(const AJson: string);

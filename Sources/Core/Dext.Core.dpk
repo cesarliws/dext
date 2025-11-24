@@ -68,6 +68,7 @@ contains
   Dext.Http.Results in 'Dext.Http.Results.pas',
   Dext.Http.Routing in 'Dext.Http.Routing.pas',
   Dext.Http.RoutingMiddleware in 'Dext.Http.RoutingMiddleware.pas',
+  Dext.Http.StaticFiles in 'Dext.Http.StaticFiles.pas',
   Dext.Json in 'Dext.Json.pas',
   Dext.Json.Types in 'Dext.Json.Types.pas',
   Dext.Logging.Console in 'Dext.Logging.Console.pas',

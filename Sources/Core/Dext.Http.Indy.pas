@@ -38,7 +38,9 @@ type
     function GetStatusCode: Integer;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
-    procedure Write(const AContent: string);
+    procedure SetContentLength(const AValue: Int64); // ✅ Added
+    procedure Write(const AContent: string); overload;
+    procedure Write(const ABuffer: TBytes); overload; // ✅ Added
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string); // ✅ NOVO: Implementação da interface
   end;
@@ -204,10 +206,30 @@ begin
   FResponseInfo.ContentType := AValue;
 end;
 
+procedure TIndyHttpResponse.SetContentLength(const AValue: Int64);
+begin
+  FResponseInfo.ContentLength := AValue;
+end;
+
 procedure TIndyHttpResponse.Write(const AContent: string);
 begin
   FResponseInfo.ContentText := AContent;
-  FResponseInfo.ContentType := 'text/plain; charset=utf-8';
+  // Only set default content type if not already set
+  if FResponseInfo.ContentType = '' then
+    FResponseInfo.ContentType := 'text/plain; charset=utf-8';
+end;
+
+procedure TIndyHttpResponse.Write(const ABuffer: TBytes);
+var
+  Stream: TMemoryStream;
+begin
+  Stream := TMemoryStream.Create;
+  if Length(ABuffer) > 0 then
+    Stream.WriteBuffer(ABuffer[0], Length(ABuffer));
+  Stream.Position := 0;
+  
+  FResponseInfo.ContentStream := Stream;
+  FResponseInfo.FreeContentStream := True; // Indy will free the stream
 end;
 
 procedure TIndyHttpResponse.Json(const AJson: string);

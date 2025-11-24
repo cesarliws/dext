@@ -77,7 +77,9 @@ type
 implementation
 
 uses
-  System.Generics.Collections;
+  System.Generics.Collections,
+  Dext.Json,
+  Dext.Validation;
 
 { THandlerInvoker }
 
@@ -421,12 +423,9 @@ end;
 function THandlerInvoker.InvokeAction(AInstance: TObject; AMethod: TRttiMethod): Boolean;
 var
   Args: TArray<TValue>;
-  RouteParams: TDictionary<string, string>;
-  ParamCount: Integer;
   ResultValue: TValue;
   ResIntf: IResult;
   I: Integer;
-  Pair: TPair<string, string>;
 begin
   // ✅ VERIFICAÇÃO DE SEGURANÇA APRIMORADA
   if not Assigned(AMethod) then
@@ -452,25 +451,38 @@ begin
     end;
   end;
 
-  RouteParams := FContext.Request.RouteParams;
+  // ✅ DYNAMIC BINDING: Use ModelBinder to resolve all parameters
+  // This supports: IHttpContext, Route Params, Query Params, Body (Records), Services (Interfaces)
+  try
+    Args := FModelBinder.BindMethodParameters(AMethod, FContext);
+  except
+    on E: Exception do
+    begin
+      WriteLn('❌ Parameter binding failed: ', E.Message);
+      FContext.Response.Status(400).Json(Format('{"error": "Bad Request: %s"}', [E.Message]));
+      Exit(False);
+    end;
+  end;
 
-  // ✅ CONVENTION: First param is ALWAYS IHttpContext, rest are route params
-  ParamCount := 1 + RouteParams.Count;
-  SetLength(Args, ParamCount);
+  WriteLn('  Bound ', Length(Args), ' arguments successfully');
 
-  WriteLn('  Building ', ParamCount, ' arguments (1 context + ', RouteParams.Count, ' route params)');
-
-  // Arg 0: Always IHttpContext
-  Args[0] := TValue.From<IHttpContext>(FContext);
-  WriteLn('  Args[0] = IHttpContext');
-
-  // Args 1..N: Route params as strings
-  I := 1;
-  for Pair in RouteParams do
+  // ✅ VALIDATION: Validate all record parameters
+  for I := 0 to High(Args) do
   begin
-    Args[I] := TValue.From<string>(Pair.Value);
-    WriteLn('  Args[', I, '] = "', Pair.Value, '" (from route param "', Pair.Key, '")');
-    Inc(I);
+    if Args[I].Kind = tkRecord then
+    begin
+      var ValidationResult := TValidator.Validate(Args[I]);
+      try
+        if not ValidationResult.IsValid then
+        begin
+          WriteLn('❌ Validation failed for argument ', I);
+          FContext.Response.Status(400).Json(TDextJson.Serialize(ValidationResult.Errors));
+          Exit(False);
+        end;
+      finally
+        ValidationResult.Free;
+      end;
+    end;
   end;
 
   WriteLn('🚀 Invoking ', AMethod.Name, ' with ', Length(Args), ' args...');
@@ -496,9 +508,9 @@ begin
       end
       else
       begin
-        WriteLn('📝 Method returned non-IResult value - Auto-json serialization could be implemented here');
-        // Opcional: Serializar automaticamente o retorno como JSON
-        // FContext.Response.Json(TDextJson.Serialize(ResultValue));
+        WriteLn('📝 Method returned non-IResult value - Auto-json serialization');
+        // ✅ AUTO-SERIALIZATION
+        FContext.Response.Json(TDextJson.Serialize(ResultValue));
       end;
     end;
 
