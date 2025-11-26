@@ -9,10 +9,10 @@
         <Projects Include="Tests\Dext.AppBuilderTest.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Tests\Dext.ServerTest.dproj">
+        <Projects Include="Tests\Dext.ServerTest.Cors.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Tests\Dext.ServerTest.Cors.dproj">
+        <Projects Include="Tests\Dext.ServerTest.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="Tests\Dext.DITest.dproj">
@@ -56,15 +56,6 @@
     <Target Name="Dext_AppBuilderTest:Make">
         <MSBuild Projects="Tests\Dext.AppBuilderTest.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Dext_ServerTest">
-        <MSBuild Projects="Tests\Dext.ServerTest.dproj"/>
-    </Target>
-    <Target Name="Dext_ServerTest:Clean">
-        <MSBuild Projects="Tests\Dext.ServerTest.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Dext_ServerTest:Make">
-        <MSBuild Projects="Tests\Dext.ServerTest.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Dext_ServerTest_Cors">
         <MSBuild Projects="Tests\Dext.ServerTest.Cors.dproj"/>
     </Target>
@@ -73,6 +64,15 @@
     </Target>
     <Target Name="Dext_ServerTest_Cors:Make">
         <MSBuild Projects="Tests\Dext.ServerTest.Cors.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_ServerTest">
+        <MSBuild Projects="Tests\Dext.ServerTest.dproj"/>
+    </Target>
+    <Target Name="Dext_ServerTest:Clean">
+        <MSBuild Projects="Tests\Dext.ServerTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_ServerTest:Make">
+        <MSBuild Projects="Tests\Dext.ServerTest.dproj" Targets="Make"/>
     </Target>
     <Target Name="Dext_DITest">
         <MSBuild Projects="Tests\Dext.DITest.dproj"/>
@@ -120,13 +120,13 @@
         <MSBuild Projects="..\Examples\ControllerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_AppBuilderTest;Dext_ServerTest;Dext_ServerTest_Cors;Dext_DITest;Dext_MinimalAPITest;TaskFlowAPI;SwaggerExample;ControllerExample"/>
+        <CallTarget Targets="Dext_Core;Dext_AppBuilderTest;Dext_ServerTest_Cors;Dext_ServerTest;Dext_DITest;Dext_MinimalAPITest;TaskFlowAPI;SwaggerExample;ControllerExample"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_AppBuilderTest:Clean;Dext_ServerTest:Clean;Dext_ServerTest_Cors:Clean;Dext_DITest:Clean;Dext_MinimalAPITest:Clean;TaskFlowAPI:Clean;SwaggerExample:Clean;ControllerExample:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_AppBuilderTest:Clean;Dext_ServerTest_Cors:Clean;Dext_ServerTest:Clean;Dext_DITest:Clean;Dext_MinimalAPITest:Clean;TaskFlowAPI:Clean;SwaggerExample:Clean;ControllerExample:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_AppBuilderTest:Make;Dext_ServerTest:Make;Dext_ServerTest_Cors:Make;Dext_DITest:Make;Dext_MinimalAPITest:Make;TaskFlowAPI:Make;SwaggerExample:Make;ControllerExample:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_AppBuilderTest:Make;Dext_ServerTest_Cors:Make;Dext_ServerTest:Make;Dext_DITest:Make;Dext_MinimalAPITest:Make;TaskFlowAPI:Make;SwaggerExample:Make;ControllerExample:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

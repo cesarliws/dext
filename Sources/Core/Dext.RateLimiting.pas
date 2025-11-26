@@ -179,8 +179,12 @@ begin
   end
   else
   begin
-    // Fallback to a generic key (in production, you'd get this from the socket)
-    Result := 'client';
+    // Use the real remote IP from the socket
+    Result := AContext.Request.RemoteIpAddress;
+    
+    // Fallback if empty (should not happen with Indy)
+    if Result = '' then
+      Result := 'unknown_client';
   end;
 end;
 

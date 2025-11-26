@@ -26,7 +26,8 @@ type
     function GetQuery: TStrings;
     function GetBody: TStream;
     function GetRouteParams: TDictionary<string, string>;
-    function GetHeaders: TDictionary<string, string>; // ✅ NOVO: Implementação da interface
+    function GetHeaders: TDictionary<string, string>;
+    function GetRemoteIpAddress: string; // ✅ Added
   end;
 
   TIndyHttpResponse = class(TInterfacedObject, IHttpResponse)
@@ -115,6 +116,11 @@ end;
 function TIndyHttpRequest.GetHeaders: TDictionary<string, string>;
 begin
   Result := FHeaders; // ✅ NOVO: Retornar headers
+end;
+
+function TIndyHttpRequest.GetRemoteIpAddress: string;
+begin
+  Result := FRequestInfo.RemoteIP;
 end;
 
 function TIndyHttpRequest.ParseQueryString(const AQuery: string): TStrings;

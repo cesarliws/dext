@@ -1,4 +1,4 @@
-unit Dext.OpenAPI.Generator;
+﻿unit Dext.OpenAPI.Generator;
 
 interface
 
@@ -37,6 +37,9 @@ type
     ApiKeyLocation: TApiKeyLocation;
     ApiKeyDescription: string;
     
+    // Global responses (e.g., 429, 500) applied to all operations
+    GlobalResponses: TArray<TPair<Integer, string>>; // ✅ Changed to Array for automatic memory management
+    
     class function Default: TOpenAPIOptions; static;
     
     /// <summary>
@@ -53,6 +56,11 @@ type
     ///   Enables API Key authentication.
     /// </summary>
     class function WithApiKeyAuth(const AKeyName: string = 'X-API-Key'; ALocation: TApiKeyLocation = aklHeader; const ADescription: string = 'API Key authentication'): TOpenAPIOptions; static;
+    
+    /// <summary>
+    ///   Adds a global response (e.g., 429 Too Many Requests) to all operations.
+    /// </summary>
+    function WithGlobalResponse(AStatusCode: Integer; const ADescription: string): TOpenAPIOptions; // ✅ Added
   end;
 
   /// <summary>
@@ -140,6 +148,17 @@ begin
   Result.ApiKeyName := '';
   Result.ApiKeyLocation := aklHeader;
   Result.ApiKeyDescription := '';
+  SetLength(Result.GlobalResponses, 0); // ✅ Initialize array
+end;
+
+function TOpenAPIOptions.WithGlobalResponse(AStatusCode: Integer; const ADescription: string): TOpenAPIOptions;
+var
+  NewLength: Integer;
+begin
+  Result := Self;
+  NewLength := Length(Result.GlobalResponses) + 1;
+  SetLength(Result.GlobalResponses, NewLength);
+  Result.GlobalResponses[NewLength - 1] := TPair<Integer, string>.Create(AStatusCode, ADescription);
 end;
 
 class function TOpenAPIOptions.WithBearerAuth(const AFormat, ADescription: string): TOpenAPIOptions;
@@ -646,6 +665,27 @@ begin
   Response.Content.Add('application/json', ResponseSchema);
   
   Result.Responses.Add('200', Response);
+  
+  // ✅ Add Global Responses (e.g., 429, 500)
+  for var GlobalResp in FOptions.GlobalResponses do
+  begin
+    // Don't overwrite if specific response exists (though unlikely for 200 here)
+    if not Result.Responses.ContainsKey(IntToStr(GlobalResp.Key)) then
+    begin
+      var GResponse := TOpenAPIResponse.Create;
+      GResponse.Description := GlobalResp.Value;
+      
+      // Add a generic error schema
+      var ErrorSchema := TOpenAPISchema.Create;
+      ErrorSchema.DataType := odtObject;
+      ErrorSchema.Properties.Add('error', TOpenAPISchema.Create);
+      ErrorSchema.Properties['error'].DataType := odtString;
+      
+      GResponse.Content.Add('application/json', ErrorSchema);
+      
+      Result.Responses.Add(IntToStr(GlobalResp.Key), GResponse);
+    end;
+  end;
   
   // Add security requirements
   if Length(AMetadata.Security) > 0 then

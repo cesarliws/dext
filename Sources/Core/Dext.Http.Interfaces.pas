@@ -45,12 +45,14 @@ type
     function GetBody: TStream;
     function GetRouteParams: TDictionary<string, string>;
     function GetHeaders: TDictionary<string, string>;
+    function GetRemoteIpAddress: string; // ✅ Added
     property Method: string read GetMethod;
     property Path: string read GetPath;
     property Query: TStrings read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TDictionary<string, string> read GetRouteParams;
     property Headers: TDictionary<string, string> read GetHeaders;
+    property RemoteIpAddress: string read GetRemoteIpAddress; // ✅ Added
   end;
 
   IHttpResponse = interface

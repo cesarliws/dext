@@ -22,6 +22,7 @@ type
     FBodyStream: TStream;
     FRouteParams: TDictionary<string, string>;
     FHeaders: TDictionary<string, string>;
+    FRemoteIpAddress: string;
   public
     constructor Create(const AQueryString: string; const AMethod: string = 'GET'; const APath: string = '/api/test');
     destructor Destroy; override;
@@ -33,6 +34,9 @@ type
     function GetBody: TStream;
     function GetRouteParams: TDictionary<string, string>;
     function GetHeaders: TDictionary<string, string>; virtual;
+    function GetRemoteIpAddress: string;
+
+    property RemoteIpAddress: string read FRemoteIpAddress write FRemoteIpAddress;
   end;
 
   TMockHttpResponse = class(TInterfacedObject, IHttpResponse)
@@ -163,6 +167,7 @@ begin
   // Inicializar outros campos
   FHeaders := TDictionary<string, string>.Create;
   FBodyStream := TMemoryStream.Create;
+  FRemoteIpAddress := '127.0.0.1'; // Default mock IP
 
   // ✅ DEBUG: Log do que foi parseado
   Writeln('Mock Request Created:');
@@ -211,6 +216,11 @@ end;
 function TMockHttpRequest.GetHeaders: TDictionary<string, string>;
 begin
   Result := FHeaders;
+end;
+
+function TMockHttpRequest.GetRemoteIpAddress: string;
+begin
+  Result := FRemoteIpAddress;
 end;
 
 { TMockHttpResponse }

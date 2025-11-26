@@ -129,7 +129,9 @@ begin
         // 6. Swagger / OpenAPI
         TSwaggerExtensions.UseSwagger(App, 
           TOpenAPIOptions.Default
-            .WithServer('http://localhost:8080', 'Local Development Server'));
+            .WithServer('http://localhost:8080', 'Local Development Server')
+            .WithGlobalResponse(429, 'Too Many Requests (Rate Limit Exceeded)')
+            .WithGlobalResponse(500, 'Internal Server Error'));
         
         WriteLn('Configuring routes...');
         WriteLn;
