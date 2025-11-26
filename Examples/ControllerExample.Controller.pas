@@ -149,7 +149,6 @@ type
     procedure ProtectedEndpoint(Ctx: IHttpContext);
   end;
 
-
 implementation
 
 uses

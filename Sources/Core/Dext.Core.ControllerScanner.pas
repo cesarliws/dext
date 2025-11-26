@@ -35,7 +35,6 @@ type
     FullPath: string;
     HttpMethod: string;
     RequiresAuth: Boolean;
-    Filters: TArray<TCustomAttribute>;
   end;
 
   IControllerScanner = interface
@@ -77,86 +76,6 @@ begin
   FServiceProvider := AServiceProvider;
   FCachedMethods := TList<TCachedMethod>.Create;
 end;
-
-//function TControllerScanner.FindControllers: TArray<TControllerInfo>;
-//var
-//  Types: TArray<TRttiType>;
-//  RttiType: TRttiType;
-//  ControllerInfo: TControllerInfo;
-//  Controllers: TList<TControllerInfo>;
-//  Method: TRttiMethod;
-//  MethodInfo: TControllerMethod;
-//  Attr: TCustomAttribute;
-//begin
-//  Controllers := TList<TControllerInfo>.Create;
-//  try
-//    Types := FCtx.GetTypes;
-//
-//    for RttiType in Types do
-//    begin
-//      // ✅ FILTRAR: Apenas records com métodos estáticos
-//      if (RttiType.TypeKind = tkRecord) and RttiType.IsRecord then
-//      begin
-//        // Verificar se tem métodos com atributos de rota
-//        var HasRouteMethods := False;
-//        var MethodsList: TList<TControllerMethod> := TList<TControllerMethod>.Create;
-//
-//        try
-//          for Method in RttiType.GetMethods do
-//          begin
-//            // ✅ APENAS MÉTODOS ESTÁTICOS
-//            if not Method.IsStatic then
-//              Continue;
-//
-//            // ✅ PROCURAR ATRIBUTOS [DextGet], [DextPost], etc.
-//            for Attr in Method.GetAttributes do
-//            begin
-//              if Attr is DextRouteAttribute then
-//              begin
-//                MethodInfo.Method := Method;
-//                MethodInfo.RouteAttribute := DextRouteAttribute(Attr);
-//                MethodInfo.Path := MethodInfo.RouteAttribute.Path;
-//                MethodInfo.HttpMethod := MethodInfo.RouteAttribute.Method;
-//
-//                MethodsList.Add(MethodInfo);
-//                HasRouteMethods := True;
-//                Break; // Um método pode ter apenas um atributo de rota
-//              end;
-//            end;
-//          end;
-//
-//          // ✅ SE TEM MÉTODOS DE ROTA, ADICIONAR COMO CONTROLLER
-//          if HasRouteMethods then
-//          begin
-//            ControllerInfo.RttiType := RttiType;
-//            ControllerInfo.Methods := MethodsList.ToArray;
-//
-//            // ✅ VERIFICAR ATRIBUTO [DextController] PARA PREFIXO
-//            ControllerInfo.ControllerAttribute := nil;
-//            for Attr in RttiType.GetAttributes do
-//            begin
-//              if Attr is DextControllerAttribute then
-//              begin
-//                ControllerInfo.ControllerAttribute := DextControllerAttribute(Attr);
-//                Break;
-//              end;
-//            end;
-//
-//            Controllers.Add(ControllerInfo);
-//          end;
-//
-//        finally
-//          MethodsList.Free;
-//        end;
-//      end;
-//    end;
-//
-//    Result := Controllers.ToArray;
-//
-//  finally
-//    Controllers.Free;
-//  end;
-//end;
 
 function TControllerScanner.FindControllers: TArray<TControllerInfo>;
 var
@@ -348,27 +267,10 @@ begin
         CachedMethod.RequiresAuth := HasAuthorizeAttribute and not HasAllowAnonymousAttribute;
       end;
 
-      // ✅ COLLECT ACTION FILTERS
-      var FilterList := TList<TCustomAttribute>.Create;
-      try
-        // Collect from controller level
-        for var Attr in Controller.RttiType.GetAttributes do
-          if Supports(Attr, IActionFilter) then
-            FilterList.Add(Attr);
-
-        // Collect from method level (method filters run after controller filters)
-        for var Attr in ControllerMethod.Method.GetAttributes do
-          if Supports(Attr, IActionFilter) then
-            FilterList.Add(Attr);
-
-        CachedMethod.Filters := FilterList.ToArray;
-      finally
-        FilterList.Free;
-      end;
-
+      // ✅ FILTERS REMOVED FROM CACHE
+      // We now fetch them dynamically in ExecuteCachedMethod to avoid AVs
+      
       WriteLn('📝 Caching: ', CachedMethod.FullPath, ' -> ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
-      if Length(CachedMethod.Filters) > 0 then
-        WriteLn('  🎯 Filters: ', Length(CachedMethod.Filters));
       FCachedMethods.Add(CachedMethod);
 
       // ✅ REGISTRAR ROTA USANDO CACHE (EVITA PROBLEMAS DE REFERÊNCIA RTTI)
@@ -423,8 +325,6 @@ begin
             if Length(OpAttr.Tags) > 0 then Metadata.Tags := OpAttr.Tags;
             Updated := True;
           end;
-        // Note: SwaggerResponseAttribute would require extending TEndpointMetadata to support custom responses
-        // For now, we only support default 200 OK response generation
         end;
 
         if Updated then
@@ -459,8 +359,10 @@ var
   ControllerType: TRttiType;
   Method: TRttiMethod;
   ControllerInstance: TObject;
+  FilterAttr: TCustomAttribute;
+  Filter: IActionFilter;
+  I: Integer;
 begin
-  WriteLn('🔄 Executing cached method: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
   WriteLn('🔄 Executing: ', CachedMethod.FullPath, ' -> ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
 
   // ✅ ENFORCE AUTHORIZATION
@@ -471,39 +373,6 @@ begin
       WriteLn('⛔ Authorization failed: User not authenticated');
       Context.Response.Status(401).Json('{"error": "Unauthorized"}');
       Exit;
-    end;
-  end;
-
-  // ✅ EXECUTE ACTION FILTERS - OnActionExecuting
-  var ActionDescriptor: TActionDescriptor;
-  ActionDescriptor.ControllerName := CachedMethod.TypeName;
-  ActionDescriptor.ActionName := CachedMethod.MethodName;
-  ActionDescriptor.HttpMethod := CachedMethod.HttpMethod;
-  ActionDescriptor.Route := CachedMethod.FullPath;
-
-  var ExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
-  try
-    for var FilterAttr in CachedMethod.Filters do
-    begin
-      var Filter: IActionFilter;
-      if Supports(FilterAttr, IActionFilter, Filter) then
-      begin
-        Filter.OnActionExecuting(ExecutingContext);
-
-        // Check for short-circuit
-        if Assigned(ExecutingContext.Result) then
-        begin
-          WriteLn('⚡ Filter short-circuited execution');
-          ExecutingContext.Result.Execute(Context);
-          Exit;
-        end;
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      WriteLn('❌ Error in OnActionExecuting filter: ', E.Message);
-      raise;
     end;
   end;
 
@@ -536,94 +405,135 @@ begin
       Exit;
     end;
 
-     WriteLn('✅ Found method: ', Method.Name, ' with ', Length(Method.GetParameters), ' parameters');
-
-    // ✅ EXECUTAR CONFORME O TIPO (CLASSE OU RECORD)
-    if CachedMethod.IsClass then
-    begin
-      // ✅ RESOLVER INSTÂNCIA VIA DI
-      ControllerInstance := Context.GetServices.GetService(
-        TServiceType.FromClass(ControllerType.AsInstance.MetaclassType));
-
-      if ControllerInstance = nil then
-      begin
-        WriteLn('❌ Controller instance not found: ', CachedMethod.TypeName);
-        Context.Response.Status(500).Json(Format('{"error": "Controller instance not found: %s"}', [CachedMethod.TypeName]));
-        Exit;
-      end;
-
-      WriteLn('✅ Controller instance resolved: ', ControllerInstance.ClassName);
-
-      // ✅ INVOCAR O MÉTODO
-      var Binder: IModelBinder := TModelBinder.Create;
-      var Invoker := THandlerInvoker.Create(Context, Binder);
-      try
-        Invoker.InvokeAction(ControllerInstance, Method);
-        WriteLn('✅ Method invoked successfully: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
-      finally
-        Invoker.Free;
-        Binder := nil;
-      end;
-    end
-    else
-    begin
-      // ✅ RECORDS ESTÁTICOS (Functional Controllers)
-      WriteLn('⚡ Executing static record method: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+    // ✅ COLLECT FILTERS DYNAMICALLY (Safe from AV)
+    var FilterList := TList<TCustomAttribute>.Create;
+    try
+      // Controller Level
+      for FilterAttr in ControllerType.GetAttributes do
+        if Supports(FilterAttr, IActionFilter) then
+          FilterList.Add(FilterAttr);
       
-      var Binder: IModelBinder := TModelBinder.Create;
-      var Invoker := THandlerInvoker.Create(Context, Binder);
+      // Method Level
+      for FilterAttr in Method.GetAttributes do
+        if Supports(FilterAttr, IActionFilter) then
+          FilterList.Add(FilterAttr);
+
+      // ✅ EXECUTE ACTION FILTERS - OnActionExecuting
+      var ActionDescriptor: TActionDescriptor;
+      ActionDescriptor.ControllerName := CachedMethod.TypeName;
+      ActionDescriptor.ActionName := CachedMethod.MethodName;
+      ActionDescriptor.HttpMethod := CachedMethod.HttpMethod;
+      ActionDescriptor.Route := CachedMethod.FullPath;
+
+      // ✅ FIX: Use interface variable to prevent premature destruction (RefCount issue)
+      var ExecutingContext: IActionExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
       try
-        // Pass nil as instance for static methods
-        Invoker.InvokeAction(nil, Method);
-        WriteLn('✅ Static method invoked successfully');
-      finally
-        Invoker.Free;
-        Binder := nil;
-      end;
-    end;
-
-
-    // ✅ EXECUTE ACTION FILTERS - OnActionExecuted
-    var ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
-    // Execute filters in reverse order
-    for var I := High(CachedMethod.Filters) downto Low(CachedMethod.Filters) do
-    begin
-      var FilterAttr := CachedMethod.Filters[I];
-      var Filter: IActionFilter;
-      if Supports(FilterAttr, IActionFilter, Filter) then
-        Filter.OnActionExecuted(ExecutedContext);
-    end;
-
-
-  except
-    on E: Exception do
-    begin
-      WriteLn('❌ Error executing cached method ', CachedMethod.TypeName, '.', CachedMethod.MethodName, ': ', E.ClassName, ': ', E.Message);
-
-      // ✅ EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
-      var ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
-      for var I := High(CachedMethod.Filters) downto Low(CachedMethod.Filters) do
-      begin
-        var FilterAttr := CachedMethod.Filters[I];
-        var Filter: IActionFilter;
-        if Supports(FilterAttr, IActionFilter, Filter) then
+        for FilterAttr in FilterList do
         begin
-          Filter.OnActionExecuted(ExecutedContext);
-          if ExecutedContext.ExceptionHandled then
+          if Supports(FilterAttr, IActionFilter, Filter) then
           begin
-            WriteLn('✅ Exception handled by filter');
-            Exit; // Don't re-raise
+            Filter.OnActionExecuting(ExecutingContext);
+
+            // Check for short-circuit
+            if Assigned(ExecutingContext.Result) then
+            begin
+              WriteLn('⚡ Filter short-circuited execution');
+              ExecutingContext.Result.Execute(Context);
+              Exit;
+            end;
           end;
+        end;
+      except
+        on E: Exception do
+        begin
+          WriteLn('❌ Error in OnActionExecuting filter: ', E.Message);
+          raise;
         end;
       end;
 
+      // ✅ EXECUTAR O MÉTODO DO CONTROLLER
+      try
+        if CachedMethod.IsClass then
+        begin
+          // ✅ RESOLVER INSTÂNCIA VIA DI
+          ControllerInstance := Context.GetServices.GetService(
+            TServiceType.FromClass(ControllerType.AsInstance.MetaclassType));
 
-      Context.Response.Status(500).Json(Format('{"error": "Execution failed: %s"}', [E.Message]));
+          if ControllerInstance = nil then
+          begin
+            WriteLn('❌ Controller instance not found: ', CachedMethod.TypeName);
+            Context.Response.Status(500).Json(Format('{"error": "Controller instance not found: %s"}', [CachedMethod.TypeName]));
+            Exit;
+          end;
+
+          var Binder: IModelBinder := TModelBinder.Create;
+          var Invoker := THandlerInvoker.Create(Context, Binder);
+          try
+            Invoker.InvokeAction(ControllerInstance, Method);
+          finally
+            Invoker.Free;
+            Binder := nil;
+          end;
+        end
+        else
+        begin
+          // ✅ RECORDS ESTÁTICOS
+          var Binder: IModelBinder := TModelBinder.Create;
+          var Invoker := THandlerInvoker.Create(Context, Binder);
+          try
+            Invoker.InvokeAction(nil, Method);
+          finally
+            Invoker.Free;
+            Binder := nil;
+          end;
+        end;
+
+        // ✅ EXECUTE ACTION FILTERS - OnActionExecuted
+        // ✅ FIX: Use interface variable
+        var ExecutedContext: IActionExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
+        // Execute filters in reverse order
+        for I := FilterList.Count - 1 downto 0 do
+        begin
+          FilterAttr := FilterList[I];
+          if Supports(FilterAttr, IActionFilter, Filter) then
+            Filter.OnActionExecuted(ExecutedContext);
+        end;
+
+      except
+        on E: Exception do
+        begin
+          WriteLn('❌ Error executing method: ', E.Message);
+          
+          // ✅ EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
+          // ✅ FIX: Use interface variable
+          var ExecutedContext: IActionExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
+          for I := FilterList.Count - 1 downto 0 do
+          begin
+            FilterAttr := FilterList[I];
+            if Supports(FilterAttr, IActionFilter, Filter) then
+            begin
+              Filter.OnActionExecuted(ExecutedContext);
+              if ExecutedContext.ExceptionHandled then
+              begin
+                WriteLn('✅ Exception handled by filter');
+                Exit; // Don't re-raise
+              end;
+            end;
+          end;
+
+          Context.Response.Status(500).Json(Format('{"error": "Execution failed: %s"}', [E.Message]));
+        end;
+      end;
+
+    finally
+      FilterList.Free;
     end;
+
+  finally
+    // Context freed automatically
   end;
 end;
 
-// Mantenha o método RegisterControllerManual existente...
 procedure TControllerScanner.RegisterControllerManual(AppBuilder: IApplicationBuilder);
 begin
   WriteLn('🔧 Registering TTaskHandlers manually...');
