@@ -10,6 +10,7 @@ uses
   System.TypInfo,
   Dext.Core.Routing,
   Dext.DI.Interfaces,
+  Dext.Filters,
   Dext.Http.Interfaces,
   Dext.OpenAPI.Attributes;
 
@@ -27,14 +28,14 @@ type
     ControllerAttribute: DextControllerAttribute;
   end;
 
-  // Novo tipo para cache de métodos
   TCachedMethod = record
     TypeName: string;
     MethodName: string;
     IsClass: Boolean;
     FullPath: string;
     HttpMethod: string;
-    RequiresAuth: Boolean; // ✅ NEW: Store auth requirement
+    RequiresAuth: Boolean;
+    Filters: TArray<TCustomAttribute>;
   end;
 
   IControllerScanner = interface
@@ -347,7 +348,27 @@ begin
         CachedMethod.RequiresAuth := HasAuthorizeAttribute and not HasAllowAnonymousAttribute;
       end;
 
+      // ✅ COLLECT ACTION FILTERS
+      var FilterList := TList<TCustomAttribute>.Create;
+      try
+        // Collect from controller level
+        for var Attr in Controller.RttiType.GetAttributes do
+          if Supports(Attr, IActionFilter) then
+            FilterList.Add(Attr);
+
+        // Collect from method level (method filters run after controller filters)
+        for var Attr in ControllerMethod.Method.GetAttributes do
+          if Supports(Attr, IActionFilter) then
+            FilterList.Add(Attr);
+
+        CachedMethod.Filters := FilterList.ToArray;
+      finally
+        FilterList.Free;
+      end;
+
       WriteLn('📝 Caching: ', CachedMethod.FullPath, ' -> ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+      if Length(CachedMethod.Filters) > 0 then
+        WriteLn('  🎯 Filters: ', Length(CachedMethod.Filters));
       FCachedMethods.Add(CachedMethod);
 
       // ✅ REGISTRAR ROTA USANDO CACHE (EVITA PROBLEMAS DE REFERÊNCIA RTTI)
@@ -453,6 +474,39 @@ begin
     end;
   end;
 
+  // ✅ EXECUTE ACTION FILTERS - OnActionExecuting
+  var ActionDescriptor: TActionDescriptor;
+  ActionDescriptor.ControllerName := CachedMethod.TypeName;
+  ActionDescriptor.ActionName := CachedMethod.MethodName;
+  ActionDescriptor.HttpMethod := CachedMethod.HttpMethod;
+  ActionDescriptor.Route := CachedMethod.FullPath;
+
+  var ExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
+  try
+    for var FilterAttr in CachedMethod.Filters do
+    begin
+      var Filter: IActionFilter;
+      if Supports(FilterAttr, IActionFilter, Filter) then
+      begin
+        Filter.OnActionExecuting(ExecutingContext);
+
+        // Check for short-circuit
+        if Assigned(ExecutingContext.Result) then
+        begin
+          WriteLn('⚡ Filter short-circuited execution');
+          ExecutingContext.Result.Execute(Context);
+          Exit;
+        end;
+      end;
+    end;
+  except
+    on E: Exception do
+    begin
+      WriteLn('❌ Error in OnActionExecuting filter: ', E.Message);
+      raise;
+    end;
+  end;
+
   Ctx := TRttiContext.Create;
   try
     // ✅ RE-OBTER O TIPO EM TEMPO DE EXECUÇÃO
@@ -528,10 +582,42 @@ begin
       end;
     end;
 
+
+    // ✅ EXECUTE ACTION FILTERS - OnActionExecuted
+    var ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
+    // Execute filters in reverse order
+    for var I := High(CachedMethod.Filters) downto Low(CachedMethod.Filters) do
+    begin
+      var FilterAttr := CachedMethod.Filters[I];
+      var Filter: IActionFilter;
+      if Supports(FilterAttr, IActionFilter, Filter) then
+        Filter.OnActionExecuted(ExecutedContext);
+    end;
+
+
   except
     on E: Exception do
     begin
       WriteLn('❌ Error executing cached method ', CachedMethod.TypeName, '.', CachedMethod.MethodName, ': ', E.ClassName, ': ', E.Message);
+
+      // ✅ EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
+      var ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
+      for var I := High(CachedMethod.Filters) downto Low(CachedMethod.Filters) do
+      begin
+        var FilterAttr := CachedMethod.Filters[I];
+        var Filter: IActionFilter;
+        if Supports(FilterAttr, IActionFilter, Filter) then
+        begin
+          Filter.OnActionExecuted(ExecutedContext);
+          if ExecutedContext.ExceptionHandled then
+          begin
+            WriteLn('✅ Exception handled by filter');
+            Exit; // Don't re-raise
+          end;
+        end;
+      end;
+
+
       Context.Response.Status(500).Json(Format('{"error": "Execution failed: %s"}', [E.Message]));
     end;
   end;

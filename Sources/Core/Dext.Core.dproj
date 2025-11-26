@@ -160,6 +160,8 @@
         <DCCReference Include="Dext.RateLimiting.Limiters.pas"/>
         <DCCReference Include="Dext.RateLimiting.Core.pas"/>
         <DCCReference Include="Dext.DI.Middleware.pas"/>
+        <DCCReference Include="Dext.Filters.pas"/>
+        <DCCReference Include="Dext.Filters.BuiltIn.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

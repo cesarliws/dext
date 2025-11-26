@@ -18,8 +18,10 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 | :--- | :---: | :---: | :---: | :---: |
 | **Arquitetura** | Modular (Microsoft.Extensions.* style) | Middleware-based (Express.js style) | MVC Clássico | Modular |
 | **Injeção de Dependência** | ✅ **Nativa & First-Class** (Scoped, Transient, Singleton) | ❌ (Requer lib externa) | ⚠️ (Limitada/Externa) | ✅ Nativa |
+| **Scoped Services** | ✅ **Por Requisição** (DbContext, UoW) | ❌ | ❌ | ✅ |
 | **Minimal APIs** | ✅ `App.MapGet('/route', ...)` | ✅ | ❌ | ✅ |
 | **Controllers** | ✅ Suporte completo (Attributes) | ❌ | ✅ | ✅ |
+| **Action Filters** | ✅ **Declarativo** (OnExecuting/Executed) | ❌ | ✅ | ✅ |
 | **Model Binding** | ✅ **Avançado** (Body, Query, Route, Header, Services) | ⚠️ Básico | ✅ | ✅ |
 | **Validation** | ✅ **Automática** (Attributes + Minimal APIs) | ❌ | ✅ | ✅ |
 | **Middleware Pipeline** | ✅ Robusto (`UseMiddleware<T>`) | ✅ Simples | ✅ | ✅ |
@@ -27,9 +29,18 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 | **OpenAPI / Swagger** | ✅ **Nativo** (Geração automática + Global Responses) | ✅ (Swagger-UI) | ✅ | ✅ |
 | **Caching** | ✅ **Nativo** (In-Memory, Response Cache) | ❌ | ❌ | ✅ |
 | **Rate Limiting** | ✅ **Avançado** (4 algoritmos, Partition Strategies) | ⚠️ (Middleware externo) | ✅ | ✅ |
+| **Static Files** | ✅ Middleware nativo | ❌ | ⚠️ (Manual) | ✅ |
+| **Problem Details** | ✅ RFC 7807 | ❌ | ⚠️ | ✅ |
+| **HTTP Logging** | ✅ Estruturado | ❌ | ⚠️ | ✅ |
+| **CORS** | ✅ Configurável | ⚠️ (Middleware externo) | ✅ | ✅ |
 | **Async/Await** | ❌ (Limitação da linguagem*) | ❌ | ❌ | ✅ |
 
 *\* O Dext utiliza Tasks e Futures para operações assíncronas onde possível.*
+
+**Legenda:**
+- ✅ = Suporte completo e nativo
+- ⚠️ = Suporte parcial ou requer configuração adicional
+- ❌ = Não suportado ou requer biblioteca externa
 
 ---
 
@@ -76,6 +87,12 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 - [x] **Global Rate Limits**: Proteção de recursos do servidor independente do cliente.
 - [x] **Validation**: Integração automática de validação (Attributes) em Controllers e Minimal APIs.
 - [x] **Swagger/OpenAPI**: Geração automática de documentação com Global Responses.
+- [x] **Action Filters**: Sistema declarativo de filtros:
+  - [x] OnActionExecuting / OnActionExecuted
+  - [x] Short-circuit support
+  - [x] Exception handling em filtros
+  - [x] Filtros built-in (LogAction, RequireHeader, ResponseCache, AddHeader)
+  - [x] Controller-level e Method-level filters
 
 ### 5. Ecossistema & Tooling (📅 Planejado para v1.1)
 - [ ] **CLI**: Ferramenta de linha de comando (`dext new webapi`).
@@ -88,6 +105,8 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 ### 6. Documentação & Qualidade (🚧 Em Andamento)
 - [x] **Integration Tests**: Testes de integração completos (MinimalAPITest, ControllerExample).
 - [x] **Rate Limiting Docs**: Documentação completa do sistema de Rate Limiting.
+- [x] **Action Filters Docs**: Documentação completa do sistema de Action Filters.
+- [x] **Scoped Services Docs**: Documentação do Scoped Lifetime.
 - [ ] **Unit Tests**: Cobertura abrangente (Core, DI, Http).
 - [ ] **Documentation**: Site de documentação oficial (VitePress/Docusaurus).
 - [ ] **Samples**: Repositório de exemplos "Real World".

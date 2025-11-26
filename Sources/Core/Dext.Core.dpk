@@ -87,7 +87,10 @@ contains
   Dext.RateLimiting.Policy in 'Dext.RateLimiting.Policy.pas',
   Dext.RateLimiting.Limiters in 'Dext.RateLimiting.Limiters.pas',
   Dext.RateLimiting.Core in 'Dext.RateLimiting.Core.pas',
-  Dext.DI.Middleware in 'Dext.DI.Middleware.pas';
+  Dext.DI.Middleware in 'Dext.DI.Middleware.pas',
+  Dext.Filters in 'Dext.Filters.pas',
+  Dext.Filters.BuiltIn in 'Dext.Filters.BuiltIn.pas';
 
 end.
+
 
