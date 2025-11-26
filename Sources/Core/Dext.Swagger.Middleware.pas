@@ -157,92 +157,14 @@ end;
 
 class function TSwaggerExtensions.UseSwagger(App: IApplicationBuilder; const AOptions: TOpenAPIOptions): IApplicationBuilder;
 var
-  Generator: TOpenAPIGenerator;
-  CachedJson: string;
-  SwaggerPath: string;
-  JsonPath: string;
-  Title: string;
+  Middleware: IMiddleware;
 begin
-  Generator := TOpenAPIGenerator.Create(AOptions);
-  CachedJson := '';
-  SwaggerPath := '/swagger';
-  JsonPath := '/swagger.json';
-  Title := AOptions.Title;
+  // Create middleware instance (Singleton)
+  // This ensures Generator and CachedJson are preserved
+  Middleware := TSwaggerMiddleware.Create(App, AOptions);
   
-  Result := App.Use(
-    procedure(AContext: IHttpContext; ANext: TRequestDelegate)
-    var
-      Endpoints: TArray<TEndpointMetadata>;
-      Html: string;
-    begin
-      // Check if this is a Swagger request
-      if AContext.Request.Path.Equals(SwaggerPath) then
-      begin
-        // Build Swagger UI HTML
-        Html := 
-          '<!DOCTYPE html>' + sLineBreak +
-          '<html lang="en">' + sLineBreak +
-          '<head>' + sLineBreak +
-          '  <meta charset="UTF-8">' + sLineBreak +
-          '  <meta name="viewport" content="width=device-width, initial-scale=1.0">' + sLineBreak +
-          '  <title>' + Title + ' - Swagger UI</title>' + sLineBreak +
-          '  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui.css" />' + sLineBreak +
-          '  <style>' + sLineBreak +
-          '    html { box-sizing: border-box; overflow: -moz-scrollbars-vertical; overflow-y: scroll; }' + sLineBreak +
-          '    *, *:before, *:after { box-sizing: inherit; }' + sLineBreak +
-          '    body { margin: 0; padding: 0; }' + sLineBreak +
-          '  </style>' + sLineBreak +
-          '</head>' + sLineBreak +
-          '<body>' + sLineBreak +
-          '  <div id="swagger-ui"></div>' + sLineBreak +
-          '  <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-bundle.js"></script>' + sLineBreak +
-          '  <script src="https://unpkg.com/swagger-ui-dist@5.10.0/swagger-ui-standalone-preset.js"></script>' + sLineBreak +
-          '  <script>' + sLineBreak +
-          '    window.onload = function() {' + sLineBreak +
-          '      window.ui = SwaggerUIBundle({' + sLineBreak +
-          '        url: "' + JsonPath + '",' + sLineBreak +
-          '        dom_id: "#swagger-ui",' + sLineBreak +
-          '        deepLinking: true,' + sLineBreak +
-          '        presets: [' + sLineBreak +
-          '          SwaggerUIBundle.presets.apis,' + sLineBreak +
-          '          SwaggerUIStandalonePreset' + sLineBreak +
-          '        ],' + sLineBreak +
-          '        plugins: [' + sLineBreak +
-          '          SwaggerUIBundle.plugins.DownloadUrl' + sLineBreak +
-          '        ],' + sLineBreak +
-          '        layout: "StandaloneLayout"' + sLineBreak +
-          '      });' + sLineBreak +
-          '    };' + sLineBreak +
-          '  </script>' + sLineBreak +
-          '</body>' + sLineBreak +
-          '</html>';
-        
-        // Serve Swagger UI
-        AContext.Response.StatusCode := 200;
-        AContext.Response.SetContentType('text/html; charset=utf-8');
-        AContext.Response.Write(Html);
-      end
-      else if AContext.Request.Path.Equals(JsonPath) then
-      begin
-        // Serve OpenAPI JSON
-        if CachedJson = '' then
-        begin
-          Endpoints := App.GetRoutes;
-          CachedJson := Generator.GenerateJson(Endpoints);
-        end;
-        
-        AContext.Response.StatusCode := 200;
-        AContext.Response.SetContentType('application/json; charset=utf-8');
-        AContext.Response.AddHeader('Access-Control-Allow-Origin', '*');
-        AContext.Response.Write(CachedJson);
-      end
-      else
-      begin
-        // Not a Swagger request, continue pipeline
-        ANext(AContext);
-      end;
-    end
-  );
+  // Register as Singleton Middleware
+  Result := App.UseMiddleware(Middleware);
 end;
 
 class function TSwaggerExtensions.UseSwagger(App: IApplicationBuilder): IApplicationBuilder;

@@ -19,7 +19,9 @@ uses
   Dext.Http.Middleware,
   Dext.Http.Middleware.Extensions,
   Dext.RateLimiting,
-  Dext.Http.StaticFiles;
+  Dext.Http.StaticFiles,
+  Dext.Swagger.Middleware,
+  Dext.OpenAPI.Generator;
 
 {$R *.res}
 
@@ -123,6 +125,11 @@ begin
         
         // 5. Static Files
         TApplicationBuilderStaticFilesExtensions.UseStaticFiles(App);
+        
+        // 6. Swagger / OpenAPI
+        TSwaggerExtensions.UseSwagger(App, 
+          TOpenAPIOptions.Default
+            .WithServer('http://localhost:8080', 'Local Development Server'));
         
         WriteLn('Configuring routes...');
         WriteLn;
@@ -257,6 +264,7 @@ begin
     WriteLn('curl -v http://localhost:8080/api/cached');
     WriteLn('curl -v http://localhost:8080/api/error');
     WriteLn('curl http://localhost:8080/index.html');
+    WriteLn('curl http://localhost:8080/swagger');
     WriteLn;
     WriteLn('Press Enter to stop the server...');
     WriteLn;
