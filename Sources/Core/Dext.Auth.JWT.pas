@@ -9,8 +9,10 @@ uses
   System.DateUtils,
   System.NetEncoding,
   System.Generics.Collections,
-  IdHMACSHA1,
   IdGlobal,
+  IdHashSHA,
+  IdHMAC,
+  IdHMACSHA1,
   IdSSLOpenSSL;
 
 type
@@ -41,14 +43,16 @@ type
     FIssuer: string;
     FAudience: string;
     FExpirationMinutes: Integer;
+    FBase64: TBase64Encoding;
 
     function Base64UrlEncode(const AInput: string): string;
     function Base64UrlDecode(const AInput: string): string;
     function CreateSignature(const AHeader, APayload: string): string;
     function VerifySignature(const AToken: string): Boolean;
   public
-    constructor Create(const ASecretKey: string; const AIssuer: string = ''; 
+    constructor Create(const ASecretKey: string; const AIssuer: string = '';
       const AAudience: string = ''; AExpirationMinutes: Integer = 60);
+    destructor Destroy; override;
 
     /// <summary>
     ///   Generates a JWT token with the specified claims.
@@ -91,6 +95,7 @@ begin
   FIssuer := AIssuer;
   FAudience := AAudience;
   FExpirationMinutes := AExpirationMinutes;
+  FBase64 := TBase64Encoding.Create(0);
 end;
 
 function TJwtTokenHandler.Base64UrlEncode(const AInput: string): string;
@@ -98,7 +103,7 @@ var
   Bytes: TBytes;
 begin
   Bytes := TEncoding.UTF8.GetBytes(AInput);
-  Result := TNetEncoding.Base64.EncodeBytesToString(Bytes);
+  Result := FBase64.EncodeBytesToString(Bytes);
   
   // Convert to Base64URL format
   Result := Result.Replace('+', '-', [rfReplaceAll]);
@@ -132,58 +137,72 @@ var
   HMAC: TIdHMACSHA256;
   Data: string;
   Hash: TIdBytes;
+  Base64Hash: string;
 begin
   Data := AHeader + '.' + APayload;
   
+  // Load OpenSSL if needed
+  if not TIdHashSHA256.IsAvailable then
+    LoadOpenSSLLibrary;
+  
   HMAC := TIdHMACSHA256.Create;
   try
-    HMAC.Key := ToBytes(FSecretKey, IndyTextEncoding_UTF8);
-    Hash := HMAC.HashValue(ToBytes(Data, IndyTextEncoding_UTF8));
-    Result := Base64UrlEncode(BytesToString(Hash, IndyTextEncoding_UTF8));
+    HMAC.Key := IndyTextEncoding_UTF8.GetBytes(FSecretKey);
+    Hash := HMAC.HashValue(IndyTextEncoding_UTF8.GetBytes(Data));
+    
+    // Encode hash bytes directly to Base64
+    Base64Hash := TNetEncoding.Base64.EncodeBytesToString(Hash);
+    
+    // Convert to Base64URL format
+    Result := Base64Hash.Replace('+', '-', [rfReplaceAll]);
+    Result := Result.Replace('/', '_', [rfReplaceAll]);
+    Result := Result.Replace('=', '', [rfReplaceAll]);
   finally
     HMAC.Free;
   end;
 end;
 
+destructor TJwtTokenHandler.Destroy;
+begin
+  FBase64.Free;
+  inherited;
+end;
+
 function TJwtTokenHandler.GenerateToken(const AClaims: TArray<TClaim>): string;
 var
-  Header, Payload: TJSONObject;
   HeaderStr, PayloadStr, Signature: string;
   Claim: TClaim;
   ExpirationTime: TDateTime;
 begin
-  // Create header
-  Header := TJSONObject.Create;
-  try
-    Header.AddPair('alg', 'HS256');
-    Header.AddPair('typ', 'JWT');
-    HeaderStr := Base64UrlEncode(Header.ToString);
-  finally
-    Header.Free;
-  end;
+  // Create header - build JSON manually to avoid formatting
+  HeaderStr := Base64UrlEncode('{"alg":"HS256","typ":"JWT"}');
 
-  // Create payload
-  Payload := TJSONObject.Create;
+  // Create payload - build JSON manually to avoid formatting
+  var PayloadJson := TStringBuilder.Create;
   try
+    PayloadJson.Append('{');
+    
     // Add standard claims
     if FIssuer <> '' then
-      Payload.AddPair('iss', FIssuer);
+      PayloadJson.AppendFormat('"iss":"%s",', [FIssuer]);
     
     if FAudience <> '' then
-      Payload.AddPair('aud', FAudience);
+      PayloadJson.AppendFormat('"aud":"%s",', [FAudience]);
     
-    Payload.AddPair('iat', TJSONNumber.Create(DateTimeToUnix(Now)));
+    PayloadJson.AppendFormat('"iat":%d,', [DateTimeToUnix(Now)]);
     
     ExpirationTime := IncMinute(Now, FExpirationMinutes);
-    Payload.AddPair('exp', TJSONNumber.Create(DateTimeToUnix(ExpirationTime)));
+    PayloadJson.AppendFormat('"exp":%d', [DateTimeToUnix(ExpirationTime)]);
     
     // Add custom claims
     for Claim in AClaims do
-      Payload.AddPair(Claim.ClaimType, Claim.Value);
+      PayloadJson.AppendFormat(',"%s":"%s"', [Claim.ClaimType, Claim.Value]);
     
-    PayloadStr := Base64UrlEncode(Payload.ToString);
+    PayloadJson.Append('}');
+    PayloadStr := PayloadJson.ToString;
+    PayloadStr := Base64UrlEncode(PayloadStr);
   finally
-    Payload.Free;
+    PayloadJson.Free;
   end;
 
   // Create signature

@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Classes, System.Generics.Collections, System.SysUtils,
+  System.Classes, System.Generics.Collections, System.SysUtils, System.Generics.Defaults,
   IdCustomHTTPServer, IdContext, IdGlobal, IdURI, IdHeaderList,
   Dext.Http.Interfaces, Dext.DI.Interfaces, Dext.Auth.Identity;
 
@@ -98,7 +98,7 @@ var
   I: Integer;
   Name, Value: string;
 begin
-  Result := TDictionary<string, string>.Create;
+  Result := TDictionary<string, string>.Create(TIStringComparer.Ordinal);
 
   for I := 0 to AHeaderList.Count - 1 do
   begin
@@ -107,8 +107,7 @@ begin
 
     if not Name.IsEmpty then
     begin
-      // Normalizar nome do header (case-insensitive)
-      Result.AddOrSetValue(LowerCase(Name), Value);
+      Result.AddOrSetValue(Name, Value);
     end;
   end;
 end;

@@ -192,7 +192,7 @@ end;
 
 class function TCorsOptions.Create: TCorsOptions;
 begin
-  Result.AllowedOrigins := ['*'];
+  Result.AllowedOrigins := [];
   Result.AllowedMethods := ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'];
   Result.AllowedHeaders := ['Content-Type', 'Authorization'];
   Result.ExposedHeaders := [];

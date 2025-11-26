@@ -16,6 +16,8 @@ type
 
     procedure HandleCommandGet(AContext: TIdContext;
       ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+    procedure HandleParseAuthentication(AContext: TIdContext;
+      const AAuthType, AAuthData: string; var VUsername, VPassword: string; var Handled: Boolean);
   public
     constructor Create(APort: Integer; APipeline: TRequestDelegate; const AServices: IServiceProvider);
     destructor Destroy; override;
@@ -43,9 +45,18 @@ begin
   FHTTPServer.DefaultPort := FPort;
   FHTTPServer.OnCommandOther := HandleCommandGet;
   FHTTPServer.OnCommandGet := HandleCommandGet;
+  FHTTPServer.OnParseAuthentication := HandleParseAuthentication;
   FHTTPServer.ParseParams := True;
   FHTTPServer.KeepAlive := True;
   FHTTPServer.ServerSoftware := 'Dext Web Server/1.0';
+end;
+
+procedure TIndyWebServer.HandleParseAuthentication(AContext: TIdContext;
+  const AAuthType, AAuthData: string; var VUsername, VPassword: string; var Handled: Boolean);
+begin
+  // Ignorar autenticação do Indy para permitir que o Middleware do Dext trate (ex: Bearer Token)
+  // Se não fizermos isso, o Indy levanta uma exceção "Unsupported authorization scheme" para esquemas desconhecidos
+  Handled := True;
 end;
 
 destructor TIndyWebServer.Destroy;

@@ -262,6 +262,7 @@ function TModelBinder.BindBody(AType: PTypeInfo; Context: IHttpContext): TValue;
 var
   Stream: TStream;
   JsonString: string;
+  Settings: TDextSettings;
 begin
   if AType.Kind <> tkRecord then
     raise EBindingException.Create('BindBody currently only supports records');
@@ -272,9 +273,13 @@ begin
 
   JsonString := ReadStreamToString(Stream);
 
+  // ✅ Usar settings com CaseInsensitive = True para resolver problema de binding
+  // quando JSON vem com campos em lowercase mas record Delphi está em PascalCase
+  Settings := TDextSettings.Default.WithCaseInsensitive;
+
   // Desserializar record usando a abstração do Dext.Json
   try
-    Result := TDextJson.DeserializeRecord(AType, JsonString);
+    Result := TDextJson.Deserialize(AType, JsonString, Settings);
   except
     on E: Exception do
       raise EBindingException.Create('Error binding body: ' + E.Message);
@@ -336,6 +341,24 @@ begin
 
   finally
     ContextRtti.Free;
+  end;
+end;
+
+function TryGetCaseInsensitive(const ADict: TDictionary<string, string>; const AKey: string; out AValue: string): Boolean;
+begin
+  Result := False;
+  if ADict = nil then Exit;
+
+  if ADict.TryGetValue(AKey, AValue) then
+    Exit(True);
+
+  for var Key in ADict.Keys do
+  begin
+    if SameText(Key, AKey) then
+    begin
+      AValue := ADict[Key];
+      Exit(True);
+    end;
   end;
 end;
 
@@ -402,9 +425,9 @@ begin
       end;
 
       // Buscar valor do route parameter
-      if RouteParams.ContainsKey(FieldName) then
+      if TryGetCaseInsensitive(RouteParams, FieldName, FieldValue) then
       begin
-        FieldValue := RouteParams[FieldName];
+        // FieldValue já foi preenchido pelo TryGetCaseInsensitive
 
         // ✅ MESMA CONVERSÃO ROBUSTA DO BINDQUERY
         try
@@ -725,6 +748,7 @@ begin
   // 2. Explicit Attributes
   for Attr in AParam.GetAttributes do
   begin
+    WriteLn(Format('    🔍 Found attribute: %s', [Attr.ClassName]));
     if Attr is FromQueryAttribute then
     begin
       ParamName := FromQueryAttribute(Attr).Name;
@@ -742,11 +766,12 @@ begin
     begin
       ParamName := FromRouteAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
-
       WriteLn(Format('    🛣️  FromRoute: %s', [ParamName]));
+
       var RouteParams := AContext.Request.RouteParams;
-      if RouteParams.ContainsKey(ParamName) then
-        Result := ConvertStringToType(RouteParams[ParamName], AParam.ParamType.Handle)
+      var RouteValue: string;
+      if TryGetCaseInsensitive(RouteParams, ParamName, RouteValue) then
+        Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle)
       else
         raise EBindingException.CreateFmt('Route parameter not found: %s', [ParamName]);
       Exit;
@@ -805,11 +830,12 @@ begin
     // Primitives: Route -> Query
     ParamName := AParam.Name;
     var RouteParams := AContext.Request.RouteParams;
+    var RouteValue: string;
     
-    if RouteParams.ContainsKey(ParamName) then
+    if TryGetCaseInsensitive(RouteParams, ParamName, RouteValue) then
     begin
       WriteLn(Format('    🛣️  Inferred FromRoute: %s', [ParamName]));
-      Result := ConvertStringToType(RouteParams[ParamName], AParam.ParamType.Handle);
+      Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle);
     end
     else
     begin

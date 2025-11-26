@@ -2,13 +2,15 @@
 
 uses
   System.SysUtils,
+  System.Rtti,
   WinApi.Windows,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
   Dext.Http.Interfaces,
   Dext.WebHost,
   Dext.Http.Middleware,
-  Dext.Logger.Service in 'Dext.Logger.Service.pas';
+  Dext.Logging,
+  Dext.Logging.Console;
 
 {$APPTYPE CONSOLE}
 
@@ -60,9 +62,13 @@ begin
       .Configure(procedure(App: IApplicationBuilder)
       begin
         // Configurar pipeline
-        App.UseMiddleware(TLoggingMiddleware)
-           .UseMiddleware(TExceptionHandlingMiddleware)
-           .Map('/',
+        var ExceptionOptions := TExceptionHandlerOptions.Development;
+        App.UseMiddleware(TExceptionHandlerMiddleware, TValue.From(ExceptionOptions));
+        
+        var LoggingOptions := THttpLoggingOptions.Default;
+        App.UseMiddleware(THttpLoggingMiddleware, TValue.From(LoggingOptions));
+
+        App.Map('/',
              procedure(Ctx: IHttpContext)
              begin
                Ctx.Response.Write('Welcome to Dext Web Framework!');

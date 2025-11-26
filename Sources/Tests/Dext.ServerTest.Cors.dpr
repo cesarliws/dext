@@ -1,8 +1,8 @@
-﻿program Dext.ServerTest;
+﻿program Dext.ServerTest.Cors;
 
 uses
-  FastMM5,
   System.SysUtils,
+  System.Rtti,
   WinApi.Windows,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
@@ -10,7 +10,8 @@ uses
   Dext.WebHost,
   Dext.Http.Middleware,
   Dext.Http.Cors,
-  Dext.Logger.Service in 'Dext.Logger.Service.pas',
+  Dext.Logging,
+  Dext.Logging.Console,
   Dext.ServerTest.Cors.Consts in 'Dext.ServerTest.Cors.Consts.pas',
   Dext.Json.Test in 'Dext.Json.Test.pas',
   Dext.ModelBinding.Tests in 'Dext.ModelBinding.Tests.pas',
@@ -79,20 +80,20 @@ begin
     TestRealWorldBindingScenarios;
     TestModelBinderBasic;
 
-WriteLn('--- Actual Tests --- ' + sLineBreak);
+    WriteLn('--- Actual Tests --- ' + sLineBreak);
 
     TestBindHeaderComprehensive;
     TestBindServicesComprehensive;
     Readln;
-  Exit;
+    Exit;
     TestBindRouteComprehensive;
     TestBindRouteEdgeCases;
     Readln;
-  Exit;
+    Exit;
     TestBindQueryComprehensive;
     TestBindQueryEdgeCases;
     Readln;
-  Exit;
+    Exit;
     TestCompleteIntegration;
     TestFinalIntegration;
     TestWebHostIntegration;
@@ -125,9 +126,13 @@ WriteLn('--- Actual Tests --- ' + sLineBreak);
           end);
 
         // Configurar pipeline (agora App já tem CORS configurado)
-        App.UseMiddleware(TLoggingMiddleware)
-           .UseMiddleware(TExceptionHandlingMiddleware)
-           .Map('/',
+        var ExceptionOptions := TExceptionHandlerOptions.Development;
+        App.UseMiddleware(TExceptionHandlerMiddleware, TValue.From(ExceptionOptions));
+        
+        var LoggingOptions := THttpLoggingOptions.Default;
+        App.UseMiddleware(THttpLoggingMiddleware, TValue.From(LoggingOptions));
+
+        App.Map('/',
              procedure(Ctx: IHttpContext)
              begin
                Ctx.Response.Write('Welcome to Dext Web Framework with CORS!');
@@ -182,7 +187,7 @@ WriteLn('--- Actual Tests --- ' + sLineBreak);
                 Ctx.Response.AddHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
                 Ctx.Response.SetContentType('text/html; charset=utf-8');
                 Ctx.Response.Write(TextCorsHtmlTestPage);
-              end)
+              end);
       end)
       .Build;
 

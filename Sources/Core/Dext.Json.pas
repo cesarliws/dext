@@ -225,6 +225,11 @@ type
     class function Deserialize(AType: PTypeInfo; const AJson: string): TValue; overload; static;
     
     /// <summary>
+    ///   Deserializes a JSON string into a TValue based on the provided type info with custom settings.
+    /// </summary>
+    class function Deserialize(AType: PTypeInfo; const AJson: string; const ASettings: TDextSettings): TValue; overload; static;
+    
+    /// <summary>
     ///   Deserializes a JSON string into a record TValue.
     /// </summary>
     class function DeserializeRecord(AType: PTypeInfo; const AJson: string): TValue; static;
@@ -595,6 +600,29 @@ begin
   end;
 end;
 
+class function TDextJson.Deserialize(AType: PTypeInfo; const AJson: string; const ASettings: TDextSettings): TValue;
+var
+  Serializer: TDextSerializer;
+  JsonNode: IDextJsonNode;
+begin
+  Serializer := TDextSerializer.Create(ASettings);
+  try
+    JsonNode := TDextJson.Provider.Parse(AJson);
+    
+    if JsonNode.GetNodeType = jntObject then
+    begin
+      if AType.Kind = tkRecord then
+        Result := Serializer.DeserializeRecord(JsonNode as IDextJsonObject, AType)
+      else
+        raise EDextJsonException.CreateFmt('Unsupported type for deserialization with settings: %s', [AType.NameFld.ToString]);
+    end
+    else
+      raise EDextJsonException.Create('JSON root must be Object for record deserialization');
+  finally
+    Serializer.Free;
+  end;
+end;
+
 class function TDextJson.DeserializeRecord(AType: PTypeInfo; const AJson: string): TValue;
 var
   Serializer: TDextSerializer;
@@ -683,7 +711,9 @@ var
   RttiType: TRttiType;
   Field: TRttiField;
   FieldName: string;
+  ActualFieldName: string;
   FieldValue: TValue;
+  Found: Boolean;
 begin
   TValue.Make(nil, AType, Result);
   Context := TRttiContext.Create;
@@ -696,14 +726,48 @@ begin
         Continue;
 
       FieldName := GetFieldName(Field);
+      ActualFieldName := FieldName;
+      Found := AJson.Contains(FieldName);
 
-      if not AJson.Contains(FieldName) then
+      // Se não encontrou e CaseInsensitive está habilitado, buscar ignorando case
+      if (not Found) and FSettings.CaseInsensitive then
+      begin
+        // Precisamos iterar pelas chaves do JSON para encontrar uma correspondência case-insensitive
+        // Como não temos acesso direto às chaves via interface, vamos tentar variações comuns
+        var LowerFieldName := LowerCase(FieldName);
+        var UpperFieldName := UpperCase(FieldName);
+        
+        // Tentar lowercase
+        if AJson.Contains(LowerFieldName) then
+        begin
+          ActualFieldName := LowerFieldName;
+          Found := True;
+        end
+        // Tentar uppercase
+        else if AJson.Contains(UpperFieldName) then
+        begin
+          ActualFieldName := UpperFieldName;
+          Found := True;
+        end
+        // Tentar primeira letra minúscula (camelCase)
+        else if Length(FieldName) > 0 then
+        begin
+          var CamelCaseName := LowerCase(FieldName[1]) + Copy(FieldName, 2, Length(FieldName) - 1);
+          if AJson.Contains(CamelCaseName) then
+          begin
+            ActualFieldName := CamelCaseName;
+            Found := True;
+          end;
+        end;
+      end;
+
+      if not Found then
         Continue;
 
       if Field.FieldType.Handle = TypeInfo(TGUID) then
       begin
         try
-          FieldValue := TValue.From<TGUID>(StringToGUID(AJson.GetString(FieldName)));
+          FieldValue := TValue.From<TGUID>(StringToGUID(AJson.GetString(ActualFieldName)));
         except
           FieldValue := TValue.From<TGUID>(TGUID.Empty);
         end;
@@ -713,16 +777,16 @@ begin
 
       case Field.FieldType.TypeKind of
         tkInteger:
-          FieldValue := TValue.From<Integer>(AJson.GetInteger(FieldName));
+          FieldValue := TValue.From<Integer>(AJson.GetInteger(ActualFieldName));
 
         tkInt64:
-          FieldValue := TValue.From<Int64>(AJson.GetInt64(FieldName));
+          FieldValue := TValue.From<Int64>(AJson.GetInt64(ActualFieldName));
 
         tkFloat:
           begin
             if Field.FieldType.Handle = TypeInfo(TDateTime) then
             begin
-              var DateStr := AJson.GetString(FieldName);
+              var DateStr := AJson.GetString(ActualFieldName);
               var DateValue: TDateTime;
 
               if TryParseCommonDate(DateStr, DateValue) then
@@ -731,7 +795,7 @@ begin
                 FieldValue := TValue.Empty;
             end
             else
-              FieldValue := TValue.From<Double>(AJson.GetDouble(FieldName));
+              FieldValue := TValue.From<Double>(AJson.GetDouble(ActualFieldName));
           end;
 
         tkString, tkLString, tkWString, tkUString:
@@ -748,39 +812,39 @@ begin
               // or trust GetString returns the value.
               // But wait, if it's a number in JSON, GetString should return string representation.
               // Our adapters should handle this.
-              FieldValue := TValue.From<string>(AJson.GetString(FieldName));
+              FieldValue := TValue.From<string>(AJson.GetString(ActualFieldName));
             end
             else
             begin
-              FieldValue := TValue.From<string>(AJson.GetString(FieldName));
+              FieldValue := TValue.From<string>(AJson.GetString(ActualFieldName));
             end;
           end;
 
         tkEnumeration:
           begin
             if Field.FieldType.Handle = TypeInfo(Boolean) then
-              FieldValue := TValue.From<Boolean>(AJson.GetBoolean(FieldName))
+              FieldValue := TValue.From<Boolean>(AJson.GetBoolean(ActualFieldName))
             else
             begin
               case FSettings.EnumStyle of
                 TDextEnumStyle.AsString:
                   begin
-                    var EnumName := AJson.GetString(FieldName);
+                    var EnumName := AJson.GetString(ActualFieldName);
                     if EnumName <> '' then
                       FieldValue := TValue.FromOrdinal(Field.FieldType.Handle,
                         GetEnumValue(Field.FieldType.Handle, EnumName))
                     else
-                      FieldValue := TValue.FromOrdinal(Field.FieldType.Handle, AJson.GetInteger(FieldName));
+                      FieldValue := TValue.FromOrdinal(Field.FieldType.Handle, AJson.GetInteger(ActualFieldName));
                   end;
                 TDextEnumStyle.AsNumber:
-                  FieldValue := TValue.FromOrdinal(Field.FieldType.Handle, AJson.GetInteger(FieldName));
+                  FieldValue := TValue.FromOrdinal(Field.FieldType.Handle, AJson.GetInteger(ActualFieldName));
               end;
             end;
           end;
 
         tkRecord:
           begin
-            var NestedJson := AJson.GetObject(FieldName);
+            var NestedJson := AJson.GetObject(ActualFieldName);
             if NestedJson <> nil then
               FieldValue := DeserializeRecord(NestedJson, Field.FieldType.Handle)
             else

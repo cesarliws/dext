@@ -148,7 +148,7 @@ begin
         // GET /api/users/{id} - Get user by ID
         Writeln('2. GET /api/users/{id}');
         TEndpointMetadataExtensions.WithMetadata(
-          App.MapGet<Integer>('/api/users/{id}',
+          TApplicationBuilderExtensions.MapGet<Integer, IHttpContext>(App, '/api/users/{id}',
             procedure(UserId: Integer; Ctx: IHttpContext)
             var
               User: TUser;
@@ -178,7 +178,7 @@ begin
         // POST /api/users - Create new user
         Writeln('3. POST /api/users');
         TEndpointMetadataExtensions.WithMetadata(
-          App.MapPost<TCreateUserRequest>('/api/users',
+          TApplicationBuilderExtensions.MapPost<TCreateUserRequest, IHttpContext>(App, '/api/users',
             procedure(Req: TCreateUserRequest; Ctx: IHttpContext)
             var
               NewUser: TUser;
@@ -209,7 +209,7 @@ begin
         // DELETE /api/users/{id} - Delete user
         Writeln('4. DELETE /api/users/{id}');
         TEndpointMetadataExtensions.WithMetadata(
-          App.MapDelete<Integer>('/api/users/{id}',
+          TApplicationBuilderExtensions.MapDelete<Integer, IHttpContext>(App, '/api/users/{id}',
             procedure(UserId: Integer; Ctx: IHttpContext)
             var
               I: Integer;

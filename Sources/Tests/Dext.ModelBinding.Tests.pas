@@ -64,7 +64,7 @@ Writeln('3. GUID Conversion - Deve converter corretamente');
 Writeln('4. Boolean deve funcionar com todos os formatos');
 
   try
-    Binder := TModelBinder.Create(nil);
+    Binder := TModelBinder.Create;
 
     // ✅ TESTE 1: Cenário básico
     Writeln('✅ TESTE 1: Cenário básico');
@@ -125,7 +125,7 @@ begin
   Writeln('=== TESTE CASOS EXTREMOS BINDQUERY ===');
 
   try
-    Binder := TModelBinder.Create(nil);
+    Binder := TModelBinder.Create;
 
     // ✅ TESTE: Valores extremos
     MockContext := CreateMockHttpContext('/api/test?smallint=32767&largeint=9223372036854775807&currencyval=123.4567&isenabled=1&userrole=5');
@@ -172,7 +172,7 @@ begin
   Writeln('=== TESTE BINDROUTE COMPREENSIVO ===');
 
   try
-    Binder := TModelBinder.Create(nil);
+    Binder := TModelBinder.Create;
 
     // ✅ TESTE 1: Cenário completo
     Writeln('✅ TESTE 1: Cenário completo');
@@ -291,7 +291,7 @@ begin
   Writeln('=== TESTE CASOS EXTREMOS BINDROUTE ===');
 
   try
-    Binder := TModelBinder.Create(nil);
+    Binder := TModelBinder.Create;
 
     // ✅ TESTE: Valores extremos
     Writeln('✅ TESTE: Valores extremos');
@@ -370,7 +370,7 @@ begin
   Writeln('=== TESTE BINDHEADER COMPREENSIVO ===');
 
   try
-    Binder := TModelBinder.Create(nil);
+    Binder := TModelBinder.Create;
 
     // ✅ TESTE: Headers com diferentes formatos
     Headers := TDictionary<string, string>.Create;
@@ -482,7 +482,7 @@ begin
 
     var ServiceProvider := Services.BuildServiceProvider;
 
-    Binder := TModelBinder.Create(ServiceProvider);
+    Binder := TModelBinder.Create;
 
     // Criar contexto com service provider
     MockContext := TMockFactory.CreateHttpContextWithServices('', ServiceProvider);

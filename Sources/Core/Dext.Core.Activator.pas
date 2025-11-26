@@ -111,6 +111,11 @@ var
   ParamType: TRttiType;
   ServiceType: TServiceType;
   ResolvedService: TValue;
+  
+  // Best match tracking
+  BestMethod: TRttiMethod;
+  BestArgs: TArray<TValue>;
+  MaxParams: Integer;
 begin
   Context := TRttiContext.Create;
   try
@@ -118,11 +123,19 @@ begin
     if TypeObj = nil then
       raise EArgumentException.CreateFmt('RTTI not found for %s', [AClass.ClassName]);
 
+    BestMethod := nil;
+    MaxParams := -1;
+
     for Method in TypeObj.GetMethods do
     begin
       if Method.IsConstructor then
       begin
         Params := Method.GetParameters;
+        
+        // Must have at least enough params for explicit args
+        if Length(Params) < Length(AArgs) then
+          Continue;
+          
         SetLength(Args, Length(Params));
         Matched := True;
 
@@ -168,13 +181,23 @@ begin
 
         if Matched then
         begin
-          Result := Method.Invoke(AClass, Args).AsObject;
-          Exit;
+          // Greedy selection: prefer constructor with MORE parameters
+          if Length(Params) > MaxParams then
+          begin
+            MaxParams := Length(Params);
+            BestMethod := Method;
+            BestArgs := Args;
+          end;
         end;
       end;
     end;
 
-    raise EArgumentException.CreateFmt('No compatible constructor found for %s using DI', [AClass.ClassName]);
+    if BestMethod <> nil then
+    begin
+      Result := BestMethod.Invoke(AClass, BestArgs).AsObject;
+    end
+    else
+      raise EArgumentException.CreateFmt('No compatible constructor found for %s using DI', [AClass.ClassName]);
   finally
     Context.Free;
   end;

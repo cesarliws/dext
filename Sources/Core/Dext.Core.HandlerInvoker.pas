@@ -471,13 +471,21 @@ begin
   begin
     if Args[I].Kind = tkRecord then
     begin
+      WriteLn(Format('  🔍 Validating argument %d (Type: %s)', [I, Args[I].TypeInfo.Name]));
+      WriteLn('  📦 Content: ', TDextJson.Serialize(Args[I]));
+      
       var ValidationResult := TValidator.Validate(Args[I]);
       try
         if not ValidationResult.IsValid then
         begin
-          WriteLn('❌ Validation failed for argument ', I);
+          WriteLn('❌ Validation failed for argument ', I, ' (', Args[I].TypeInfo.Name, ')');
+          WriteLn('  Errors: ', TDextJson.Serialize(ValidationResult.Errors));
           FContext.Response.Status(400).Json(TDextJson.Serialize(ValidationResult.Errors));
           Exit(False);
+        end
+        else
+        begin
+          WriteLn('  ✅ Validation passed for argument ', I);
         end;
       finally
         ValidationResult.Free;

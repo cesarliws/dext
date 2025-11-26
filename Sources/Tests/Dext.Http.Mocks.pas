@@ -10,7 +10,8 @@ uses
   System.TypInfo,
   Dext.DI.Interfaces,
   Dext.Http.Indy,
-  Dext.Http.Interfaces;
+  Dext.Http.Interfaces,
+  Dext.Auth.Identity;
 
 type
   TMockHttpRequest = class(TInterfacedObject, IHttpRequest)
@@ -45,9 +46,13 @@ type
     destructor Destroy; override;
 
     // IHttpResponse
+    function GetStatusCode: Integer;
+    function Status(AValue: Integer): IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
-    procedure Write(const AContent: string);
+    procedure SetContentLength(const AValue: Int64);
+    procedure Write(const AContent: string); overload;
+    procedure Write(const ABuffer: TBytes); overload;
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
 
@@ -61,6 +66,7 @@ type
     FRequest: IHttpRequest;
     FResponse: IHttpResponse;
     FServices: IServiceProvider;
+    FUser: IClaimsPrincipal;
   public
     constructor Create(ARequest: IHttpRequest; AResponse: IHttpResponse;
       AServices: IServiceProvider = nil);
@@ -68,12 +74,15 @@ type
     // IHttpContext
     function GetRequest: IHttpRequest;
     function GetResponse: IHttpResponse;
+    procedure SetResponse(const AValue: IHttpResponse);
     function GetServices: IServiceProvider; virtual;
+    function GetUser: IClaimsPrincipal;
+    procedure SetUser(const AValue: IClaimsPrincipal);
 
     procedure SetRouteParams(const AParams: TDictionary<string, string>);
   end;
 
- TMockHttpRequestWithHeaders = class(TMockHttpRequest)
+  TMockHttpRequestWithHeaders = class(TMockHttpRequest)
   private
     FCustomHeaders: TDictionary<string, string>;
   public
@@ -83,7 +92,6 @@ type
     function GetHeaders: TDictionary<string, string>; override;
   end;
 
-  // ✅ MOCK ESPECIALIZADO COM SERVICE PROVIDER
   TMockHttpContextWithServices = class(TMockHttpContext)
   private
     FCustomServices: IServiceProvider;
@@ -199,6 +207,7 @@ begin
   Writeln('  Returning FRouteParams count: ', FRouteParams.Count);
   Result := FRouteParams;
 end;
+
 function TMockHttpRequest.GetHeaders: TDictionary<string, string>;
 begin
   Result := FHeaders;
@@ -220,6 +229,17 @@ begin
   inherited Destroy;
 end;
 
+function TMockHttpResponse.GetStatusCode: Integer;
+begin
+  Result := FStatusCode;
+end;
+
+function TMockHttpResponse.Status(AValue: Integer): IHttpResponse;
+begin
+  FStatusCode := AValue;
+  Result := Self;
+end;
+
 procedure TMockHttpResponse.SetStatusCode(AValue: Integer);
 begin
   FStatusCode := AValue;
@@ -230,9 +250,19 @@ begin
   FContentType := AValue;
 end;
 
+procedure TMockHttpResponse.SetContentLength(const AValue: Int64);
+begin
+  // Mock implementation - ignore
+end;
+
 procedure TMockHttpResponse.Write(const AContent: string);
 begin
   FContentText := AContent;
+end;
+
+procedure TMockHttpResponse.Write(const ABuffer: TBytes);
+begin
+  FContentText := TEncoding.UTF8.GetString(ABuffer);
 end;
 
 procedure TMockHttpResponse.Json(const AJson: string);
@@ -267,9 +297,24 @@ begin
   Result := FResponse;
 end;
 
+procedure TMockHttpContext.SetResponse(const AValue: IHttpResponse);
+begin
+  FResponse := AValue;
+end;
+
 function TMockHttpContext.GetServices: IServiceProvider;
 begin
   Result := FServices;
+end;
+
+function TMockHttpContext.GetUser: IClaimsPrincipal;
+begin
+  Result := FUser;
+end;
+
+procedure TMockHttpContext.SetUser(const AValue: IClaimsPrincipal);
+begin
+  FUser := AValue;
 end;
 
 procedure TMockHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);
