@@ -23,7 +23,8 @@ uses
   Dext.Auth.Attributes, // Added for AllowAnonymous
   Dext.Filters, // Added for Action Filters
   Dext.Filters.BuiltIn, // Added for built-in filters
-  Dext.Http.Results; // Added for IResult
+  Dext.Http.Results, // Added for IResult
+  Dext.Configuration.Interfaces; // Added for IConfiguration
 
 {.$RTTI EXPLICIT METHODS([vcPublic, vcPublished])}
 
@@ -69,9 +70,10 @@ type
   TGreetingController = class
   private
     FService: IGreetingService;
+    FConfig: IConfiguration;
   public
     // Constructor Injection!
-    constructor Create(AService: IGreetingService);
+    constructor Create(AService: IGreetingService; Config: IConfiguration);
 
     [DextGet('/{name}')]
     procedure GetGreeting(Ctx: IHttpContext; [FromRoute] const Name: string); virtual;
@@ -81,6 +83,9 @@ type
 
     [DextGet('/search')]
     procedure SearchGreeting(Ctx: IHttpContext; const Filter: TGreetingFilter); virtual;
+    
+    [DextGet('/config')]
+    procedure GetConfig(Ctx: IHttpContext); virtual;
   end;
 
   [DextController('/api/auth')]
@@ -163,9 +168,10 @@ end;
 
 { TGreetingController }
 
-constructor TGreetingController.Create(AService: IGreetingService);
+constructor TGreetingController.Create(AService: IGreetingService; Config: IConfiguration);
 begin
   FService := AService;
+  FConfig := Config;
 end;
 
 procedure TGreetingController.GetGreeting(Ctx: IHttpContext; const Name: string);
@@ -190,6 +196,17 @@ begin
   Ctx.Response.Json(
     Format('{"results": [], "query": "%s", "limit": %d}',
     [Filter.Query, Filter.Limit]));
+end;
+
+procedure TGreetingController.GetConfig(Ctx: IHttpContext);
+var
+  Msg: string;
+  Secret: string;
+begin
+  Msg := FConfig['AppSettings:Message'];
+  Secret := FConfig['AppSettings:SecretKey'];
+  
+  Ctx.Response.Json(Format('{"message": "%s", "secret": "%s"}', [Msg, Secret]));
 end;
 
 { TAuthController }

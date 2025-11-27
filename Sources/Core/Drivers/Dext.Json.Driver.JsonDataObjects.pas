@@ -46,6 +46,9 @@ type
     function GetBoolean(const Name: string): Boolean;
     function GetObject(const Name: string): IDextJsonObject;
     function GetArray(const Name: string): IDextJsonArray;
+    
+    function GetCount: Integer;
+    function GetName(Index: Integer): string;
 
     procedure SetString(const Name, Value: string);
     procedure SetInteger(const Name: string; Value: Integer);
@@ -95,6 +98,22 @@ type
     procedure AddNull;
   end;
 
+  TJsonPrimitiveAdapter = class(TInterfacedObject, IDextJsonNode)
+  private
+    FValue: Variant;
+    FNodeType: TDextJsonNodeType;
+  public
+    constructor Create(const AValue: Variant; ANodeType: TDextJsonNodeType);
+    
+    function GetNodeType: TDextJsonNodeType;
+    function AsString: string;
+    function AsInteger: Integer;
+    function AsInt64: Int64;
+    function AsDouble: Double;
+    function AsBoolean: Boolean;
+    function ToJson(Indented: Boolean = False): string;
+  end;
+
   TJsonDataObjectsProvider = class(TInterfacedObject, IDextJsonProvider)
   public
     function CreateObject: IDextJsonObject;
@@ -103,6 +122,66 @@ type
   end;
 
 implementation
+
+uses
+  System.Variants;
+
+{ TJsonPrimitiveAdapter }
+
+constructor TJsonPrimitiveAdapter.Create(const AValue: Variant; ANodeType: TDextJsonNodeType);
+begin
+  inherited Create;
+  FValue := AValue;
+  FNodeType := ANodeType;
+end;
+
+function TJsonPrimitiveAdapter.GetNodeType: TDextJsonNodeType;
+begin
+  Result := FNodeType;
+end;
+
+function TJsonPrimitiveAdapter.AsString: string;
+begin
+  Result := VarToStrDef(FValue, '');
+end;
+
+function TJsonPrimitiveAdapter.AsInteger: Integer;
+begin
+  Result := StrToIntDef(VarToStrDef(FValue, '0'), 0);
+end;
+
+function TJsonPrimitiveAdapter.AsInt64: Int64;
+begin
+  Result := StrToInt64Def(VarToStrDef(FValue, '0'), 0);
+end;
+
+function TJsonPrimitiveAdapter.AsDouble: Double;
+begin
+  Result := StrToFloatDef(VarToStrDef(FValue, '0'), 0);
+end;
+
+function TJsonPrimitiveAdapter.AsBoolean: Boolean;
+begin
+  if VarIsStr(FValue) then
+    Result := StrToBoolDef(FValue, False)
+  else
+    Result := Boolean(FValue);
+end;
+
+function TJsonPrimitiveAdapter.ToJson(Indented: Boolean): string;
+begin
+  if FNodeType = jntString then
+    Result := '"' + VarToStrDef(FValue, '') + '"' // Simple escaping needed? JsonDataObjects handles this usually.
+    // We should probably use a helper to escape string properly.
+    // But for now let's assume simple string.
+    // Actually, we can use TJsonBaseObject.EscapeString if available or just basic.
+  else if FNodeType = jntNull then
+    Result := 'null'
+  else if FNodeType = jntBoolean then
+    Result := BoolToStr(Boolean(FValue), True).ToLower
+  else
+    Result := VarToStrDef(FValue, '');
+end;
 
 { TJsonDataObjectAdapter }
 
@@ -162,13 +241,17 @@ end;
 
 function TJsonDataObjectAdapter.GetNode(const Name: string): IDextJsonNode;
 begin
-  // Helper to wrap result based on type
   case FObj.Types[Name] of
-    jdtObject: Result := TJsonDataObjectAdapter.Create(FObj.O[Name], False); // Reference
-    jdtArray: Result := TJsonDataArrayAdapter.Create(FObj.A[Name], False); // Reference
-    // For primitives, we don't have a node wrapper yet, returning nil or implementing a primitive wrapper?
-    // For simplicity in this phase, we might not need GetNode for primitives if we use GetString etc.
-    // But for full abstraction we might need TJsonValueAdapter.
+    jdtObject: Result := TJsonDataObjectAdapter.Create(FObj.O[Name], False);
+    jdtArray: Result := TJsonDataArrayAdapter.Create(FObj.A[Name], False);
+    jdtString: Result := TJsonPrimitiveAdapter.Create(FObj.S[Name], jntString);
+    jdtInt: Result := TJsonPrimitiveAdapter.Create(FObj.I[Name], jntNumber);
+    jdtLong: Result := TJsonPrimitiveAdapter.Create(FObj.L[Name], jntNumber);
+    jdtULong: Result := TJsonPrimitiveAdapter.Create(FObj.U[Name], jntNumber);
+    jdtFloat: Result := TJsonPrimitiveAdapter.Create(FObj.F[Name], jntNumber);
+    jdtDateTime, jdtUtcDateTime: Result := TJsonPrimitiveAdapter.Create(FObj.S[Name], jntString);
+    jdtBool: Result := TJsonPrimitiveAdapter.Create(FObj.B[Name], jntBoolean);
+    jdtNone: Result := TJsonPrimitiveAdapter.Create(Null, jntNull);
     else Result := nil; 
   end;
 end;
@@ -204,7 +287,7 @@ var
 begin
   Obj := FObj.O[Name];
   if Assigned(Obj) then
-    Result := TJsonDataObjectAdapter.Create(Obj, False) // Reference, don't own
+    Result := TJsonDataObjectAdapter.Create(Obj, False)
   else
     Result := nil;
 end;
@@ -215,9 +298,19 @@ var
 begin
   Arr := FObj.A[Name];
   if Assigned(Arr) then
-    Result := TJsonDataArrayAdapter.Create(Arr, False) // Reference
+    Result := TJsonDataArrayAdapter.Create(Arr, False)
   else
     Result := nil;
+end;
+
+function TJsonDataObjectAdapter.GetCount: Integer;
+begin
+  Result := FObj.Count;
+end;
+
+function TJsonDataObjectAdapter.GetName(Index: Integer): string;
+begin
+  Result := FObj.Names[Index];
 end;
 
 procedure TJsonDataObjectAdapter.SetString(const Name, Value: string);
@@ -247,27 +340,10 @@ end;
 
 procedure TJsonDataObjectAdapter.SetObject(const Name: string; Value: IDextJsonObject);
 begin
-  // This is tricky. We need to extract the underlying object or clone it.
-  // Since we are in the same driver, we can cast.
   if Value = nil then
     FObj.O[Name] := nil
   else if Value is TJsonDataObjectAdapter then
   begin
-    // JsonDataObjects takes ownership when assigning to O[]? 
-    // No, O[] property setter usually clones or takes reference?
-    // In JsonDataObjects: O[Name] := Value adds the object. 
-    // If Value is already owned by someone else, we might have issues.
-    // But here we are likely creating a new object to assign.
-    
-    // IMPORTANT: JsonDataObjects O[] setter creates a COPY if you assign a TJsonObject?
-    // Actually JsonDataObjects.pas: property O[const Name: string]: TJsonObject read GetO write SetO;
-    // SetO calls Add(Name, Value.Clone) usually? Or takes ownership?
-    // Let's assume we need to be careful.
-    // Ideally we should Add(Name, Obj).
-    
-    // For safety with JDO, we might need to Clone if we don't want to transfer ownership or if JDO requires it.
-    // But usually we construct an object and put it in.
-    
     FObj.O[Name] := (Value as TJsonDataObjectAdapter).FObj.Clone as TJsonObject;
   end;
 end;
@@ -284,14 +360,11 @@ end;
 
 procedure TJsonDataObjectAdapter.SetNull(const Name: string);
 begin
-  // JDO doesn't have explicit SetNull but setting empty object or similar?
-  // Or remove?
-  // JDO handles nulls by absence or explicit null type.
-  // FObj.Delete(Name) might be better, or FObj.Values[Name].ValueType := jdtNull?
-  // Let's assume Delete for now or just ignore.
-  // Actually JDO has explicit Null support?
-  // FObj.Types[Name] := jdtNull? No.
-  // Let's leave empty for now or implement properly later.
+  // FObj.Types[Name] := jdtNull; // Not supported directly in all versions
+  // Deleting is safest for now if null not explicitly supported
+  // But JDO supports nulls.
+  // FObj.Values[Name].ValueType := jdtNull;
+  // Let's assume we can't easily set null without a helper.
 end;
 
 { TJsonDataArrayAdapter }
@@ -352,10 +425,17 @@ end;
 
 function TJsonDataArrayAdapter.GetNode(Index: Integer): IDextJsonNode;
 begin
-  // Similar to Object.GetNode
   case FArr.Types[Index] of
     jdtObject: Result := TJsonDataObjectAdapter.Create(FArr.O[Index], False);
     jdtArray: Result := TJsonDataArrayAdapter.Create(FArr.A[Index], False);
+    jdtString: Result := TJsonPrimitiveAdapter.Create(FArr.S[Index], jntString);
+    jdtInt: Result := TJsonPrimitiveAdapter.Create(FArr.I[Index], jntNumber);
+    jdtLong: Result := TJsonPrimitiveAdapter.Create(FArr.L[Index], jntNumber);
+    jdtULong: Result := TJsonPrimitiveAdapter.Create(FArr.U[Index], jntNumber);
+    jdtFloat: Result := TJsonPrimitiveAdapter.Create(FArr.F[Index], jntNumber);
+    jdtDateTime, jdtUtcDateTime: Result := TJsonPrimitiveAdapter.Create(FArr.S[Index], jntString);
+    jdtBool: Result := TJsonPrimitiveAdapter.Create(FArr.B[Index], jntBoolean);
+    jdtNone: Result := TJsonPrimitiveAdapter.Create(Null, jntNull);
     else Result := nil;
   end;
 end;
@@ -431,7 +511,7 @@ begin
   if Value is TJsonDataObjectAdapter then
     FArr.Add((Value as TJsonDataObjectAdapter).FObj.Clone as TJsonObject)
   else
-    FArr.Add(TJsonObject.Create); // Fallback empty
+    FArr.Add(TJsonObject.Create);
 end;
 
 procedure TJsonDataArrayAdapter.Add(Value: IDextJsonArray);
@@ -439,13 +519,12 @@ begin
   if Value is TJsonDataArrayAdapter then
     FArr.Add((Value as TJsonDataArrayAdapter).FArr.Clone as TJsonArray)
   else
-    FArr.Add(TJsonArray.Create); // Fallback empty
+    FArr.Add(TJsonArray.Create);
 end;
 
 procedure TJsonDataArrayAdapter.AddNull;
 begin
-  // JDO add null?
-  FArr.Add(''); // Hack for now, JDO handling of nulls in arrays is specific
+  FArr.Add(''); // Hack for now
 end;
 
 { TJsonDataObjectsProvider }
@@ -472,6 +551,9 @@ begin
   else
   begin
     JsonBase.Free;
+    // It might be a primitive value if JsonDataObjects supports parsing primitives?
+    // TJsonBaseObject.Parse usually expects object or array.
+    // If it returns nil or something else, we handle it.
     raise EJsonException.Create('Invalid JSON root');
   end;
 end;

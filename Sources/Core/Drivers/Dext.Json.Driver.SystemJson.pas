@@ -48,6 +48,9 @@ type
     function GetObject(const Name: string): IDextJsonObject;
     function GetArray(const Name: string): IDextJsonArray;
 
+    function GetCount: Integer;
+    function GetName(Index: Integer): string;
+
     procedure SetString(const Name, Value: string);
     procedure SetInteger(const Name: string; Value: Integer);
     procedure SetInt64(const Name: string; Value: Int64);
@@ -76,7 +79,7 @@ type
     function ToJson(Indented: Boolean = False): string; override;
 
     // IDextJsonArray
-    function GetCount: Integer;
+    function GetCount: NativeInt;
     function GetNode(Index: Integer): IDextJsonNode;
     function GetString(Index: Integer): string;
     function GetInteger(Index: Integer): Integer;
@@ -96,6 +99,23 @@ type
     procedure AddNull;
   end;
 
+  TSystemJsonPrimitiveAdapter = class(TInterfacedObject, IDextJsonNode)
+  private
+    FValue: TJSONValue;
+    FOwnsValue: Boolean;
+  public
+    constructor Create(AValue: TJSONValue; AOwnsValue: Boolean = True);
+    destructor Destroy; override;
+    
+    function GetNodeType: TDextJsonNodeType;
+    function AsString: string;
+    function AsInteger: Integer;
+    function AsInt64: Int64;
+    function AsDouble: Double;
+    function AsBoolean: Boolean;
+    function ToJson(Indented: Boolean = False): string;
+  end;
+
   TSystemJsonProvider = class(TInterfacedObject, IDextJsonProvider)
   public
     function CreateObject: IDextJsonObject;
@@ -104,6 +124,72 @@ type
   end;
 
 implementation
+
+{ TSystemJsonPrimitiveAdapter }
+
+constructor TSystemJsonPrimitiveAdapter.Create(AValue: TJSONValue; AOwnsValue: Boolean);
+begin
+  inherited Create;
+  FValue := AValue;
+  FOwnsValue := AOwnsValue;
+end;
+
+destructor TSystemJsonPrimitiveAdapter.Destroy;
+begin
+  if FOwnsValue then
+    FValue.Free;
+  inherited;
+end;
+
+function TSystemJsonPrimitiveAdapter.GetNodeType: TDextJsonNodeType;
+begin
+  if FValue is TJSONString then Result := jntString
+  else if FValue is TJSONNumber then Result := jntNumber
+  else if (FValue is TJSONTrue) or (FValue is TJSONFalse) then Result := jntBoolean
+  else if FValue is TJSONNull then Result := jntNull
+  else Result := jntString; // Fallback
+end;
+
+function TSystemJsonPrimitiveAdapter.AsString: string;
+begin
+  Result := FValue.Value;
+end;
+
+function TSystemJsonPrimitiveAdapter.AsInteger: Integer;
+begin
+  if FValue is TJSONNumber then
+    Result := TJSONNumber(FValue).AsInt
+  else
+    Result := StrToIntDef(FValue.Value, 0);
+end;
+
+function TSystemJsonPrimitiveAdapter.AsInt64: Int64;
+begin
+  if FValue is TJSONNumber then
+    Result := TJSONNumber(FValue).AsInt64
+  else
+    Result := StrToInt64Def(FValue.Value, 0);
+end;
+
+function TSystemJsonPrimitiveAdapter.AsDouble: Double;
+begin
+  if FValue is TJSONNumber then
+    Result := TJSONNumber(FValue).AsDouble
+  else
+    Result := StrToFloatDef(FValue.Value, 0);
+end;
+
+function TSystemJsonPrimitiveAdapter.AsBoolean: Boolean;
+begin
+  if FValue is TJSONTrue then Result := True
+  else if FValue is TJSONFalse then Result := False
+  else Result := SameText(FValue.Value, 'true');
+end;
+
+function TSystemJsonPrimitiveAdapter.ToJson(Indented: Boolean): string;
+begin
+  Result := FValue.ToString;
+end;
 
 { TSystemJsonObjectAdapter }
 
@@ -173,6 +259,8 @@ begin
     Result := TSystemJsonObjectAdapter.Create(TJSONObject(Val), False)
   else if Val is TJSONArray then
     Result := TSystemJsonArrayAdapter.Create(TJSONArray(Val), False)
+  else if Val <> nil then
+    Result := TSystemJsonPrimitiveAdapter.Create(Val, False)
   else
     Result := nil;
 end;
@@ -256,6 +344,16 @@ begin
     Result := nil;
 end;
 
+function TSystemJsonObjectAdapter.GetCount: Integer;
+begin
+  Result := FObj.Count;
+end;
+
+function TSystemJsonObjectAdapter.GetName(Index: Integer): string;
+begin
+  Result := FObj.Pairs[Index].JsonString.Value;
+end;
+
 procedure TSystemJsonObjectAdapter.SetString(const Name, Value: string);
 begin
   FObj.AddPair(Name, Value);
@@ -288,10 +386,6 @@ procedure TSystemJsonObjectAdapter.SetObject(const Name: string; Value: IDextJso
 begin
   if Value is TSystemJsonObjectAdapter then
   begin
-    // We must clone because AddPair takes ownership, but Value wrapper also owns it?
-    // Or we can extract it.
-    // If we extract, the wrapper becomes invalid.
-    // Better to Clone.
     FObj.AddPair(Name, (Value as TSystemJsonObjectAdapter).FObj.Clone as TJSONObject);
   end;
 end;
@@ -360,7 +454,7 @@ begin
   Result := FArr.ToString;
 end;
 
-function TSystemJsonArrayAdapter.GetCount: Integer;
+function TSystemJsonArrayAdapter.GetCount: NativeInt;
 begin
   Result := FArr.Count;
 end;
@@ -374,6 +468,8 @@ begin
     Result := TSystemJsonObjectAdapter.Create(TJSONObject(Val), False)
   else if Val is TJSONArray then
     Result := TSystemJsonArrayAdapter.Create(TJSONArray(Val), False)
+  else if Val <> nil then
+    Result := TSystemJsonPrimitiveAdapter.Create(Val, False)
   else
     Result := nil;
 end;

@@ -8,7 +8,8 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   Dext.DI.Interfaces,
-  Dext.Auth.Identity;
+  Dext.Auth.Identity,
+  Dext.Configuration.Interfaces;
 
 type
   IHttpContext = interface;
@@ -133,10 +134,12 @@ type
     function UseMiddleware(Middleware: TClass): IWebApplication;
     function MapControllers: IWebApplication;
     function GetApplicationBuilder: IApplicationBuilder; // ✅ NOVO
+    function GetConfiguration: IConfiguration; // ✅ Configuration
     procedure Run(Port: Integer = 8080);
 
     // Fluent interface para DI
     function Services: IServiceCollection;
+    property Configuration: IConfiguration read GetConfiguration;
   end;
 
   TDextWebHost = class

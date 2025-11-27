@@ -34,6 +34,10 @@ type
     function GetObject(const Name: string): IDextJsonObject;
     function GetArray(const Name: string): IDextJsonArray;
     
+    // Iteration
+    function GetCount: Integer;
+    function GetName(Index: Integer): string;
+    
     // Setters
     procedure SetString(const Name, Value: string);
     procedure SetInteger(const Name: string; Value: Integer);

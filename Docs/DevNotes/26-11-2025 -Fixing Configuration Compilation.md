@@ -595,3 +595,469 @@ Considerando a visão de ser o "ASP.NET Core para Delphi", minha sugestão forte
 4.  Integrar no `WebHostBuilder` para carregar automaticamente.
 
 O que acha? Devemos focar em **Configuration** agora para fechar esse gap do roadmap?
+
+### User Input
+
+com certeza, concordo com todas as suas sugestões, e vamos começar pela configuração e IOptions
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Viewed [Dext.Json.pas](file:///c:/dev/Dext/Sources/Core/Dext.Json.pas) *
+
+*Viewed [Dext.Json.Types.pas](file:///c:/dev/Dext/Sources/Core/Dext.Json.Types.pas) *
+
+*Viewed [Dext.Json.Driver.JsonDataObjects.pas](file:///c:/dev/Dext/Sources/Core/Drivers/Dext.Json.Driver.JsonDataObjects.pas) *
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Viewed [Dext.Core.WebApplication.pas](file:///c:/dev/Dext/Sources/Core/Dext.Core.WebApplication.pas) *
+
+*Viewed [Dext.Http.Interfaces.pas](file:///c:/dev/Dext/Sources/Core/Dext.Http.Interfaces.pas) *
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Viewed [ControllerExample.Controller.pas](file:///c:/dev/Dext/Examples/ControllerExample.Controller.pas) *
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Listed directory [Drivers](file:///c:/dev/Dext/Sources/Core/Drivers) *
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [Dext.Configuration.Interfaces.pas](file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Interfaces.pas) *
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [Dext.Configuration.Core.pas](file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Core.pas) *
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 TestConfig.dpr -I"..\Sources\Core" -U"..\Sources\Core" -R"..\Sources\Core" -O"..\Sources\Core"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 TestConfig.dpr -I"..\Sources\Core" -U"..\Sources\Core" -R"..\Sources\Core" -O"..\Sources\Core"`*
+
+*Checked command status*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 TestConfig.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [Dext.Configuration.Json.pas](file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Json.pas) *
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 TestConfig.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*User accepted the command `del /s *.dcu`*
+
+*Checked command status*
+
+*User accepted the command `cmd /c del /s *.dcu`*
+
+*Checked command status*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [Dext.Json.Types.pas](file:///c:/dev/Dext/Sources/Core/Dext.Json.Types.pas) *
+
+*Viewed [Dext.Core.WebApplication.pas](file:///c:/dev/Dext/Sources/Core/Dext.Core.WebApplication.pas) *
+
+*User accepted the command `dcc32 -B ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [Dext.Configuration.EnvironmentVariables.pas](file:///c:/dev/Dext/Sources/Core/Dext.Configuration.EnvironmentVariables.pas) *
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 TestController.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [ControllerExample.Controller.pas](file:///c:/dev/Dext/Examples/ControllerExample.Controller.pas) *
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+*Viewed [Dext.Core.WebApplication.pas](file:///c:/dev/Dext/Sources/Core/Dext.Core.WebApplication.pas) *
+
+*Viewed [ControllerExample.Controller.pas](file:///c:/dev/Dext/Examples/ControllerExample.Controller.pas) *
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 TestController.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Viewed [Dext.DI.Interfaces.pas](file:///c:/dev/Dext/Sources/Core/Dext.DI.Interfaces.pas) *
+
+*Viewed [Dext.DI.Extensions.pas](file:///c:/dev/Dext/Sources/Core/Dext.DI.Extensions.pas) *
+
+*Viewed [Dext.DI.Core.pas](file:///c:/dev/Dext/Sources/Core/Dext.DI.Core.pas) *
+
+*Edited relevant file*
+
+*User accepted the command `dcc32 ControllerExample.dpr -I"..\Sources\Core;..\Sources\Core\Drivers" -U"..\Sources\Core;..\Sources\Core\Drivers" -R"..\Sources\Core;..\Sources\Core\Drivers" -O"..\Sources\Core;..\Sources\Core\Drivers"`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*User accepted the command `ControllerExample.exe`*
+
+*Checked command status*
+
+*User accepted the command `.\ControllerExample.exe`*
+
+*Checked command status*
+
+*Edited relevant file*
+
+*Edited relevant file*
+
+### User Input
+
+pode fazer um resumo do que está feito e do que falta para concluir?
+
+### User Input
+
+pode fazer um resumo do que está feito e do que falta para concluir?
+
+### User Input
+
+pode fazer um resumo do que está feito e do que falta para concluir?
+
+### User Input
+
+pode fazer um resumo do que está feito e do que falta para concluir?
+
+
+
+### User Input
+
+Me parece q a implementação do suporte a Configuration e IOptions<T> está com problemas.
+
+Você pode fazer um resumo do que está feito e do que falta para concluir?
+
+### Planner Response
+
+# Resumo da Implementação do Configuration e IOptions<T>
+
+## ✅ O Que Está Feito
+
+### 1. **Infraestrutura de Configuration**
+- ✅ **Interfaces** ([Dext.Configuration.Interfaces.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Interfaces.pas:0:0-0:0)):
+  - `IConfiguration`, `IConfigurationSection`, `IConfigurationRoot`
+  - `IConfigurationProvider`, `IConfigurationSource`, `IConfigurationBuilder`
+  - `EConfigurationException` definida
+
+- ✅ **Core** ([Dext.Configuration.Core.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Core.pas:0:0-0:0)):
+  - `TConfigurationProvider` (base para providers)
+  - `TConfigurationSection` (seções hierárquicas)
+  - `TConfigurationRoot` (raiz da configuração)
+  - `TConfigurationBuilder` (construtor fluente)
+  - `TConfigurationPath` (helpers para paths com `:` como delimitador)
+
+### 2. **Configuration Sources**
+- ✅ **JSON** ([Dext.Configuration.Json.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Json.pas:0:0-0:0)):
+  - `TJsonConfigurationProvider` e `TJsonConfigurationSource`
+  - Suporte a arquivos opcionais
+  - Parsing de objetos e arrays aninhados
+  - Usa abstração `Dext.Json` (independente de biblioteca)
+
+- ✅ **Environment Variables** ([Dext.Configuration.EnvironmentVariables.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Configuration.EnvironmentVariables.pas:0:0-0:0)):
+  - `TEnvironmentVariablesConfigurationProvider` e `TEnvironmentVariablesConfigurationSource`
+  - Suporte a prefixo (ex: `DEXT_`)
+  - Conversão de `__` para `:` (ex: `AppSettings__Message` → `AppSettings:Message`)
+  - Implementação Windows-specific usando `Winapi.Windows.GetEnvironmentStrings`
+
+### 3. **Configuration Binder**
+- ✅ **Binder** ([Dext.Configuration.Binder.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Configuration.Binder.pas:0:0-0:0)):
+  - `TConfigurationBinder.Bind<T>` - cria nova instância
+  - `TConfigurationBinder.Bind` - bind em objeto existente
+  - `TConfigurationBinder.Get<T>` - atalho para Bind<T>
+  - Suporte a tipos: `Integer`, `Int64`, `Float`, `String`, `Boolean`, `Enumeration`
+  - Binding recursivo para objetos aninhados (`tkClass`)
+  - Usa RTTI para mapear propriedades
+
+### 4. **Options Pattern**
+- ✅ **Options** ([Dext.Options.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Options.pas:0:0-0:0)):
+  - `IOptions<T>` interface com propriedade `Value`
+  - `TOptions<T>` implementação concreta
+  - `TOptionsFactory.Create<T>` para criar instâncias
+
+### 5. **Integração com TDextApplication**
+- ✅ **WebApplication** ([Dext.Core.WebApplication.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Dext.Core.WebApplication.pas:0:0-0:0)):
+  - `FConfiguration: IConfiguration` field
+  - Inicialização no construtor com `TConfigurationBuilder`
+  - Carrega [appsettings.json](cci:7://file:///c:/dev/Dext/Examples/appsettings.json:0:0-0:0) (opcional) + environment variables
+  - **PROBLEMA IDENTIFICADO**: Registro no DI usando factory para evitar double-free
+
+### 6. **Exemplo de Uso**
+- ✅ **appsettings.json** criado com seções `Logging` e `AppSettings`
+- ✅ **TGreetingController** modificado para:
+  - Injetar `IConfiguration` no construtor
+  - Endpoint `/api/greet/config` para demonstrar uso
+
+---
+
+## ❌ Problemas Identificados
+
+### 1. **Invalid Pointer Operation** 🔴
+```
+Error: EInvalidPointer: Invalid pointer operation
+```
+
+**Causa**: `TConfigurationRoot` implementa `IConfiguration` (interface com ref-counting), mas também é gerenciado manualmente pelo DI container, causando **double-free**.
+
+**Tentativa de Correção**:
+- Adicionei `_AddRef` e `_Release` retornando `-1` para desabilitar ref-counting
+- Registrei no DI usando factory que retorna a instância existente
+
+**Status**: ⚠️ Precisa ser testado - compilou mas não rodou ainda
+
+### 2. **Falta de Testes**
+- ❌ Servidor não iniciou com sucesso
+- ❌ Endpoint `/api/greet/config` não foi testado
+- ❌ Não validamos se a configuração está sendo lida corretamente
+
+---
+
+## 🔧 O Que Falta Para Concluir
+
+### **Prioridade ALTA** 🔴
+
+1. **Resolver o Invalid Pointer**:
+   - Recompilar após as mudanças em `_AddRef`/`_Release`
+   - Testar se o servidor inicia sem crash
+   - Alternativa: Mudar `TConfigurationRoot` para não usar `TInterfacedObject`
+
+2. **Validar Funcionamento Básico**:
+   ```powershell
+   # Testar endpoint de configuração
+   curl http://localhost:8080/api/greet/config
+   ```
+   - Deve retornar valores de [appsettings.json](cci:7://file:///c:/dev/Dext/Examples/appsettings.json:0:0-0:0)
+   - Verificar se environment variables sobrescrevem JSON
+
+3. **Testar Configuration Binder**:
+   - Criar classe de configuração tipada (ex: `TAppSettings`)
+   - Usar `TConfigurationBinder.Bind<TAppSettings>`
+   - Validar binding de propriedades
+
+### **Prioridade MÉDIA** 🟡
+
+4. **Melhorar Configuration Binder**:
+   - ⚠️ Suporte a **arrays** e **listas** (atualmente não implementado)
+   - ⚠️ Suporte a **records** (atualmente só classes)
+   - ⚠️ Validação de tipos mais robusta
+
+5. **Implementar IOptions<T> Completo**:
+   - Criar `IOptionsMonitor<T>` para recarregamento dinâmico
+   - Criar `IOptionsSnapshot<T>` para valores por escopo
+   - Adicionar `services.Configure<T>` extension method
+
+6. **Cross-Platform Environment Variables**:
+   - Abstrair `GetEnvironmentStrings` para funcionar em POSIX
+   - Usar `{$IFDEF POSIX}` com `environ`
+
+### **Prioridade BAIXA** 🟢
+
+7. **Documentação**:
+   - Atualizar `ROADMAP.md` com status correto
+   - Expandir `COMPETITIVE_ANALYSIS.md` com IOptions<T>
+   - Criar exemplos de uso no README
+
+8. **Refinamentos**:
+   - Implementar `SetNull` e `AddNull` em [Dext.Json.Driver.JsonDataObjects.pas](cci:7://file:///c:/dev/Dext/Sources/Core/Drivers/Dext.Json.Driver.JsonDataObjects.pas:0:0-0:0)
+   - Adicionar testes unitários para Configuration
+   - Resolver lint warning em `test_filters.ps1` (`loginCmd` não usado)
+
+---
+
+## 📋 Próximos Passos Recomendados
+
+1. **Recompilar e testar**:
+   ```bash
+   dcc32 ControllerExample.dpr
+   .\ControllerExample.exe
+   ```
+
+2. **Se ainda crashar**, considerar mudança arquitetural:
+   - Opção A: `TConfigurationRoot` sem `TInterfacedObject`, gerenciado manualmente
+   - Opção B: Wrapper sem ref-counting que delega para instância interna
+   - Opção C: Registrar como singleton sem factory, deixando DI criar
+
+3. **Validar com curl**:
+   ```powershell
+   .\test_config.ps1
+   ```
+
+4. **Criar exemplo de IOptions<T>**:
+   ```pascal
+   type
+     TAppSettings = class
+       Message: string;
+       SecretKey: string;
+     end;
+   
+   // No controller:
+   constructor Create(Options: IOptions<TAppSettings>);
+   begin
+     FSettings := Options.Value;
+   end;
+   ```
+
+---
+
+**Quer que eu continue com qual item?** Recomendo começar recompilando e testando o servidor para ver se o fix do `_AddRef`/`_Release` resolveu o crash.
+
+### User Input
+
+por hoje chega, amanhã continuamos, obrigado
+
+### Planner Response
+
+Perfeito! Foi uma sessão muito produtiva. 
+
+## 📝 Resumo do que fizemos hoje:
+
+✅ **Implementamos toda a infraestrutura de Configuration**:
+- Core (Builder, Root, Section, Provider)
+- JSON Configuration Source
+- Environment Variables Configuration Source
+- Configuration Binder (para binding tipado)
+- IOptions<T> Pattern
+
+✅ **Integramos com o Dext**:
+- TDextApplication inicializa Configuration
+- Registra IConfiguration no DI
+- Exemplo no TGreetingController
+
+⚠️ **Identificamos e tentamos corrigir**:
+- Invalid Pointer Operation (double-free)
+- Aplicamos fix com `_AddRef`/`_Release` retornando -1
+
+## 🔜 Para amanhã:
+
+1. **Testar se o fix funcionou** (recompilar e rodar)
+2. **Validar endpoint `/api/greet/config`**
+3. **Criar exemplo completo de IOptions<T>**
+4. **Atualizar documentação**
+
+Todos os arquivos estão salvos e prontos para continuar. Ótimo trabalho hoje! 🚀
+
+Até amanhã! 👋

@@ -5,7 +5,8 @@ interface
 uses
   Dext.Core.ControllerScanner,
   Dext.DI.Interfaces,
-  Dext.Http.Interfaces;
+  Dext.Http.Interfaces,
+  Dext.Configuration.Interfaces;
 
 type
   TDextApplication = class(TInterfacedObject, IWebApplication)
@@ -14,12 +15,14 @@ type
     FServiceProvider: IServiceProvider;
     FAppBuilder: IApplicationBuilder;
     FScanner: IControllerScanner;
+    FConfiguration: IConfiguration;
   public
     constructor Create;
     destructor Destroy; override;
 
     // IWebApplication
     function GetApplicationBuilder: IApplicationBuilder;
+    function GetConfiguration: IConfiguration;
     function GetServices: IServiceCollection;
     function UseMiddleware(Middleware: TClass): IWebApplication;
     function MapControllers: IWebApplication;
@@ -33,14 +36,40 @@ implementation
 uses
   Dext.DI.Core, // ✅ Para TDextServiceCollection
   Dext.Http.Core,
-  Dext.Http.Indy.Server; // ✅ Para TIndyWebServer
+  Dext.Http.Indy.Server, // ✅ Para TIndyWebServer
+//  Dext.Configuration.Interfaces,
+  Dext.Configuration.Core,
+  Dext.Configuration.Json,
+  Dext.Configuration.EnvironmentVariables;
 
 { TDextApplication }
 
 constructor TDextApplication.Create;
+var
+  ConfigBuilder: IConfigurationBuilder;
 begin
   inherited Create;
+  
+  // Initialize Configuration
+  ConfigBuilder := TConfigurationBuilder.Create;
+  ConfigBuilder
+    .Add(TJsonConfigurationSource.Create('appsettings.json', True)) // Optional
+    .Add(TEnvironmentVariablesConfigurationSource.Create);
+    
+  FConfiguration := ConfigBuilder.Build;
+  
   FServices := TDextServiceCollection.Create; // ✅ Corrigido
+  
+  // Register Configuration
+  FServices.AddSingleton(
+    TServiceType.FromInterface(IConfiguration),
+    TConfigurationRoot,
+    function(Provider: IServiceProvider): TObject
+    begin
+      Result := FConfiguration as TConfigurationRoot;
+    end
+  );
+  
   FServiceProvider := FServices.BuildServiceProvider;
   FAppBuilder := TApplicationBuilder.Create(FServiceProvider);
 end;
@@ -53,6 +82,11 @@ end;
 function TDextApplication.GetApplicationBuilder: IApplicationBuilder;
 begin
   Result := FAppBuilder;
+end;
+
+function TDextApplication.GetConfiguration: IConfiguration;
+begin
+  Result := FConfiguration;
 end;
 
 function TDextApplication.GetServices: IServiceCollection;
