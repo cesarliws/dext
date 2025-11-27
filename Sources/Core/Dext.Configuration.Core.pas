@@ -262,8 +262,8 @@ end;
 constructor TConfigurationRoot.Create(const Providers: TList<IConfigurationProvider>);
 begin
   inherited Create;
-  FProviders := Providers; // Takes ownership? Usually Builder passes a list it created.
-  // We should probably copy or take ownership. Let's assume ownership for now.
+  FProviders := TList<IConfigurationProvider>.Create;
+  FProviders.AddRange(Providers);
   
   for var Provider in FProviders do
     Provider.Load;
@@ -409,10 +409,8 @@ begin
     end;
     
     Result := TConfigurationRoot.Create(Providers);
-    // TConfigurationRoot takes ownership of the list
-  except
+  finally
     Providers.Free;
-    raise;
   end;
 end;
 

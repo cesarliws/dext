@@ -88,17 +88,18 @@ class function TConfigurationBinder.GetValue(Configuration: IConfiguration; Rtti
 var
   StrVal: string;
   Config: IConfiguration;
+  ConfigSection: IConfigurationSection;
 begin
   Result := TValue.Empty;
-  
+
   if Key <> '' then
     Config := Configuration.GetSection(Key)
   else
     Config := Configuration;
-    
+
   // Get raw string value if it's a section
-  if Config is IConfigurationSection then
-    StrVal := (Config as IConfigurationSection).Value
+  if Supports(Config, IConfigurationSection, ConfigSection) then
+    StrVal := ConfigSection.Value
   else
     StrVal := '';
     
