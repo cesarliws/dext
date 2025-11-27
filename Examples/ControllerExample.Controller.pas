@@ -178,23 +178,20 @@ procedure TGreetingController.GetGreeting(Ctx: IHttpContext; const Name: string)
 begin
   var Message := FService.GetGreeting(Name);
   Ctx.Response.Json(
-    Format('{"message": "%s" - %s}',
-    [Message, FormatDateTime('hh:nn:ss.zzz', Now)]));
+    Format('{"message": "%s" - %s}', [Message, FormatDateTime('hh:nn:ss.zzz', Now)]));
 end;
 
 procedure TGreetingController.CreateGreeting(Ctx: IHttpContext; const Request: TGreetingRequest);
 begin
   // Demonstrates Body Binding
   Ctx.Response.Status(201).Json(
-    Format('{"status": "created", "name": "%s", "title": "%s"}',
-    [Request.Name, Request.Title]));
+    Format('{"status": "created", "name": "%s", "title": "%s"}', [Request.Name, Request.Title]));
 end;
 
 procedure TGreetingController.SearchGreeting(Ctx: IHttpContext; const Filter: TGreetingFilter);
 begin
   // Demonstrates Query Binding
-  Ctx.Response.Json(
-    Format('{"results": [], "query": "%s", "limit": %d}',
+  Ctx.Response.Json(Format('{"results": [], "query": "%s", "limit": %d}',
     [Filter.Query, Filter.Limit]));
 end;
 

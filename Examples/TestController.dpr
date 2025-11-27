@@ -4,7 +4,6 @@ program TestController;
 
 uses
   System.SysUtils,
-  Dext.Configuration.Interfaces in '..\Sources\Core\Dext.Configuration.Interfaces.pas',
   ControllerExample.Controller in 'ControllerExample.Controller.pas';
 
 begin

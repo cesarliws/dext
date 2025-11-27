@@ -204,8 +204,9 @@ begin
 
   FLock.Free;
   
-  if FIsRootProvider then
-    FDescriptors.Free;
+  // FDescriptors is owned by TDextServiceCollection, do not free it here.
+  // if FIsRootProvider then
+  //   FDescriptors.Free;
 
   inherited Destroy;
 end;
@@ -314,18 +315,18 @@ begin
       begin
         if FIsRootProvider then
         begin
-          if not FSingletonInterfaces.TryGetValue(Key, Intf) then
-          begin
-            Obj := CreateInstance(Descriptor);
-            if not Supports(Obj, AServiceType.AsInterface, Intf) then
+            if not FSingletonInterfaces.TryGetValue(Key, Intf) then
             begin
-              Obj.Free;
-              raise EDextDIException.CreateFmt('Service %s does not implement interface %s',
-                [Obj.ClassName, GUIDToString(AServiceType.AsInterface)]);
+              Obj := CreateInstance(Descriptor);
+              if not Supports(Obj, AServiceType.AsInterface, Intf) then
+              begin
+                Obj.Free;
+                raise EDextDIException.CreateFmt('Service %s does not implement interface %s',
+                  [Obj.ClassName, GUIDToString(AServiceType.AsInterface)]);
+              end;
+              FSingletonInterfaces.Add(Key, Intf);
             end;
-            FSingletonInterfaces.Add(Key, Intf);
-          end;
-          Result := Intf;
+            Result := Intf;
         end
         else
         begin

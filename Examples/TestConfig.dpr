@@ -4,10 +4,10 @@ program TestConfig;
 
 uses
   System.SysUtils,
-  Dext.Configuration.Interfaces in '..\Sources\Core\Dext.Configuration.Interfaces.pas',
-  Dext.Configuration.Core in '..\Sources\Core\Dext.Configuration.Core.pas',
-  Dext.Configuration.Json in '..\Sources\Core\Dext.Configuration.Json.pas',
-  Dext.Configuration.EnvironmentVariables in '..\Sources\Core\Dext.Configuration.EnvironmentVariables.pas';
+  Dext.Configuration.Interfaces,
+  Dext.Configuration.Core,
+  Dext.Configuration.Json,
+  Dext.Configuration.EnvironmentVariables;
 
 procedure RunTest;
 var

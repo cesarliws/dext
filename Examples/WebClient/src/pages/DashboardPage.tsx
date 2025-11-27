@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, Send, Search, Plus, CheckCircle, XCircle, Sparkles } from 'lucide-react';
+import { LogOut, Send, Search, Plus, CheckCircle, XCircle, Sparkles, Settings } from 'lucide-react';
 import { apiClient } from '../api/client';
 
 interface DashboardPageProps {
@@ -8,7 +8,7 @@ interface DashboardPageProps {
 }
 
 export function DashboardPage({ onLogout }: DashboardPageProps) {
-    const [activeTab, setActiveTab] = useState<'get' | 'post' | 'search'>('get');
+    const [activeTab, setActiveTab] = useState<'get' | 'post' | 'search' | 'config'>('get');
 
     // GET state
     const [getName, setGetName] = useState('');
@@ -29,6 +29,11 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
     const [searchResult, setSearchResult] = useState<any>(null);
     const [searchLoading, setSearchLoading] = useState(false);
     const [searchError, setSearchError] = useState('');
+
+    // CONFIG state
+    const [configResult, setConfigResult] = useState<any>(null);
+    const [configLoading, setConfigLoading] = useState(false);
+    const [configError, setConfigError] = useState('');
 
     const handleGet = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -75,6 +80,19 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
         }
     };
 
+    const handleConfig = async () => {
+        setConfigError('');
+        setConfigLoading(true);
+        try {
+            const result = await apiClient.getConfig();
+            setConfigResult(result);
+        } catch (err: any) {
+            setConfigError(err.response?.data?.error || err.message);
+        } finally {
+            setConfigLoading(false);
+        }
+    };
+
     return (
         <div className="min-h-screen p-6">
             <div className="max-w-6xl mx-auto">
@@ -107,18 +125,19 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
                 </motion.div>
 
                 {/* Tabs */}
-                <div className="glass rounded-2xl p-2 mb-6 flex gap-2">
+                <div className="glass rounded-2xl p-2 mb-6 flex gap-2 overflow-x-auto">
                     {[
                         { id: 'get' as const, label: 'GET - Route Binding', icon: Send },
                         { id: 'post' as const, label: 'POST - Body Validation', icon: Plus },
                         { id: 'search' as const, label: 'GET - Query Binding', icon: Search },
+                        { id: 'config' as const, label: 'GET - Config Injection', icon: Settings },
                     ].map((tab) => (
                         <motion.button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === tab.id
-                                    ? 'bg-gradient-to-r from-purple-500 to-pink-500'
-                                    : 'hover:bg-white/5'
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all whitespace-nowrap ${activeTab === tab.id
+                                ? 'bg-gradient-to-r from-purple-500 to-pink-500'
+                                : 'hover:bg-white/5'
                                 }`}
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
@@ -323,6 +342,57 @@ export function DashboardPage({ onLogout }: DashboardPageProps) {
                                     </pre>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'config' && (
+                        <div>
+                            <h2 className="text-xl font-semibold mb-4">GET /api/greet/config</h2>
+                            <p className="text-gray-400 mb-6">Demonstrates IConfiguration injection and reading from appsettings.json</p>
+
+                            <div className="space-y-4">
+                                <motion.button
+                                    onClick={handleConfig}
+                                    disabled={configLoading}
+                                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg font-semibold disabled:opacity-50"
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    {configLoading ? 'Loading Config...' : 'Fetch Configuration'}
+                                </motion.button>
+
+                                {configError && (
+                                    <div className="mt-4 p-4 bg-red-500/20 border border-red-500/50 rounded-lg flex items-start gap-3">
+                                        <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-red-200">Error</div>
+                                            <div className="text-sm text-red-300 mt-1">{configError}</div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {configResult && (
+                                    <div className="mt-4 p-4 bg-green-500/20 border border-green-500/50 rounded-lg">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <CheckCircle className="w-5 h-5 text-green-400" />
+                                            <span className="font-semibold text-green-200">Configuration Loaded</span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="bg-black/20 p-3 rounded-lg">
+                                                <div className="text-xs text-gray-400 mb-1">AppSettings:Message</div>
+                                                <div className="font-mono text-green-300">{configResult.message}</div>
+                                            </div>
+                                            <div className="bg-black/20 p-3 rounded-lg">
+                                                <div className="text-xs text-gray-400 mb-1">AppSettings:SecretKey</div>
+                                                <div className="font-mono text-green-300">{configResult.secret}</div>
+                                            </div>
+                                        </div>
+                                        <pre className="mt-4 text-sm text-green-100 overflow-x-auto opacity-50">
+                                            {JSON.stringify(configResult, null, 2)}
+                                        </pre>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </motion.div>

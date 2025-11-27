@@ -54,9 +54,7 @@ type
     function GetConfiguration(const Key: string): string;
     procedure SetConfiguration(const Key, Value: string);
     function GetChildrenInternal(const Path: string): TArray<IConfigurationSection>;
-  protected
-    function _AddRef: Integer; stdcall;
-    function _Release: Integer; stdcall;
+
   public
     constructor Create(const Providers: TList<IConfigurationProvider>);
     destructor Destroy; override;
@@ -279,16 +277,6 @@ procedure TConfigurationRoot.Reload;
 begin
   for var Provider in FProviders do
     Provider.Load;
-end;
-
-function TConfigurationRoot._AddRef: Integer;
-begin
-  Result := -1;
-end;
-
-function TConfigurationRoot._Release: Integer;
-begin
-  Result := -1;
 end;
 
 function TConfigurationRoot.GetConfiguration(const Key: string): string;

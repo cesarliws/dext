@@ -81,6 +81,14 @@ class ApiClient {
         );
         return response.data;
     }
+
+    async getConfig(): Promise<{ message: string; secret: string }> {
+        const response = await axios.get(
+            `${API_BASE_URL}/api/greet/config`,
+            { headers: this.getAuthHeaders() }
+        );
+        return response.data;
+    }
 }
 
 export const apiClient = new ApiClient();

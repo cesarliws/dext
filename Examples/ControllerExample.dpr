@@ -20,7 +20,7 @@ uses
 begin
   try
     WriteLn('🚀 Starting Dext Controller Example...');
-    var App := TDextApplication.Create;
+    var App: IWebApplication := TDextApplication.Create;
 
     // Register services
     TServiceCollectionExtensions.AddSingleton<IGreetingService, TGreetingService>(App.Services);
