@@ -54,9 +54,21 @@ begin
   
   // Initialize Configuration
   ConfigBuilder := TConfigurationBuilder.Create;
-  ConfigBuilder
-    .Add(TJsonConfigurationSource.Create('appsettings.json', True)) // Optional
-    .Add(TEnvironmentVariablesConfigurationSource.Create);
+  
+  // 1. Base appsettings.json
+  ConfigBuilder.Add(TJsonConfigurationSource.Create('appsettings.json', True));
+
+  // 2. Environment specific appsettings.{Env}.json
+  var Env := GetEnvironmentVariable('DEXT_ENVIRONMENT');
+  if Env = '' then Env := 'Production'; // Default to Production
+  
+  WriteLn('🌍 Environment: ' + Env);
+  
+  if Env <> '' then
+    ConfigBuilder.Add(TJsonConfigurationSource.Create('appsettings.' + Env + '.json', True));
+
+  // 3. Environment Variables
+  ConfigBuilder.Add(TEnvironmentVariablesConfigurationSource.Create);
     
   FConfiguration := ConfigBuilder.Build;
   

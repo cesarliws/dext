@@ -7,30 +7,30 @@ uses
   System.Classes,
   System.TypInfo,
   System.Generics.Collections,
-  Dext.Core.WebApplication,
-  Dext.Http.Interfaces,
-  Dext.DI.Interfaces,
-  Dext.Core.Controllers,
-  Dext.Core.Routing,
-  Dext.Configuration.Interfaces,
-  Dext.Options,
-  Dext.Http.Results,
-  Dext.Core.ControllerScanner,
-  Dext.HealthChecks,
-  Dext.Hosting.BackgroundService,
-  Dext.Options.Extensions,
-  Dext.Http.Core,
-  Dext.Http.Cors,
-  Dext.Auth.Middleware,
-  Dext.Http.StaticFiles,
-  Dext.Core.ModelBinding,
-  Dext.Validation,
-  Dext.OpenAPI.Attributes,
-  Dext.Auth.JWT,
   Dext.Auth.Attributes,
+  Dext.Auth.JWT,
+  Dext.Auth.Middleware,
+  Dext.Configuration.Interfaces,
+  Dext.Core.CancellationToken,
+  Dext.Core.Controllers,
+  Dext.Core.ControllerScanner,
+  Dext.Core.ModelBinding,
+  Dext.Core.Routing,
+  Dext.Core.WebApplication,
+  Dext.DI.Interfaces,
   Dext.Filters,
   Dext.Filters.BuiltIn,
-  Dext.Core.CancellationToken;
+  Dext.HealthChecks,
+  Dext.Hosting.BackgroundService,
+  Dext.Http.Core,
+  Dext.Http.Cors,
+  Dext.Http.Interfaces,
+  Dext.Http.Results,
+  Dext.Http.StaticFiles,
+  Dext.OpenAPI.Attributes,
+  Dext.Options,
+  Dext.Options.Extensions,
+  Dext.Validation;
 
 type
   // ===========================================================================
@@ -123,38 +123,111 @@ type
   /// </summary>
   TDextServicesHelper = record helper for TDextServices
   public
+    /// <summary>
+    ///   Scans the application for controllers (classes with [DextController]) and registers them in the DI container.
+    /// </summary>
     function AddControllers: TDextServices;
+    
+    /// <summary>
+    ///   Starts the Health Check builder chain.
+    /// </summary>
     function AddHealthChecks: THealthCheckBuilder;
+    
+    /// <summary>
+    ///   Starts the Background Service builder chain.
+    /// </summary>
     function AddBackgroundServices: TBackgroundServiceBuilder;
     
+    /// <summary>
+    ///   Configures a settings class (IOptions&lt;T&gt;) from the root configuration.
+    /// </summary>
     function Configure<T: class, constructor>(Configuration: IConfiguration): TDextServices; overload;
+    
+    /// <summary>
+    ///   Configures a settings class (IOptions&lt;T&gt;) from a specific configuration section.
+    /// </summary>
     function Configure<T: class, constructor>(Section: IConfigurationSection): TDextServices; overload;
   end;
 
   /// <summary>
-  ///   Helper for TDextAppBuilder to provide factory methods and extensions.
+  ///   Helper for TDextAppBuilder to provide factory methods and extensions for middleware configuration.
   /// </summary>
   TDextAppBuilderHelper = record helper for TDextAppBuilder
   public
-    // Factory Methods
+    // 🏭 Factory Methods
+    
+    /// <summary>
+    ///   Creates a new instance of TCorsOptions with default settings.
+    /// </summary>
     function CreateCorsOptions: TCorsOptions;
+    
+    /// <summary>
+    ///   Creates a new instance of TJwtAuthenticationOptions with the specified secret key.
+    /// </summary>
     function CreateJwtOptions(const Secret: string): TJwtAuthenticationOptions;
+    
+    /// <summary>
+    ///   Creates a new instance of TStaticFileOptions with default settings.
+    /// </summary>
     function CreateStaticFileOptions: TStaticFileOptions;
     
-    // Extensions
+    // 🔌 Extensions
+    
+    /// <summary>
+    ///   Adds CORS middleware to the pipeline using the provided options.
+    /// </summary>
     function UseCors(const AOptions: TCorsOptions): TDextAppBuilder; overload;
+    
+    /// <summary>
+    ///   Adds CORS middleware to the pipeline using a configuration delegate.
+    /// </summary>
     function UseCors(AConfigurator: TProc<TCorsBuilder>): TDextAppBuilder; overload;
+    
+    /// <summary>
+    ///   Adds JWT Authentication middleware to the pipeline.
+    /// </summary>
     function UseJwtAuthentication(const AOptions: TJwtAuthenticationOptions): TDextAppBuilder;
+    
+    /// <summary>
+    ///   Adds Static Files middleware to the pipeline using the provided options.
+    /// </summary>
     function UseStaticFiles(const AOptions: TStaticFileOptions): TDextAppBuilder; overload;
+    
+    /// <summary>
+    ///   Adds Static Files middleware to the pipeline serving from the specified root path.
+    /// </summary>
     function UseStaticFiles(const ARootPath: string): TDextAppBuilder; overload;
     
-    // Core Forwarding
+    // 🧩 Core Forwarding
+    
+    /// <summary>
+    ///   Adds a middleware class to the pipeline. The middleware must have a constructor accepting RequestDelegate (and optionally other services).
+    /// </summary>
     function UseMiddleware(AMiddleware: TClass): TDextAppBuilder;
+    
+    /// <summary>
+    ///   Maps a GET request to a static handler.
+    /// </summary>
     function MapGet(const Path: string; Handler: TStaticHandler): TDextAppBuilder;
+    
+    /// <summary>
+    ///   Maps a POST request to a static handler.
+    /// </summary>
     function MapPost(const Path: string; Handler: TStaticHandler): TDextAppBuilder;
+    
+    /// <summary>
+    ///   Maps a PUT request to a static handler.
+    /// </summary>
     function MapPut(const Path: string; Handler: TStaticHandler): TDextAppBuilder;
+    
+    /// <summary>
+    ///   Maps a DELETE request to a static handler.
+    /// </summary>
     function MapDelete(const Path: string; Handler: TStaticHandler): TDextAppBuilder;
     
+    /// <summary>
+    ///   Builds the request pipeline and returns the main RequestDelegate.
+    /// </summary>
     function Build: TRequestDelegate;
   end;
 
