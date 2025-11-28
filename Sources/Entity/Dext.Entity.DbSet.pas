@@ -645,16 +645,46 @@ begin
         
       try
         Cmd.ExecuteNonQuery;
+        
+        // Handle AutoInc ID retrieval and Identity Map
+        if FPKColumns.Count = 1 then
+        begin
+          var PKColName := FPKColumns[0];
+          var PKProp := FProps[PKColName.ToLower];
+          var IsPKAutoInc := False;
+
+          for var Attr in PKProp.GetAttributes do
+            if Attr is AutoIncAttribute then IsPKAutoInc := True;
+            
+          if IsPKAutoInc then
+          begin
+            // Fetch the new ID
+            var IdCmd := FContext.Connection.CreateCommand(FContext.Dialect.GetLastInsertIdSQL) as IDbCommand;
+            var NewIdVal := IdCmd.ExecuteScalar; // TValue
+            
+            // Update Entity
+            var ConvertedId := TValueConverter.Convert(NewIdVal, PKProp.PropertyType.Handle);
+            PKProp.SetValue(Pointer(AEntity), ConvertedId);
+            
+            // Add to Identity Map
+            var IdStr := NewIdVal.ToString;
+            if not FIdentityMap.ContainsKey(IdStr) then
+              FIdentityMap.Add(IdStr, AEntity);
+          end
+          else
+          begin
+            // Not AutoInc, user provided ID. Add to Map.
+            var IdVal := PKProp.GetValue(Pointer(AEntity));
+            var IdStr := IdVal.ToString;
+            if (IdStr <> '') and (IdStr <> '0') and not FIdentityMap.ContainsKey(IdStr) then
+              FIdentityMap.Add(IdStr, AEntity);
+          end;
+        end;
+        
       except
         on E: Exception do
           raise Exception.CreateFmt('Error executing insert SQL: %s', [E.Message]);
       end;
-      
-      // TODO: If AutoInc, fetch ID back and update Entity?
-      // For now, if user provided ID, we can cache it.
-      // If AutoInc, we don't know ID yet, so we can't cache it easily unless we fetch it.
-      // Let's skip adding to cache on Add for now to avoid complexity with AutoInc.
-      // The user has the instance anyway.
       
     finally
       SB.Free;

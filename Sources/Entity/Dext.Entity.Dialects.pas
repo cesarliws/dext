@@ -19,6 +19,7 @@ type
     function BooleanToSQL(AValue: Boolean): string;
     function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string;
     function GetCascadeActionSQL(AAction: TCascadeAction): string;
+    function GetLastInsertIdSQL: string;
   end;
 
   /// <summary>
@@ -32,6 +33,7 @@ type
     function BooleanToSQL(AValue: Boolean): string; virtual;
     function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; virtual; abstract;
     function GetCascadeActionSQL(AAction: TCascadeAction): string; virtual;
+    function GetLastInsertIdSQL: string; virtual; abstract;
   end;
 
   /// <summary>
@@ -43,6 +45,7 @@ type
     function GeneratePaging(ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
     function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetLastInsertIdSQL: string; override;
   end;
 
   /// <summary>
@@ -54,6 +57,7 @@ type
     function GeneratePaging(ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
     function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetLastInsertIdSQL: string; override;
   end;
 
 implementation
@@ -133,6 +137,11 @@ begin
   end;
 end;
 
+function TSQLiteDialect.GetLastInsertIdSQL: string;
+begin
+  Result := 'SELECT last_insert_rowid()';
+end;
+
 { TPostgreSQLDialect }
 
 function TPostgreSQLDialect.BooleanToSQL(AValue: Boolean): string;
@@ -179,6 +188,11 @@ begin
   else
     Result := 'TEXT';
   end;
+end;
+
+function TPostgreSQLDialect.GetLastInsertIdSQL: string;
+begin
+  Result := 'SELECT lastval()';
 end;
 
 end.
