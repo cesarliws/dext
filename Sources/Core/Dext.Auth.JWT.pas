@@ -3,12 +3,13 @@ unit Dext.Auth.JWT;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
-  System.JSON,
   System.DateUtils,
-  System.NetEncoding,
   System.Generics.Collections,
+  System.JSON,
+  System.NetEncoding,
+  System.Rtti,
+  System.SysUtils,
   IdGlobal,
   IdHashSHA,
   IdHMAC,
@@ -308,6 +309,54 @@ end;
 procedure TJwtTokenHandler.SetExpirationMinutes(const Value: Integer);
 begin
   FExpirationMinutes := Value;
+end;
+
+{ TJwtOptions }
+
+class function TJwtOptions.Create(const ASecretKey: string): TJwtOptions;
+begin
+  Result.SecretKey := ASecretKey;
+  Result.Issuer := '';
+  Result.Audience := '';
+  Result.ExpirationMinutes := 60; // Default: 1 hour
+end;
+
+{ TJwtOptionsBuilder }
+
+constructor TJwtOptionsBuilder.Create(const ASecretKey: string);
+begin
+  inherited Create;
+  FOptions := TJwtOptions.Create(ASecretKey);
+end;
+
+function TJwtOptionsBuilder.WithIssuer(const AIssuer: string): TJwtOptionsBuilder;
+begin
+  FOptions.Issuer := AIssuer;
+  Result := Self;
+end;
+
+function TJwtOptionsBuilder.WithAudience(const AAudience: string): TJwtOptionsBuilder;
+begin
+  FOptions.Audience := AAudience;
+  Result := Self;
+end;
+
+function TJwtOptionsBuilder.WithExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder;
+begin
+  FOptions.ExpirationMinutes := AMinutes;
+  Result := Self;
+end;
+
+function TJwtOptionsBuilder.Build: TJwtOptions;
+begin
+  Result := FOptions;
+end;
+
+{ TJwtOptionsHelper }
+
+class operator TJwtOptionsHelper.Implicit(const AValue: TJwtOptions): TValue;
+begin
+  Result := TValue.From<TJwtOptions>(AValue);
 end;
 
 function TJwtTokenHandler.GenerateToken(const AClaims: TArray<TClaim>): string;

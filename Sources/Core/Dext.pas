@@ -73,7 +73,8 @@ type
   TCorsBuilder = Dext.Http.Cors.TCorsBuilder;
   
   // Auth
-  TJwtAuthenticationOptions = Dext.Auth.Middleware.TJwtAuthenticationOptions;
+  TJwtOptions = Dext.Auth.JWT.TJwtOptions;
+  TJwtOptionsBuilder = Dext.Auth.JWT.TJwtOptionsBuilder;
   TJwtAuthenticationMiddleware = Dext.Auth.Middleware.TJwtAuthenticationMiddleware;
   
   // Static Files
@@ -244,9 +245,9 @@ type
     function CreateCorsOptions: TCorsOptions;
     
     /// <summary>
-    ///   Creates a new instance of TJwtAuthenticationOptions with the specified secret key.
+    ///   Creates a new instance of TJwtOptions with the specified secret key.
     /// </summary>
-    function CreateJwtOptions(const Secret: string): TJwtAuthenticationOptions;
+    function CreateJwtOptions(const Secret: string): TJwtOptions;
     
     /// <summary>
     ///   Creates a new instance of TStaticFileOptions with default settings.
@@ -266,9 +267,14 @@ type
     function UseCors(AConfigurator: TProc<TCorsBuilder>): TDextAppBuilder; overload;
     
     /// <summary>
-    ///   Adds JWT Authentication middleware to the pipeline.
+    ///   Adds JWT Authentication middleware to the pipeline using the provided options.
     /// </summary>
-    function UseJwtAuthentication(const AOptions: TJwtAuthenticationOptions): TDextAppBuilder;
+    function UseJwtAuthentication(const AOptions: TJwtOptions): TDextAppBuilder; overload;
+    
+    /// <summary>
+    ///   Adds JWT Authentication middleware to the pipeline using a configuration delegate.
+    /// </summary>
+    function UseJwtAuthentication(const ASecretKey: string; AConfigurator: TProc<TJwtOptionsBuilder>): TDextAppBuilder; overload;
     
     /// <summary>
     ///   Adds Static Files middleware to the pipeline using the provided options.
@@ -394,9 +400,9 @@ begin
   Result := TCorsOptions.Create;
 end;
 
-function TDextAppBuilderHelper.CreateJwtOptions(const Secret: string): TJwtAuthenticationOptions;
+function TDextAppBuilderHelper.CreateJwtOptions(const Secret: string): TJwtOptions;
 begin
-  Result := TJwtAuthenticationOptions.Default(Secret);
+  Result := TJwtOptions.Create(Secret);
 end;
 
 function TDextAppBuilderHelper.CreateStaticFileOptions: TStaticFileOptions;
@@ -416,9 +422,15 @@ begin
   Result := Self;
 end;
 
-function TDextAppBuilderHelper.UseJwtAuthentication(const AOptions: TJwtAuthenticationOptions): TDextAppBuilder;
+function TDextAppBuilderHelper.UseJwtAuthentication(const AOptions: TJwtOptions): TDextAppBuilder;
 begin
-  Self.Unwrap.UseMiddleware(TJwtAuthenticationMiddleware.Create(AOptions));
+  TApplicationBuilderJwtExtensions.UseJwtAuthentication(Self.Unwrap, AOptions);
+  Result := Self;
+end;
+
+function TDextAppBuilderHelper.UseJwtAuthentication(const ASecretKey: string; AConfigurator: TProc<TJwtOptionsBuilder>): TDextAppBuilder;
+begin
+  TApplicationBuilderJwtExtensions.UseJwtAuthentication(Self.Unwrap, ASecretKey, AConfigurator);
   Result := Self;
 end;
 

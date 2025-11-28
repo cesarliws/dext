@@ -5,38 +5,44 @@ interface
 uses
   System.SysUtils,
   System.Classes,
+  System.Rtti,
   Dext.Http.Interfaces,
   Dext.Auth.JWT,
   Dext.Auth.Identity;
 
 type
   /// <summary>
-  ///   JWT Authentication middleware configuration.
-  /// </summary>
-  TJwtAuthenticationOptions = record
-    SecretKey: string;
-    Issuer: string;
-    Audience: string;
-    TokenPrefix: string; // e.g., "Bearer "
-    
-    class function Default(const ASecretKey: string): TJwtAuthenticationOptions; static;
-  end;
-
-  /// <summary>
   ///   Middleware that validates JWT tokens and populates the User principal.
   /// </summary>
   TJwtAuthenticationMiddleware = class(TInterfacedObject, IMiddleware)
   private
-    FOptions: TJwtAuthenticationOptions;
-    FTokenHandler: TJwtTokenHandler;
+    FOptions: TJwtOptions;
+    FTokenHandler: IJwtTokenHandler;
+    FTokenPrefix: string; // e.g., "Bearer "
     
     function ExtractToken(const AAuthHeader: string): string;
     function CreatePrincipal(const AClaims: TArray<TClaim>): IClaimsPrincipal;
   public
-    constructor Create(const AOptions: TJwtAuthenticationOptions);
-    destructor Destroy; override;
+    constructor Create(const AOptions: TJwtOptions); overload;
+    constructor Create(const AOptions: TJwtOptions; const ATokenPrefix: string); overload;
     
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
+  end;
+
+  /// <summary>
+  ///   Extension methods for adding JWT authentication to the application pipeline.
+  /// </summary>
+  TApplicationBuilderJwtExtensions = class
+  public
+    /// <summary>
+    ///   Adds JWT authentication middleware with the specified options.
+    /// </summary>
+    class function UseJwtAuthentication(const ABuilder: IApplicationBuilder; const AOptions: TJwtOptions): IApplicationBuilder; overload; static;
+    
+    /// <summary>
+    ///   Adds JWT authentication middleware configured with a builder.
+    /// </summary>
+    class function UseJwtAuthentication(const ABuilder: IApplicationBuilder; const ASecretKey: string; AConfigurator: TProc<TJwtOptionsBuilder>): IApplicationBuilder; overload; static;
   end;
 
 implementation
@@ -44,33 +50,24 @@ implementation
 uses
   System.StrUtils;
 
-{ TJwtAuthenticationOptions }
-
-class function TJwtAuthenticationOptions.Default(const ASecretKey: string): TJwtAuthenticationOptions;
-begin
-  Result.SecretKey := ASecretKey;
-  Result.Issuer := '';
-  Result.Audience := '';
-  Result.TokenPrefix := 'Bearer ';
-end;
-
 { TJwtAuthenticationMiddleware }
 
-constructor TJwtAuthenticationMiddleware.Create(const AOptions: TJwtAuthenticationOptions);
+constructor TJwtAuthenticationMiddleware.Create(const AOptions: TJwtOptions);
+begin
+  Create(AOptions, 'Bearer ');
+end;
+
+constructor TJwtAuthenticationMiddleware.Create(const AOptions: TJwtOptions; const ATokenPrefix: string);
 begin
   inherited Create;
   FOptions := AOptions;
+  FTokenPrefix := ATokenPrefix;
   FTokenHandler := TJwtTokenHandler.Create(
     AOptions.SecretKey,
     AOptions.Issuer,
-    AOptions.Audience
+    AOptions.Audience,
+    AOptions.ExpirationMinutes
   );
-end;
-
-destructor TJwtAuthenticationMiddleware.Destroy;
-begin
-  FTokenHandler.Free;
-  inherited;
 end;
 
 function TJwtAuthenticationMiddleware.ExtractToken(const AAuthHeader: string): string;
@@ -78,12 +75,12 @@ begin
   WriteLn('AUTH: ExtractToken called with: ', AAuthHeader);
   Result := AAuthHeader;
   
-  if FOptions.TokenPrefix <> '' then
+  if FTokenPrefix <> '' then
   begin
-    WriteLn('AUTH: Token prefix configured: ', FOptions.TokenPrefix);
-    if StartsText(FOptions.TokenPrefix, AAuthHeader) then
+    WriteLn('AUTH: Token prefix configured: ', FTokenPrefix);
+    if StartsText(FTokenPrefix, AAuthHeader) then
     begin
-      Result := Copy(AAuthHeader, Length(FOptions.TokenPrefix) + 1, MaxInt);
+      Result := Copy(AAuthHeader, Length(FTokenPrefix) + 1, MaxInt);
       WriteLn('AUTH: Extracted token (first 50 chars): ', Copy(Result, 1, 50));
     end
     else
@@ -174,6 +171,33 @@ begin
     on E: Exception do
       WriteLn('AUTH: Exception in middleware: ', E.ClassName, ': ', E.Message);
   end;
+end;
+
+{ TApplicationBuilderJwtExtensions }
+
+class function TApplicationBuilderJwtExtensions.UseJwtAuthentication(
+  const ABuilder: IApplicationBuilder; const AOptions: TJwtOptions): IApplicationBuilder;
+begin
+  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, AOptions);
+end;
+
+class function TApplicationBuilderJwtExtensions.UseJwtAuthentication(
+  const ABuilder: IApplicationBuilder; const ASecretKey: string; 
+  AConfigurator: TProc<TJwtOptionsBuilder>): IApplicationBuilder;
+var
+  Builder: TJwtOptionsBuilder;
+  Options: TJwtOptions;
+begin
+  Builder := TJwtOptionsBuilder.Create(ASecretKey);
+  try
+    if Assigned(AConfigurator) then
+      AConfigurator(Builder);
+    Options := Builder.Build;
+  finally
+    Builder.Free;
+  end;
+
+  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, Options);
 end;
 
 end.
