@@ -26,6 +26,7 @@ type
 
     // Generic Helper
     class function CreateInstance<T: class>(const AArgs: array of TValue): T; overload;
+    class function CreateInstance<T: class>: T; overload;
   end;
 
 implementation
@@ -293,6 +294,11 @@ begin
   finally
     Context.Free;
   end;
+end;
+
+class function TActivator.CreateInstance<T>: T;
+begin
+  Result := T(CreateInstance<T>([]));
 end;
 
 class function TActivator.CreateInstance<T>(const AArgs: array of TValue): T;

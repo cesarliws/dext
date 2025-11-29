@@ -106,6 +106,14 @@ contains
   Dext in 'Dext.pas',
   Dext.Options.Extensions in 'Dext.Options.Extensions.pas',
   Dext.Core.Memory in 'Dext.Core.Memory.pas',
+  Dext.Core.ValueConverters in 'Dext.Core.ValueConverters.pas',
+  Dext.Specifications.Base in '..\Specifications\Dext.Specifications.Base.pas',
+  Dext.Specifications.Criteria in '..\Specifications\Dext.Specifications.Criteria.pas',
+  Dext.Specifications.Fluent in '..\Specifications\Dext.Specifications.Fluent.pas',
+  Dext.Specifications.Interfaces in '..\Specifications\Dext.Specifications.Interfaces.pas',
+  Dext.Specifications.OrderBy in '..\Specifications\Dext.Specifications.OrderBy.pas',
+  Dext.Specifications.SQL.Generator in '..\Specifications\Dext.Specifications.SQL.Generator.pas',
+  Dext.Specifications.Types in '..\Specifications\Dext.Specifications.Types.pas',
   Dext.Entity.Attributes in '..\Entity\Dext.Entity.Attributes.pas',
   Dext.Entity.Core in '..\Entity\Dext.Entity.Core.pas',
   Dext.Entity.DbSet in '..\Entity\Dext.Entity.DbSet.pas',
@@ -113,12 +121,7 @@ contains
   Dext.Entity.Drivers.FireDAC in '..\Entity\Dext.Entity.Drivers.FireDAC.pas',
   Dext.Entity.Drivers.Interfaces in '..\Entity\Dext.Entity.Drivers.Interfaces.pas',
   Dext.Entity in '..\Entity\Dext.Entity.pas',
-  Dext.Specifications.Base in '..\Specifications\Dext.Specifications.Base.pas',
-  Dext.Specifications.Criteria in '..\Specifications\Dext.Specifications.Criteria.pas',
-  Dext.Specifications.Interfaces in '..\Specifications\Dext.Specifications.Interfaces.pas',
-  Dext.Specifications.SQL.Generator in '..\Specifications\Dext.Specifications.SQL.Generator.pas',
-  Dext.Specifications.Types in '..\Specifications\Dext.Specifications.Types.pas',
-  Dext.Core.ValueConverters in 'Dext.Core.ValueConverters.pas';
+  Dext.Persistence in '..\Entity\Dext.Persistence.pas';
 
 end.
 

@@ -9,7 +9,8 @@ uses
   System.Rtti,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types,
-  Dext.Entity.Dialects;
+  Dext.Entity.Dialects,
+  Dext.Entity.Attributes;
 
 type
   /// <summary>
@@ -45,6 +46,28 @@ type
     /// <summary>
     ///   Access the parameters generated during the process.
     /// </summary>
+    property Params: TDictionary<string, TValue> read FParams;
+  end;
+
+  /// <summary>
+  ///   Generates SQL for CRUD operations (Insert, Update, Delete).
+  /// </summary>
+  TSQLGenerator<T: class> = class
+  private
+    FDialect: ISQLDialect;
+    FParams: TDictionary<string, TValue>;
+    FParamCount: Integer;
+    
+    function GetNextParamName: string;
+    function GetTableName: string;
+  public
+    constructor Create(ADialect: ISQLDialect);
+    destructor Destroy; override;
+    
+    function GenerateInsert(const AEntity: T): string;
+    function GenerateUpdate(const AEntity: T): string;
+    function GenerateDelete(const AEntity: T): string;
+    
     property Params: TDictionary<string, TValue> read FParams;
   end;
 
@@ -192,6 +215,230 @@ begin
     uoIsNotNull: Result := 'IS NOT NULL';
   else
     Result := '';
+  end;
+end;
+
+
+
+{ TSQLGenerator<T> }
+
+constructor TSQLGenerator<T>.Create(ADialect: ISQLDialect);
+begin
+  FDialect := ADialect;
+  FParams := TDictionary<string, TValue>.Create;
+  FParamCount := 0;
+end;
+
+destructor TSQLGenerator<T>.Destroy;
+begin
+  FParams.Free;
+  inherited;
+end;
+
+function TSQLGenerator<T>.GetNextParamName: string;
+begin
+  Inc(FParamCount);
+  Result := 'p' + IntToStr(FParamCount);
+end;
+
+function TSQLGenerator<T>.GetTableName: string;
+var
+  Ctx: TRttiContext;
+  Typ: TRttiType;
+  Attr: TCustomAttribute;
+begin
+  Ctx := TRttiContext.Create;
+  Typ := Ctx.GetType(T);
+  Result := Typ.Name;
+  
+  for Attr in Typ.GetAttributes do
+    if Attr is TableAttribute then
+      Exit(TableAttribute(Attr).Name);
+end;
+
+function TSQLGenerator<T>.GenerateInsert(const AEntity: T): string;
+var
+  Ctx: TRttiContext;
+  Typ: TRttiType;
+  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
+  ColName, ParamName: string;
+  SBCols, SBVals: TStringBuilder;
+  IsAutoInc, IsMapped: Boolean;
+  Val: TValue;
+begin
+  FParams.Clear;
+  FParamCount := 0;
+  
+  Ctx := TRttiContext.Create;
+  Typ := Ctx.GetType(T);
+  
+  SBCols := TStringBuilder.Create;
+  SBVals := TStringBuilder.Create;
+  try
+    var First := True;
+    
+    for Prop in Typ.GetProperties do
+    begin
+      IsMapped := True;
+      IsAutoInc := False;
+      ColName := Prop.Name;
+      
+      for Attr in Prop.GetAttributes do
+      begin
+        if Attr is NotMappedAttribute then IsMapped := False;
+        if Attr is AutoIncAttribute then IsAutoInc := True;
+        if Attr is ColumnAttribute then ColName := ColumnAttribute(Attr).Name;
+        if Attr is ForeignKeyAttribute then ColName := ForeignKeyAttribute(Attr).ColumnName;
+      end;
+      
+      if not IsMapped or IsAutoInc then Continue;
+      
+      if not First then
+      begin
+        SBCols.Append(', ');
+        SBVals.Append(', ');
+      end;
+      First := False;
+      
+      SBCols.Append(FDialect.QuoteIdentifier(ColName));
+      
+      ParamName := GetNextParamName;
+      SBVals.Append(':').Append(ParamName);
+      
+      Val := Prop.GetValue(Pointer(AEntity));
+      FParams.Add(ParamName, Val);
+    end;
+    
+    Result := Format('INSERT INTO %s (%s) VALUES (%s)', 
+      [FDialect.QuoteIdentifier(GetTableName), SBCols.ToString, SBVals.ToString]);
+      
+  finally
+    SBCols.Free;
+    SBVals.Free;
+  end;
+end;
+
+function TSQLGenerator<T>.GenerateUpdate(const AEntity: T): string;
+var
+  Ctx: TRttiContext;
+  Typ: TRttiType;
+  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
+  ColName, ParamName: string;
+  SBSet, SBWhere: TStringBuilder;
+  IsPK, IsMapped: Boolean;
+  Val: TValue;
+begin
+  FParams.Clear;
+  FParamCount := 0;
+  
+  Ctx := TRttiContext.Create;
+  Typ := Ctx.GetType(T);
+  
+  SBSet := TStringBuilder.Create;
+  SBWhere := TStringBuilder.Create;
+  try
+    var FirstSet := True;
+    var FirstWhere := True;
+    
+    for Prop in Typ.GetProperties do
+    begin
+      IsMapped := True;
+      IsPK := False;
+      ColName := Prop.Name;
+      
+      for Attr in Prop.GetAttributes do
+      begin
+        if Attr is NotMappedAttribute then IsMapped := False;
+        if Attr is PKAttribute then IsPK := True;
+        if Attr is ColumnAttribute then ColName := ColumnAttribute(Attr).Name;
+        if Attr is ForeignKeyAttribute then ColName := ForeignKeyAttribute(Attr).ColumnName;
+      end;
+      
+      if not IsMapped then Continue;
+      
+      Val := Prop.GetValue(Pointer(AEntity));
+      ParamName := GetNextParamName;
+      FParams.Add(ParamName, Val);
+      
+      if IsPK then
+      begin
+        if not FirstWhere then SBWhere.Append(' AND ');
+        FirstWhere := False;
+        SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ParamName);
+      end
+      else
+      begin
+        if not FirstSet then SBSet.Append(', ');
+        FirstSet := False;
+        SBSet.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ParamName);
+      end;
+    end;
+    
+    if SBWhere.Length = 0 then
+      raise Exception.Create('Cannot generate UPDATE: No Primary Key defined.');
+      
+    Result := Format('UPDATE %s SET %s WHERE %s', 
+      [FDialect.QuoteIdentifier(GetTableName), SBSet.ToString, SBWhere.ToString]);
+      
+  finally
+    SBSet.Free;
+    SBWhere.Free;
+  end;
+end;
+
+function TSQLGenerator<T>.GenerateDelete(const AEntity: T): string;
+var
+  Ctx: TRttiContext;
+  Typ: TRttiType;
+  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
+  ColName, ParamName: string;
+  SBWhere: TStringBuilder;
+  IsPK: Boolean;
+  Val: TValue;
+begin
+  FParams.Clear;
+  FParamCount := 0;
+  
+  Ctx := TRttiContext.Create;
+  Typ := Ctx.GetType(T);
+  
+  SBWhere := TStringBuilder.Create;
+  try
+    var FirstWhere := True;
+    
+    for Prop in Typ.GetProperties do
+    begin
+      IsPK := False;
+      ColName := Prop.Name;
+      
+      for Attr in Prop.GetAttributes do
+      begin
+        if Attr is PKAttribute then IsPK := True;
+        if Attr is ColumnAttribute then ColName := ColumnAttribute(Attr).Name;
+      end;
+      
+      if not IsPK then Continue;
+      
+      Val := Prop.GetValue(Pointer(AEntity));
+      ParamName := GetNextParamName;
+      FParams.Add(ParamName, Val);
+      
+      if not FirstWhere then SBWhere.Append(' AND ');
+      FirstWhere := False;
+      SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ParamName);
+    end;
+    
+    if SBWhere.Length = 0 then
+      raise Exception.Create('Cannot generate DELETE: No Primary Key defined.');
+      
+    Result := Format('DELETE FROM %s WHERE %s', 
+      [FDialect.QuoteIdentifier(GetTableName), SBWhere.ToString]);
+      
+  finally
+    SBWhere.Free;
   end;
 end;
 

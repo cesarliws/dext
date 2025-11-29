@@ -23,6 +23,9 @@ type
     procedure Add(const AEntity: TObject);
     function GetTableName: string;
     function GenerateCreateTableScript: string;
+    
+    // Non-generic query support
+    function ListObjects(const ACriterion: ICriterion): TList<TObject>;
   end;
 
   /// <summary>

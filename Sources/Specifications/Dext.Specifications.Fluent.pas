@@ -87,6 +87,12 @@ begin
   Result := Self;
 end;
 
+function TSpecificationBuilder<T>.Include(const APath: string): TSpecificationBuilder<T>;
+begin
+  GetSpec.AddInclude(APath);
+  Result := Self;
+end;
+
 { Specification }
 
 class function Specification.Where<T>(const ACriterion: ICriterion): TSpecificationBuilder<T>;

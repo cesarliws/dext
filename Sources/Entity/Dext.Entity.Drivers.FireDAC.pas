@@ -62,6 +62,7 @@ type
     procedure AddParam(const AName: string; const AValue: TValue);
     procedure ClearParams;
     
+    procedure Execute;
     function ExecuteQuery: IDbReader;
     function ExecuteNonQuery: Integer;
     function ExecuteScalar: TValue;
@@ -81,6 +82,7 @@ type
     
     function BeginTransaction: IDbTransaction;
     function CreateCommand(const ASQL: string): IInterface; // Returns IDbCommand
+    function GetLastInsertId: Variant;
     
     property Connection: TFDConnection read FConnection;
   end;
@@ -224,6 +226,11 @@ begin
   FQuery.Params.Clear;
 end;
 
+procedure TFireDACCommand.Execute;
+begin
+  ExecuteNonQuery;
+end;
+
 function TFireDACCommand.ExecuteNonQuery: Integer;
 begin
   FQuery.ExecSQL;
@@ -305,6 +312,11 @@ begin
   Cmd := TFireDACCommand.Create(FConnection);
   Cmd.SetSQL(ASQL);
   Result := Cmd;
+end;
+
+function TFireDACConnection.GetLastInsertId: Variant;
+begin
+  Result := FConnection.GetLastAutoGenValue('');
 end;
 
 procedure TFireDACConnection.Disconnect;

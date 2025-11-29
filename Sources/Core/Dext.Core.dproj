@@ -178,6 +178,14 @@
         <DCCReference Include="Dext.pas"/>
         <DCCReference Include="Dext.Options.Extensions.pas"/>
         <DCCReference Include="Dext.Core.Memory.pas"/>
+        <DCCReference Include="Dext.Core.ValueConverters.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.Base.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.Criteria.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.Fluent.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.Interfaces.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.OrderBy.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.SQL.Generator.pas"/>
+        <DCCReference Include="..\Specifications\Dext.Specifications.Types.pas"/>
         <DCCReference Include="..\Entity\Dext.Entity.Attributes.pas"/>
         <DCCReference Include="..\Entity\Dext.Entity.Core.pas"/>
         <DCCReference Include="..\Entity\Dext.Entity.DbSet.pas"/>
@@ -185,12 +193,7 @@
         <DCCReference Include="..\Entity\Dext.Entity.Drivers.FireDAC.pas"/>
         <DCCReference Include="..\Entity\Dext.Entity.Drivers.Interfaces.pas"/>
         <DCCReference Include="..\Entity\Dext.Entity.pas"/>
-        <DCCReference Include="..\Specifications\Dext.Specifications.Base.pas"/>
-        <DCCReference Include="..\Specifications\Dext.Specifications.Criteria.pas"/>
-        <DCCReference Include="..\Specifications\Dext.Specifications.Interfaces.pas"/>
-        <DCCReference Include="..\Specifications\Dext.Specifications.SQL.Generator.pas"/>
-        <DCCReference Include="..\Specifications\Dext.Specifications.Types.pas"/>
-        <DCCReference Include="Dext.Core.ValueConverters.pas"/>
+        <DCCReference Include="..\Entity\Dext.Persistence.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

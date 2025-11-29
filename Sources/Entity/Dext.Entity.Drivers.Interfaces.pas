@@ -26,6 +26,8 @@ type
     
     // Factory methods
     function CreateCommand(const ASQL: string): IInterface; // Returns IDbCommand (circular ref avoidance)
+    
+    function GetLastInsertId: Variant;
   end;
 
   /// <summary>
@@ -46,6 +48,7 @@ type
     procedure AddParam(const AName: string; const AValue: TValue);
     procedure ClearParams;
     
+    procedure Execute;
     function ExecuteQuery: IDbReader;
     function ExecuteNonQuery: Integer;
     function ExecuteScalar: TValue;

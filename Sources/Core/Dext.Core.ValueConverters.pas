@@ -32,6 +32,7 @@ type
   public
     class function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; overload;
     class function Convert<T>(const AValue: TValue): T; overload;
+    class procedure ConvertAndSet(Instance: TObject; Prop: TRttiProperty; const Value: TValue);
   end;
 
   // Base Converter
@@ -183,6 +184,16 @@ var
 begin
   Val := Convert(AValue, TypeInfo(T));
   Result := Val.AsType<T>;
+end;
+
+class procedure TValueConverter.ConvertAndSet(Instance: TObject; Prop: TRttiProperty; const Value: TValue);
+var
+  Converted: TValue;
+begin
+  if not Prop.IsWritable then Exit;
+  
+  Converted := Convert(Value, Prop.PropertyType.Handle);
+  Prop.SetValue(Instance, Converted);
 end;
 
 { TVariantToIntegerConverter }
