@@ -40,9 +40,11 @@ begin
   
   // Manual insert of Address since Cascade Insert is not fully implemented yet
   FContext.Entities<TAddress>.Add(Address);
+  FContext.SaveChanges;
   User.AddressId := Address.Id; // Link FK manually
   
   FContext.Entities<TUser>.Add(User);
+  FContext.SaveChanges;
   
   AssertTrue(User.Id > 0, 
     Format('User inserted with ID: %d', [User.Id]), 
@@ -75,6 +77,7 @@ begin
   begin
     FoundUser.Age := 26;
     FContext.Entities<TUser>.Update(FoundUser);
+    FContext.SaveChanges;
     
     // Verify
     var UpdatedUser := FContext.Entities<TUser>.Find(User.Id);
@@ -86,6 +89,7 @@ begin
   if FoundUser <> nil then
   begin
     FContext.Entities<TUser>.Remove(FoundUser);
+    FContext.SaveChanges;
     
     var DeletedUser := FContext.Entities<TUser>.Find(User.Id);
     AssertTrue(DeletedUser = nil, 'User removed successfully.', 'User still exists after remove.');

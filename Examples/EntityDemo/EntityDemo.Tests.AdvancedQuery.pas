@@ -62,10 +62,11 @@ begin
   U.Age := 30;
   U.City := 'New York';
   FContext.Entities<TUser>.Add(U);
+  FContext.SaveChanges;
   
   // Select only Name
   Builder := Specification.All<TUser>;
-  Spec := Builder.Select('Name');
+  Spec := Builder.Select(UserEntity.Name);
   
   Users := FContext.Entities<TUser>.List(Spec);
   try
@@ -93,6 +94,7 @@ begin
   var U1 := TUser.Create; U1.Name := 'A'; U1.Age := 10; FContext.Entities<TUser>.Add(U1);
   var U2 := TUser.Create; U2.Name := 'B'; U2.Age := 20; FContext.Entities<TUser>.Add(U2);
   var U3 := TUser.Create; U3.Name := 'C'; U3.Age := 30; FContext.Entities<TUser>.Add(U3);
+  FContext.SaveChanges;
   
   Users := FContext.Entities<TUser>.Query;
   try
@@ -154,6 +156,7 @@ begin
   var U4 := TUser.Create; U4.Name := 'D'; U4.City := 'New York'; FContext.Entities<TUser>.Add(U4);
   var U5 := TUser.Create; U5.Name := 'E'; U5.City := 'New York'; FContext.Entities<TUser>.Add(U5);
   var U6 := TUser.Create; U6.Name := 'F'; U6.City := 'London'; FContext.Entities<TUser>.Add(U6);
+  FContext.SaveChanges;
   
   // Project to City then Distinct
   Users := FContext.Entities<TUser>.Query;
@@ -199,6 +202,7 @@ begin
     U.Name := 'User' + i.ToString;
     FContext.Entities<TUser>.Add(U);
   end;
+  FContext.SaveChanges;
   
   var Query := FContext.Entities<TUser>.Query;
   try
@@ -297,10 +301,12 @@ begin
   // Setup data
   A1 := TAddress.Create; A1.Street := 'Street 1'; FContext.Entities<TAddress>.Add(A1);
   A2 := TAddress.Create; A2.Street := 'Street 2'; FContext.Entities<TAddress>.Add(A2);
+  FContext.SaveChanges;
   
   U1 := TUser.Create; U1.Name := 'User 1'; U1.AddressId := A1.Id; FContext.Entities<TUser>.Add(U1);
   U2 := TUser.Create; U2.Name := 'User 2'; U2.AddressId := A2.Id; FContext.Entities<TUser>.Add(U2);
   U3 := TUser.Create; U3.Name := 'User 3'; U3.AddressId := 999; FContext.Entities<TUser>.Add(U3); // No match
+  FContext.SaveChanges;
   
   Users := FContext.Entities<TUser>.Query;
   Addresses := FContext.Entities<TAddress>.Query;
@@ -377,6 +383,7 @@ begin
   A2.Street := 'Second Avenue'; 
   A2.City := 'Los Angeles';
   FContext.Entities<TAddress>.Add(A2);
+  FContext.SaveChanges;
   
   // Create users with addresses
   U1 := TUser.Create; 
@@ -388,6 +395,7 @@ begin
   U2.Name := 'Jane'; 
   U2.AddressId := A2.Id; 
   FContext.Entities<TUser>.Add(U2);
+  FContext.SaveChanges;
   
   // Test: Load users with Include('Address')
   Builder := Specification.All<TUser>;
@@ -436,6 +444,7 @@ begin
   var U1 := TUser.Create; U1.Name := 'A'; U1.Age := 10; U1.City := 'NY'; FContext.Entities<TUser>.Add(U1);
   var U2 := TUser.Create; U2.Name := 'B'; U2.Age := 20; U2.City := 'LA'; FContext.Entities<TUser>.Add(U2);
   var U3 := TUser.Create; U3.Name := 'C'; U3.Age := 30; U3.City := 'NY'; FContext.Entities<TUser>.Add(U3);
+  FContext.SaveChanges;
   
   Users := FContext.Entities<TUser>.Query;
   try

@@ -456,10 +456,6 @@ begin
     TObject(Self));
 end;
 
-
-
-
-
 function TFluentQuery<T>.Where(const APredicate: TPredicate<T>): TFluentQuery<T>;
 var
   LSource: TEnumerable<T>;

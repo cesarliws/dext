@@ -6,7 +6,7 @@ Este documento rastreia o desenvolvimento do **Dext Entity**, o ORM nativo do fr
 
 ---
 
-## 📊 Status Atual: **Alpha 0.5** 🏗️
+## 📊 Status Atual: **Alpha 0.6** 🚀
 
 O núcleo do ORM está funcional, suportando operações CRUD, mapeamento básico, relacionamentos simples e controle de concorrência.
 
@@ -34,8 +34,8 @@ O núcleo do ORM está funcional, suportando operações CRUD, mapeamento básic
 
 ## 📅 Próximos Passos
 
-### 🚀 Fase 3: Advanced Querying (Em Progresso)
-O objetivo é permitir consultas complexas de forma tipada e fluente.
+### ✅ Fase 3: Advanced Querying (Concluído)
+O objetivo foi permitir consultas complexas de forma tipada e fluente. Concluído com sucesso na versão Alpha 0.6.
 
 - [x] **Fluent Query API**: Builder para consultas (`Where`, `OrderBy`, `Skip`, `Take`).
   - *Exemplo:* `Context.Entities<TUser>.List(UserEntity.Age >= 18)`
@@ -123,14 +123,14 @@ O objetivo é permitir consultas complexas de forma tipada e fluente.
 ### 📦 Fase 4: Loading Strategies & Memory Management
 Melhorar como os dados relacionados são carregados e gerenciar ciclo de vida das entidades.
 
-- [ ] **Unit of Work Pattern**: Implementar rastreamento de mudanças e commit em lote.
+- [x] **Unit of Work Pattern**: Implementar rastreamento de mudanças e commit em lote.
   - Adicionar método `Clear()` no DbSet para limpar IdentityMap e destruir entidades gerenciadas
   - Implementar `SaveChanges()` no DbContext para persistir todas as mudanças de uma vez
   - Rastrear estado das entidades (Added, Modified, Deleted, Unchanged)
-- [ ] **Eager Loading (.Include)**: Carregamento antecipado completo e validado.
+- [x] **Eager Loading (.Include)**: Carregamento antecipado completo e validado.
   - *Exemplo:* `Context.Entities<TUser>.Include('Address').Find(1);`
 - [ ] **Lazy Loading**: Carregamento sob demanda (via Proxies ou Virtual getters).
-- [ ] **Explicit Loading**: Carregamento manual de navegações (`Context.Entry(User).Collection('Orders').Load()`).
+- [x] **Explicit Loading**: Carregamento manual de navegações (`Context.Entry(User).Collection('Orders').Load()`).
 
 ### ⚡ Fase 5: Performance & Tuning
 - [ ] **True Bulk SQL**: Otimizar `AddRange` para usar `INSERT INTO ... VALUES (...), (...)`.

@@ -14,6 +14,20 @@ uses
 type
   EOptimisticConcurrencyException = class(Exception);
 
+  TEntityState = (esDetached, esUnchanged, esAdded, esDeleted, esModified);
+
+  /// <summary>
+  ///   Tracks the state of entities in the context.
+  /// </summary>
+  IChangeTracker = interface
+    ['{30000000-0000-0000-0000-000000000003}']
+    procedure Track(const AEntity: TObject; AState: TEntityState);
+    function GetState(const AEntity: TObject): TEntityState;
+    function HasChanges: Boolean;
+    procedure AcceptAllChanges;
+    function GetTrackedEntities: TEnumerable<TPair<TObject, TEntityState>>;
+  end;
+
   /// <summary>
   ///   Non-generic base interface for DbSets.
   ///   Allows access to DbSet operations without knowing the generic type at compile time.
@@ -27,6 +41,11 @@ type
     
     // Non-generic query support
     function ListObjects(const AExpression: IExpression): TList<TObject>;
+    
+    // Internal Persistence Methods (called by SaveChanges)
+    procedure PersistAdd(const AEntity: TObject);
+    procedure PersistUpdate(const AEntity: TObject);
+    procedure PersistRemove(const AEntity: TObject);
   end;
 
   /// <summary>
@@ -76,6 +95,22 @@ type
     function Query: TFluentQuery<T>; overload; // All records (lazy)
   end;
 
+  ICollectionEntry = interface
+    ['{A1B2C3D4-E5F6-4789-0123-456789ABCDEF}']
+    procedure Load;
+  end;
+
+  IReferenceEntry = interface
+    ['{B2C3D4E5-F6A7-4890-1234-567890BCDEFF}']
+    procedure Load;
+  end;
+
+  IEntityEntry = interface
+    ['{C3D4E5F6-A7B8-4901-2345-678901CDEF01}']
+    function Collection(const APropName: string): ICollectionEntry;
+    function Reference(const APropName: string): IReferenceEntry;
+  end;
+
   /// <summary>
   ///   Represents a session with the database.
   /// </summary>
@@ -100,6 +135,18 @@ type
     ///   Creates tables for all registered entities if they don't exist.
     /// </summary>
     procedure EnsureCreated;
+
+    /// <summary>
+    ///   Saves all changes made in this context to the database.
+    /// </summary>
+    function SaveChanges: Integer;
+
+    /// <summary>
+    ///   Access the Change Tracker.
+    /// </summary>
+    function ChangeTracker: IChangeTracker;
+    
+    function Entry(const AEntity: TObject): IEntityEntry;
   end;
 
 implementation

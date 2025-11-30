@@ -35,7 +35,12 @@ begin
   User.Email := 'victim@dext.com';
   User.Address := Address;
   
+  FContext.Entities<TAddress>.Add(Address);
+  FContext.SaveChanges;
+  User.AddressId := Address.Id;
+  
   FContext.Entities<TUser>.Add(User);
+  FContext.SaveChanges;
   var UserId := User.Id;
   var AddressId := Address.Id;
   
@@ -49,6 +54,7 @@ begin
   if AddrToDelete <> nil then
   begin
     FContext.Entities<TAddress>.Remove(AddrToDelete);
+    FContext.SaveChanges;
     LogSuccess('Address removed.');
     
     // Verify User is gone from DB

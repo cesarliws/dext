@@ -30,6 +30,7 @@ begin
   OrderItem.Price := 10.50;
 
   FContext.Entities<TOrderItem>.Add(OrderItem);
+  FContext.SaveChanges;
   LogSuccess('OrderItem (100, 50) added.');
 
   // Find using Composite Key
@@ -44,10 +45,12 @@ begin
     // Update
     FoundItem.Quantity := 5;
     FContext.Entities<TOrderItem>.Update(FoundItem);
+    FContext.SaveChanges;
     LogSuccess('OrderItem updated.');
     
     // Remove
     FContext.Entities<TOrderItem>.Remove(FoundItem);
+    FContext.SaveChanges;
     
     // Verify Remove
     var DeletedItem := FContext.Entities<TOrderItem>.Find(VarArrayOf([100, 50]));

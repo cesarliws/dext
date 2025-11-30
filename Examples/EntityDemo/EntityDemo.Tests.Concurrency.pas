@@ -39,6 +39,7 @@ begin
   P.Version := 1; // Initial version
   
   FContext.Entities<TProduct>.Add(P);
+  FContext.SaveChanges;
   LogSuccess(Format('Product inserted with ID: %d, Version: %d', [P.Id, P.Version]));
 
   // 2. Simulate User A (Context 1) and User B (Context 2)
@@ -60,6 +61,7 @@ begin
     // User A updates
     ProductA.Price := 150;
     FContext.Entities<TProduct>.Update(ProductA);
+    FContext.SaveChanges;
     LogSuccess('User A updated product. New Version: ' + ProductA.Version.ToString);
     
     AssertTrue(ProductA.Version = 2, 'Version incremented to 2', 'Version did not increment');
@@ -68,6 +70,7 @@ begin
     ProductB.Price := 200;
     try
       Context2.Entities<TProduct>.Update(ProductB);
+      Context2.SaveChanges;
       LogError('User B update should have failed!');
     except
       on E: EOptimisticConcurrencyException do

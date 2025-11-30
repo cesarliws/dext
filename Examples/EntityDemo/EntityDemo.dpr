@@ -12,78 +12,88 @@ uses
   EntityDemo.Tests.Concurrency in 'EntityDemo.Tests.Concurrency.pas',
   EntityDemo.Tests.CRUD in 'EntityDemo.Tests.CRUD.pas',
   EntityDemo.Tests.FluentAPI in 'EntityDemo.Tests.FluentAPI.pas',
+  EntityDemo.Tests.ExplicitLoading in 'EntityDemo.Tests.ExplicitLoading.pas',
   EntityDemo.Tests.LazyExecution in 'EntityDemo.Tests.LazyExecution.pas',
   EntityDemo.Tests.Relationships in 'EntityDemo.Tests.Relationships.pas';
 
 procedure RunAllTests;
 var
-  CRUDTest: TCRUDTest;
-  RelTest: TRelationshipTest;
-  CompKeyTest: TCompositeKeyTest;
-  BulkTest: TBulkTest;
-  ConcTest: TConcurrencyTest;
-  FluentTest: TFluentAPITest;
-  LazyTest: TLazyExecutionTest;
-  AdvQueryTest: TAdvancedQueryTest;
+  Test: TBaseTest;
 begin
   WriteLn('🚀 Dext Entity ORM Demo Suite');
   WriteLn('=============================');
   WriteLn('');
 
-  CRUDTest := TCRUDTest.Create;
+  // Run CRUD Tests
+  Test := TCRUDTest.Create;
   try
-    CRUDTest.Run;
+    Test.Run;
   finally
-    CRUDTest.Free;
+    Test.Free;
   end;
 
-  RelTest := TRelationshipTest.Create;
+  // Run Bulk Tests
+  Test := TBulkTest.Create;
   try
-    RelTest.Run;
+    Test.Run;
   finally
-    RelTest.Free;
+    Test.Free;
   end;
 
-  CompKeyTest := TCompositeKeyTest.Create;
+  // Run Concurrency Tests
+  Test := TConcurrencyTest.Create;
   try
-    CompKeyTest.Run;
+    Test.Run;
   finally
-    CompKeyTest.Free;
+    Test.Free;
   end;
 
-  BulkTest := TBulkTest.Create;
+  // Run Relationship Tests
+  Test := TRelationshipTest.Create;
   try
-    BulkTest.Run;
+    Test.Run;
   finally
-    BulkTest.Free;
+    Test.Free;
   end;
 
-  ConcTest := TConcurrencyTest.Create;
+  // Run Composite Key Tests
+  Test := TCompositeKeyTest.Create;
   try
-    ConcTest.Run;
+    Test.Run;
   finally
-    ConcTest.Free;
+    Test.Free;
   end;
 
-  FluentTest := TFluentAPITest.Create;
+  // Run Lazy Execution Tests
+  Test := TLazyExecutionTest.Create;
   try
-    FluentTest.Run;
+    Test.Run;
   finally
-    FluentTest.Free;
-  end;
-  
-  LazyTest := TLazyExecutionTest.Create;
-  try
-    LazyTest.Run;
-  finally
-    LazyTest.Free;
+    Test.Free;
   end;
 
-  AdvQueryTest := TAdvancedQueryTest.Create;
+  // Run Advanced Query Tests
+  Test := TAdvancedQueryTest.Create;
   try
-    AdvQueryTest.Run;
+    Test.Run;
   finally
-    AdvQueryTest.Free;
+    Test.Free;
+  end;
+
+  // Run Fluent API Tests
+  Test := TFluentAPITest.Create;
+  try
+    Test.Run;
+  finally
+    Test.Free;
+  end;
+
+  // Run Explicit Loading Tests
+  Test := TExplicitLoadingTest.Create;
+  try
+    Test.Run;
+  finally
+    Test.Free;
   end;
   
   WriteLn('✨ All tests completed.');

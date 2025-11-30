@@ -46,6 +46,9 @@ type
     function FindObject(const AId: Variant): TObject;
     procedure Add(const AEntity: TObject); overload;
     function ListObjects(const AExpression: IExpression): TList<TObject>;
+    procedure PersistAdd(const AEntity: TObject);
+    procedure PersistUpdate(const AEntity: TObject);
+    procedure PersistRemove(const AEntity: TObject);
     function GenerateCreateTableScript: string;
     
     procedure Add(const AEntity: T); overload;
@@ -428,7 +431,7 @@ begin
   end;
 end;
 
-procedure TDbSet<T>.Add(const AEntity: T);
+procedure TDbSet<T>.PersistAdd(const AEntity: TObject);
 var
   Generator: TSQLGenerator<T>;
   SQL: string;
@@ -436,10 +439,12 @@ var
   Param: TPair<string, TValue>;
   LastId: Variant;
   PKProp: TRttiProperty;
+  Entity: T;
 begin
+  Entity := T(AEntity);
   Generator := TSQLGenerator<T>.Create(FContext.Dialect);
   try
-    SQL := Generator.GenerateInsert(AEntity);
+    SQL := Generator.GenerateInsert(Entity);
     Cmd := FContext.Connection.CreateCommand(SQL) as IDbCommand;
     
     for Param in Generator.Params do
@@ -456,22 +461,27 @@ begin
          if PKProp.GetAttribute<AutoIncAttribute> <> nil then
          begin
             LastId := FContext.Connection.GetLastInsertId;
-            TValueConverter.ConvertAndSet(AEntity, PKProp, TValue.FromVariant(LastId));
+            TValueConverter.ConvertAndSet(Entity, PKProp, TValue.FromVariant(LastId));
          end;
        end;
     end;
     
     // Add to Identity Map
-    var ID := GetEntityId(AEntity);
+    var ID := GetEntityId(Entity);
     if not FIdentityMap.ContainsKey(ID) then
-      FIdentityMap.Add(ID, AEntity);
+      FIdentityMap.Add(ID, Entity);
       
   finally
     Generator.Free;
   end;
 end;
 
-procedure TDbSet<T>.Update(const AEntity: T);
+procedure TDbSet<T>.Add(const AEntity: T);
+begin
+  FContext.ChangeTracker.Track(AEntity, esAdded);
+end;
+
+procedure TDbSet<T>.PersistUpdate(const AEntity: TObject);
 var
   Generator: TSQLGenerator<T>;
   SQL: string;
@@ -483,10 +493,12 @@ var
   Prop: TRttiProperty;
   Attr: TCustomAttribute;
   VersionProp: TRttiProperty;
+  Entity: T;
 begin
+  Entity := T(AEntity);
   Generator := TSQLGenerator<T>.Create(FContext.Dialect);
   try
-    SQL := Generator.GenerateUpdate(AEntity);
+    SQL := Generator.GenerateUpdate(Entity);
     Cmd := FContext.Connection.CreateCommand(SQL) as IDbCommand;
     
     for Param in Generator.Params do
@@ -517,8 +529,8 @@ begin
     else if VersionProp <> nil then
     begin
       // Increment version in memory
-      var CurrentVersion := VersionProp.GetValue(Pointer(AEntity)).AsInteger;
-      VersionProp.SetValue(Pointer(AEntity), CurrentVersion + 1);
+      var CurrentVersion := VersionProp.GetValue(Pointer(Entity)).AsInteger;
+      VersionProp.SetValue(Pointer(Entity), CurrentVersion + 1);
     end;
     
   finally
@@ -526,16 +538,23 @@ begin
   end;
 end;
 
-procedure TDbSet<T>.Remove(const AEntity: T);
+procedure TDbSet<T>.Update(const AEntity: T);
+begin
+  FContext.ChangeTracker.Track(AEntity, esModified);
+end;
+
+procedure TDbSet<T>.PersistRemove(const AEntity: TObject);
 var
   Generator: TSQLGenerator<T>;
   SQL: string;
   Cmd: IDbCommand;
   Param: TPair<string, TValue>;
+  Entity: T;
 begin
+  Entity := T(AEntity);
   Generator := TSQLGenerator<T>.Create(FContext.Dialect);
   try
-    SQL := Generator.GenerateDelete(AEntity);
+    SQL := Generator.GenerateDelete(Entity);
     Cmd := FContext.Connection.CreateCommand(SQL) as IDbCommand;
     
     for Param in Generator.Params do
@@ -544,19 +563,18 @@ begin
     Cmd.Execute;
     
     // Remove from Identity Map
-    var ID := GetEntityId(AEntity);
+    var ID := GetEntityId(Entity);
     if FIdentityMap.ContainsKey(ID) then
-      FIdentityMap.Remove(ID); // Don't free, caller might still use it? Or should we?
-      // Usually Remove deletes from DB. The object in memory is still valid but detached.
-      // IdentityMap owns values? Yes [doOwnsValues].
-      // So Remove will Free the object!
-      // This is dangerous if AEntity is the reference passed in.
-      // We should probably Extract it first.
+      FIdentityMap.Remove(ID); 
       
-      // For now, let's assume IdentityMap manages lifecycle.
   finally
     Generator.Free;
   end;
+end;
+
+procedure TDbSet<T>.Remove(const AEntity: T);
+begin
+  FContext.ChangeTracker.Track(AEntity, esDeleted);
 end;
 
 function TDbSet<T>.Find(const AId: Variant): T;
@@ -808,7 +826,10 @@ begin
       for var i := 0 to Length(ASpec.GetSelectedColumns) - 1 do
       begin
         if i > 0 then SQL.Append(', ');
-        SQL.Append(FContext.Dialect.QuoteIdentifier(ASpec.GetSelectedColumns[i]));
+        var ColName := ASpec.GetSelectedColumns[i];
+        if FColumns.ContainsKey(ColName) then
+          ColName := FColumns[ColName];
+        SQL.Append(FContext.Dialect.QuoteIdentifier(ColName));
       end;
       SQL.Append(' FROM ').Append(GetTableName);
     end
@@ -892,7 +913,10 @@ begin
       for var i := 0 to Length(ASpec.GetSelectedColumns) - 1 do
       begin
         if i > 0 then SQL.Append(', ');
-        SQL.Append(FContext.Dialect.QuoteIdentifier(ASpec.GetSelectedColumns[i]));
+        var ColName := ASpec.GetSelectedColumns[i];
+        if FColumns.ContainsKey(ColName) then
+          ColName := FColumns[ColName];
+        SQL.Append(FContext.Dialect.QuoteIdentifier(ColName));
       end;
       SQL.Append(' FROM ').Append(GetTableName);
     end

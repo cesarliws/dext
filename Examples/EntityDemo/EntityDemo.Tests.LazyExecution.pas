@@ -51,6 +51,7 @@ begin
   U3.Age := 17;
   U3.Email := 'charlie@test.com';
   FContext.Entities<TUser>.Add(U3);
+  FContext.SaveChanges;
   
   LogSuccess('Inserted 3 test users');
   Log('');

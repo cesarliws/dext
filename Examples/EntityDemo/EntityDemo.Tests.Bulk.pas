@@ -45,6 +45,7 @@ begin
 
     StartTime := Now;
     FContext.Entities<TUser>.AddRange(BulkUsers);
+    FContext.SaveChanges;
     Duration := Now - StartTime;
     
     LogSuccess(Format('Inserted 100 users in %s', [FormatDateTime('ss.zzz', Duration)]));
@@ -63,6 +64,7 @@ begin
 
     StartTime := Now;
     FContext.Entities<TUser>.UpdateRange(BulkUsers);
+    FContext.SaveChanges;
     Duration := Now - StartTime;
 
     LogSuccess(Format('Updated 100 users in %s', [FormatDateTime('ss.zzz', Duration)]));
@@ -74,6 +76,7 @@ begin
     Log('   Removing 100 users...');
     StartTime := Now;
     FContext.Entities<TUser>.RemoveRange(BulkUsers);
+    FContext.SaveChanges;
     Duration := Now - StartTime;
 
     LogSuccess(Format('Removed 100 users in %s', [FormatDateTime('ss.zzz', Duration)]));

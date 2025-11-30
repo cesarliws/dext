@@ -3,6 +3,7 @@
 interface
 
 uses
+  System.Generics.Collections,
   Dext.Entity.Attributes,
   Dext.Specifications.Base,
   Dext.Specifications.Expression,
@@ -10,17 +11,25 @@ uses
   Dext.Specifications.Types;
 
 type
+  TUser = class; // Forward declaration
+
   [Table('addresses')]
   TAddress = class
   private
     FId: Integer;
     FStreet: string;
     FCity: string;
+    FUsers: TList<TUser>;
   public
+    constructor Create;
+    destructor Destroy; override;
+
     [PK, AutoInc]
     property Id: Integer read FId write FId;
     property Street: string read FStreet write FStreet;
     property City: string read FCity write FCity;
+    
+    property Users: TList<TUser> read FUsers;
   end;
 
   [Table('users')]
@@ -107,6 +116,19 @@ type
   end;
 
 implementation
+
+{ TAddress }
+
+constructor TAddress.Create;
+begin
+  FUsers := TList<TUser>.Create;
+end;
+
+destructor TAddress.Destroy;
+begin
+  FUsers.Free;
+  inherited;
+end;
 
 { UserEntity }
 
