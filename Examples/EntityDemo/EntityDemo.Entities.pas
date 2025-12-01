@@ -5,13 +5,16 @@ interface
 uses
   System.SysUtils,
   System.Generics.Collections,
-  Dext.Entity.Attributes,
-  Dext.Entity.Core,
-  Dext.Specifications.Base,
-  Dext.Specifications.Expression,
-  Dext.Specifications.Interfaces,
-  Dext.Specifications.Types,
-  Dext.Types.Lazy;
+  Dext.Persistence;
+
+//  Dext.Entity.Attributes,
+//  Dext.Types.Lazy;
+
+//  Dext.Entity.Core,
+//  Dext.Specifications.Base,
+//  Dext.Specifications.Expression,
+//  Dext.Specifications.Interfaces,
+//  Dext.Specifications.Types,
 
 type
   TUser = class; // Forward declaration
