@@ -68,7 +68,7 @@ begin
   Builder := Specification.All<TUser>;
   Spec := Builder.Select(UserEntity.Name.Name);
   
-  Users := FContext.Entities<TUser>.ListSpec(Spec);
+  Users := FContext.Entities<TUser>.List(Spec);
   try
     AssertTrue(Users.Count = 1, 'Should find 1 user', Format('Found %d', [Users.Count]));
     AssertTrue(Users[0].Name = 'John Doe', 'Name should be loaded', Format('Found "%s"', [Users[0].Name]));
@@ -327,7 +327,7 @@ begin
   // Test: Load users with Include('Address')
   Builder := Specification.All<TUser>;
   Spec := Builder.Include(UserEntity.Address.Name);
-  Users := FContext.Entities<TUser>.ListSpec(Spec);
+  Users := FContext.Entities<TUser>.List(Spec);
   
   try
     AssertTrue(Users.Count = 2, 'Should have 2 users', Format('Found %d', [Users.Count]));

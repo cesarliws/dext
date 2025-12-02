@@ -136,7 +136,7 @@ Melhorar como os dados relacionados são carregados e gerenciar ciclo de vida da
 - [x] **Explicit Loading**: Carregamento manual de navegações (`Context.Entry(User).Collection('Orders').Load()`).
 
 ### 🔧 Manutenção & Débito Técnico
-- [ ] **API Cleanup**: Padronização de nomes de métodos (`Update` vs `UpdateEntity`) usando overloads.
+- [ ] **API Cleanup**: Padronização de nomes de métodos (`Update` vs `Update`) usando overloads.
 - [ ] **Concurrency Fixes**: Correção de testes de concorrência otimista em cenários complexos.
 - [ ] **Fluent API Fixes**: Correção de `Any`, `FirstOrDefault` e projeções em casos de borda.
 

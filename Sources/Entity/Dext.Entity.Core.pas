@@ -61,8 +61,8 @@ type
     
     // CRUD
     procedure Add(const AEntity: T);
-    procedure UpdateEntity(const AEntity: T);
-    procedure RemoveEntity(const AEntity: T);
+    procedure Update(const AEntity: T);
+    procedure Remove(const AEntity: T);
     function Find(const AId: Variant): T; overload;
     function Find(const AId: array of Integer): T; overload;
 
@@ -78,12 +78,8 @@ type
 
     // Queries via Specifications
     function List: TList<T>; overload;
-    function ListSpec(const ASpec: ISpecification<T>): TList<T>;
-    // function FirstOrDefault(const ASpec: IInterface): T;
-    
-    // function AnyEntity(ASpec: IInterface): Boolean;
-    // function CountEntities(ASpec: IInterface): Integer;
-    
+    function List(const ASpec: ISpecification<T>): TList<T>;  overload;
+
     // Inline Queries (aceita IExpression diretamente)
     function List(const AExpression: IExpression): TList<T>; overload;
     function FirstOrDefault(const AExpression: IExpression): T; overload;
@@ -95,8 +91,8 @@ type
     ///   Returns a lazy query that executes only when enumerated.
     ///   Call .ToList() to force execution and materialize results.
     /// </summary>
-    function Query(const ASpec: ISpecification<T>): TFluentQuery<T>;
-    function QueryExpr(const AExpression: IExpression): TFluentQuery<T>;
+    function Query(const ASpec: ISpecification<T>): TFluentQuery<T>; overload;
+    function Query(const AExpression: IExpression): TFluentQuery<T>; overload;
     function QueryAll: TFluentQuery<T>;
   end;
 

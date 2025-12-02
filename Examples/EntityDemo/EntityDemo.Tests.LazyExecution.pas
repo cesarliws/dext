@@ -59,7 +59,7 @@ begin
   // Test 1: Lazy Query - Query is NOT executed yet!
   Log('📋 Test 1: Lazy Query Creation');
   Log('------------------------------');
-  LazyQuery := FContext.Entities<TUser>.QueryExpr(UserEntity.Age >= 18);
+  LazyQuery := FContext.Entities<TUser>.Query(UserEntity.Age >= 18);
   LogSuccess('✓ Query created (NOT executed yet!)');
   Log('  The query will only execute when we enumerate it.');
   Log('');
@@ -113,7 +113,7 @@ begin
   LogSuccess(Format('✓ List() executed immediately: %d results', [EagerList.Count]));
   EagerList.Free;
   
-  var LazyEnum := FContext.Entities<TUser>.QueryExpr(UserEntity.Age >= 18);
+  var LazyEnum := FContext.Entities<TUser>.Query(UserEntity.Age >= 18);
   LogSuccess('✓ Query() created (deferred execution)');
   Log(Format('  → Execution happens when we enumerate it (Query object: %p)', [Pointer(LazyEnum)]));
   LazyEnum.Free; // Free it since we are not enumerating it fully or transferring ownership
@@ -124,7 +124,7 @@ begin
   Log('------------------------------');
   var NamesQuery: TFluentQuery<string>;
   NamesQuery := FContext.Entities<TUser>
-    .QueryExpr(UserEntity.Age >= 18)
+    .Query(UserEntity.Age >= 18)
     .Select<string>(function(U: TUser): string
       begin
         Result := U.Name;

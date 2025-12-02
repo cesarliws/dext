@@ -198,7 +198,7 @@ Abaixo, comparamos o Dext com as principais alternativas do mercado Delphi e sua
 - [x] **Lazy Loading**: Carregamento tardio com `VirtualInterface` e `ILazy<T>`.
 - [ ] **Concurrency**: Correção de testes de concorrência otimista.
 - [ ] **Fluent API Fixes**: Correção de `Any`, `FirstOrDefault` e projeções.
-- [ ] **API Cleanup**: Padronização de nomes de métodos (`Update` vs `UpdateEntity`) usando overloads.
+- [ ] **API Cleanup**: Padronização de nomes de métodos (`Update` vs `Update`) usando overloads.
 
 ### 6. Ecossistema & Tooling (📅 Planejado para v1.1)
 - [ ] **CLI**: Ferramenta de linha de comando (`dext new webapi`).

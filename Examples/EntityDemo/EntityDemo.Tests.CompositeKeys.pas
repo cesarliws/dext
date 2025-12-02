@@ -44,12 +44,12 @@ begin
     
     // Update
     FoundItem.Quantity := 5;
-    FContext.Entities<TOrderItem>.UpdateEntity(FoundItem);
+    FContext.Entities<TOrderItem>.Update(FoundItem);
     FContext.SaveChanges;
     LogSuccess('OrderItem updated.');
     
     // Remove
-    FContext.Entities<TOrderItem>.RemoveEntity(FoundItem);
+    FContext.Entities<TOrderItem>.Remove(FoundItem);
     FContext.SaveChanges;
     
     // Verify Remove

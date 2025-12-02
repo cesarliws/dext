@@ -53,7 +53,7 @@ begin
   var AddrToDelete := FContext.Entities<TAddress>.Find(AddressId);
   if AddrToDelete <> nil then
   begin
-    FContext.Entities<TAddress>.RemoveEntity(AddrToDelete);
+    FContext.Entities<TAddress>.Remove(AddrToDelete);
     FContext.SaveChanges;
     LogSuccess('Address removed.');
     

@@ -59,7 +59,7 @@ begin
     
     // User A updates
     ProductA.Price := 150;
-    FContext.Entities<TProduct>.UpdateEntity(ProductA);
+    FContext.Entities<TProduct>.Update(ProductA);
     FContext.SaveChanges;
     LogSuccess('User A updated product. New Version: ' + ProductA.Version.ToString);
     
@@ -68,7 +68,7 @@ begin
     // User B tries to update (still has Version 1)
     ProductB.Price := 200;
     try
-      Context2.Entities<TProduct>.UpdateEntity(ProductB);
+      Context2.Entities<TProduct>.Update(ProductB);
       Context2.SaveChanges;
       LogError('User B update should have failed!');
     except

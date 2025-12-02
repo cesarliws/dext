@@ -72,7 +72,7 @@ begin
   if FoundUser <> nil then
   begin
     FoundUser.Age := 26;
-    FContext.Entities<TUser>.UpdateEntity(FoundUser);
+    FContext.Entities<TUser>.Update(FoundUser);
     FContext.SaveChanges;
     
     // Verify
@@ -84,7 +84,7 @@ begin
   Log('🗑️ Testing Delete...');
   if FoundUser <> nil then
   begin
-    FContext.Entities<TUser>.RemoveEntity(FoundUser);
+    FContext.Entities<TUser>.Remove(FoundUser);
     FContext.SaveChanges;
     
     var DeletedUser := FContext.Entities<TUser>.Find(User.Id);

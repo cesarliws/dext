@@ -54,8 +54,8 @@ type
     procedure Clear;
 
     procedure Add(const AEntity: T); overload;
-    procedure UpdateEntity(const AEntity: T);
-    procedure RemoveEntity(const AEntity: T);
+    procedure Update(const AEntity: T);
+    procedure Remove(const AEntity: T);
     function Find(const AId: Variant): T; overload;
     function Find(const AId: array of Integer): T; overload;
 
@@ -69,7 +69,7 @@ type
     procedure RemoveRange(const AEntities: TEnumerable<T>); overload;
 
     function List: TList<T>; overload;
-    function ListSpec(const ASpec: ISpecification<T>): TList<T>;
+    function List(const ASpec: ISpecification<T>): TList<T>; overload;
 
     // Inline Queries (aceita IExpression diretamente)
     function List(const AExpression: IExpression): TList<T>; overload;
@@ -78,8 +78,8 @@ type
     function Count(const AExpression: IExpression): Integer; overload;
 
     // Lazy Queries (Deferred Execution)
-    function Query(const ASpec: ISpecification<T>): TFluentQuery<T>;
-    function QueryExpr(const AExpression: IExpression): TFluentQuery<T>;
+    function Query(const ASpec: ISpecification<T>): TFluentQuery<T>; overload;
+    function Query(const AExpression: IExpression): TFluentQuery<T>; overload;
     function QueryAll: TFluentQuery<T>;
   end;
 
@@ -350,12 +350,12 @@ begin
   FContext.ChangeTracker.Track(AEntity, esAdded);
 end;
 
-procedure TDbSet<T>.UpdateEntity(const AEntity: T);
+procedure TDbSet<T>.Update(const AEntity: T);
 begin
   FContext.ChangeTracker.Track(AEntity, esModified);
 end;
 
-procedure TDbSet<T>.RemoveEntity(const AEntity: T);
+procedure TDbSet<T>.Remove(const AEntity: T);
 begin
   FContext.ChangeTracker.Track(AEntity, esDeleted);
 end;
@@ -596,33 +596,33 @@ end;
 procedure TDbSet<T>.UpdateRange(const AEntities: TArray<T>);
 begin
   for var Entity in AEntities do
-    UpdateEntity(Entity);
+    Update(Entity);
 end;
 
 procedure TDbSet<T>.UpdateRange(const AEntities: TEnumerable<T>);
 begin
   for var Entity in AEntities do
-    UpdateEntity(Entity);
+    Update(Entity);
 end;
 
 procedure TDbSet<T>.RemoveRange(const AEntities: TArray<T>);
 begin
   for var Entity in AEntities do
-    RemoveEntity(Entity);
+    Remove(Entity);
 end;
 
 procedure TDbSet<T>.RemoveRange(const AEntities: TEnumerable<T>);
 begin
   for var Entity in AEntities do
-    RemoveEntity(Entity);
+    Remove(Entity);
 end;
 
 function TDbSet<T>.List: TList<T>;
 begin
-  Result := ListSpec(TSpecification<T>.Create(nil));
+  Result := List(TSpecification<T>.Create(nil));
 end;
 
-function TDbSet<T>.ListSpec(const ASpec: ISpecification<T>): TList<T>;
+function TDbSet<T>.List(const ASpec: ISpecification<T>): TList<T>;
 var
   Generator: TSqlGenerator<T>;
   Sql: string;
@@ -665,7 +665,7 @@ end;
 
 function TDbSet<T>.List(const AExpression: IExpression): TList<T>;
 begin
-  Result := ListSpec(TSpecification<T>.Create(AExpression));
+  Result := List(TSpecification<T>.Create(AExpression));
 end;
 
 function TDbSet<T>.FirstOrDefault(const AExpression: IExpression): T;
@@ -692,14 +692,14 @@ begin
       Result := TSpecificationQueryIterator<T>.Create(
         function: TList<T>
         begin
-          Result := Self.ListSpec(Spec);
+          Result := Self.List(Spec);
         end
       );
     end
   );
 end;
 
-function TDbSet<T>.QueryExpr(const AExpression: IExpression): TFluentQuery<T>;
+function TDbSet<T>.Query(const AExpression: IExpression): TFluentQuery<T>;
 begin
   Result := Query(TSpecification<T>.Create(AExpression));
 end;
