@@ -82,6 +82,10 @@ begin
     // TDbConfig.SetProvider(dpFirebird);
     // TDbConfig.ConfigureFirebird('C:\temp\dext_test.fdb', 'SYSDBA', 'masterkey');
     
+    // Option 4: SQL Server (Enterprise)
+    // TDbConfig.SetProvider(dpSQLServer);
+    // TDbConfig.ConfigureSQLServer('localhost', 'dext_test', 'sa', 'Password123!');
+    
     WriteLn('📊 Database Provider: ' + TDbConfig.GetProviderName);
     WriteLn('');
     

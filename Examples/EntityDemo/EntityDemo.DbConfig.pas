@@ -9,6 +9,7 @@ uses
   FireDAC.Phys.SQLite,
   FireDAC.Phys.PG,
   FireDAC.Phys.FB,
+  FireDAC.Phys.MSSQL, // Add MSSQL Driver
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Dialects;
@@ -42,6 +43,10 @@ type
     class var FFirebirdFile: string;
     class var FFirebirdUsername: string;
     class var FFirebirdPassword: string;
+    class var FSQLServerHost: string;
+    class var FSQLServerDatabase: string;
+    class var FSQLServerUsername: string;
+    class var FSQLServerPassword: string;
   public
     /// <summary>
     ///   Initialize default configuration
@@ -99,6 +104,16 @@ type
     ); static;
     
     /// <summary>
+    ///   Configure SQL Server connection
+    /// </summary>
+    class procedure ConfigureSQLServer(
+      const AHost: string = 'localhost';
+      const ADatabase: string = 'dext_test';
+      const AUsername: string = 'sa';
+      const APassword: string = 'Password123!'
+    ); static;
+    
+    /// <summary>
     ///   Drop and recreate database (for testing)
     /// </summary>
     class procedure ResetDatabase; static;
@@ -130,6 +145,12 @@ begin
   FFirebirdFile := 'test.fdb';
   FFirebirdUsername := 'SYSDBA';
   FFirebirdPassword := 'masterkey';
+  
+  // Default SQL Server configuration
+  FSQLServerHost := 'localhost';
+  FSQLServerDatabase := 'dext_test';
+  FSQLServerUsername := 'sa';
+  FSQLServerPassword := 'Password123!';
 end;
 
 class function TDbConfig.GetProvider: TDatabaseProvider;
@@ -180,6 +201,20 @@ begin
       FDConn.Params.Values['SQLDialect'] := '3';  // SQL Dialect 3
     end;
     
+    dpSQLServer:
+    begin
+      FDConn.DriverName := 'MSSQL';
+      FDConn.Params.Values['Server'] := FSQLServerHost;
+      FDConn.Params.Values['Database'] := FSQLServerDatabase;
+      FDConn.Params.Values['User_Name'] := FSQLServerUsername;
+      FDConn.Params.Values['Password'] := FSQLServerPassword;
+      FDConn.Params.Values['MetaDefSchema'] := FSQLServerUsername; // Usually dbo or username
+      FDConn.Params.Values['MetaCurSchema'] := FSQLServerUsername;
+      // Optional: OS Authentication
+      if FSQLServerUsername = '' then
+        FDConn.Params.Values['OSAuthent'] := 'Yes';
+    end;
+    
     else
       raise Exception.CreateFmt('Database provider %s not yet implemented', [GetProviderName]);
   end;
@@ -193,6 +228,7 @@ begin
     dpSQLite:     Result := TSQLiteDialect.Create;
     dpPostgreSQL: Result := TPostgreSQLDialect.Create;
     dpFirebird:   Result := TFirebirdDialect.Create;
+    dpSQLServer:  Result := TSQLServerDialect.Create;
     else
       raise Exception.CreateFmt('Dialect for %s not yet implemented', [GetProviderName]);
   end;
@@ -245,6 +281,20 @@ begin
   WriteLn('✅ Firebird configured: ' + AFileName);
 end;
 
+class procedure TDbConfig.ConfigureSQLServer(
+  const AHost: string;
+  const ADatabase: string;
+  const AUsername: string;
+  const APassword: string
+);
+begin
+  FSQLServerHost := AHost;
+  FSQLServerDatabase := ADatabase;
+  FSQLServerUsername := AUsername;
+  FSQLServerPassword := APassword;
+  WriteLn(Format('✅ SQL Server configured: %s/%s', [AHost, ADatabase]));
+end;
+
 class procedure TDbConfig.ResetDatabase;
 begin
   case FCurrentProvider of
@@ -273,7 +323,14 @@ begin
         WriteLn('🗑️  Deleted Firebird database: ' + FFirebirdFile);
       end;
     end;
+    
+    dpSQLServer:
+    begin
+      // SQL Server: Tables will be recreated by EnsureCreated
+      WriteLn('⚠️  SQL Server: Tables will be recreated by EnsureCreated');
+    end;
   end;
 end;
 
 end.
+

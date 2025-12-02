@@ -196,7 +196,7 @@ Melhorar como os dados relacionados são carregados e gerenciar ciclo de vida da
    - **Segmento**: Corporativo, Integração .NET
    - **Driver**: FireDAC (TFDPhysMSSQLDriverLink)
    - **Desafios**: Schemas, Tipos DateTime
-   - **Status**: ⚠️ **Dialeto validado via Unit Tests, precisa validação de integração**
+   - **Status**: ⚠️ **Implementado, aguardando validação de integração**
 
 5. **Oracle**
    - **Segmento**: Grandes Corporações

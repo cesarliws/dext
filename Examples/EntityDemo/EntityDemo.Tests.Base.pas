@@ -109,6 +109,12 @@ var
             Tables.Free;
           end;
         end;
+
+        dpSQLServer:
+        begin
+          // SQL Server 2016+ supports DROP TABLE IF EXISTS
+          FConn.ExecSQL('DROP TABLE IF EXISTS [' + ATableName + ']');
+        end;
       end;
     except
       on E: Exception do

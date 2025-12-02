@@ -42,6 +42,10 @@ TDbConfig.ConfigureSQLite('test.db');
 // Option 3: Firebird (Brazilian market favorite)
 TDbConfig.SetProvider(dpFirebird);
 TDbConfig.ConfigureFirebird('test.fdb', 'SYSDBA', 'masterkey');
+
+// Option 4: SQL Server (Enterprise)
+TDbConfig.SetProvider(dpSQLServer);
+TDbConfig.ConfigureSQLServer('localhost', 'dext_test', 'sa', 'Password123!');
 ```
 
 ## Test Suite
@@ -101,6 +105,13 @@ No setup required! Just switch the provider.
 
 1. Install Firebird
 2. Database file will be created automatically
+
+### SQL Server Setup
+
+1. Install SQL Server (Express or Developer)
+2. Create database `dext_test`
+3. Enable TCP/IP protocol if needed
+4. Update credentials in `EntityDemo.dpr`
 
 ## Customizing Tests
 

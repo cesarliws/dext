@@ -42,6 +42,9 @@ TDbConfig.SetProvider(dpPostgreSQL);
 
 // Use Firebird
 TDbConfig.SetProvider(dpFirebird);
+
+// Use SQL Server
+TDbConfig.SetProvider(dpSQLServer);
 ```
 
 ## Configuration
@@ -220,6 +223,27 @@ TDbConfig.ConfigureFirebird('test.fdb', 'SYSDBA', 'masterkey');
 3.  **Database Creation**:
     - Dext ORM uses `OpenMode=OpenOrCreate` to automatically create the `.fdb` file if it doesn't exist.
     - Recommended Page Size: 16384 (set automatically by `TDbConfig`).
+
+### SQL Server
+
+```pascal
+// Default configuration
+TDbConfig.ConfigureSQLServer;
+
+// Custom configuration
+TDbConfig.ConfigureSQLServer(
+  'localhost',     // Host
+  'dext_test',     // Database
+  'sa',            // Username
+  'Password123!'   // Password
+);
+```
+
+#### SQL Server Specifics
+
+1.  **Identity Columns**: Dext maps `AutoInc` to `INT IDENTITY(1,1)`.
+2.  **Paging**: Requires SQL Server 2012+ (`OFFSET ... FETCH`).
+3.  **Drop Table**: Uses `DROP TABLE IF EXISTS` (SQL Server 2016+).
 
 ## API Reference
 
