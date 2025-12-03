@@ -7,6 +7,7 @@ uses
   System.TypInfo,
   System.Rtti,
   System.Generics.Collections,
+  System.Generics.Defaults,
   Dext.Entity.Naming, // Add Naming unit
   Dext.Entity.Mapping, // Add Mapping unit
   Dext.Entity.Core,
@@ -29,6 +30,7 @@ type
     constructor Create;
     destructor Destroy; override;
     procedure Track(const AEntity: TObject; AState: TEntityState);
+    procedure Remove(const AEntity: TObject);
     function GetState(const AEntity: TObject): TEntityState;
     function HasChanges: Boolean;
     procedure AcceptAllChanges;
@@ -96,7 +98,7 @@ type
     procedure OnModelCreating(Builder: TModelBuilder); virtual;
     
   public
-    constructor Create(AConnection: IDbConnection; ADialect: ISQLDialect; ANamingStrategy: INamingStrategy = nil);
+    constructor Create(const AConnection: IDbConnection; const ADialect: ISQLDialect; const ANamingStrategy: INamingStrategy = nil);
     destructor Destroy; override;
     
     function Connection: IDbConnection;
@@ -220,7 +222,7 @@ type
     destructor Destroy; override;
   end;
 
-constructor TDbContext.Create(AConnection: IDbConnection; ADialect: ISQLDialect; ANamingStrategy: INamingStrategy = nil);
+constructor TDbContext.Create(const AConnection: IDbConnection; const ADialect: ISQLDialect; const ANamingStrategy: INamingStrategy = nil);
 begin
   inherited Create;
   FConnection := AConnection;
@@ -240,6 +242,11 @@ end;
 
 destructor TDbContext.Destroy;
 begin
+  // Clear ChangeTracker before freeing DbSets (which free entities).
+  // This prevents ChangeTracker from holding dangling pointers during its destruction.
+  if FChangeTracker <> nil then
+    FChangeTracker.Clear;
+    
   FCache.Free;
   inherited;
 end;
@@ -627,6 +634,11 @@ begin
         begin
           Entity := Pair.Key;
           DbSet := DataSet(Entity.ClassInfo);
+          
+          // Remove from tracker BEFORE freeing the entity (via PersistRemove -> IdentityMap)
+          // This prevents dangling pointers in the tracker.
+          FChangeTracker.Remove(Entity);
+          
           DbSet.PersistRemove(Entity);
           Inc(Result);
         end;
@@ -678,7 +690,21 @@ end;
 constructor TChangeTracker.Create;
 begin
   inherited Create;
-  FTrackedEntities := TDictionary<TObject, TEntityState>.Create;
+  // Use a custom comparer that treats objects as pointers.
+  // This avoids calling virtual methods (GetHashCode/Equals) on freed objects,
+  // which can happen if an object is deleted (and freed by IdentityMap) before AcceptAllChanges.
+  FTrackedEntities := TDictionary<TObject, TEntityState>.Create(
+    TEqualityComparer<TObject>.Construct(
+      function(const Left, Right: TObject): Boolean
+      begin
+        Result := Pointer(Left) = Pointer(Right);
+      end,
+      function(const Value: TObject): Integer
+      begin
+        Result := Integer(Pointer(Value));
+      end
+    )
+  );
 end;
 
 destructor TChangeTracker.Destroy;
@@ -690,6 +716,11 @@ end;
 procedure TChangeTracker.Track(const AEntity: TObject; AState: TEntityState);
 begin
   FTrackedEntities.AddOrSetValue(AEntity, AState);
+end;
+
+procedure TChangeTracker.Remove(const AEntity: TObject);
+begin
+  FTrackedEntities.Remove(AEntity);
 end;
 
 function TChangeTracker.GetState(const AEntity: TObject): TEntityState;

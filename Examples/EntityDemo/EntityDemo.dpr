@@ -3,6 +3,7 @@
 {$APPTYPE CONSOLE}
 
 uses
+  FastMM5,
   System.SysUtils,
   EntityDemo.DbConfig in 'EntityDemo.DbConfig.pas',
   EntityDemo.Tests.AdvancedQuery in 'EntityDemo.Tests.AdvancedQuery.pas',
@@ -16,6 +17,7 @@ uses
   EntityDemo.Tests.LazyExecution in 'EntityDemo.Tests.LazyExecution.pas',
   EntityDemo.Tests.LazyLoading in 'EntityDemo.Tests.LazyLoading.pas',
   EntityDemo.Tests.Relationships in 'EntityDemo.Tests.Relationships.pas',
+  EntityDemo.Tests.Scaffolding in 'EntityDemo.Tests.Scaffolding.pas',
   EntityDemo.Entities in 'EntityDemo.Entities.pas';
 
 procedure RunTest(const TestClass: TBaseTestClass);
@@ -53,6 +55,9 @@ begin
   RunTest(TBulkTest);
   // 10. Concurrency Tests
   RunTest(TConcurrencyTest);
+  
+  // 11. Scaffolding Tests
+  RunTest(TScaffoldingTest);
   
   WriteLn('');
   WriteLn('✨ All tests completed.');

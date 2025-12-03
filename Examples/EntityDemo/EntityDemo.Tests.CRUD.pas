@@ -84,10 +84,11 @@ begin
   Log('🗑️ Testing Delete...');
   if FoundUser <> nil then
   begin
+    var IdToDelete := User.Id; // Capture ID before object is freed
     FContext.Entities<TUser>.Remove(FoundUser);
     FContext.SaveChanges;
     
-    var DeletedUser := FContext.Entities<TUser>.Find(User.Id);
+    var DeletedUser := FContext.Entities<TUser>.Find(IdToDelete);
     AssertTrue(DeletedUser = nil, 'User removed successfully.', 'User still exists after remove.');
   end;
   

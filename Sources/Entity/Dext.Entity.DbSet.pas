@@ -43,7 +43,7 @@ type
     function GetRelatedId(const AObject: TObject): TValue;
     procedure DoLoadIncludes(const AEntities: TList<T>; const AIncludes: TArray<string>);
   public
-    constructor Create(AContext: IDbContext);
+    constructor Create(const AContext: IDbContext);
     destructor Destroy; override;
 
     function GetTableName: string;
@@ -96,14 +96,16 @@ uses
 
 { TDbSet<T> }
 
-constructor TDbSet<T>.Create(AContext: IDbContext);
+constructor TDbSet<T>.Create(const AContext: IDbContext);
 begin
   inherited Create;
   FContext := AContext;
   FProps := TDictionary<string, TRttiProperty>.Create;
   FColumns := TDictionary<string, string>.Create;
   FPKColumns := TList<string>.Create;
-  FIdentityMap := TObjectDictionary<string, T>.Create([]);
+  // Identity Map owns the entity instances to prevent memory leaks.
+  // Entities are freed when the DbSet (and Context) is destroyed.
+  FIdentityMap := TObjectDictionary<string, T>.Create([doOwnsValues]);
   MapEntity;
 end;
 

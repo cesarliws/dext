@@ -24,6 +24,7 @@ type
   IChangeTracker = interface
     ['{30000000-0000-0000-0000-000000000003}']
     procedure Track(const AEntity: TObject; AState: TEntityState);
+    procedure Remove(const AEntity: TObject);
     function GetState(const AEntity: TObject): TEntityState;
     function HasChanges: Boolean;
     procedure AcceptAllChanges;
