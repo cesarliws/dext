@@ -575,7 +575,8 @@ Funcionalidades essenciais para sistemas corporativos complexos.
 
 #### 5. Async Support (Fluent Tasks API)
 Integração transparente de operações assíncronas.
-- [ ] **Fluent Tasks API**: API fluente para orquestração de tasks.
+- [x] **Fluent Tasks API**: API fluente para orquestração de tasks.
+- [ ] **Async ORM Methods**: `FindAsync`, `ToListByIdsAsync`, `SaveAsync` no DbSet/DbContext.
 - [ ] **Web & ORM Integration**: Suporte nativo em Controllers e DbContext.
 
 ### 🛠️ Fase 6: Tooling & Ecosystem

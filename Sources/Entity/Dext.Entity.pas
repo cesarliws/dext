@@ -483,17 +483,32 @@ begin
             
             var TableName := '';
             var Mapping := GetMapping(Node.TypeInfo);
+            var MapTableName := '';
+            
             if Mapping <> nil then
-              TableName := Dext.Entity.Mapping.TEntityMap(Mapping).TableName
+              MapTableName := Dext.Entity.Mapping.TEntityMap(Mapping).TableName;
+              
+            if MapTableName <> '' then
+            begin
+              TableName := MapTableName;
+            end
             else
             begin
-              // Fallback to Naming Strategy
+              // Fallback to Attribute or Naming Strategy if Mapping doesn't specify TableName
               var RContext := TRttiContext.Create;
-              var RType := RContext.GetType(Node.TypeInfo);
-              var TableAttr := RType.GetAttribute<TableAttribute>;
-              if TableAttr <> nil then
-                TableName := TableAttr.Name
-              else
+              try
+                var RType := RContext.GetType(Node.TypeInfo);
+                if RType <> nil then
+                begin
+                  var TableAttr := RType.GetAttribute<TableAttribute>;
+                  if TableAttr <> nil then
+                    TableName := TableAttr.Name;
+                end;
+              finally
+                RContext.Free;
+              end;
+              
+              if TableName = '' then
                 TableName := FNamingStrategy.GetTableName(Node.TypeInfo.TypeData.ClassType);
             end;
             

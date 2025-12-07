@@ -143,7 +143,8 @@ contains
   Dext.Entity.Drivers.Interfaces in '..\Entity\Dext.Entity.Drivers.Interfaces.pas',
   Dext.Entity.Naming in '..\Entity\Dext.Entity.Naming.pas',
   Dext.Entity.Attributes in '..\Entity\Dext.Entity.Attributes.pas',
-  Dext.Collections in 'Dext.Collections.pas';
+  Dext.Collections in 'Dext.Collections.pas',
+  Dext.Threading.Async in 'Dext.Threading.Async.pas';
 
 end.
 

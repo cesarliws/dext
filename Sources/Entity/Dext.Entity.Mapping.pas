@@ -66,6 +66,12 @@ type
     FTableName: string;
     FProperties: TObjectDictionary<string, TPropertyMap>;
     FKeys: TList<string>;
+    // Soft Delete Configuration
+    FIsSoftDelete: Boolean;
+    FSoftDeleteProp: string;
+    FSoftDeleteDeletedValue: Variant;
+    FSoftDeleteNotDeletedValue: Variant;
+
   public
     constructor Create(AEntityType: PTypeInfo);
     destructor Destroy; override;
@@ -75,6 +81,11 @@ type
     property Properties: TObjectDictionary<string, TPropertyMap> read FProperties;
     property Keys: TList<string> read FKeys;
     
+    property IsSoftDelete: Boolean read FIsSoftDelete;
+    property SoftDeleteProp: string read FSoftDeleteProp;
+    property SoftDeleteDeletedValue: Variant read FSoftDeleteDeletedValue;
+    property SoftDeleteNotDeletedValue: Variant read FSoftDeleteNotDeletedValue;
+
     function GetOrAddProperty(const APropName: string): TPropertyMap;
   end;
 
@@ -105,6 +116,10 @@ type
     function IsAutoInc(AValue: Boolean = True): TEntityBuilder<T>;
     function MaxLength(ALength: Integer): TEntityBuilder<T>;
     function Ignore: TEntityBuilder<T>;
+    
+    // Soft Delete Configuration
+    function HasSoftDelete(const APropertyName: string): TEntityBuilder<T>; overload;
+    function HasSoftDelete(const APropertyName: string; const ADeletedValue, ANotDeletedValue: Variant): TEntityBuilder<T>; overload;
   end;
 
   // ---------------------------------------------------------------------------
@@ -121,6 +136,8 @@ type
     function HasKey(const APropertyNames: array of string): IEntityTypeBuilder<T>; overload;
     function Prop(const APropertyName: string): IPropertyBuilder<T>;
     function Ignore(const APropertyName: string): IEntityTypeBuilder<T>;
+    function HasSoftDelete(const APropertyName: string): IEntityTypeBuilder<T>; overload;
+    function HasSoftDelete(const APropertyName: string; const ADeletedValue, ANotDeletedValue: Variant): IEntityTypeBuilder<T>; overload;
   end;
 
   TPropertyBuilder<T: class> = class(TInterfacedObject, IPropertyBuilder<T>)
@@ -169,6 +186,12 @@ begin
   FEntityType := AEntityType;
   FProperties := TObjectDictionary<string, TPropertyMap>.Create([doOwnsValues]);
   FKeys := TList<string>.Create;
+  FIsSoftDelete := False;
+  FSoftDeleteProp := '';
+  FSoftDeleteDeletedValue := 1;  // Default (1 = Deleted)
+  FSoftDeleteNotDeletedValue := 0; // Default (0 = Not Deleted)
+
+
 end;
 
 destructor TEntityMap.Destroy;
@@ -285,6 +308,21 @@ begin
   Result := Self;
 end;
 
+function TEntityBuilder<T>.HasSoftDelete(const APropertyName: string): TEntityBuilder<T>;
+begin
+  Result := HasSoftDelete(APropertyName, True, False);
+end;
+
+function TEntityBuilder<T>.HasSoftDelete(const APropertyName: string; const ADeletedValue, ANotDeletedValue: Variant): TEntityBuilder<T>;
+begin
+  FMap.FIsSoftDelete := True;
+  FMap.FSoftDeleteProp := APropertyName;
+  FMap.FSoftDeleteDeletedValue := ADeletedValue;
+  FMap.FSoftDeleteNotDeletedValue := ANotDeletedValue;
+  Result := Self;
+end;
+
+
 { TEntityTypeBuilder<T> }
 
 constructor TEntityTypeBuilder<T>.Create(AMap: TEntityMap);
@@ -329,6 +367,20 @@ end;
 function TEntityTypeBuilder<T>.Ignore(const APropertyName: string): IEntityTypeBuilder<T>;
 begin
   FMap.GetOrAddProperty(APropertyName).IsIgnored := True;
+  Result := Self;
+end;
+
+function TEntityTypeBuilder<T>.HasSoftDelete(const APropertyName: string): IEntityTypeBuilder<T>;
+begin
+  Result := HasSoftDelete(APropertyName, True, False);
+end;
+
+function TEntityTypeBuilder<T>.HasSoftDelete(const APropertyName: string; const ADeletedValue, ANotDeletedValue: Variant): IEntityTypeBuilder<T>;
+begin
+  FMap.FIsSoftDelete := True;
+  FMap.FSoftDeleteProp := APropertyName;
+  FMap.FSoftDeleteDeletedValue := ADeletedValue;
+  FMap.FSoftDeleteNotDeletedValue := ANotDeletedValue;
   Result := Self;
 end;
 

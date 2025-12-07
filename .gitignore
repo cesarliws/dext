@@ -3,6 +3,7 @@ Win64
 __history
 __recover
 /Sources/Tests/*.local
+/Playgroung
 *.local
 *.log
 *.txt
@@ -18,3 +19,4 @@ FastMM_FullDebugMode.dll
 *.db
 GeneratedEntitiesFluentMapping.pas
 GeneratedEntitiesMappingWithAttributes.pas
+FluentTasks

@@ -26,7 +26,8 @@ uses
   EntityDemo.Tests.Collections in 'EntityDemo.Tests.Collections.pas',
   EntityDemo.Tests.NoTracking in 'EntityDemo.Tests.NoTracking.pas',
   EntityDemo.Tests.MixedCompositeKeys in 'EntityDemo.Tests.MixedCompositeKeys.pas',
-  EntityDemo.Tests.SoftDelete in 'EntityDemo.Tests.SoftDelete.pas';
+  EntityDemo.Tests.SoftDelete in 'EntityDemo.Tests.SoftDelete.pas',
+  EntityDemo.Tests.Async in 'EntityDemo.Tests.Async.pas';
 
 procedure ConfigureDatabase(Provider: TDatabaseProvider);
 begin
@@ -111,6 +112,8 @@ begin
   RunTest(TMixedCompositeKeyTest);
   // 16. Soft Delete Tests
   RunTest(TSoftDeleteTest);
+  // 17. Async Tests
+  RunTest(TAsyncTest);
 
   WriteLn('');
   WriteLn('✨ All tests completed.');

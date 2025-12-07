@@ -274,6 +274,25 @@ type
     destructor Destroy; override;
   end;
 
+  /// <summary>
+  ///   Entity for testing Fluent API Soft Delete (No attribute)
+  /// </summary>
+  [Table('fluent_soft_delete')]
+  TFluentSoftDelete = class
+  private
+    FId: Integer;
+    FName: string;
+    FIsRemoved: Boolean;
+  public
+    [PK, AutoInc]
+    property Id: Integer read FId write FId;
+    property Name: string read FName write FName;
+    
+    // logic: IsRemoved = True (Deleted)
+    property IsRemoved: Boolean read FIsRemoved write FIsRemoved;
+  end;
+
+
 
   // 🧬 Metadata Implementation (TypeOf)
   UserEntity = class

@@ -691,31 +691,45 @@ var
   Prop: TRttiProperty;
   ColumnName: string;
   IsSoftDelete: Boolean;
+  PropName: string;
+  DeletedVal: Variant;
 begin
   IsSoftDelete := False;
-  SoftDeleteAttr := nil;
+  PropName := '';
   
-  // Check if entity has [SoftDelete] attribute
-  Ctx := TRttiContext.Create;
-  try
-    RType := Ctx.GetType(T);
-    if RType <> nil then
-    begin
-      for var Attr in RType.GetAttributes do
+  // 1. Check Fluent Mapping
+  if (FMap <> nil) and FMap.IsSoftDelete then
+  begin
+    IsSoftDelete := True;
+    PropName := FMap.SoftDeleteProp;
+    DeletedVal := FMap.SoftDeleteDeletedValue;
+  end
+  // 2. Check Attribute
+  else
+  begin
+    Ctx := TRttiContext.Create;
+    try
+      RType := Ctx.GetType(T);
+      if RType <> nil then
       begin
-        if Attr is SoftDeleteAttribute then
+        for var Attr in RType.GetAttributes do
         begin
-          SoftDeleteAttr := SoftDeleteAttribute(Attr);
-          IsSoftDelete := True;
-          Break;
+          if Attr is SoftDeleteAttribute then
+          begin
+            SoftDeleteAttr := SoftDeleteAttribute(Attr);
+            IsSoftDelete := True;
+            PropName := SoftDeleteAttr.ColumnName;
+            DeletedVal := SoftDeleteAttr.DeletedValue;
+            Break;
+          end;
         end;
       end;
+    finally
+      Ctx.Free;
     end;
-  finally
-    Ctx.Free;
   end;
   
-  if IsSoftDelete and (SoftDeleteAttr <> nil) then
+  if IsSoftDelete then
   begin
     // Soft Delete: UPDATE entity to mark as deleted
     Ctx := TRttiContext.Create;
@@ -724,8 +738,8 @@ begin
       if RType <> nil then
       begin
         // Find the soft delete column property
-        ColumnName := SoftDeleteAttr.ColumnName;
         Prop := nil;
+        ColumnName := PropName; // Use PropName as search key
         
         for var P in RType.GetProperties do
         begin
@@ -736,7 +750,7 @@ begin
             Break;
           end;
 
-          // Check match by Column Name
+          // Check match by Column Name (Only relevant if PropName was actually a Column Name from Attribute)
           for var Attr in P.GetAttributes do
           begin
             if Attr is ColumnAttribute then
@@ -754,13 +768,12 @@ begin
         if Prop <> nil then
         begin
           // Set the soft delete value
-          var DelVal := SoftDeleteAttr.DeletedValue;
           var ValToSet: TValue;
           
           if Prop.PropertyType.Handle = TypeInfo(Boolean) then
-            ValToSet := TValue.From(Boolean(DelVal))
+            ValToSet := TValue.From(Boolean(DeletedVal))
           else 
-            ValToSet := TValue.FromVariant(DelVal);
+            ValToSet := TValue.FromVariant(DeletedVal);
             
           Prop.SetValue(AEntity, ValToSet);
           
@@ -1247,68 +1260,94 @@ var
   SoftDeleteAttr: SoftDeleteAttribute;
   Prop: TRttiProperty;
   ColumnName: string;
+  IsSoftDelete: Boolean;
+  PropName: string;
+  NotDeletedVal: Variant;
 begin
-  SoftDeleteAttr := nil;
-  Ctx := TRttiContext.Create;
-  try
-    RType := Ctx.GetType(T);
-    if RType <> nil then
-    begin
-      for var Attr in RType.GetAttributes do
+  IsSoftDelete := False;
+  PropName := '';
+  
+  // 1. Check Fluent Mapping
+  if (FMap <> nil) and FMap.IsSoftDelete then
+  begin
+    IsSoftDelete := True;
+    PropName := FMap.SoftDeleteProp;
+    NotDeletedVal := FMap.SoftDeleteNotDeletedValue;
+  end
+  // 2. Check Attribute
+  else
+  begin
+    Ctx := TRttiContext.Create;
+    try
+      RType := Ctx.GetType(T);
+      if RType <> nil then
       begin
-        if Attr is SoftDeleteAttribute then
+        for var Attr in RType.GetAttributes do
         begin
-          SoftDeleteAttr := SoftDeleteAttribute(Attr);
-          Break;
+          if Attr is SoftDeleteAttribute then
+          begin
+            SoftDeleteAttr := SoftDeleteAttribute(Attr);
+            IsSoftDelete := True;
+            PropName := SoftDeleteAttr.ColumnName;
+            NotDeletedVal := SoftDeleteAttr.NotDeletedValue;
+            Break;
+          end;
         end;
       end;
-      
-      if SoftDeleteAttr <> nil then
+    finally
+      Ctx.Free;
+    end;
+  end;
+  
+  if IsSoftDelete then
+  begin
+    Ctx := TRttiContext.Create;
+    try
+      RType := Ctx.GetType(T);
+      if RType <> nil then
       begin
-        ColumnName := SoftDeleteAttr.ColumnName;
+        // Find the soft delete column property
         Prop := nil;
+        ColumnName := PropName;
         
         for var P in RType.GetProperties do
         begin
-          // Check match by Property Name
-          if SameText(P.Name, ColumnName) then
-          begin
-            Prop := P;
-            Break;
-          end;
-
-          // Check match by Column Name
-          for var Attr in P.GetAttributes do
-          begin
-            if Attr is ColumnAttribute then
-            begin
+           if SameText(P.Name, ColumnName) then
+           begin
+             Prop := P;
+             Break;
+           end;
+           
+           for var Attr in P.GetAttributes do
+           begin
+             if Attr is ColumnAttribute then
+             begin
                if SameText(ColumnAttribute(Attr).Name, ColumnName) then
                begin
                  Prop := P;
                  Break;
                end;
-            end;
-          end;
-          if Prop <> nil then Break;
+             end;
+           end;
+           if Prop <> nil then Break;
         end;
         
         if Prop <> nil then
         begin
-          var NotDelVal := SoftDeleteAttr.NotDeletedValue;
           var ValToSet: TValue;
           
           if Prop.PropertyType.Handle = TypeInfo(Boolean) then
-            ValToSet := TValue.From(Boolean(NotDelVal))
+            ValToSet := TValue.From(Boolean(NotDeletedVal))
           else 
-            ValToSet := TValue.FromVariant(NotDelVal);
+            ValToSet := TValue.FromVariant(NotDeletedVal);
 
           Prop.SetValue(TObject(AEntity), ValToSet);
           PersistUpdate(AEntity);
         end;
       end;
+    finally
+      Ctx.Free;
     end;
-  finally
-    Ctx.Free;
   end;
 end;
 

@@ -216,6 +216,7 @@
         <DCCReference Include="..\Entity\Dext.Entity.Naming.pas"/>
         <DCCReference Include="..\Entity\Dext.Entity.Attributes.pas"/>
         <DCCReference Include="Dext.Collections.pas"/>
+        <DCCReference Include="Dext.Threading.Async.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

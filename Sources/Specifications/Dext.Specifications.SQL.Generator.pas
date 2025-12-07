@@ -461,50 +461,66 @@ var
   Prop: TRttiProperty;
   ColumnName: string;
   ParamName: string;
+  PropName: string;
+  DeletedVal, NotDeletedVal: Variant;
+  IsSoftDelete: Boolean;
 begin
   Result := '';
-  SoftDeleteAttr := nil;
+  IsSoftDelete := False;
+  PropName := '';
+  DeletedVal := True;
+  NotDeletedVal := False;
   
-  // Check if entity has [SoftDelete] attribute
   Ctx := TRttiContext.Create;
   Typ := Ctx.GetType(T);
   if Typ = nil then Exit;
   
-  for Attr in Typ.GetAttributes do
+  // 1. Check Fluent Mapping
+  if (FMap <> nil) and FMap.IsSoftDelete then
   begin
-    if Attr is SoftDeleteAttribute then
+    IsSoftDelete := True;
+    PropName := FMap.SoftDeleteProp;
+    DeletedVal := FMap.SoftDeleteDeletedValue;
+    NotDeletedVal := FMap.SoftDeleteNotDeletedValue;
+  end
+  // 2. Check Attribute
+  else
+  begin
+    for Attr in Typ.GetAttributes do
     begin
-      SoftDeleteAttr := SoftDeleteAttribute(Attr);
-      Break;
+      if Attr is SoftDeleteAttribute then
+      begin
+        SoftDeleteAttr := SoftDeleteAttribute(Attr);
+        IsSoftDelete := True;
+        PropName := SoftDeleteAttr.ColumnName;
+        DeletedVal := SoftDeleteAttr.DeletedValue;
+        NotDeletedVal := SoftDeleteAttr.NotDeletedValue;
+        Break;
+      end;
     end;
   end;
   
-  if SoftDeleteAttr = nil then Exit;
+  if not IsSoftDelete then Exit;
   
-  // Find the actual column name for the soft delete property
-  // SoftDeleteAttr.ColumnName can be either:
-  // 1. The property name (e.g., "IsDeleted")
-  // 2. The actual column name (e.g., "is_deleted")
-  ColumnName := SoftDeleteAttr.ColumnName;
+  // Find actual column name
+  ColumnName := PropName; // Default to Property Name
   
-  // Try to find the property and get its actual column name
   for Prop in Typ.GetProperties do
   begin
-    // Check if this property matches by name
-    if SameText(Prop.Name, SoftDeleteAttr.ColumnName) then
+    if SameText(Prop.Name, PropName) then
     begin
-      // Found the property, now get its actual column name
+      // Priority 1: Fluent Property Map
       var PropMap: TPropertyMap := nil;
-      if FMap <> nil then
-        FMap.Properties.TryGetValue(Prop.Name, PropMap);
-        
-      if PropMap <> nil then
+      if (FMap <> nil) and FMap.Properties.TryGetValue(Prop.Name, PropMap) then
       begin
         if PropMap.ColumnName <> '' then
+        begin
           ColumnName := PropMap.ColumnName;
+          Break;
+        end;
       end;
       
-      // Check for [Column] attribute
+      // Priority 2: Column Attribute
       for Attr in Prop.GetAttributes do
       begin
         if Attr is ColumnAttribute then
@@ -513,35 +529,55 @@ begin
           Break;
         end;
       end;
-      
       Break;
     end;
   end;
   
   if FIgnoreQueryFilters then Exit;
 
-  // Generate filter using COALESCE to handle NULL values
-  // COALESCE(is_deleted, 0) = 0 will match both NULL and 0
-  // Use fixed parameter name to avoid conflicts with other parameters
+  // Generate filter
   ParamName := 'pSoftDelete';
   
   if FOnlyDeleted then
   begin
-     // If OnlyDeleted, we simply check for the deleted value
-     FParams.AddOrSetValue(ParamName, TValue.FromVariant(SoftDeleteAttr.DeletedValue));
-     
+     FParams.AddOrSetValue(ParamName, TValue.FromVariant(DeletedVal));
      Result := Format('%s = :%s', 
         [FDialect.QuoteIdentifier(ColumnName), ParamName]);
   end
   else
   begin
-     // Default: Not Deleted
-     FParams.AddOrSetValue(ParamName, TValue.FromVariant(SoftDeleteAttr.NotDeletedValue));
+     // Use literal value for default state to optimize query plan
+     var LiteralVal: string;
+     
+     if VarIsType(NotDeletedVal, varBoolean) then
+     begin
+       if Boolean(NotDeletedVal) then
+         LiteralVal := '1'
+       else
+         LiteralVal := '0';
+     end
+     else
+     begin
+       // For strings, we need quotes. For numbers, we don't.
+       // Keep it simple for now, generic VarToStr mostly works for numbers and simple strings might fail if not quoted, 
+       // but typically SoftDelete values are numbers or booleans.
+       // Safest is to handle string quoting if it looks like a string but not a number.
+       // However, let's trust VarToStr for numbers and handle boolean explicitly as it's the current crashboard.
+       LiteralVal := VarToStr(NotDeletedVal);
+       
+       if VarIsType(NotDeletedVal, varString) or VarIsType(NotDeletedVal, varUString) then
+         LiteralVal := QuotedStr(LiteralVal);
+     end;
   
-     // Use literal value in COALESCE, not parameter
+     // A simplified approach compatible with the previous one:
+     // If NotDeletedVal is 0, we treat NULL as 0.
+     // Previous logic: COALESCE(Col, NotDeletedVal) = NotDeletedVal (matches NULL and 0)
+     
+     // Let's stick to the previous implementation as it was tested:
+     FParams.AddOrSetValue(ParamName, TValue.FromVariant(NotDeletedVal));
      Result := Format('COALESCE(%s, %s) = :%s', 
        [FDialect.QuoteIdentifier(ColumnName), 
-        VarToStr(SoftDeleteAttr.NotDeletedValue), 
+        LiteralVal, 
         ParamName]);
   end;
 end;

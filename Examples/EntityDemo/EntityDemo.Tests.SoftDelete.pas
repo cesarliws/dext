@@ -8,7 +8,8 @@ uses
   EntityDemo.Entities,
   Dext.Entity.Drivers.Interfaces,
   Dext.Persistence,
-  Dext.Collections;
+  Dext.Collections,
+  Dext.Entity; // Added for TDbContext
 
 type
   TSoftDeleteTest = class(TBaseTest)
@@ -25,6 +26,7 @@ type
     procedure TestOnlyDeleted;
     procedure TestRestore;
     procedure TestHardDelete;
+    procedure TestFluentMapping;
   end;
 
 implementation
@@ -36,8 +38,12 @@ begin
   if FContext <> nil then
     FContext.Clear;
 
-  var Cmd := FContext.Connection.CreateCommand('DELETE FROM tasks') as IDbCommand;
-  Cmd.ExecuteNonQuery;
+  try
+    var Cmd := FContext.Connection.CreateCommand('DELETE FROM tasks') as IDbCommand;
+    Cmd.ExecuteNonQuery;
+  except
+    // ignore
+  end;
 end;
 
 procedure TSoftDeleteTest.Run;
@@ -67,7 +73,69 @@ begin
   
   ResetData;
   TestHardDelete;
+  
+  ResetData;
+  TestFluentMapping;
 end;
+
+// ... existing tests ...
+
+procedure TSoftDeleteTest.TestFluentMapping;
+var
+  Entity: TFluentSoftDelete;
+  LoadedEntity: TFluentSoftDelete;
+  SavedId: Integer;
+begin
+  Log('🔧 Test 9: Fluent Mapping Soft Delete');
+  
+  // 1. Configure Mapping (Runtime)
+  var Context := TDbContext(TObject(FContext)); // Cast to access concrete methods
+  
+  Context.ModelBuilder.Entity<TFluentSoftDelete>
+    .HasSoftDelete('IsRemoved'); // Map soft delete to 'IsRemoved' property
+    
+  // Force DbSet creation so EnsureCreated sees it
+  FContext.Entities<TFluentSoftDelete>;
+    
+  // Ensure table exists (since it's new)
+  Context.EnsureCreated;
+  
+  // Clean table
+  try
+    var Cmd := FContext.Connection.CreateCommand('DELETE FROM fluent_soft_delete') as IDbCommand;
+    Cmd.ExecuteNonQuery;
+  except
+  end;
+  
+  // 2. Add Entity
+  Entity := TFluentSoftDelete.Create;
+  Entity.Name := 'Fluent Delete';
+  Entity.IsRemoved := False;
+  
+  FContext.Entities<TFluentSoftDelete>.Add(Entity);
+  FContext.SaveChanges;
+  SavedId := Entity.Id;
+  
+  // 3. Soft Delete
+  FContext.Entities<TFluentSoftDelete>.Remove(Entity);
+  FContext.SaveChanges;
+  
+  FContext.Clear;
+  
+  // 4. Verify Not Found (Soft Deleted)
+  LoadedEntity := FContext.Entities<TFluentSoftDelete>.Find(SavedId);
+  AssertTrue(LoadedEntity = nil, 'Entity hidden by soft delete', 'Entity found despite soft delete');
+  
+  // 5. Verify Found (Ignore Filters)
+  LoadedEntity := FContext.Entities<TFluentSoftDelete>.IgnoreQueryFilters.Find(SavedId);
+  AssertTrue(LoadedEntity <> nil, 'Entity found with IgnoreFilters', 'Entity not found even with IgnoreFilters');
+  if LoadedEntity <> nil then
+    AssertTrue(LoadedEntity.IsRemoved, 'Entity marked as removed', 'Entity IsRemoved is False');
+  
+  LogSuccess('Fluent Mapping for Soft Delete works!');
+  WriteLn('');
+end;
+
 
 procedure TSoftDeleteTest.TestSoftDelete;
 var
