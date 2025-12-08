@@ -148,10 +148,36 @@ TAsyncTask.Run(
 .Start;
 ```
 
+### 6. Non-Synchronized Callbacks (Server / High-Performance)
+For server-side applications where you don't need to update the UI, use default `OnCompleteAsync` and `OnExceptionAsync`.
+These methods execute the callback on a background thread, avoiding the cost of synchronizing with the Main Thread.
+
+```pascal
+TAsyncTask.Run<Integer>(
+  function: Integer
+  begin
+    Result := CalculateHeavyData();
+  end)
+.OnCompleteAsync(
+  procedure(Result: Integer)
+  begin
+    // Runs on BACKGROUND thread
+    // Ideal for logging, writing to DB, or triggering other background tasks
+    Log('Calculation finished: ' + Result.ToString);
+  end)
+.OnExceptionAsync(
+  procedure(E: Exception)
+  begin
+    // Runs on BACKGROUND thread
+    Log('Error: ' + E.Message);
+  end)
+.Start;
+```
+
 ## ⚠️ Important Notes
 
 1.  **Start()**: You must call `.Start` at the end of the chain to begin execution.
-2.  **Thread Safety**: Code inside `.Run` and `.ThenBy` runs in a **Background Thread**. Do not access UI components directly from these methods.
+2.  **Thread Safety**: Code inside `.Run`, `.ThenBy`, `.OnCompleteAsync` and `.OnExceptionAsync` runs in a **Background Thread**. Do not access UI components directly from these methods.
 3.  **UI Updates**: Code inside `.OnComplete` and `.OnException` runs in the **Main Thread**. This is the only safe place to update the UI.
 4.  **TAsyncTask<T>**: Returns an `IAsyncTask` interface (which inherits from `ITask`). You can hold a reference to it if needed.
 

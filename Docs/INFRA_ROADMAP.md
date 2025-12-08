@@ -44,8 +44,8 @@ Base para o suporte a OpenTelemetry nos frameworks superiores.
 Evolução da `Fluent Tasks API` para suportar cenários complexos de orquestração e alta performance.
 
 - [x] **Fluent Tasks Core**: Implementação base (`TAsyncTask`, `ThenBy`, `WithCancellation`).
-- [ ] **Unsynchronized Callbacks**: Opção para executar callbacks em thread de background (evitar gargalo na Main Thread).
-  - *API*: `.OnCompleteAsync(proc)`, `.Configure(RunOnMainThread: Boolean)`
+- [x] **Unsynchronized Callbacks**: Opção para executar callbacks em thread de background (evitar gargalo na Main Thread).
+  - *API*: `.OnCompleteAsync(proc)`, `.OnExceptionAsync(proc)`
 - [ ] **Composition Patterns (Fork/Join)**:
   - `WhenAll(Tasks)`: Aguardar múltiplas tasks finalizarem (Scatter-Gather).
   - `WhenAny(Tasks)`: Retornar assim que a primeira task finalizar (Redundancy/Race).

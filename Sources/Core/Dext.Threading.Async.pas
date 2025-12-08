@@ -32,6 +32,8 @@ type
     FOnComplete: TProc<T>;
     FOnException: TProc<Exception>;
     FToken: ICancellationToken;
+    FSyncComplete: Boolean;
+    FSyncException: Boolean;
     
     procedure RunPipeline;
   public
@@ -39,7 +41,12 @@ type
     ///   Creates and initializes the async task.
     ///   Note: call Start to begin execution.
     /// </summary>
-    constructor Create(const AWork: TFunc<T>; const OnComplete: TProc<T>; const OnException: TProc<Exception>; const AToken: ICancellationToken = nil);
+    constructor Create(const AWork: TFunc<T>; 
+      const OnComplete: TProc<T>; 
+      const OnException: TProc<Exception>; 
+      const AToken: ICancellationToken = nil;
+      const SyncComplete: Boolean = True;
+      const SyncException: Boolean = True);
     destructor Destroy; override;
   end;
 
@@ -54,6 +61,8 @@ type
     FOnComplete: TProc<T>;
     FOnException: TProc<Exception>;
     FToken: ICancellationToken;
+    FSyncComplete: Boolean;
+    FSyncException: Boolean;
   public
     /// <summary>
     ///   Initializes the builder with the initial unit of work.
@@ -79,10 +88,22 @@ type
     function OnComplete(const AProc: TProc<T>): TAsyncBuilder<T>;
 
     /// <summary>
+    ///   Sets a callback to be executed on the Background Thread (same as the task) upon successful completion.
+    ///   Use this for non-UI tasks to avoid context switching costs.
+    /// </summary>
+    function OnCompleteAsync(const AProc: TProc<T>): TAsyncBuilder<T>;
+
+    /// <summary>
     ///   Sets a callback to be executed on the Main Thread if an exception occurs at any point in the pipeline.
     ///   Also handles OperationCancelled exceptions.
     /// </summary>
     function OnException(const AProc: TProc<Exception>): TAsyncBuilder<T>;
+
+    /// <summary>
+    ///   Sets a callback to be executed on the Background Thread if an exception occurs.
+    ///   Use this for logging or background cleanup to avoid context switching costs.
+    /// </summary>
+    function OnExceptionAsync(const AProc: TProc<Exception>): TAsyncBuilder<T>;
 
     /// <summary>
     ///   Associates a CancellationToken with this task.
@@ -117,13 +138,20 @@ implementation
 
 { TAsyncTask<T> }
 
-constructor TAsyncTask<T>.Create(const AWork: TFunc<T>; const OnComplete: TProc<T>; const OnException: TProc<Exception>; const AToken: ICancellationToken);
+constructor TAsyncTask<T>.Create(const AWork: TFunc<T>; 
+  const OnComplete: TProc<T>; 
+  const OnException: TProc<Exception>; 
+  const AToken: ICancellationToken;
+  const SyncComplete: Boolean;
+  const SyncException: Boolean);
 begin
   // Initialize internal state
   FWork := AWork;
   FOnComplete := OnComplete;
   FOnException := OnException;
   FToken := AToken;
+  FSyncComplete := SyncComplete;
+  FSyncException := SyncException;
   
   // Call the protected TTask constructor to ensure proper initialization with the Default ThreadPool.
   // We wrap our RunPipeline logic in a simple anonymous procedure.
@@ -162,6 +190,7 @@ begin
       if (FToken <> nil) and (FToken.IsCancellationRequested) then
         FToken.ThrowIfCancellationRequested; 
 
+
       // 3. Execute the Work Pipeline
       Res := Default(T); // Initialize result
       if Assigned(FWork) then
@@ -171,16 +200,23 @@ begin
       if (FToken <> nil) and (FToken.IsCancellationRequested) then
         FToken.ThrowIfCancellationRequested;
 
-      // 5. Execute Success Callback on Main Thread
+      // 5. Execute Success Callback
       LOnComplete := FOnComplete; // Capture locally for thread-safety during destruction
       if Assigned(LOnComplete) then
       begin
-        var Val := TValue.From<T>(Res);
-        TThread.Queue(nil, 
-          TThreadProcedure(procedure
-          begin
-            LOnComplete(Val.AsType<T>);
-          end));
+        if FSyncComplete then
+        begin
+          var Val := TValue.From<T>(Res);
+          TThread.Queue(nil, 
+            TThreadProcedure(procedure
+            begin
+              LOnComplete(Val.AsType<T>);
+            end));
+        end
+        else
+        begin
+          LOnComplete(Res);
+        end;
       end;
       
     except
@@ -191,18 +227,25 @@ begin
         
         if Assigned(LOnException) then
         begin
-          ExMsg := E.Message;
-          // Queue exception handling to Main Thread
-          TThread.Queue(nil,
-            TThreadProcedure(procedure
-            begin
-              var SafeEx := Exception.Create(ExMsg);
-              try
-                LOnException(SafeEx);
-              finally
-                SafeEx.Free;
-              end;
-            end));
+          if FSyncException then
+          begin
+            ExMsg := E.Message;
+            // Queue exception handling to Main Thread
+            TThread.Queue(nil,
+              TThreadProcedure(procedure
+              begin
+                var SafeEx := Exception.Create(ExMsg);
+                try
+                   LOnException(SafeEx);
+                finally
+                  SafeEx.Free;
+                end;
+              end));
+          end
+          else
+          begin
+            LOnException(E);
+          end;
         end;
       end;
     end;
@@ -219,6 +262,8 @@ begin
   FOnComplete := nil;
   FOnException := nil;
   FToken := AToken;
+  FSyncComplete := True;
+  FSyncException := True;
 end;
 
 function TAsyncBuilder<T>.ThenBy<U>(const AFunc: TFunc<T, U>): TAsyncBuilder<U>;
@@ -256,12 +301,28 @@ end;
 function TAsyncBuilder<T>.OnComplete(const AProc: TProc<T>): TAsyncBuilder<T>;
 begin
   FOnComplete := AProc;
+  FSyncComplete := True;
+  Result := Self;
+end;
+
+function TAsyncBuilder<T>.OnCompleteAsync(const AProc: TProc<T>): TAsyncBuilder<T>;
+begin
+  FOnComplete := AProc;
+  FSyncComplete := False;
   Result := Self;
 end;
 
 function TAsyncBuilder<T>.OnException(const AProc: TProc<Exception>): TAsyncBuilder<T>;
 begin
   FOnException := AProc;
+  FSyncException := True;
+  Result := Self;
+end;
+
+function TAsyncBuilder<T>.OnExceptionAsync(const AProc: TProc<Exception>): TAsyncBuilder<T>;
+begin
+  FOnException := AProc;
+  FSyncException := False;
   Result := Self;
 end;
 
@@ -274,7 +335,7 @@ end;
 function TAsyncBuilder<T>.Start: IAsyncTask;
 begin
   // Create the specific TAsyncTask instance
-  var Task := TAsyncTask<T>.Create(FWork, FOnComplete, FOnException, FToken);
+  var Task := TAsyncTask<T>.Create(FWork, FOnComplete, FOnException, FToken, FSyncComplete, FSyncException);
   // Start execution in the ThreadPool
   Task.Start;
   Result := Task;
