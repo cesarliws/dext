@@ -126,6 +126,7 @@ type
     ['{C4F8E5D2-8D4E-4A7D-9C3B-6E8F4A2D1C7B}']
     function ConfigureServices(AConfigurator: TProc<IServiceCollection>): IWebHostBuilder;
     function Configure(AConfigurator: TProc<IApplicationBuilder>): IWebHostBuilder;
+    function UseUrls(const AUrls: string): IWebHostBuilder;
     function Build: IWebHost;
   end;
 

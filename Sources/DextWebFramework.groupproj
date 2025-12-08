@@ -54,13 +54,16 @@
         <Projects Include="Tests\Dext.Entity.Tests.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Core\Dext.Core.dproj">
+        <Projects Include="..\Examples\EntityDemo\SimpleTest.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="..\Examples\EntityDemo\EntityDemo.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\Examples\EntityDemo\SimpleTest.dproj">
+        <Projects Include="Core\Dext.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\Examples\WebFrameworkTests\WebFrameworkTests.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -224,14 +227,14 @@
     <Target Name="Dext_Entity_Tests:Make">
         <MSBuild Projects="Tests\Dext.Entity.Tests.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Dext_Core">
-        <MSBuild Projects="Core\Dext.Core.dproj"/>
+    <Target Name="SimpleTest">
+        <MSBuild Projects="..\Examples\EntityDemo\SimpleTest.dproj"/>
     </Target>
-    <Target Name="Dext_Core:Clean">
-        <MSBuild Projects="Core\Dext.Core.dproj" Targets="Clean"/>
+    <Target Name="SimpleTest:Clean">
+        <MSBuild Projects="..\Examples\EntityDemo\SimpleTest.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="Dext_Core:Make">
-        <MSBuild Projects="Core\Dext.Core.dproj" Targets="Make"/>
+    <Target Name="SimpleTest:Make">
+        <MSBuild Projects="..\Examples\EntityDemo\SimpleTest.dproj" Targets="Make"/>
     </Target>
     <Target Name="EntityDemo">
         <MSBuild Projects="..\Examples\EntityDemo\EntityDemo.dproj"/>
@@ -242,23 +245,32 @@
     <Target Name="EntityDemo:Make">
         <MSBuild Projects="..\Examples\EntityDemo\EntityDemo.dproj" Targets="Make"/>
     </Target>
-    <Target Name="SimpleTest">
-        <MSBuild Projects="..\Examples\EntityDemo\SimpleTest.dproj"/>
+    <Target Name="Dext_Core">
+        <MSBuild Projects="Core\Dext.Core.dproj"/>
     </Target>
-    <Target Name="SimpleTest:Clean">
-        <MSBuild Projects="..\Examples\EntityDemo\SimpleTest.dproj" Targets="Clean"/>
+    <Target Name="Dext_Core:Clean">
+        <MSBuild Projects="Core\Dext.Core.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="SimpleTest:Make">
-        <MSBuild Projects="..\Examples\EntityDemo\SimpleTest.dproj" Targets="Make"/>
+    <Target Name="Dext_Core:Make">
+        <MSBuild Projects="Core\Dext.Core.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="WebFrameworkTests">
+        <MSBuild Projects="..\Examples\WebFrameworkTests\WebFrameworkTests.dproj"/>
+    </Target>
+    <Target Name="WebFrameworkTests:Clean">
+        <MSBuild Projects="..\Examples\WebFrameworkTests\WebFrameworkTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="WebFrameworkTests:Make">
+        <MSBuild Projects="..\Examples\WebFrameworkTests\WebFrameworkTests.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_AppBuilderTest;Dext_ServerTest_Cors;Dext_ServerTest;Dext_DITest;Dext_MinimalAPITest;TestController;TestConfig;CachingDemo;TaskFlowAPI;RateLimitDemo;JwtAuthDemo;SwaggerExample;MinimalAPIExample;TestDbSet;DextStore;ControllerExample;Dext_Entity_Tests;Dext_Core;EntityDemo;SimpleTest"/>
+        <CallTarget Targets="Dext_AppBuilderTest;Dext_ServerTest_Cors;Dext_ServerTest;Dext_DITest;Dext_MinimalAPITest;TestController;TestConfig;CachingDemo;TaskFlowAPI;RateLimitDemo;JwtAuthDemo;SwaggerExample;MinimalAPIExample;TestDbSet;DextStore;ControllerExample;Dext_Entity_Tests;SimpleTest;EntityDemo;Dext_Core;WebFrameworkTests"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_AppBuilderTest:Clean;Dext_ServerTest_Cors:Clean;Dext_ServerTest:Clean;Dext_DITest:Clean;Dext_MinimalAPITest:Clean;TestController:Clean;TestConfig:Clean;CachingDemo:Clean;TaskFlowAPI:Clean;RateLimitDemo:Clean;JwtAuthDemo:Clean;SwaggerExample:Clean;MinimalAPIExample:Clean;TestDbSet:Clean;DextStore:Clean;ControllerExample:Clean;Dext_Entity_Tests:Clean;Dext_Core:Clean;EntityDemo:Clean;SimpleTest:Clean"/>
+        <CallTarget Targets="Dext_AppBuilderTest:Clean;Dext_ServerTest_Cors:Clean;Dext_ServerTest:Clean;Dext_DITest:Clean;Dext_MinimalAPITest:Clean;TestController:Clean;TestConfig:Clean;CachingDemo:Clean;TaskFlowAPI:Clean;RateLimitDemo:Clean;JwtAuthDemo:Clean;SwaggerExample:Clean;MinimalAPIExample:Clean;TestDbSet:Clean;DextStore:Clean;ControllerExample:Clean;Dext_Entity_Tests:Clean;SimpleTest:Clean;EntityDemo:Clean;Dext_Core:Clean;WebFrameworkTests:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_AppBuilderTest:Make;Dext_ServerTest_Cors:Make;Dext_ServerTest:Make;Dext_DITest:Make;Dext_MinimalAPITest:Make;TestController:Make;TestConfig:Make;CachingDemo:Make;TaskFlowAPI:Make;RateLimitDemo:Make;JwtAuthDemo:Make;SwaggerExample:Make;MinimalAPIExample:Make;TestDbSet:Make;DextStore:Make;ControllerExample:Make;Dext_Entity_Tests:Make;Dext_Core:Make;EntityDemo:Make;SimpleTest:Make"/>
+        <CallTarget Targets="Dext_AppBuilderTest:Make;Dext_ServerTest_Cors:Make;Dext_ServerTest:Make;Dext_DITest:Make;Dext_MinimalAPITest:Make;TestController:Make;TestConfig:Make;CachingDemo:Make;TaskFlowAPI:Make;RateLimitDemo:Make;JwtAuthDemo:Make;SwaggerExample:Make;MinimalAPIExample:Make;TestDbSet:Make;DextStore:Make;ControllerExample:Make;Dext_Entity_Tests:Make;SimpleTest:Make;EntityDemo:Make;Dext_Core:Make;WebFrameworkTests:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -71,6 +71,8 @@ type
       Handler: THandlerFunc<T, TResult>): IApplicationBuilder; overload;
     class function MapPostR<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
       Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapPostR<TResult>(App: IApplicationBuilder; const Path: string;
+        Handler: THandlerFunc<TResult>): IApplicationBuilder; overload;
 
     class function MapPutR<T, TResult>(App: IApplicationBuilder; const Path: string;
       Handler: THandlerFunc<T, TResult>): IApplicationBuilder; overload;
@@ -404,6 +406,25 @@ begin
       Invoker := THandlerInvoker.Create(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapPostR<TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerFunc<TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('POST', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<TResult>(Handler);
       finally
         Invoker.Free;
       end;
