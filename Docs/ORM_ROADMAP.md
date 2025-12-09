@@ -253,7 +253,47 @@ Foco em otimização extrema, gerenciamento de memória e observabilidade.
 
 ---
 
-### **Sprint 4: Async & AOT** (6 semanas)
+### **Sprint 4: Raw SQL & Multi-Mapping (Dapper-Style)** 🔥 **NOVO** (4 semanas)
+Inspirado no Dapper para cenários de alta performance onde o controle total do SQL é necessário.
+
+1. **Raw SQL Query with Mapping** (2 semanas)
+   - Executar qualquer SQL e mapear automaticamente para objetos
+   - API: `Context.Query<TUser>("SELECT * FROM Users WHERE Age > @age", new { age = 18 })`
+   - Suporte a parâmetros nomeados e posicionais
+   - Mapeamento automático via convenção de nomes (coluna → propriedade)
+   - **Use Cases**: Queries complexas, otimizações específicas de banco, stored procedures
+
+2. **Multi-Mapping (Object Trees)** (2 semanas)
+   - Mapear múltiplas tabelas em uma única query para árvore de objetos
+   - API: `Context.Query<TUser, TAddress>("SELECT * FROM Users u JOIN Addresses a ON u.AddressId = a.Id", (user, address) => { user.Address := address; return user; })`
+   - Suporte a splits automáticos ou manuais
+   - Evitar N+1 queries com controle total do JOIN
+   - **Use Cases**: Relatórios complexos, dashboards, APIs de leitura otimizadas
+
+3. **Execute Raw SQL** (3 dias)
+   - Executar comandos SQL sem retorno (INSERT, UPDATE, DELETE, DDL)
+   - API: `Context.Execute("UPDATE Users SET IsActive = 1 WHERE Age > @age", new { age = 18 })`
+   - Retorna número de linhas afetadas
+   - **Use Cases**: Bulk updates, migrations, manutenção
+
+4. **Stored Procedure Support** (1 semana)
+   - Executar stored procedures com mapeamento de resultados
+   - API: `Context.QueryProc<TUser>("sp_GetActiveUsers", new { minAge = 18 })`
+   - Suporte a múltiplos result sets
+   - Suporte a OUTPUT parameters
+   - **Use Cases**: Integração com sistemas legados, lógica de negócio no banco
+
+**Benefícios**:
+- ✅ **Performance Máxima**: Zero overhead, controle total do SQL
+- ✅ **Flexibilidade**: Não força padrões, você decide o SQL
+- ✅ **Compatibilidade**: Integração com sistemas legados e stored procedures
+- ✅ **Híbrido**: Combinar Fluent API (desenvolvimento rápido) com Raw SQL (otimização)
+
+**Resultado**: ORM híbrido - simplicidade do Fluent API + poder do Dapper
+
+---
+
+### **Sprint 5: Async & AOT** (6 semanas)
 1. **Infrastructure**: Connection Pooling & Thread-Safe Drivers.
 2. **Async/Await Support** (4 semanas)
    - Integração com Fluent Tasks API
