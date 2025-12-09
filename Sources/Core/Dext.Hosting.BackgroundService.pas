@@ -41,6 +41,14 @@ type
     procedure Stop;
   end;
 
+  // ✅ Interface for THostedServiceManager to enable ARC management
+  IHostedServiceManager = interface
+    ['{F1E2D3C4-B5A6-7890-1234-567890ABCDEF}']
+    procedure RegisterService(Service: IHostedService);
+    procedure StartAsync;
+    procedure StopAsync;
+  end;
+
   TBackgroundService = class;
 
   TBackgroundServiceThread = class(TThread)
@@ -70,7 +78,7 @@ type
   /// <summary>
   ///   Manager that starts and stops all registered hosted services.
   /// </summary>
-  THostedServiceManager = class
+  THostedServiceManager = class(TInterfacedObject, IHostedServiceManager)
   private
     FServices: TList<IHostedService>;
   public
@@ -231,8 +239,9 @@ var
 begin
   CapturedServices := FHostedServices.ToArray;
   
+  // ✅ Register as INTERFACE to enable ARC management
   FServices.AddSingleton(
-    TServiceType.FromClass(THostedServiceManager),
+    TServiceType.FromInterface(IHostedServiceManager),
     THostedServiceManager,
     function(Provider: IServiceProvider): TObject
     var

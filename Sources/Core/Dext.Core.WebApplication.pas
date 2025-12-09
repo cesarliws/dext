@@ -181,10 +181,11 @@ begin
   // Start Hosted Services
   HostedManager := nil;
   try
-    Obj := FServiceProvider.GetService(TServiceType.FromClass(THostedServiceManager));
-    if Obj <> nil then
+    // ✅ Resolve as INTERFACE (enables ARC management)
+    var ManagerIntf := FServiceProvider.GetServiceAsInterface(TServiceType.FromInterface(IHostedServiceManager));
+    if ManagerIntf <> nil then
     begin
-      HostedManager := Obj as THostedServiceManager;
+      HostedManager := ManagerIntf as THostedServiceManager;
       HostedManager.StartAsync;
     end;
   except

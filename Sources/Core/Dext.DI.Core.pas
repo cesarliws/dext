@@ -52,6 +52,7 @@ type
     FDescriptors: TObjectList<TServiceDescriptor>;
     FSingletons: TDictionary<string, TObject>;
     FSingletonInterfaces: TDictionary<string, IInterface>;
+    FARCManagedKeys: TList<string>; // ✅ Track which keys are managed by ARC
     FIsRootProvider: Boolean;
     FParentProvider: IServiceProvider;
     FScopedInstances: TDictionary<string, TObject>;
@@ -199,6 +200,7 @@ begin
 
   FSingletons := TDictionary<string, TObject>.Create;
   FSingletonInterfaces  := TDictionary<string, IInterface>.Create;
+  FARCManagedKeys := TList<string>.Create; // ✅ Track ARC-managed singletons
   FScopedInstances := TDictionary<string, TObject>.Create;
   FScopedInterfaces := TDictionary<string, IInterface>.Create;
   FLock := TCriticalSection.Create;
@@ -252,6 +254,10 @@ begin
       FSingletons.Clear;
       FSingletons.Free;
     end;
+    
+    // Free the tracking list
+    if Assigned(FARCManagedKeys) then
+      FARCManagedKeys.Free;
   end;
 
   // Liberar instâncias scoped
@@ -400,6 +406,9 @@ begin
                   [Obj.ClassName, GUIDToString(AServiceType.AsInterface)]);
               end;
               FSingletonInterfaces.Add(Key, Intf);
+              // ✅ Mark this key as ARC-managed
+              if not FARCManagedKeys.Contains(Key) then
+                FARCManagedKeys.Add(Key);
             end;
             Result := Intf;
         end
