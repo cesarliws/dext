@@ -165,12 +165,9 @@ end;
 constructor THealthCheckMiddleware.Create(Service: THealthCheckService);
 begin
   inherited Create;
-  WriteLn('🏥 THealthCheckMiddleware.Create called');
-  WriteLn('   Service parameter: ', IntToHex(NativeInt(Service), 16));
   if Service = nil then
     raise Exception.Create('THealthCheckMiddleware: Service is nil! Dependency Injection failed.');
   FService := Service;
-  WriteLn('   ✅ THealthCheckMiddleware created successfully with service');
 end;
 
 procedure THealthCheckMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
@@ -274,7 +271,7 @@ end;
 
 procedure THealthCheckBuilder.Build;
 begin
-  WriteLn('🔧 THealthCheckBuilder.Build: Finalizing with ', FSharedChecks.Count, ' checks');
+
   
   // ✅ Call the callback to copy checks to the factory's captured array
   if Assigned(FUpdateCallback) then

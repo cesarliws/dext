@@ -417,7 +417,7 @@ var
   CapturedChecks: TArray<TClass>; // ✅ Copy for factory closure
   UpdateCallback: TProc; // ✅ Callback to update CapturedChecks
 begin
-  WriteLn('🔧 TDextServicesHelper.AddHealthChecks CALLED');
+
   Services := Self.Unwrap;
   
   // Create a shared list that will be owned by the builder
@@ -430,7 +430,6 @@ begin
   UpdateCallback := procedure
     begin
       CapturedChecks := SharedChecks.ToArray;
-      WriteLn('🔄 Updated CapturedChecks with ', Length(CapturedChecks), ' checks');
     end;
   
   // Create factory that captures the array (will be populated by Build)
@@ -439,18 +438,15 @@ begin
       Service: THealthCheckService;
       CheckClass: TClass;
     begin
-      WriteLn('🏭 THealthCheckService FACTORY INVOKED with ', Length(CapturedChecks), ' checks!');
       Service := THealthCheckService.Create;
       
       // Register all checks that were captured
       for CheckClass in CapturedChecks do
       begin
-        WriteLn('   ✅ Registering check: ', CheckClass.ClassName);
         Service.RegisterCheck(CheckClass);
       end;
       
       Result := Service;
-      WriteLn('🏭 THealthCheckService factory completed');
     end;
   
   // ✅ Register THealthCheckService IMMEDIATELY as a singleton with a factory
@@ -459,9 +455,7 @@ begin
     THealthCheckService,
     Factory
   );
-  
-  WriteLn('✅ THealthCheckService registered as Singleton');
-  
+
   // Create builder with reference to the shared list AND the update callback
   Result := THealthCheckBuilder.Create(Services, SharedChecks, UpdateCallback);
 end;

@@ -174,11 +174,9 @@ var
   Obj: TObject;
 begin
   // ✅ REBUILD ServiceProvider to include all services registered after Create()
-  WriteLn('🔄 Rebuilding ServiceProvider to include all registered services...');
   FServiceProvider := nil; // Release old provider
   FServiceProvider := FServices.BuildServiceProvider;
   FAppBuilder.SetServiceProvider(FServiceProvider);
-  WriteLn('✅ ServiceProvider rebuilt with all services');
   
   // Start Hosted Services
   HostedManager := nil;

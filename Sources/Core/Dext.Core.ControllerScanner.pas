@@ -424,8 +424,7 @@ begin
     Exit;
   end;
 
-  // ✅ COLLECT FILTERS DYNAMICALLY (Safe from AV)
-  var FilterList := TObjectList<TCustomAttribute>.Create(True); // OwnsObjects = True
+  var FilterList := TObjectList<TCustomAttribute>.Create(False);
   try
     // Controller Level
     for FilterAttr in ControllerType.GetAttributes do

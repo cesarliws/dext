@@ -69,8 +69,6 @@ var
   I: Integer;
   Matched: Boolean;
 begin
-  if AClass.ClassName.Contains('TAddress') then
-    WriteLn('DEBUG: TActivator.CreateInstance(' + AClass.ClassName + ')');
 
   Context := TRttiContext.Create;
   try
@@ -153,7 +151,6 @@ var
   BestArgs: TArray<TValue>;
   MaxParams: Integer;
 begin
-  WriteLn('⚙️ TActivator.CreateInstance (Pure DI) for: ', AClass.ClassName);
   Context := TRttiContext.Create;
   try
     TypeObj := Context.GetType(AClass);
@@ -188,10 +185,8 @@ begin
           else if ParamType.TypeKind = tkClass then
           begin
              var Cls := TRttiInstanceType(ParamType).MetaclassType;
-             WriteLn('      🔍 Resolving class dependency: ', Cls.ClassName);
              ServiceType := TServiceType.FromClass(Cls);
              var Obj := AProvider.GetService(ServiceType);
-             WriteLn('      📦 GetService returned: ', IntToHex(NativeInt(Obj), 16));
              if Obj <> nil then
                ResolvedService := TValue.From(Obj);
           end;

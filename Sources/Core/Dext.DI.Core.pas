@@ -302,17 +302,12 @@ end;
 
 function TDextServiceProvider.CreateInstance(ADescriptor: TServiceDescriptor): TObject;
 begin
-  WriteLn('🔨 CreateInstance for: ', ADescriptor.ImplementationClass.ClassName);
-  WriteLn('   Has Factory: ', Assigned(ADescriptor.Factory));
   if Assigned(ADescriptor.Factory) then
   begin
-    WriteLn('   🏭 Invoking FACTORY...');
     Result := ADescriptor.Factory(Self);
-    WriteLn('   ✅ Factory returned: ', IntToHex(NativeInt(Result), 16));
   end
   else
   begin
-    WriteLn('   🔧 Using TActivator...');
     Result := TActivator.CreateInstance(Self, ADescriptor.ImplementationClass);
   end;
 end;
@@ -323,14 +318,11 @@ var
   Key: string;
   Instance: TObject;
 begin
-  WriteLn('🔍 GetService called for: ', AServiceType.ToString);
   Descriptor := FindDescriptor(AServiceType);
   if not Assigned(Descriptor) then
   begin
-    WriteLn('   ❌ Descriptor NOT FOUND!');
     Exit(nil);
   end;
-  WriteLn('   ✅ Descriptor found. Lifetime: ', Ord(Descriptor.Lifetime));
 
   Key := AServiceType.ToString;
 
@@ -339,23 +331,18 @@ begin
     case Descriptor.Lifetime of
       TServiceLifetime.Singleton:
       begin
-        WriteLn('   📦 Singleton resolution...');
         // Singletons are only created in the root provider
         if FIsRootProvider then
         begin
           if not FSingletons.TryGetValue(Key, Instance) then
           begin
-            WriteLn('   🆕 Creating NEW singleton instance...');
             Instance := CreateInstance(Descriptor);
             FSingletons.Add(Key, Instance);
-          end
-          else
-            WriteLn('   ♻️ Returning CACHED singleton');
+          end;
           Result := Instance;
         end
         else
         begin
-          WriteLn('   ⬆️ Delegating to parent provider');
           // Delegate to parent
           Result := FParentProvider.GetService(AServiceType);
         end;
@@ -381,7 +368,6 @@ begin
   finally
     FLock.Leave;
   end;
-  WriteLn('   ✅ GetService returning: ', IntToHex(NativeInt(Result), 16));
 end;
 
 function TDextServiceProvider.GetServiceAsInterface(const AServiceType: TServiceType): IInterface;
