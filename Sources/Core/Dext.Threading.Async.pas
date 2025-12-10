@@ -202,9 +202,9 @@ end;
 procedure TAsyncTask<T>.RunPipeline;
 var
   Res: T;
-  ExMsg: string;
   LOnComplete: TProc<T>;
   LOnException: TProc<Exception>;
+  CapturedException: TObject;
 begin
   try
     try
@@ -213,11 +213,10 @@ begin
 
       // 2. Check for Cancellation (Token) - Before execution
       if (FToken <> nil) and (FToken.IsCancellationRequested) then
-        FToken.ThrowIfCancellationRequested; 
-
+        FToken.ThrowIfCancellationRequested;
 
       // 3. Execute the Work Pipeline
-      Res := Default(T); // Initialize result
+      Res := Default(T);
       if Assigned(FWork) then
         Res := FWork();
 
@@ -226,49 +225,51 @@ begin
         FToken.ThrowIfCancellationRequested;
 
       // 5. Execute Success Callback
-      LOnComplete := FOnComplete; // Capture locally for thread-safety during destruction
+      LOnComplete := FOnComplete;
       if Assigned(LOnComplete) then
       begin
         if FSyncComplete then
         begin
-          var Val := TValue.From<T>(Res);
-          TThread.Queue(nil, 
-            TThreadProcedure(procedure
+          // Compiler captures "Res" (type T) automatically for the closure.
+          TThread.Queue(nil,
+            procedure
             begin
-              LOnComplete(Val.AsType<T>);
-            end));
+              LOnComplete(Res);
+            end);
         end
         else
         begin
           LOnComplete(Res);
         end;
       end;
-      
+
     except
       on E: Exception do
       begin
         // 6. Handle Exceptions and Cancellation
-        LOnException := FOnException; // Capture locally
-        
+        LOnException := FOnException;
+
         if Assigned(LOnException) then
         begin
           if FSyncException then
           begin
-            ExMsg := E.Message;
-            // Queue exception handling to Main Thread
+            // "Steal" exception ownership from RTL
+            CapturedException := AcquireExceptionObject;
+            
             TThread.Queue(nil,
-              TThreadProcedure(procedure
+              procedure
               begin
-                var SafeEx := Exception.Create(ExMsg);
                 try
-                   LOnException(SafeEx);
+                  if CapturedException is Exception then
+                    LOnException(Exception(CapturedException));
                 finally
-                  SafeEx.Free;
+                  CapturedException.Free;
                 end;
-              end));
+              end);
           end
           else
           begin
+            // Async: Current thread still owns exception
             LOnException(E);
           end;
         end;
