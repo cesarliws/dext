@@ -270,6 +270,8 @@ Foco em produtividade, code intelligence, wizards e integração com a IDE do De
 2. **Documentação**: Criar site de documentação oficial.
 3. **Performance**: Benchmarks e otimizações.
 4. **Estabilidade**: Testes de carga e stress.
+5. **API Review & Cleanup**: Revisar todas as extensions, sintaxe fluent e nomes de métodos para consistência e 'clean code'.
+6. **Background Services**: Debugar e estabilizar implementação de IHostedService/TBackgroundService para threads (Access Violations detectados no Beta).
 
 ---
 

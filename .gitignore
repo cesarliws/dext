@@ -1,7 +1,6 @@
 __history
 __local
 __recovery
-*.bat
 *.db
 *.dcu
 *.dll
@@ -10,6 +9,6 @@ __recovery
 *.local
 *.log
 *.map
+Output
 Win32
 Win64
-

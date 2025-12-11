@@ -95,17 +95,34 @@ implementation
 { TIndyHttpRequest }
 
 constructor TIndyHttpRequest.Create(ARequestInfo: TIdHTTPRequestInfo);
+var
+  FormData: string;
 begin
   inherited Create;
   FRequestInfo := ARequestInfo;
   FQuery := ParseQueryString(FRequestInfo.QueryParams);
   FRouteParams := TDictionary<string, string>.Create;
-  FHeaders := ParseHeaders(FRequestInfo.RawHeaders); // ✅ NOVO: Parsear headers
+  FHeaders := ParseHeaders(FRequestInfo.RawHeaders);
+  
   // Criar cópia do body stream para não depender do lifecycle do Indy
   if Assigned(FRequestInfo.PostStream) then
   begin
     FBodyStream := TMemoryStream.Create;
     FBodyStream.CopyFrom(FRequestInfo.PostStream, 0);
+    FBodyStream.Position := 0;
+  end
+  // Se PostStream não existe, tentar ler de FormParams (form-urlencoded)
+  else if (FRequestInfo.FormParams <> '') or (FRequestInfo.UnparsedParams <> '') then
+  begin
+    // Usar UnparsedParams se disponível, senão FormParams
+    if FRequestInfo.UnparsedParams <> '' then
+      FormData := FRequestInfo.UnparsedParams
+    else
+      FormData := FRequestInfo.FormParams;
+      
+    FBodyStream := TMemoryStream.Create;
+    var Bytes := TEncoding.UTF8.GetBytes(FormData);
+    FBodyStream.WriteBuffer(Bytes[0], Length(Bytes));
     FBodyStream.Position := 0;
   end;
 end;
