@@ -1,0 +1,69 @@
+package Dext.Data;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Dext Framework - ORM & Data Access'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  dbrtl,
+  FireDAC,
+  FireDACCommon,
+  FireDACCommonDriver,
+  Dext.Core;
+
+contains
+  Dext.Entity.Query in 'Data\Dext.Entity.Query.pas',
+  Dext.Specifications.SQL.Generator in 'Data\Dext.Specifications.SQL.Generator.pas',
+  Dext.Entity.Attributes in 'Data\Dext.Entity.Attributes.pas',
+  Dext.Entity.Core in 'Data\Dext.Entity.Core.pas',
+  Dext.Entity.DbSet in 'Data\Dext.Entity.DbSet.pas',
+  Dext.Entity.Dialects in 'Data\Dext.Entity.Dialects.pas',
+  Dext.Entity.Drivers.FireDAC in 'Data\Dext.Entity.Drivers.FireDAC.pas',
+  Dext.Entity.Drivers.Interfaces in 'Data\Dext.Entity.Drivers.Interfaces.pas',
+  Dext.Entity.Grouping in 'Data\Dext.Entity.Grouping.pas',
+  Dext.Entity.Joining in 'Data\Dext.Entity.Joining.pas',
+  Dext.Entity.LazyLoading in 'Data\Dext.Entity.LazyLoading.pas',
+  Dext.Entity.Mapping in 'Data\Dext.Entity.Mapping.pas',
+  Dext.Entity.Naming in 'Data\Dext.Entity.Naming.pas',
+  Dext.Entity.Scaffolding in 'Data\Dext.Entity.Scaffolding.pas',
+  Dext.Entity in 'Data\Dext.Entity.pas',
+  Dext.Persistence in 'Data\Dext.Persistence.pas',
+  Dext.Entity.Migrations in 'Data\Dext.Entity.Migrations.pas',
+  Dext.Entity.Migrations.Builder in 'Data\Dext.Entity.Migrations.Builder.pas',
+  Dext.Entity.Migrations.Differ in 'Data\Dext.Entity.Migrations.Differ.pas',
+  Dext.Entity.Migrations.Extractor in 'Data\Dext.Entity.Migrations.Extractor.pas',
+  Dext.Entity.Migrations.Generator in 'Data\Dext.Entity.Migrations.Generator.pas',
+  Dext.Entity.Migrations.Json in 'Data\Dext.Entity.Migrations.Json.pas',
+  Dext.Entity.Migrations.Model in 'Data\Dext.Entity.Migrations.Model.pas',
+  Dext.Entity.Migrations.Operations in 'Data\Dext.Entity.Migrations.Operations.pas',
+  Dext.Entity.Migrations.Runner in 'Data\Dext.Entity.Migrations.Runner.pas',
+  Dext.Entity.Migrations.Serializers.Json in 'Data\Dext.Entity.Migrations.Serializers.Json.pas',
+  Dext.Hosting.CLI in 'Hosting\Dext.Hosting.CLI.pas';
+
+end.

@@ -1,0 +1,82 @@
+package Dext.Core;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Dext Framework - Core & Infrastructure'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  dbrtl,
+  IndySystem,
+  IndyProtocols,
+  IndyCore;
+
+contains
+  Dext.Core.Activator in 'Core\Base\Dext.Core.Activator.pas',
+  Dext.Core.Memory in 'Core\Base\Dext.Core.Memory.pas',
+  Dext.Core.CancellationToken in 'Core\Base\Dext.Core.CancellationToken.pas',
+  Dext.Core.ValueConverters in 'Core\Base\Dext.Core.ValueConverters.pas',
+  Dext.Utils in 'Core\Base\Dext.Utils.pas',
+  Dext.Types.Nullable in 'Core\Base\Dext.Types.Nullable.pas',
+  Dext.Types.Lazy in 'Core\Base\Dext.Types.Lazy.pas',
+  Dext.Core.Extensions in 'Core\Base\Dext.Core.Extensions.pas',
+  Dext.Json.Driver.JsonDataObjects in 'Core\Json\Dext.Json.Driver.JsonDataObjects.pas',
+  Dext.Json.Driver.SystemJson in 'Core\Json\Dext.Json.Driver.SystemJson.pas',
+  JsonDataObjects in 'Core\Json\JsonDataObjects.pas',
+  Dext.Collections.Extensions in 'Core\Dext.Collections.Extensions.pas',
+  Dext.Collections in 'Core\Dext.Collections.pas',
+  Dext.Configuration.Binder in 'Core\Dext.Configuration.Binder.pas',
+  Dext.Configuration.Core in 'Core\Dext.Configuration.Core.pas',
+  Dext.Configuration.EnvironmentVariables in 'Core\Dext.Configuration.EnvironmentVariables.pas',
+  Dext.Configuration.Interfaces in 'Core\Dext.Configuration.Interfaces.pas',
+  Dext.Configuration.Json in 'Core\Dext.Configuration.Json.pas',
+  Dext.DI.Comparers in 'Core\Dext.DI.Comparers.pas',
+  Dext.DI.Core in 'Core\Dext.DI.Core.pas',
+  Dext.DI.Extensions in 'Core\Dext.DI.Extensions.pas',
+  Dext.DI.Interfaces in 'Core\Dext.DI.Interfaces.pas',
+  Dext.Hosting.BackgroundService in 'Core\Dext.Hosting.BackgroundService.pas',
+  Dext.Json in 'Core\Dext.Json.pas',
+  Dext.Json.Types in 'Core\Dext.Json.Types.pas',
+  Dext.Logging.Console in 'Core\Dext.Logging.Console.pas',
+  Dext.Logging.Extensions in 'Core\Dext.Logging.Extensions.pas',
+  Dext.Logging in 'Core\Dext.Logging.pas',
+  Dext.Options.Extensions in 'Core\Dext.Options.Extensions.pas',
+  Dext.Options in 'Core\Dext.Options.pas',
+  Dext in 'Core\Dext.pas',
+  Dext.Specifications.Base in 'Core\Dext.Specifications.Base.pas',
+  Dext.Specifications.Evaluator in 'Core\Dext.Specifications.Evaluator.pas',
+  Dext.Specifications.Expression in 'Core\Dext.Specifications.Expression.pas',
+  Dext.Specifications.Fluent in 'Core\Dext.Specifications.Fluent.pas',
+  Dext.Specifications.Interfaces in 'Core\Dext.Specifications.Interfaces.pas',
+  Dext.Specifications.OrderBy in 'Core\Dext.Specifications.OrderBy.pas',
+  Dext.Specifications.Types in 'Core\Dext.Specifications.Types.pas',
+  Dext.Threading.Async in 'Core\Dext.Threading.Async.pas',
+  Dext.Validation in 'Core\Dext.Validation.pas';
+
+end.
+

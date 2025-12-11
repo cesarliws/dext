@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,7 +33,8 @@ uses
   System.SysUtils,
   System.TypInfo,
   System.Rtti,
-  Dext.Specifications.Interfaces;
+  Dext.Specifications.Interfaces,
+  Dext.Specifications.Evaluator;
 
 type
   // Clean definition of IEnumerator<T> avoiding inheritance from System.Generics.Collections.IEnumerator
@@ -70,13 +71,13 @@ type
     property Count: Integer read GetCount;
     property Items[Index: Integer]: T read GetItem write SetItem; default;
 
-    // Functional Methods (LINQ-like)
+    // Functional Methods (LINQ-like) - Predicate based only
     function Where(const Predicate: TFunc<T, Boolean>): IList<T>; overload;
     function Where(const Expression: IExpression): IList<T>; overload;
 
     function First: T; overload;
     function First(const Expression: IExpression): T; overload;
-
+    
     function FirstOrDefault: T; overload;
     function FirstOrDefault(const DefaultValue: T): T; overload;
     function FirstOrDefault(const Expression: IExpression): T; overload;
@@ -108,7 +109,6 @@ type
     FList: System.Generics.Collections.TList<T>;
     FOwnsObjects: Boolean;
     procedure Notify(Sender: TObject; const Item: T; Action: TCollectionNotification);
-    function Evaluate(const Expression: IExpression; const Item: T): Boolean;
   protected
     function GetCount: Integer;
     function GetItem(Index: Integer): T;
@@ -160,9 +160,6 @@ type
 
 implementation
 
-uses
-  Dext.Specifications.Evaluator;
-
 { TSmartEnumerator<T> }
 
 constructor TSmartEnumerator<T>.Create(AList: System.Generics.Collections.TList<T>);
@@ -212,20 +209,6 @@ begin
   begin
     PObject(@Item).Free;
   end;
-end;
-
-function TSmartList<T>.Evaluate(const Expression: IExpression; const Item: T): Boolean;
-var
-  Obj: TObject;
-begin
-  // Only supported for classes
-  if PTypeInfo(TypeInfo(T)).Kind = tkClass then
-  begin
-    Obj := TObject(PPointer(@Item)^); // Safe cast for generic T constraint to class
-    Result := TExpressionEvaluator.Evaluate(Expression, Obj);
-  end
-  else
-    raise Exception.Create('Expression evaluation is only supported for class types.');
 end;
 
 function TSmartList<T>.GetCount: Integer;
@@ -338,10 +321,13 @@ var
 begin
   NewList := TSmartList<T>.Create(False);
   Result := NewList;
+  
+  if PTypeInfo(TypeInfo(T)).Kind <> tkClass then
+    raise Exception.Create('Expression evaluation is only supported for class types.');
 
   for Item in FList do
   begin
-    if Evaluate(Expression, Item) then
+    if TExpressionEvaluator.Evaluate(Expression, TObject(PPointer(@Item)^)) then
       NewList.Add(Item);
   end;
 end;
@@ -357,9 +343,12 @@ function TSmartList<T>.First(const Expression: IExpression): T;
 var
   Item: T;
 begin
+  if PTypeInfo(TypeInfo(T)).Kind <> tkClass then
+    raise Exception.Create('Expression evaluation is only supported for class types.');
+
   for Item in FList do
   begin
-    if Evaluate(Expression, Item) then
+    if TExpressionEvaluator.Evaluate(Expression, TObject(PPointer(@Item)^)) then
       Exit(Item);
   end;
   raise Exception.Create('Sequence contains no matching element');
@@ -385,9 +374,12 @@ function TSmartList<T>.FirstOrDefault(const Expression: IExpression): T;
 var
   Item: T;
 begin
+  if PTypeInfo(TypeInfo(T)).Kind <> tkClass then
+    raise Exception.Create('Expression evaluation is only supported for class types.');
+
   for Item in FList do
   begin
-    if Evaluate(Expression, Item) then
+    if TExpressionEvaluator.Evaluate(Expression, TObject(PPointer(@Item)^)) then
       Exit(Item);
   end;
   Result := Default(T);
@@ -409,10 +401,13 @@ function TSmartList<T>.Any(const Expression: IExpression): Boolean;
 var
   Item: T;
 begin
+  if PTypeInfo(TypeInfo(T)).Kind <> tkClass then
+    raise Exception.Create('Expression evaluation is only supported for class types.');
+
   Result := False;
   for Item in FList do
   begin
-    if Evaluate(Expression, Item) then
+    if TExpressionEvaluator.Evaluate(Expression, TObject(PPointer(@Item)^)) then
       Exit(True);
   end;
 end;
@@ -438,10 +433,13 @@ function TSmartList<T>.All(const Expression: IExpression): Boolean;
 var
   Item: T;
 begin
+  if PTypeInfo(TypeInfo(T)).Kind <> tkClass then
+    raise Exception.Create('Expression evaluation is only supported for class types.');
+
   Result := True;
   for Item in FList do
   begin
-    if not Evaluate(Expression, Item) then
+    if not TExpressionEvaluator.Evaluate(Expression, TObject(PPointer(@Item)^)) then
       Exit(False);
   end;
 end;
@@ -467,4 +465,3 @@ begin
 end;
 
 end.
-

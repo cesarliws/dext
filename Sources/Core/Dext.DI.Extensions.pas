@@ -31,8 +31,8 @@ uses
   System.Classes,
   System.SysUtils,
   System.TypInfo,
-  Dext.DI.Interfaces,
-  Dext.Core.ControllerScanner; // Needed for TControllerScanner
+  Dext.DI.Interfaces;
+
 
 type
   TServiceCollectionExtensions = class
@@ -61,10 +61,6 @@ type
       const ACollection: IServiceCollection;
       const AFactory: TFunc<IServiceProvider, TObject> = nil): IServiceCollection; overload; static;
 
-    /// <summary>
-    ///   Scans and registers all controllers in the application.
-    /// </summary>
-    class function AddControllers(const ACollection: IServiceCollection): IServiceCollection; static;
   end;
 
   TServiceProviderExtensions = class
@@ -140,18 +136,7 @@ begin
     TServiceType.FromInterface(Guid), TImplementation, AFactory);
 end;
 
-class function TServiceCollectionExtensions.AddControllers(
-  const ACollection: IServiceCollection): IServiceCollection;
-var
-  Scanner: IControllerScanner;
-begin
-  // Create a temporary scanner to find and register controllers
-  // Note: We pass nil as ServiceProvider because we are only scanning types here, 
-  // not resolving them yet.
-  Scanner := TControllerScanner.Create;
-  Scanner.RegisterServices(ACollection);
-  Result := ACollection;
-end;
+
 
 // Para classes
 class function TServiceProviderExtensions.GetServiceObject<T>(

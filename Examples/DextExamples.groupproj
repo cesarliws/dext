@@ -1,0 +1,192 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{76495034-FAB8-4228-B590-3A2F45312388}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Core.TestConfig\Core.TestConfig.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Orm.EntityDemo\Orm.EntityDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Orm.EntityDemo\Orm.SimpleTest.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Orm.TestDbSet\Orm.TestDbSet.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Orm.Specification\Orm.SpecificationDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.ControllerExample\Web.ControllerExample.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.CachingDemo\Web.CachingDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.DextStore\Web.DextStore.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.SwaggerExample\Web.SwaggerExample.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.MinimalAPI\Web.MinimalAPIExample.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.RateLimitDemo\Web.RateLimitDemo.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Web.FrameworkTests\Web.FrameworkTests.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Core_TestConfig">
+        <MSBuild Projects="Core.TestConfig\Core.TestConfig.dproj"/>
+    </Target>
+    <Target Name="Core_TestConfig:Clean">
+        <MSBuild Projects="Core.TestConfig\Core.TestConfig.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Core_TestConfig:Make">
+        <MSBuild Projects="Core.TestConfig\Core.TestConfig.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Orm_EntityDemo">
+        <MSBuild Projects="Orm.EntityDemo\Orm.EntityDemo.dproj"/>
+    </Target>
+    <Target Name="Orm_EntityDemo:Clean">
+        <MSBuild Projects="Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Orm_EntityDemo:Make">
+        <MSBuild Projects="Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Orm_SimpleTest">
+        <MSBuild Projects="Orm.EntityDemo\Orm.SimpleTest.dproj"/>
+    </Target>
+    <Target Name="Orm_SimpleTest:Clean">
+        <MSBuild Projects="Orm.EntityDemo\Orm.SimpleTest.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Orm_SimpleTest:Make">
+        <MSBuild Projects="Orm.EntityDemo\Orm.SimpleTest.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Orm_TestDbSet">
+        <MSBuild Projects="Orm.TestDbSet\Orm.TestDbSet.dproj"/>
+    </Target>
+    <Target Name="Orm_TestDbSet:Clean">
+        <MSBuild Projects="Orm.TestDbSet\Orm.TestDbSet.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Orm_TestDbSet:Make">
+        <MSBuild Projects="Orm.TestDbSet\Orm.TestDbSet.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Orm_SpecificationDemo">
+        <MSBuild Projects="Orm.Specification\Orm.SpecificationDemo.dproj"/>
+    </Target>
+    <Target Name="Orm_SpecificationDemo:Clean">
+        <MSBuild Projects="Orm.Specification\Orm.SpecificationDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Orm_SpecificationDemo:Make">
+        <MSBuild Projects="Orm.Specification\Orm.SpecificationDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_ControllerExample">
+        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.dproj"/>
+    </Target>
+    <Target Name="Web_ControllerExample:Clean">
+        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_ControllerExample:Make">
+        <MSBuild Projects="Web.ControllerExample\Web.ControllerExample.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_CachingDemo">
+        <MSBuild Projects="Web.CachingDemo\Web.CachingDemo.dproj"/>
+    </Target>
+    <Target Name="Web_CachingDemo:Clean">
+        <MSBuild Projects="Web.CachingDemo\Web.CachingDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_CachingDemo:Make">
+        <MSBuild Projects="Web.CachingDemo\Web.CachingDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_DextStore">
+        <MSBuild Projects="Web.DextStore\Web.DextStore.dproj"/>
+    </Target>
+    <Target Name="Web_DextStore:Clean">
+        <MSBuild Projects="Web.DextStore\Web.DextStore.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_DextStore:Make">
+        <MSBuild Projects="Web.DextStore\Web.DextStore.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_SwaggerExample">
+        <MSBuild Projects="Web.SwaggerExample\Web.SwaggerExample.dproj"/>
+    </Target>
+    <Target Name="Web_SwaggerExample:Clean">
+        <MSBuild Projects="Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_SwaggerExample:Make">
+        <MSBuild Projects="Web.SwaggerExample\Web.SwaggerExample.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_JwtAuthDemo">
+        <MSBuild Projects="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj"/>
+    </Target>
+    <Target Name="Web_JwtAuthDemo:Clean">
+        <MSBuild Projects="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_JwtAuthDemo:Make">
+        <MSBuild Projects="Web.JwtAuthDemo\Web.JwtAuthDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_MinimalAPIExample">
+        <MSBuild Projects="Web.MinimalAPI\Web.MinimalAPIExample.dproj"/>
+    </Target>
+    <Target Name="Web_MinimalAPIExample:Clean">
+        <MSBuild Projects="Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_MinimalAPIExample:Make">
+        <MSBuild Projects="Web.MinimalAPI\Web.MinimalAPIExample.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_RateLimitDemo">
+        <MSBuild Projects="Web.RateLimitDemo\Web.RateLimitDemo.dproj"/>
+    </Target>
+    <Target Name="Web_RateLimitDemo:Clean">
+        <MSBuild Projects="Web.RateLimitDemo\Web.RateLimitDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_RateLimitDemo:Make">
+        <MSBuild Projects="Web.RateLimitDemo\Web.RateLimitDemo.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_TaskFlowAPI">
+        <MSBuild Projects="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj"/>
+    </Target>
+    <Target Name="Web_TaskFlowAPI:Clean">
+        <MSBuild Projects="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_TaskFlowAPI:Make">
+        <MSBuild Projects="Web.TaskFlowAPI\Web.TaskFlowAPI.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Web_FrameworkTests">
+        <MSBuild Projects="Web.FrameworkTests\Web.FrameworkTests.dproj"/>
+    </Target>
+    <Target Name="Web_FrameworkTests:Clean">
+        <MSBuild Projects="Web.FrameworkTests\Web.FrameworkTests.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_FrameworkTests:Make">
+        <MSBuild Projects="Web.FrameworkTests\Web.FrameworkTests.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Core_TestConfig;Orm_EntityDemo;Orm_SimpleTest;Orm_TestDbSet;Orm_SpecificationDemo;Web_ControllerExample;Web_CachingDemo;Web_DextStore;Web_SwaggerExample;Web_JwtAuthDemo;Web_MinimalAPIExample;Web_RateLimitDemo;Web_TaskFlowAPI;Web_FrameworkTests"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Core_TestConfig:Clean;Orm_EntityDemo:Clean;Orm_SimpleTest:Clean;Orm_TestDbSet:Clean;Orm_SpecificationDemo:Clean;Web_ControllerExample:Clean;Web_CachingDemo:Clean;Web_DextStore:Clean;Web_SwaggerExample:Clean;Web_JwtAuthDemo:Clean;Web_MinimalAPIExample:Clean;Web_RateLimitDemo:Clean;Web_TaskFlowAPI:Clean;Web_FrameworkTests:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Core_TestConfig:Make;Orm_EntityDemo:Make;Orm_SimpleTest:Make;Orm_TestDbSet:Make;Orm_SpecificationDemo:Make;Web_ControllerExample:Make;Web_CachingDemo:Make;Web_DextStore:Make;Web_SwaggerExample:Make;Web_JwtAuthDemo:Make;Web_MinimalAPIExample:Make;Web_RateLimitDemo:Make;Web_TaskFlowAPI:Make;Web_FrameworkTests:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

@@ -1,5 +1,5 @@
 __history
-__local
+
 __recovery
 *.bat
 *.db
@@ -12,3 +12,4 @@ __recovery
 *.map
 Win32
 Win64
+

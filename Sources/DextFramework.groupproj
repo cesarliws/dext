@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{6AA0A906-18D1-4DB7-B4E5-8CE0AB267630}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Dext.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.Http.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.Data.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Dext_Core">
+        <MSBuild Projects="Dext.Core.dproj"/>
+    </Target>
+    <Target Name="Dext_Core:Clean">
+        <MSBuild Projects="Dext.Core.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Core:Make">
+        <MSBuild Projects="Dext.Core.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_Http">
+        <MSBuild Projects="Dext.Http.dproj"/>
+    </Target>
+    <Target Name="Dext_Http:Clean">
+        <MSBuild Projects="Dext.Http.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Http:Make">
+        <MSBuild Projects="Dext.Http.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_Data">
+        <MSBuild Projects="Dext.Data.dproj"/>
+    </Target>
+    <Target Name="Dext_Data:Clean">
+        <MSBuild Projects="Dext.Data.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Data:Make">
+        <MSBuild Projects="Dext.Data.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Dext_Core;Dext_Http;Dext_Data"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Dext_Core:Clean;Dext_Http:Clean;Dext_Data:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Dext_Core:Make;Dext_Http:Make;Dext_Data:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

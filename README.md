@@ -31,10 +31,12 @@ A lightweight and powerful HTTP framework for building REST APIs and microservic
 - **Controllers**: Traditional class-based support for complex APIs.
 - **Smart Binding**: Automatic JSON serialization and validation for Records/Classes.
 - **Middlewares**: Modular and extensible request pipeline.
+- **OpenAPI**: Native Swagger integration with auto-generated documentation.
 
 ### 🗄️ Dext.Entity (ORM)
 A modern ORM focused on productivity and performance.
 - **Code-First**: Define your database using Delphi classes.
+- **Scaffolding**: Database-First support to generate entities from existing schemas.
 - **Migrations**: Database schema version control via CLI.
 - **Fluent Query API**: Strongly typed and expressive queries.
 - **Change Tracking**: Automatic change tracking and optimized persistence.
@@ -46,34 +48,31 @@ The foundation of the framework, usable in any type of application.
 - **Configuration**: Flexible configuration system (JSON, Environment Variables).
 - **Logging**: Structured logging abstraction.
 - **Async/Await**: Primitives for real asynchronous programming.
+- **Collections**: Advanced generic collections with functional extensions.
+- **Specifications**: Business rule encapsulation and composition (DDD).
+- **Expressions**: Expression tree primitives for dynamic logic evaluation.
 
 ---
 
 ## 📚 Documentation Index
 
 ### 🚀 Getting Started
-- [Framework Overview](Docs/Dext%20Web%20Framework.md)
-- [Project Structure](Docs/Project%20Dext.md)
-- [Minimal API - Quick Guide](Docs/Dext%20Minimal%20API.md)
+
 
 ### 🌐 Web API
 - **Routing & Endpoints**
   - [Minimal API](Docs/MinimalAPI.md)
-  - [Controllers](Docs/CONTROLLERS_IMPLEMENTATION.md)
-  - [Model Binding](Docs/Dext%20Model%20Binding.md)
   - [Validation](Docs/ModelBinding.md) # (Includes validation)
 - **Security & Middleware**
   - [JWT Authentication](Docs/JWT-Authentication.md)
   - [CORS](Docs/CORS.md)
   - [Rate Limiting](Docs/Rate-Limiting.md)
-  - [Middlewares](Docs/Dext%20-%20Middlewares.md)
 - **Advanced**
   - [Background Services](Docs/BackgroundServices.md)
   - [Action Filters](Docs/ActionFilters.md)
   - [Swagger / OpenAPI](Docs/SWAGGER.md)
 
 ### 🗄️ Data Access (ORM)
-- [Comparison & Features](Docs/ORM_COMPARISON_2024.md)
 - [Database Configuration](Docs/DATABASE_CONFIG.md)
 - [Fluent Query API](Docs/FLUENT_QUERY_API.md)
 - [Migrations](Docs/MIGRATIONS_GUIDE.md)
@@ -101,13 +100,19 @@ The foundation of the framework, usable in any type of application.
    git clone https://github.com/dext-framework/dext.git
    ```
 
-   > 📦 **Package Note**: The project is currently distributed as monolithic source code to facilitate v1.0 development. In the future, it will be modularized into specific Delphi packages (`.bpl`/`.dcp`) (e.g., `Dext.Core`, `Dext.Web`, `Dext.Entity`) to optimize compilation and distribution.
+   > 📦 **Package Note**: The project is organized into modular packages located in the `Sources` directory (e.g., `Dext.Core.dpk`, `Dext.Web.dpk`, `Dext.Entity.dpk`). You can open `Sources/DextFramework.groupproj` to load all packages at once.
 
-2. **Configure Library Path in Delphi:**
-   Add the following paths to your project or IDE:
+2. **Configure Paths in Delphi:**
+   Add the following paths to your **Library Path** (for compilation) and **Browsing Path** (for code navigation):
    - `\Sources\Core`
-   - `\Sources\Core\Drivers`
-   - `\Sources\Entity` (if using the ORM)
+   - `\Sources\Data`
+   - `\Sources\Expressions`
+   - `\Sources\Hosting`
+   - `\Sources\Http`
+   - `\Sources\Testing`
+
+   > 📝 **Note**: Compiled files (`.dcu`, binaries) will be generated in the `.\Output` directory.
+
 
 3. **Dependencies:**
    - The framework uses `FastMM5` (recommended for memory debugging).
@@ -244,9 +249,18 @@ TAsyncTask.Run<TReport>(
 
 The repository contains practical example projects:
 
-- **`Examples/TaskFlowAPI`**: A complete REST API demonstrating layered architecture, ORM, Auth, and DI.
-- **`Examples/EntityDemo`**: Demo focused on ORM features (CRUD, Migrations).
-- **`Examples/WebFrameworkTests`**: Integration and stability test suite.
+- **`Examples/Orm.EntityDemo`**: Comprehensive demo focused on ORM features (CRUD, Migrations, Querying).
+- **`Examples/Web.ControllerExample`**: Demonstrates Controller-based API implementation (includes a minimal **Vite** frontend client).
+- **`Examples/Web.SwaggerExample`**: Shows how to integrate and customize OpenAPI/Swagger documentation.
+- **`Examples/Web.TaskFlowAPI`**: A complete "Real World" REST API demonstrating layered architecture, ORM, Auth, and DI.
+
+
+---
+
+## 🔮 Coming Soon
+
+- **Advanced Testing Framework**: Pure Delphi testing framework focused on modern patterns (TDD/BDD).
+- **Documentation**: Complete revision and bilingual support (English/Portuguese) for all modules.
 
 ---
 
