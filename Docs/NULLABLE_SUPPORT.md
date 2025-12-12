@@ -13,7 +13,7 @@ Dext ORM provides **full support** for `Nullable<T>` types in entity properties,
 - ✅ `Nullable<TDateTime>`
 - ✅ `Nullable<Double>`
 - ✅ `Nullable<Boolean>`
-- ✅ Any `Nullable<T>` compatible with **Spring4D** or **Delphi native** implementations
+- ✅ Any `Nullable<T>` compatible with **Spring4D** or future **Delphi native** implementations
 
 ## Usage
 
@@ -146,7 +146,6 @@ When loading references with `Nullable<T>` foreign keys:
 The implementation supports **both**:
 
 - **Spring4D Nullable**: Uses `fHasValue: string` (empty = null)
-- **Delphi Native Nullable**: Uses `fHasValue: Boolean`
 
 The ORM automatically detects which implementation you're using and handles it correctly.
 

@@ -6,7 +6,7 @@ uses
   System.SysUtils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
   Dext.Core.ApplicationBuilder.Extensions,
   Dext.Core.HandlerInvoker;

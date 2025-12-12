@@ -4,16 +4,16 @@ uses
   FastMM5,
   Dext.Core.WebApplication,
   Dext.DI.Extensions,
-  Dext.Core.Routing,
-  Dext.Core.ModelBinding,
-  Dext.Http.Interfaces,
+  Dext.Web.Routing.Attributes,
+  Dext.Web.ModelBinding,
+  Dext.Web.Interfaces,
   TaskFlow.Domain,
   TaskFlow.Repository.Interfaces,
   TaskFlow.Repository.Mock,
   TaskFlow.Handlers.Tasks,
-  Dext.Core.HandlerInvoker,
+  Dext.Web.HandlerInvoker,
   Dext.Core.ApplicationBuilder.Extensions, // ✅ Extensões genéricas
-  Dext.Http.Results, // ✅ Helpers de Resultado
+  Dext.Web.Results, // ✅ Helpers de Resultado
   System.SysUtils;
 
 type
@@ -172,3 +172,4 @@ begin
     end;
   end;
 end.
+

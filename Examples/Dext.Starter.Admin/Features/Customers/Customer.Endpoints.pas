@@ -3,12 +3,8 @@ unit Customer.Endpoints;
 interface
 
 uses
-  Dext.Core.WebApplication,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
-  Dext.Http.Routing,
-  Dext.DI.Interfaces,
-  Dext.DI.Extensions,
+  Dext,
+  Dext.Web,
   Dext.Collections,
   Dext.Persistence,
   DbContext,

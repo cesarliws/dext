@@ -7,18 +7,9 @@
 uses
   FastMM5,
   System.SysUtils,
-  FireDAC.DApt,  // Required for FireDAC object factory
   Dext,
+  Dext.Web,
   Dext.Utils,
-  Dext.Core.WebApplication,
-  Dext.Configuration.Interfaces,
-  Dext.Configuration.Core,
-  Dext.Http.Interfaces,
-  Dext.DI.Interfaces, 
-  Dext.Auth.JWT,
-  Dext.Auth.Identity,
-  Dext.Auth.Middleware,
-  Dext.Core.ApplicationBuilder.Extensions,
   AppStartup in 'AppStartup.pas',
   
   // Features

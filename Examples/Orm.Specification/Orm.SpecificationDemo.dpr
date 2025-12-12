@@ -6,9 +6,9 @@ uses
   System.SysUtils,
   System.Rtti,
   System.Generics.Collections,
+  Dext,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Types,
-  Dext.Specifications.Expression,
   Dext.Specifications.Base,
   Dext.Specifications.SQL.Generator,
   Dext.Entity.Dialects;

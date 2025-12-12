@@ -3,15 +3,8 @@ unit Auth.Endpoints;
 interface
 
 uses
-  Dext.Core.WebApplication,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
-  Dext.Http.Routing,
-  Dext.DI.Interfaces,
-  Dext.DI.Extensions, // Added for GetRequiredService
-  Dext.Auth.JWT,
-  Dext.Auth.Identity,
-  Dext.Json,
+  Dext,
+  Dext.Web,
   Auth.Service,
   User, // Added for TUser
   System.Classes, // Added for TStreamReader

@@ -6,7 +6,7 @@ uses
   FastMM5,
   System.SysUtils,
   Dext,
-  Dext.Http,
+  Dext.Web,
   DextStore.Models in 'DextStore.Models.pas',
   DextStore.Services in 'DextStore.Services.pas',
   DextStore.Controllers in 'DextStore.Controllers.pas';

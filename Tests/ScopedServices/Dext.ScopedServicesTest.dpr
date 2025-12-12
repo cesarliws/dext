@@ -7,10 +7,10 @@ uses
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
   Dext.DI.Middleware,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
   Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Http.Results;
+  Dext.Web.Results;
 
 type
   // Interface for a request-scoped service

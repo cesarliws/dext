@@ -23,8 +23,8 @@ uses
   Dext.DI.Core,
   Dext.DI.Extensions,
   Dext.DI.Interfaces,
-  Dext.Http.Interfaces,
-  Dext.Http.Mocks;
+  Dext.Web.Interfaces,
+  Dext.Web.Mocks;
 
 // ✅ PROCEDURE AUXILIAR PARA CRIAR MOCK CONTEXT
 function CreateMockHttpContext(const AQueryString: string): IHttpContext;

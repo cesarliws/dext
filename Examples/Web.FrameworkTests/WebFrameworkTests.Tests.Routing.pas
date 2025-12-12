@@ -1,4 +1,4 @@
-unit WebFrameworkTests.Tests.Routing;
+﻿unit WebFrameworkTests.Tests.Routing;
 
 interface
 
@@ -6,9 +6,9 @@ uses
   System.SysUtils,
   System.Classes,
   Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Core.HandlerInvoker, // Added for THandlerProc/Func types
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
+  Dext.Web.HandlerInvoker, // Added for THandlerProc/Func types
+  Dext.Web.Interfaces,
+  Dext.Web.Results,
   WebFrameworkTests.Tests.Base;
 
 type
@@ -91,3 +91,4 @@ begin
 end;
 
 end.
+

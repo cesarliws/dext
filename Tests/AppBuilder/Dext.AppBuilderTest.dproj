@@ -176,7 +176,7 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="..\Common\Dext.Http.Mocks.pas"/>
+        <DCCReference Include="..\Common\Dext.Web.Mocks.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

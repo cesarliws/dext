@@ -152,7 +152,6 @@
         <DCCReference Include="Core\Dext.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Base.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Evaluator.pas"/>
-        <DCCReference Include="Core\Dext.Specifications.Expression.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Fluent.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Interfaces.pas"/>
         <DCCReference Include="Core\Dext.Specifications.OrderBy.pas"/>

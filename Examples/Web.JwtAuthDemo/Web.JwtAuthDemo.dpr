@@ -9,14 +9,14 @@ uses
   System.Rtti,
   Dext.Core.WebApplication,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Http.Results,
+  Dext.Web.Results,
   Dext.Auth.JWT,
   Dext.Auth.Identity,
   Dext.Auth.Middleware,
   Dext.Auth.Attributes,
-  Dext.Core.HandlerInvoker;
+  Dext.Web.HandlerInvoker;
 
 type
   // DTO para login
@@ -211,3 +211,4 @@ begin
     end;
   end;
 end.
+

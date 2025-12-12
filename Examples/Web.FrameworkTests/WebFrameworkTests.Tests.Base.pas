@@ -7,7 +7,7 @@ uses
   System.Classes,
   Dext.WebHost,
   Dext.DI.Interfaces,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   System.Net.HttpClient;
 
 type

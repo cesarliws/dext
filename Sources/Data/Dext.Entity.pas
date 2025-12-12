@@ -42,7 +42,7 @@ uses
   Dext.Entity.Attributes,
   Dext.Entity.LazyLoading,
   Dext.Specifications.Interfaces,
-  Dext.Specifications.Expression,
+  Dext,
   Dext.Specifications.Types;
 
 type

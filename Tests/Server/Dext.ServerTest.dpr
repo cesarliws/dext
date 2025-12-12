@@ -7,9 +7,9 @@ uses
  Dext.Utils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
-  Dext.Http.Middleware,
+  Dext.Web.Middleware,
   Dext.Logging,
   Dext.Logging.Console;
 

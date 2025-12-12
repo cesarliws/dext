@@ -7,8 +7,8 @@ uses
   System.SysUtils,
   Dext.Core.WebApplication,
   Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
+  Dext.Web.Interfaces,
+  Dext.Web.Results,
   Dext.Caching;
 
 var

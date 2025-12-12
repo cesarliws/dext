@@ -7,7 +7,7 @@ uses
   System.SysUtils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
   Dext.Core.ApplicationBuilder.Extensions,
   Dext.Swagger.Middleware,
@@ -15,7 +15,7 @@ uses
   Dext.OpenAPI.Extensions,
   Dext.OpenAPI.Generator,
   Dext.OpenAPI.Types,
-  Dext.Http.Results,
+  Dext.Web.Results,
   Dext.Json;
 
 type

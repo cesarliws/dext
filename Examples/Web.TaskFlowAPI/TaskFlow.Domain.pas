@@ -5,7 +5,7 @@ interface
 uses
   System.DateUtils,
   System.SysUtils,
-  Dext.Core.ModelBinding;
+  Dext.Web.ModelBinding;
 
 type
   // ===========================================================================
@@ -502,3 +502,4 @@ begin
 end;
 
 end.
+

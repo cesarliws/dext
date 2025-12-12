@@ -8,11 +8,11 @@ uses
   Dext.Core.WebApplication,
   Dext,
   Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
+  Dext.Web.Interfaces,
+  Dext.Web.Results,
   Dext.RateLimiting,
   Dext.RateLimiting.Policy,
-  Dext.Core.HandlerInvoker;
+  Dext.Web.HandlerInvoker;
 
 var
   App: IWebApplication;
@@ -99,3 +99,4 @@ begin
     end;
   end;
 end.
+

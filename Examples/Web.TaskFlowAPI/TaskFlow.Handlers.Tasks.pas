@@ -7,9 +7,9 @@ uses
   System.JSON,
   System.Generics.Collections,
   System.Rtti,
-  Dext.Core.ModelBinding,      // ✅ Para [FromQuery], [FromRoute], [FromBody]
+  Dext.Web.ModelBinding,      // ✅ Para [FromQuery], [FromRoute], [FromBody]
   Dext.DI.Interfaces,          // ✅ Para [FromServices]
-  Dext.Core.Routing,           // ✅ NOVA UNIT - Nossos atributos customizados
+  Dext.Web.Routing.Attributes,           // ✅ NOVA UNIT - Nossos atributos customizados
   TaskFlow.Domain,
   TaskFlow.Repository.Interfaces;
 
@@ -651,3 +651,4 @@ begin
 end;
 
 end.
+

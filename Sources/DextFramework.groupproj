@@ -6,10 +6,10 @@
         <Projects Include="Dext.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Dext.Http.dproj">
+        <Projects Include="Dext.Data.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Dext.Data.dproj">
+        <Projects Include="Dext.Web.Core.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -29,15 +29,6 @@
     <Target Name="Dext_Core:Make">
         <MSBuild Projects="Dext.Core.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Dext_Http">
-        <MSBuild Projects="Dext.Http.dproj"/>
-    </Target>
-    <Target Name="Dext_Http:Clean">
-        <MSBuild Projects="Dext.Http.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Dext_Http:Make">
-        <MSBuild Projects="Dext.Http.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Dext_Data">
         <MSBuild Projects="Dext.Data.dproj"/>
     </Target>
@@ -47,14 +38,23 @@
     <Target Name="Dext_Data:Make">
         <MSBuild Projects="Dext.Data.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Dext_Web_Core">
+        <MSBuild Projects="Dext.Web.Core.dproj"/>
+    </Target>
+    <Target Name="Dext_Web_Core:Clean">
+        <MSBuild Projects="Dext.Web.Core.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Web_Core:Make">
+        <MSBuild Projects="Dext.Web.Core.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_Http;Dext_Data"/>
+        <CallTarget Targets="Dext_Core;Dext_Data;Dext_Web_Core"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_Http:Clean;Dext_Data:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_Data:Clean;Dext_Web_Core:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_Http:Make;Dext_Data:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_Data:Make;Dext_Web_Core:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

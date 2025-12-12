@@ -14,8 +14,8 @@ uses
   System.Classes,
   System.SysUtils,
   Dext, // ✅ All-in-one framework unit
-  Dext.Http,
-  Dext.Http.Results,
+  Dext.Web,
+  Dext.Web.Results,
   Dext.Options, // Needed for IOptions<T>
   ControllerExample.Services; // For TMySettings
 

@@ -8,7 +8,7 @@ uses
   System.SyncObjs,
   System.Threading,
   Dext,
-  Dext.Http; // ✅ All-in-one framework unit
+  Dext.Web; // ✅ All-in-one framework unit
 
 type
   // Settings Class for IOptions<T>

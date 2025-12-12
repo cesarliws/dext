@@ -3,13 +3,8 @@ unit Dashboard.Endpoints;
 interface
 
 uses
-  Dext.Core.WebApplication,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
-  Dext.Http.Routing,
-  Dext.DI.Interfaces,
-  Dext.DI.Extensions, // Added for GetRequiredService
-  Dext.Collections, // Added for IList<T>
+  Dext,
+  Dext.Web,
   Dext.Persistence,
   DbContext,
   Customer, Order, // Feature units

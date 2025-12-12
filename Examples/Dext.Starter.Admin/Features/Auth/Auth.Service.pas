@@ -3,11 +3,9 @@ unit Auth.Service;
 interface
 
 uses
-  Dext.DI.Interfaces, 
+  Dext,
+  Dext.Persistence,
   DbContext,
-  Dext.Persistence, 
-  Dext.Specifications.Expression, // Needed for 'Prop'
-  Dext.Specifications.Types,      // Needed for Operators
   User,
   System.SysUtils;
 

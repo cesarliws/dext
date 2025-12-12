@@ -7,16 +7,16 @@ uses
   Dext.Utils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
-  Dext.Http.Middleware,
-  Dext.Http.Cors,
+  Dext.Web.Middleware,
+  Dext.Web.Cors,
   Dext.Logging,
   Dext.Logging.Console,
   Dext.ServerTest.Cors.Consts in 'Dext.ServerTest.Cors.Consts.pas',
   Dext.Json.Test in 'Dext.Json.Test.pas',
   Dext.ModelBinding.Tests in 'Dext.ModelBinding.Tests.pas',
-  Dext.Http.Mocks in '..\Common\Dext.Http.Mocks.pas';
+  Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas';
 
 {$APPTYPE CONSOLE}
 

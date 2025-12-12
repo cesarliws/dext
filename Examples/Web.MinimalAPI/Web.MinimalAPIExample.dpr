@@ -12,7 +12,7 @@ uses
   Dext.WebHost,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces;
+  Dext.Web.Interfaces;
 
 type
   ISomeService = interface

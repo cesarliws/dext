@@ -3,10 +3,7 @@ unit Settings.Endpoints;
 interface
 
 uses
-  Dext.Core.WebApplication,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
-  Dext.Http.Routing,
+  Dext.Web,
   System.Classes,
   System.NetEncoding,
   System.IOUtils,

@@ -7,9 +7,9 @@ uses
   System.SysUtils,
   System.Rtti,
   Dext,
-  Dext.Http,
+  Dext.Web,
   Dext.Utils,
-  Dext.Http.Middleware.Logging, // Added logging middleware
+  Dext.Web.Middleware.Logging, // Added logging middleware
   ControllerExample.Controller in 'ControllerExample.Controller.pas',
   ControllerExample.Services in 'ControllerExample.Services.pas';
 
