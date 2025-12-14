@@ -111,6 +111,9 @@ type
     
     class function Json(const AJson: string; AStatusCode: Integer = 200): IResult;
     class function Text(const AContent: string; AStatusCode: Integer = 200): IResult;
+    class function Html(const AHtml: string; AStatusCode: Integer = 200): IResult; // Added
+    class function Content(const AContent: string; const AContentType: string; AStatusCode: Integer = 200): IResult; // Added
+
     class function StatusCode(ACode: Integer): IResult; overload;
     class function StatusCode(ACode: Integer; const AContent: string): IResult; overload;
   end;
@@ -310,6 +313,16 @@ end;
 class function Results.Text(const AContent: string; AStatusCode: Integer): IResult;
 begin
   Result := TContentResult.Create(AContent, 'text/plain', AStatusCode);
+end;
+
+class function Results.Html(const AHtml: string; AStatusCode: Integer = 200): IResult;
+begin
+  Result := TContentResult.Create(AHtml, 'text/html', AStatusCode);
+end;
+
+class function Results.Content(const AContent: string; const AContentType: string; AStatusCode: Integer = 200): IResult;
+begin
+  Result := TContentResult.Create(AContent, AContentType, AStatusCode);
 end;
 
 class function Results.StatusCode(ACode: Integer): IResult;

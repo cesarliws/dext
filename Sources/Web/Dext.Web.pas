@@ -462,17 +462,10 @@ type
     /// <summary>
     ///   Maps a POST request to a handler that returns a result.
     /// </summary>
-    function MapPostR<TResult>(const Path: string; Handler: THandlerFunc<TResult>): TDextAppBuilder; overload;
-    
-    /// <summary>
-    ///   Maps a POST request to a handler with 1 parameter that returns a result.
-    /// </summary>
-    function MapPostR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder; overload;
-    
-    /// <summary>
-    ///   Maps a POST request to a handler with 2 parameters that returns a result.
-    /// </summary>
-    function MapPostR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapPost<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TDextAppBuilder; overload;
+    function MapPost<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder; overload;
+    function MapPost<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapPost<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 🛣️ Routing - GET
@@ -496,17 +489,22 @@ type
     /// <summary>
     ///   Maps a GET request to a handler that returns a result.
     /// </summary>
-    function MapGetR<TResult>(const Path: string; Handler: THandlerFunc<TResult>): TDextAppBuilder; overload;
+    function MapGet<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TDextAppBuilder; overload;
     
     /// <summary>
     ///   Maps a GET request to a handler with 1 parameter that returns a result.
     /// </summary>
-    function MapGetR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder; overload;
+    function MapGet<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder; overload;
     
     /// <summary>
     ///   Maps a GET request to a handler with 2 parameters that returns a result.
     /// </summary>
-    function MapGetR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapGet<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    
+    /// <summary>
+    ///   Maps a GET request to a handler with 3 parameters that returns a result.
+    /// </summary>
+    function MapGet<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 🛣️ Routing - PUT
@@ -515,8 +513,9 @@ type
     function MapPut<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TDextAppBuilder; overload;
     function MapPut<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TDextAppBuilder; overload;
 
-    function MapPutR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder; overload;
-    function MapPutR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapPut<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder; overload;
+    function MapPut<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapPut<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 🛣️ Routing - DELETE
@@ -525,8 +524,9 @@ type
     function MapDelete<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TDextAppBuilder; overload;
     function MapDelete<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TDextAppBuilder; overload;
 
-    function MapDeleteR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder; overload;
-    function MapDeleteR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapDelete<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder; overload;
+    function MapDelete<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder; overload;
+    function MapDelete<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
   end;
 
 implementation
@@ -678,21 +678,27 @@ begin
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapPostR<TResult>(const Path: string; Handler: THandlerFunc<TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapPost<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapPostR<TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapPost<TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapPostR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapPost<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapPostR<T, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapPost<T, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapPostR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapPost<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapPostR<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapPost<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function TDextHttpAppBuilderHelper.MapPost<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder;
+begin
+  TApplicationBuilderExtensions.MapPost<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
@@ -714,21 +720,27 @@ begin
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapGetR<TResult>(const Path: string; Handler: THandlerFunc<TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapGet<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapGetR<TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapGet<TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapGetR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapGet<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapGetR<T, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapGet<T, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapGetR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapGet<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapGetR<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapGet<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function TDextHttpAppBuilderHelper.MapGet<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder;
+begin
+  TApplicationBuilderExtensions.MapGet<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
@@ -750,15 +762,21 @@ begin
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapPutR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapPut<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapPutR<T, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapPut<T, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapPutR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapPut<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapPutR<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapPut<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function TDextHttpAppBuilderHelper.MapPut<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder;
+begin
+  TApplicationBuilderExtensions.MapPut<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
@@ -780,15 +798,21 @@ begin
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapDeleteR<T, TResult>(const Path: string; Handler: THandlerFunc<T, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapDelete<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapDeleteR<T, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapDelete<T, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 
-function TDextHttpAppBuilderHelper.MapDeleteR<T1, T2, TResult>(const Path: string; Handler: THandlerFunc<T1, T2, TResult>): TDextAppBuilder;
+function TDextHttpAppBuilderHelper.MapDelete<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TDextAppBuilder;
 begin
-  TApplicationBuilderExtensions.MapDeleteR<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  TApplicationBuilderExtensions.MapDelete<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function TDextHttpAppBuilderHelper.MapDelete<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder;
+begin
+  TApplicationBuilderExtensions.MapDelete<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 

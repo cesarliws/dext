@@ -5,18 +5,18 @@ interface
 uses
   Dext,
   Dext.Web,
+  Dext.Web.Results, // Added for Results helper
   Dext.Persistence,
   DbContext,
   Customer, Order, // Feature units
-  System.IOUtils, // Added for TFile
+  Admin.Utils, // Shared
+  System.IOUtils, 
   System.SysUtils;
 
 type
   TDashboardEndpoints = class
   public
     class procedure Map(App: TDextAppBuilder);
-  private
-    class function CheckAuth(Context: IHttpContext): Boolean;
   end;
 
 implementation
@@ -24,23 +24,7 @@ implementation
 uses
   AppResponseConsts;
 
-function GetFilePath(const RelativePath: string): string;
-begin
-  // Executable runs from Output\ directory, files are in Dext.Starter.Admin\
-  Result := IncludeTrailingPathDelimiter(GetCurrentDir) + '..\Dext.Starter.Admin\' + RelativePath;
-end;
-
 { TDashboardEndpoints }
-
-class function TDashboardEndpoints.CheckAuth(Context: IHttpContext): Boolean;
-begin
-  Result := (Context.User <> nil) and 
-            (Context.User.Identity <> nil) and 
-            (Context.User.Identity.IsAuthenticated);
-            
-  if not Result then
-    Context.Response.StatusCode := 401;
-end;
 
 class procedure TDashboardEndpoints.Map(App: TDextAppBuilder);
 begin
@@ -48,7 +32,7 @@ begin
   App.MapGet('/',
     procedure(Context: IHttpContext)
     begin
-      // TODO: Consider separating logic for index.html loading
+      // Uses Admin.Utils.GetFilePath
       var Res: IResult := TContentResult.Create(TFile.ReadAllText(GetFilePath('wwwroot\index.html')), 'text/html');
       Res.Execute(Context);
     end);
@@ -57,7 +41,6 @@ begin
   App.MapGet('/dashboard',
     procedure(Context: IHttpContext)
     begin
-      if not CheckAuth(Context) then Exit;
       var Res: IResult := TContentResult.Create(TFile.ReadAllText(GetFilePath('wwwroot\views\dashboard_fragment.html')), 'text/html');
       Res.Execute(Context);
     end);
@@ -66,8 +49,6 @@ begin
   App.MapGet<TAppDbContext, IHttpContext>('/dashboard/stats',
     procedure(Db: TAppDbContext; Context: IHttpContext)
     begin
-      if not CheckAuth(Context) then Exit;
-      
       var TotalCustomers := Db.Entities<TCustomer>.List.Count; 
       
       var Orders := Db.Entities<TOrder>.List;
@@ -85,7 +66,6 @@ begin
   App.MapGet('/dashboard/chart',
     procedure(Context: IHttpContext)
     begin
-      if not CheckAuth(Context) then Exit;
       var Res := Results.Json(JSON_DASHBOARD_CHART);
       Res.Execute(Context);
     end);

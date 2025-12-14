@@ -5,6 +5,7 @@
 {$R *.res}
 
 uses
+  FastMM5,
   System.SysUtils,
   Dext,
   Dext.Web,
@@ -22,7 +23,12 @@ uses
   Auth.Service in 'Features\Auth\Auth.Service.pas',
   Customer.Service in 'Features\Customers\Customer.Service.pas',
   Dashboard.Service in 'Features\Dashboard\Dashboard.Service.pas',
-  Settings.Service in 'Features\Settings\Settings.Service.pas';
+  Settings.Service in 'Features\Settings\Settings.Service.pas',
+  Admin.Middleware in 'Features\Shared\Admin.Middleware.pas',
+  Admin.Utils in 'Features\Shared\Admin.Utils.pas',
+  Customer.Dto in 'Features\Customers\Customer.Dto.pas',
+  Auth.Dto in 'Features\Auth\Auth.Dto.pas',
+  Settings.Dto in 'Features\Settings\Settings.Dto.pas';
 
 begin
   ReportMemoryLeaksOnShutdown := True;
@@ -49,6 +55,9 @@ begin
 
   except
     on E: Exception do
+    begin
       Writeln(E.ClassName, ': ', E.Message);
+      ReadLn;
+    end;
   end;
 end.

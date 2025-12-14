@@ -85,39 +85,48 @@ type
       Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder; overload;
 
     // Extensions for handlers returning IResult
-    class function MapGetR<TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<TResult>): IApplicationBuilder; overload;
-    class function MapGetR<T, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T, TResult>): IApplicationBuilder; overload;
-    class function MapGetR<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapGet<TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
+    class function MapGet<T, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    class function MapGet<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapGet<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload; 
       
-    class function MapPostR<T, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T, TResult>): IApplicationBuilder; overload;
-    class function MapPostR<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder; overload;
-    class function MapPostR<TResult>(App: IApplicationBuilder; const Path: string;
-        Handler: THandlerFunc<TResult>): IApplicationBuilder; overload;
+    class function MapPost<T, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    class function MapPost<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapPost<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload; 
 
-    class function MapPutR<T, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T, TResult>): IApplicationBuilder; overload;
-    class function MapPutR<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapPost<TResult>(App: IApplicationBuilder; const Path: string;
+        Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
 
-    class function MapDeleteR<T, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T, TResult>): IApplicationBuilder; overload;
-    class function MapDeleteR<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
-      Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapPut<T, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    class function MapPut<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapPut<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload; 
+
+    class function MapDelete<T, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    class function MapDelete<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapDelete<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload; 
   end;
 
 implementation
 
 { TApplicationBuilderExtensions }
 
-class function TApplicationBuilderExtensions.MapPost<T>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapGet<T>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('POST', Path, 
+  Result := App.MapEndpoint('GET', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -133,10 +142,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPost<T1, T2>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapGet<T1, T2>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('POST', Path, 
+  Result := App.MapEndpoint('GET', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -152,10 +161,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPost<T1, T2, T3>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapGet<T1, T2, T3>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('POST', Path, 
+  Result := App.MapEndpoint('GET', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -171,10 +180,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapGet<T>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapPost<T>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('GET', Path, 
+  Result := App.MapEndpoint('POST', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -190,10 +199,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapGet<T1, T2>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapPost<T1, T2>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('GET', Path, 
+  Result := App.MapEndpoint('POST', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -209,10 +218,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapGet<T1, T2, T3>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapPost<T1, T2, T3>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('GET', Path, 
+  Result := App.MapEndpoint('POST', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -228,10 +237,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPut<T>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapPut<T>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('PUT', Path, 
+  Result := App.MapEndpoint('PUT', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -247,10 +256,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPut<T1, T2>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapPut<T1, T2>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('PUT', Path, 
+  Result := App.MapEndpoint('PUT', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -266,10 +275,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPut<T1, T2, T3>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapPut<T1, T2, T3>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('PUT', Path, 
+  Result := App.MapEndpoint('PUT', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -285,10 +294,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapDelete<T>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapDelete<T>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('DELETE', Path, 
+  Result := App.MapEndpoint('DELETE', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -304,10 +313,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapDelete<T1, T2>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapDelete<T1, T2>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('DELETE', Path, 
+  Result := App.MapEndpoint('DELETE', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -323,10 +332,10 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapDelete<T1, T2, T3>(App: IApplicationBuilder; 
+class function TApplicationBuilderExtensions.MapDelete<T1, T2, T3>(App: IApplicationBuilder;
   const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder;
 begin
-  Result := App.MapEndpoint('DELETE', Path, 
+  Result := App.MapEndpoint('DELETE', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;
@@ -342,8 +351,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapGetR<TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapGet<TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('GET', Path,
     procedure(Ctx: IHttpContext)
@@ -361,8 +370,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapGetR<T, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapGet<T, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('GET', Path,
     procedure(Ctx: IHttpContext)
@@ -380,8 +389,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapGetR<T1, T2, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapGet<T1, T2, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('GET', Path,
     procedure(Ctx: IHttpContext)
@@ -399,8 +408,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPostR<T, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapPost<T, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('POST', Path,
     procedure(Ctx: IHttpContext)
@@ -418,8 +427,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPostR<T1, T2, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapPost<T1, T2, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('POST', Path,
     procedure(Ctx: IHttpContext)
@@ -437,8 +446,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPostR<TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapPost<TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('POST', Path,
     procedure(Ctx: IHttpContext)
@@ -457,8 +466,8 @@ begin
 end;
 
 
-class function TApplicationBuilderExtensions.MapPutR<T, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapPut<T, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('PUT', Path,
     procedure(Ctx: IHttpContext)
@@ -476,8 +485,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapPutR<T1, T2, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapPut<T1, T2, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('PUT', Path,
     procedure(Ctx: IHttpContext)
@@ -495,8 +504,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapDeleteR<T, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapDelete<T, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('DELETE', Path,
     procedure(Ctx: IHttpContext)
@@ -514,8 +523,8 @@ begin
     end);
 end;
 
-class function TApplicationBuilderExtensions.MapDeleteR<T1, T2, TResult>(App: IApplicationBuilder;
-  const Path: string; Handler: THandlerFunc<T1, T2, TResult>): IApplicationBuilder;
+class function TApplicationBuilderExtensions.MapDelete<T1, T2, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('DELETE', Path,
     procedure(Ctx: IHttpContext)
@@ -527,6 +536,82 @@ begin
       Invoker := THandlerInvoker.Create(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapGet<T1, T2, T3, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('GET', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, T3, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapPost<T1, T2, T3, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('POST', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, T3, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapPut<T1, T2, T3, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('PUT', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, T3, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapDelete<T1, T2, T3, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('DELETE', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, T3, TResult>(Handler);
       finally
         Invoker.Free;
       end;

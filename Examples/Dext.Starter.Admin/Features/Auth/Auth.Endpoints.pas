@@ -6,17 +6,13 @@ uses
   Dext,
   Dext.Web,
   Auth.Service,
-  User, // Added for TUser
-  System.Classes, // Added for TStreamReader
-  System.IOUtils, // Added for TFile
+  User, 
+  Admin.Utils,
+  System.Classes, 
+  System.IOUtils, 
   System.SysUtils;
 
 type
-  TLoginRequest = record
-    Username: string;
-    Password: string;
-  end;
-
   TAuthEndpoints = class
   public
     class procedure Map(App: TDextAppBuilder);
@@ -25,42 +21,32 @@ type
 implementation
 
 uses
-  // Add Dext.Web.Fluent to make MapGet/MapPost available on TDextAppBuilder
-  Dext.Web.Interfaces, // For IHttpContext
-  Dext.Web.HandlerInvoker; // For safe measure if needed, though Fluent covers it
-
-function GetFilePath(const RelativePath: string): string;
-begin
-  // Executable runs from Output\ directory, files are in Dext.Starter.Admin\
-  Result := IncludeTrailingPathDelimiter(GetCurrentDir) + '..\Dext.Starter.Admin\' + RelativePath;
-end;
+  Dext.Web.Interfaces, 
+  Dext.Web.HandlerInvoker,
+  Dext.Web.Results, // Added
+  Auth.Dto;
 
 { TAuthEndpoints }
 
 class procedure TAuthEndpoints.Map(App: TDextAppBuilder);
 begin
-  // MapGroup not available, using explicit paths
-
   App.MapGet('/auth/login',
     procedure(Context: IHttpContext)
     begin
-      var Res: IResult := TContentResult.Create(TFile.ReadAllText(GetFilePath('wwwroot\views\login.html')), 'text/html');
+      var Res: IResult := Results.Html(TFile.ReadAllText(GetFilePath('wwwroot\views\login.html')));
       Res.Execute(Context);
     end);
 
-  App.MapPost<IAuthService, IJwtTokenHandler, IHttpContext>('/auth/login',
-    procedure(AuthService: IAuthService; JwtHandler: IJwtTokenHandler; Context: IHttpContext)
+  // POST /auth/login - Handle login
+  // Fully injected services + DTO + Standardized IResult return
+  App.MapPost<IAuthService, IJwtTokenHandler, TLoginDto, IResult>('/auth/login',
+    function(AuthService: IAuthService; JwtHandler: IJwtTokenHandler; Dto: TLoginDto): IResult
     var
       User: TUser;
       Claims: TArray<TClaim>;
       Token: string;
     begin
-      // For now, use hardcoded credentials (TODO: parse form data via TLoginRequest)
-      // HTMX sends form-urlencoded by default
-      var Username := 'admin';
-      var Password := 'admin';
-      
-      User := AuthService.ValidateUser(Username, Password);
+      User := AuthService.ValidateUser(Dto.Username, Dto.Password);
       
       if User <> nil then
       begin
@@ -75,26 +61,20 @@ begin
         Token := JwtHandler.GenerateToken(Claims);
         
         // Return JSON with token
-        var Json := Format('{"token":"%s","username":"%s","role":"%s","expiresIn":3600}', 
-          [Token, User.Username, User.Role]);
-        
-        Context.Response.SetContentType('application/json');
-        Context.Response.Write(Json);
+        Result := Results.Json(Format('{"token":"%s","username":"%s","role":"%s","expiresIn":3600}', 
+          [Token, User.Username, User.Role]));
       end
       else
       begin
-        Context.Response.StatusCode := 401;
-        Context.Response.SetContentType('application/json');
-        Context.Response.Write('{"error":"Invalid credentials"}');
+        Result := Results.Json('{"error":"Invalid credentials"}', 401);
       end;
     end);
     
-  App.MapPost('/auth/logout',
-    procedure(Context: IHttpContext)
+  App.MapPost<IResult>('/auth/logout',
+    function: IResult
     begin
       // Token removal happens on frontend (localStorage.clear())
-      Context.Response.SetContentType('application/json');
-      Context.Response.Write('{"message":"Logged out successfully"}');
+      Result := Results.Json('{"message":"Logged out successfully"}');
     end);
 end;
 

@@ -43,6 +43,13 @@ type
   THandlerProc<T1, T2, T3> = reference to procedure(Arg1: T1; Arg2: T2; Arg3: T3);
 
   // Handlers returning IResult
+  // Handlers returning IResult - Use distinct type to help overload resolution
+  THandlerResultFunc<TResult> = reference to function: TResult;
+  THandlerResultFunc<T, TResult> = reference to function(Arg1: T): TResult;
+  THandlerResultFunc<T1, T2, TResult> = reference to function(Arg1: T1; Arg2: T2): TResult;
+  THandlerResultFunc<T1, T2, T3, TResult> = reference to function(Arg1: T1; Arg2: T2; Arg3: T3): TResult;
+  
+  // Legacy Aliases - Redefined explicitly to avoid compiler issues with generic aliasing
   THandlerFunc<TResult> = reference to function: TResult;
   THandlerFunc<T, TResult> = reference to function(Arg1: T): TResult;
   THandlerFunc<T1, T2, TResult> = reference to function(Arg1: T1; Arg2: T2): TResult;
@@ -88,10 +95,10 @@ type
     function Invoke<T1, T2, T3>(AHandler: THandlerProc<T1, T2, T3>): Boolean; overload;
 
     // Invoke for handlers returning IResult
-    function Invoke<TResult>(AHandler: THandlerFunc<TResult>): Boolean; overload;
-    function Invoke<T, TResult>(AHandler: THandlerFunc<T, TResult>): Boolean; overload;
-    function Invoke<T1, T2, TResult>(AHandler: THandlerFunc<T1, T2, TResult>): Boolean; overload;
-    function Invoke<T1, T2, T3, TResult>(AHandler: THandlerFunc<T1, T2, T3, TResult>): Boolean; overload;
+    function Invoke<TResult>(AHandler: THandlerResultFunc<TResult>): Boolean; overload;
+    function Invoke<T, TResult>(AHandler: THandlerResultFunc<T, TResult>): Boolean; overload;
+    function Invoke<T1, T2, TResult>(AHandler: THandlerResultFunc<T1, T2, TResult>): Boolean; overload;
+    function Invoke<T1, T2, T3, TResult>(AHandler: THandlerResultFunc<T1, T2, T3, TResult>): Boolean; overload;
 
     /// <summary>
     ///   Invokes a controller action method dynamically using RTTI.
@@ -300,7 +307,7 @@ begin
   Result := True;
 end;
 
-function THandlerInvoker.Invoke<TResult>(AHandler: THandlerFunc<TResult>): Boolean;
+function THandlerInvoker.Invoke<TResult>(AHandler: THandlerResultFunc<TResult>): Boolean;
 var
   Res: TResult;
   ResIntf: IResult;
@@ -311,7 +318,7 @@ begin
   Result := True;
 end;
 
-function THandlerInvoker.Invoke<T, TResult>(AHandler: THandlerFunc<T, TResult>): Boolean;
+function THandlerInvoker.Invoke<T, TResult>(AHandler: THandlerResultFunc<T, TResult>): Boolean;
 var
   Arg1: T;
   Res: TResult;
@@ -348,7 +355,7 @@ begin
   Result := True;
 end;
 
-function THandlerInvoker.Invoke<T1, T2, TResult>(AHandler: THandlerFunc<T1, T2, TResult>): Boolean;
+function THandlerInvoker.Invoke<T1, T2, TResult>(AHandler: THandlerResultFunc<T1, T2, TResult>): Boolean;
 var
   Arg1: T1;
   Arg2: T2;
@@ -404,7 +411,7 @@ begin
   Result := True;
 end;
 
-function THandlerInvoker.Invoke<T1, T2, T3, TResult>(AHandler: THandlerFunc<T1, T2, T3, TResult>): Boolean;
+function THandlerInvoker.Invoke<T1, T2, T3, TResult>(AHandler: THandlerResultFunc<T1, T2, T3, TResult>): Boolean;
 var
   Arg1: T1;
   Arg2: T2;

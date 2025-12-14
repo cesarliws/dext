@@ -43,7 +43,7 @@ const
     '        </svg>' +
     '      </button>' +
     '    </div>' +
-    '    <form %s="%s" hx-target="%s" hx-swap="%s" class="space-y-4">' +
+    '    <form %s="%s" hx-target="%s" hx-swap="%s" hx-ext="json-enc" class="space-y-4">' +
     '      <div>' +
     '        <label for="name" class="block text-sm font-medium text-gray-700">Name</label>' +
     '        <input type="text" name="name" id="name" value="%s" required ' +

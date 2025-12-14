@@ -152,6 +152,11 @@
         <DCCReference Include="Features\Customers\Customer.Service.pas"/>
         <DCCReference Include="Features\Dashboard\Dashboard.Service.pas"/>
         <DCCReference Include="Features\Settings\Settings.Service.pas"/>
+        <DCCReference Include="Features\Shared\Admin.Middleware.pas"/>
+        <DCCReference Include="Features\Shared\Admin.Utils.pas"/>
+        <DCCReference Include="Features\Customers\Customer.Dto.pas"/>
+        <DCCReference Include="Features\Auth\Auth.Dto.pas"/>
+        <DCCReference Include="Features\Settings\Settings.Dto.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

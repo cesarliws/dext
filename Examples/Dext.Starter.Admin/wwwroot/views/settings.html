@@ -5,16 +5,16 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-medium text-gray-900 mb-4">Profile Information</h3>
 
-        <form hx-post="/settings/profile" hx-target="#app" hx-swap="innerHTML" class="space-y-4">
+        <form hx-post="/settings/profile" hx-ext="json-enc" hx-target="#app" hx-swap="innerHTML" class="space-y-4">
             <div>
-                <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
-                <input type="text" name="name" id="name" value="Admin User"
+                <label for="name" class="block text-sm font-medium text-gray-700">Display Name</label>
+                <input type="text" name="Name" id="name" value="Admin User"
                     class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
             <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
-                <input type="email" name="email" id="email" value="admin@dext.com"
+                <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                <input type="email" name="Email" id="email" value="admin@dext.com"
                     class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
@@ -81,23 +81,23 @@
     <div class="bg-white rounded-lg shadow p-6">
         <h3 class="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
 
-        <form hx-post="/settings/password" hx-target="#app" hx-swap="innerHTML" class="space-y-4">
+        <form hx-post="/settings/password" hx-ext="json-enc" hx-target="#app" hx-swap="innerHTML" class="space-y-4">
             <div>
                 <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password</label>
-                <input type="password" name="current_password" id="current_password"
+                <input type="password" name="CurrentPassword" id="current_password"
                     class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
             <div>
                 <label for="new_password" class="block text-sm font-medium text-gray-700">New Password</label>
-                <input type="password" name="new_password" id="new_password"
+                <input type="password" name="NewPassword" id="new_password"
                     class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 
             <div>
                 <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New
                     Password</label>
-                <input type="password" name="confirm_password" id="confirm_password"
+                <input type="password" name="ConfirmPassword" id="confirm_password"
                     class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
             </div>
 

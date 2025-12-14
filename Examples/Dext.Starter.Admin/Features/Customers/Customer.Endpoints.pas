@@ -7,94 +7,99 @@ uses
   Dext.Web,
   Dext.Collections,
   Dext.Persistence,
-  // DbContext, // Removed
   Customer,
+  Customer.Dto,
+  Admin.Utils,
+  Dext.Web.Results, // Added
   System.SysUtils,
   System.StrUtils,
   System.Classes,
   System.NetEncoding;
 
+// ... (Interface unchanged) -> This was the error. I must provide the TYPE block.
 type
   TCustomerEndpoints = class
   public
     class procedure Map(App: TDextAppBuilder);
-  private
-    class function GenerateCustomerRow(const C: TCustomer): string;
-    class function GenerateCustomerForm(const C: TCustomer): string;
-    class function CheckAuth(Context: IHttpContext): Boolean;
   end;
 
 implementation
 
 uses
   AppResponseConsts,
-  Customer.Service; // Added
+  Customer.Service;
 
-{ TCustomerEndpoints }
-
-class function TCustomerEndpoints.CheckAuth(Context: IHttpContext): Boolean;
+// Helper Functions
+function GenerateCustomerRow(C: TCustomer): string;
 begin
-  Result := (Context.User <> nil) and 
-            (Context.User.Identity <> nil) and 
-            (Context.User.Identity.IsAuthenticated);
-            
-  if not Result then
-    Context.Response.StatusCode := 401;
+  Result := Format(
+    '<tr id="customer-%d">' +
+    '<td>%d</td>' +
+    '<td>%s</td>' +
+    '<td>%s</td>' +
+    '<td>%m</td>' +
+    '<td>' +
+    '  <button class="btn btn-sm btn-primary" hx-get="/customers/%d/form" hx-target="#modal-content" hx-trigger="click" _="on click call showModal()">Edit</button>' +
+    '  <button class="btn btn-sm btn-danger" hx-delete="/customers/%d" hx-target="#customer-%d" hx-swap="outerHTML" hx-confirm="Are you sure?">Delete</button>' +
+    '</td>' +
+    '</tr>',
+    [C.Id, C.Id, C.Name, C.Email, C.TotalSpent, C.Id, C.Id, C.Id]);
 end;
 
-class function TCustomerEndpoints.GenerateCustomerRow(const C: TCustomer): string;
-begin
-  Result := Format(HTML_CUSTOMER_ROW,
-    [C.Id, C.Id, C.Name, C.Email, C.TotalSpent, C.Id, C.Id]);
-end;
-
-class function TCustomerEndpoints.GenerateCustomerForm(const C: TCustomer): string;
+function GenerateCustomerForm(C: TCustomer): string;
 var
-  IsEdit: Boolean;
-  Title, Action, Method, SwapTarget, SwapMode: string;
-  NameValue, EmailValue, TotalSpentValue: string;
+  Method, Url, Title, Name, Email, Total, IdVal: string;
 begin
-  IsEdit := C <> nil;
-  
-  if IsEdit then
+  if Assigned(C) then
   begin
     Title := 'Edit Customer';
-    Action := Format('/customers/%d', [C.Id]);
+    Url := '/customers/' + IntToStr(C.Id);
     Method := 'hx-put';
-    SwapTarget := Format('#customer-row-%d', [C.Id]);
-    SwapMode := 'outerHTML';
-    NameValue := C.Name;
-    EmailValue := C.Email;
-    TotalSpentValue := FloatToStr(C.TotalSpent);
+    IdVal := IntToStr(C.Id);
+    Name := C.Name;
+    Email := C.Email;
+    Total := FloatToStr(C.TotalSpent);
   end
   else
   begin
-    Title := 'Add Customer';
-    Action := '/customers/';
+    Title := 'New Customer';
+    Url := '/customers/';
     Method := 'hx-post';
-    SwapTarget := '#customers-table-body';
-    SwapMode := 'beforeend';
-    NameValue := '';
-    EmailValue := '';
-    TotalSpentValue := '0.00';
+    IdVal := '0';
+    Name := '';
+    Email := '';
+    Total := '0';
   end;
-  
-  Result := Format(HTML_CUSTOMER_FORM,
-    [Title, Method, Action, SwapTarget, SwapMode, NameValue, EmailValue, TotalSpentValue]);
+
+  Result := Format(
+    '<div class="p-4">' +
+    '<h3>%s</h3>' +
+    '<form %s="%s" hx-target="#customer-%s" hx-swap="outerHTML">' + // Default swap for PUT. For POST, we might override in the response handling or target list
+    '<input type="hidden" name="id" value="%s">' +
+    '<div class="mb-3"><label>Name</label><input type="text" name="Name" class="form-control" value="%s" required></div>' +
+    '<div class="mb-3"><label>Email</label><input type="email" name="Email" class="form-control" value="%s" required></div>' +
+    '<div class="mb-3"><label>Total Spent</label><input type="number" name="TotalSpent" class="form-control" value="%s"></div>' +
+    '<div class="d-flex justify-content-end gap-2">' +
+    '  <button type="button" class="btn btn-secondary" _="on click call closeModal()">Cancel</button>' +
+    '  <button type="submit" class="btn btn-primary">Save</button>' +
+    '</div>' +
+    '</form></div>',
+    [Title, Method, Url, IdVal, IdVal, Name, Email, Total]
+  );
 end;
+
+{ TCustomerEndpoints }
 
 class procedure TCustomerEndpoints.Map(App: TDextAppBuilder);
 begin
   // GET /customers/ - List all customers
-  App.MapGet<ICustomerService, IHttpContext>('/customers/',
-    procedure(Service: ICustomerService; Context: IHttpContext)
+  App.MapGet<ICustomerService, IHttpContext, IResult>('/customers/',
+    function(Service: ICustomerService; Context: IHttpContext): IResult
     var
       Customers: IList<TCustomer>;
       Html: TStringBuilder;
       C: TCustomer;
     begin
-      if not CheckAuth(Context) then Exit; // Auth Check
-      
       Customers := Service.GetAll;
       
       Html := TStringBuilder.Create;
@@ -104,180 +109,99 @@ begin
           Html.Append(GenerateCustomerRow(C));
         Html.Append(HTML_CUSTOMER_LIST_FOOTER);
         
-        var Res: IResult := TContentResult.Create(Html.ToString, 'text/html');
-        Res.Execute(Context);
+        Result := Results.Html(Html.ToString);
       finally
         Html.Free;
       end;
     end);
 
   // GET /customers/form
-  App.MapGet('/customers/form',
-    procedure(Context: IHttpContext)
+  App.MapGet<IHttpContext, IResult>('/customers/form',
+    function(Context: IHttpContext): IResult
     begin
-      if not CheckAuth(Context) then Exit; // Auth Check
-      var Html := GenerateCustomerForm(nil);
-      var Res: IResult := TContentResult.Create(Html, 'text/html');
-      Res.Execute(Context);
+      Result := Results.Html(GenerateCustomerForm(nil));
     end);
 
   // GET /customers/{id}/form
-  App.MapGet<ICustomerService, IHttpContext>('/customers/{id}/form',
-    procedure(Service: ICustomerService; Context: IHttpContext)
+  App.MapGet<ICustomerService, Integer, IHttpContext, IResult>('/customers/{id}/form',
+    function(Service: ICustomerService; Id: Integer; Context: IHttpContext): IResult
     var
-      Id: Integer;
       C: TCustomer;
     begin
-      if not CheckAuth(Context) then Exit; // Auth Check
-      
-      Id := StrToIntDef(Context.Request.RouteParams['id'], 0);
-      
       if Id > 0 then
       begin
         C := Service.GetById(Id);
         if C <> nil then
-        begin
-          var Res: IResult := TContentResult.Create(GenerateCustomerForm(C), 'text/html');
-          Res.Execute(Context);
-          Exit;
-        end;
+          Exit(Results.Html(GenerateCustomerForm(C)));
       end;
       
-      Context.Response.StatusCode := 404;
+      Result := Results.NotFound;
     end);
 
   // POST /customers/ - Add new customer
-  App.MapPost<ICustomerService, IHttpContext>('/customers/',
-    procedure(Service: ICustomerService; Context: IHttpContext)
+  App.MapPost<ICustomerService, TCustomerDto, IHttpContext, IResult>('/customers/',
+    function(Service: ICustomerService; Dto: TCustomerDto; Context: IHttpContext): IResult
     var
       C: TCustomer;
-      Body, Name, Email, TotalSpentStr: string;
-      Reader: TStreamReader;
     begin
-      if not CheckAuth(Context) then Exit; // Auth Check
-      
-      // Manual Body Parsing (keeping logic for now)
-      if Context.Request.Body <> nil then
-      begin
-        Context.Request.Body.Position := 0;
-        Reader := TStreamReader.Create(Context.Request.Body, TEncoding.UTF8, False);
-        try
-          Body := Reader.ReadToEnd;
-        finally
-          Reader.Free;
-        end;
-      end;
-
-      // Parse Form Data...
-      Name := ''; Email := ''; TotalSpentStr := '0';
-      var Params := Body.Split(['&']);
-      for var Param in Params do
-      begin
-         var Parts := Param.Split(['=']);
-         if Length(Parts) = 2 then
-         begin
-           var K := TNetEncoding.URL.Decode(Parts[0]);
-           var V := TNetEncoding.URL.Decode(Parts[1]);
-           if SameText(K, 'name') then Name := V
-           else if SameText(K, 'email') then Email := V
-           else if SameText(K, 'totalspent') then TotalSpentStr := V;
-         end;
-      end;
+      if (Dto.Name.Trim.IsEmpty) or (Dto.Email.Trim.IsEmpty) then
+        Exit(Results.BadRequest);
 
       C := TCustomer.Create;
-      C.Name := Name;
-      C.Email := Email;
-      C.TotalSpent := StrToFloatDef(TotalSpentStr, 0);
+      C.Name := Dto.Name;
+      C.Email := Dto.Email;
+      C.TotalSpent := Dto.TotalSpent;
       C.Status := TCustomerStatus.Active;
       
       Service.Add(C);
     
-      var Html := GenerateCustomerRow(C);
-      var Res: IResult := TContentResult.Create(Html, 'text/html');
-      Res.Execute(Context);
-      
       Context.Response.AddHeader('HX-Trigger', '{"closeModal": true, "showToast": {"message": "Customer added successfully", "type": "success"}}');
+      Result := Results.Html(GenerateCustomerRow(C));
     end);
 
   // PUT /customers/{id}
-  App.MapPut<ICustomerService, IHttpContext>('/customers/{id}',
-    procedure(Service: ICustomerService; Context: IHttpContext)
+  App.MapPut<ICustomerService, TCustomerDto, IHttpContext, IResult>('/customers/{id}',
+    function(Service: ICustomerService; Dto: TCustomerDto; Context: IHttpContext): IResult
     var
-      Id: Integer;
       C: TCustomer;
-      Body: string;
-      Reader: TStreamReader;
     begin
-      if not CheckAuth(Context) then Exit;
-      
-      Id := StrToIntDef(Context.Request.RouteParams['id'], 0);
-      if Id > 0 then
+      if Dto.Id > 0 then
       begin
-        C := Service.GetById(Id);
+        C := Service.GetById(Dto.Id);
         if C <> nil then
         begin
-          if Context.Request.Body <> nil then
-          begin
-             Context.Request.Body.Position := 0;
-             Reader := TStreamReader.Create(Context.Request.Body, TEncoding.UTF8, False);
-             try Body := Reader.ReadToEnd; finally Reader.Free; end;
-          end;
-
-          var Params := Body.Split(['&']);
-          for var Param in Params do
-          begin
-             var Parts := Param.Split(['=']);
-             if Length(Parts)=2 then
-             begin
-               var K := TNetEncoding.URL.Decode(Parts[0]);
-               var V := TNetEncoding.URL.Decode(Parts[1]);
-               if SameText(K, 'name') then C.Name := V
-               else if SameText(K, 'email') then C.Email := V
-               else if SameText(K, 'totalspent') then C.TotalSpent := StrToFloatDef(V, 0);
-             end;
-          end;
+          C.Name := Dto.Name;
+          C.Email := Dto.Email;
+          C.TotalSpent := Dto.TotalSpent;
           
           Service.Update(C);
           
-          var Html := GenerateCustomerRow(C);
-          var Res: IResult := TContentResult.Create(Html, 'text/html');
-          Res.Execute(Context);
           Context.Response.AddHeader('HX-Trigger', '{"closeModal": true, "showToast": {"message": "Customer updated successfully", "type": "success"}}');
-          Exit;
+          Exit(Results.Html(GenerateCustomerRow(C)));
         end;
       end;
-      Context.Response.StatusCode := 404;
+      Result := Results.NotFound;
     end);
 
   // DELETE /customers/{id}
-  App.MapDelete<ICustomerService, IHttpContext>('/customers/{id}',
-    procedure(Service: ICustomerService; Context: IHttpContext)
+  App.MapDelete<ICustomerService, IHttpContext, IResult>('/customers/{id}',
+    function(Service: ICustomerService; Context: IHttpContext): IResult
     var
       Id: Integer;
     begin
-      if not CheckAuth(Context) then Exit; // Auth Check
-      
       Id := StrToIntDef(Context.Request.RouteParams['id'], 0);
       
       if Id > 0 then
       begin
-        // We don't check existence here as Service handles it, but typically endpoints check and return 404.
-        // For brevity we assume success or 404 if service throws (not implemented).
-        // Let's rely on basic "Try Delete" logic.
-        // Assuming user wants 404 if not found? Service.Delete(Id) could handle it or return bool.
-        // Service.Delete(Id) void -> we assume success.
-        
-        // Better: Check existence
-        var C := Service.GetById(Id);
-        if C <> nil then
-        begin
+          var C := Service.GetById(Id);
+          if C <> nil then
+          begin
              Service.Delete(Id);
-             Results.Ok.Execute(Context);
-             Exit;
-        end;
+             Exit(Results.Ok);
+          end;
       end;
       
-      Results.NotFound.Execute(Context);
+      Result := Results.NotFound;
     end);
 end;
 
