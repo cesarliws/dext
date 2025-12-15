@@ -3,13 +3,14 @@
 {$APPTYPE CONSOLE}
 
 uses
+  Dext.MM,
   System.SysUtils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
-  Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Core.HandlerInvoker;
+  Dext.Web.ApplicationBuilder.Extensions,
+  Dext.Web.HandlerInvoker;
 
 {$R *.res}
 

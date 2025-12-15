@@ -5,8 +5,7 @@ interface
 uses
   System.SysUtils,
   Dext.Collections,
-  Dext.Specifications.Expression,
-  Dext.Specifications.Types, // For operators
+  Dext,
   EntityDemo.Tests.Base;
 
 type

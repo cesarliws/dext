@@ -1,20 +1,19 @@
-﻿program Web.DextStore;
+program Web.DextStore;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   Dext,
-  Dext.Http,
+  Dext.Web,
   DextStore.Models in 'DextStore.Models.pas',
   DextStore.Services in 'DextStore.Services.pas',
   DextStore.Controllers in 'DextStore.Controllers.pas';
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
-    WriteLn('🛒 Starting DextStore API...');
+    WriteLn('?? Starting DextStore API...');
     
     var App: IWebApplication := TDextApplication.Create;
     var AppBuilder := App.Builder;
@@ -41,7 +40,7 @@ begin
       .AddControllers;
 
     // 2. Middleware Pipeline
-    // ✨ CORS with Fluent API
+    // ? CORS with Fluent API
     AppBuilder
       .UseCors(procedure(Cors: TCorsBuilder)
       begin
@@ -51,7 +50,7 @@ begin
             .Build;
       end)
 
-      // ✨ JWT Authentication with Fluent API
+      // ? JWT Authentication with Fluent API
       .UseJwtAuthentication(JwtSecret,
       procedure(Auth: TJwtOptionsBuilder)
       begin
@@ -71,9 +70,9 @@ begin
     App.MapControllers;
 
     // 3. Run
-    WriteLn('🚀 Server running on http://localhost:9000');
+    WriteLn('?? Server running on http://localhost:9000');
     WriteLn('');
-    WriteLn('📚 Available Endpoints:');
+    WriteLn('?? Available Endpoints:');
     WriteLn('  Authentication:');
     WriteLn('    POST /api/auth/login       - Login and get JWT token');
     WriteLn('');
@@ -100,6 +99,6 @@ begin
     
   except
     on E: Exception do
-      Writeln('❌ Error: ', E.ClassName, ': ', E.Message);
+      Writeln('? Error: ', E.ClassName, ': ', E.Message);
   end;
 end.

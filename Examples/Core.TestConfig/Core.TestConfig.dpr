@@ -3,7 +3,7 @@ program Core.TestConfig;
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Core,
@@ -16,7 +16,6 @@ var
   Config: IConfigurationRoot;
   Val: string;
 begin
-  ReportMemoryLeaksOnShutdown := True;
   Writeln('Starting Configuration Test...');
 
   Builder := TConfigurationBuilder.Create;

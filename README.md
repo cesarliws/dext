@@ -61,30 +61,30 @@ The foundation of the framework, usable in any type of application.
 
 ### 🌐 Web API
 - **Routing & Endpoints**
-  - [Minimal API](Docs/MinimalAPI.md)
-  - [Validation](Docs/ModelBinding.md) # (Includes validation)
+  - [Minimal API](Docs/minimal-api.md)
+  - [Validation](Docs/model-binding.md) # (Includes validation)
 - **Security & Middleware**
-  - [JWT Authentication](Docs/JWT-Authentication.md)
-  - [CORS](Docs/CORS.md)
-  - [Rate Limiting](Docs/Rate-Limiting.md)
+  - [JWT Authentication](Docs/jwt-authentication.md)
+  - [CORS](Docs/cors.md)
+  - [Rate Limiting](Docs/rate-limiting.md)
 - **Advanced**
-  - [Background Services](Docs/BackgroundServices.md)
-  - [Action Filters](Docs/ActionFilters.md)
-  - [Swagger / OpenAPI](Docs/SWAGGER.md)
+  - [Background Services](Docs/background-services.md)
+  - [Action Filters](Docs/action-filters.md)
+  - [Swagger / OpenAPI](Docs/swagger.md)
 
 ### 🗄️ Data Access (ORM)
-- [Database Configuration](Docs/DATABASE_CONFIG.md)
-- [Fluent Query API](Docs/FLUENT_QUERY_API.md)
-- [Migrations](Docs/MIGRATIONS_GUIDE.md)
-- [Lazy Loading](Docs/LAZY_LOADING_ADVANCED.md)
-- [Bulk Operations](Docs/BULK_OPERATIONS.md)
-- [Soft Delete](Docs/SOFT_DELETE.md)
+- [Database Configuration](Docs/database-config.md)
+- [Fluent Query API](Docs/fluent-query-api.md)
+- [Migrations](Docs/migrations-guide.md)
+- [Lazy Loading](Docs/lazy-loading-advanced.md)
+- [Bulk Operations](Docs/bulk-operations.md)
+- [Soft Delete](Docs/soft-delete.md)
 
 ### ⚙️ Core & Infrastructure
-- [Dependency Injection & Scopes](Docs/ScopedServices.md)
-- [Configuration & Options Pattern](Docs/OptionsPattern.md)
-- [Async Programming](Docs/ASYNC_API.md)
-- [Caching](Docs/Caching.md)
+- [Dependency Injection & Scopes](Docs/scoped-services.md)
+- [Configuration & Options Pattern](Docs/options-pattern.md)
+- [Async Programming](Docs/async-api.md)
+- [Caching](Docs/caching.md)
 
 ---
 
@@ -100,7 +100,7 @@ The foundation of the framework, usable in any type of application.
    git clone https://github.com/dext-framework/dext.git
    ```
 
-   > 📦 **Package Note**: The project is organized into modular packages located in the `Sources` directory (e.g., `Dext.Core.dpk`, `Dext.Web.dpk`, `Dext.Entity.dpk`). You can open `Sources/DextFramework.groupproj` to load all packages at once.
+   > 📦 **Package Note**: The project is organized into modular packages located in the `Sources` directory (e.g., `Dext.Core.dpk`, `Dext.Web.Core.dpk`, `Dext.Data.dpk`). You can open `Sources/DextFramework.groupproj` to load all packages at once.
 
 2. **Configure Paths in Delphi:**
    Add the following paths to your **Library Path** (for compilation) and **Browsing Path** (for code navigation):
@@ -126,22 +126,21 @@ The foundation of the framework, usable in any type of application.
 program MyAPI;
 
 uses
-  Dext.Core.WebApplication,
-  Dext.Http.Results;
+  Dext.Web;
 
 begin
   var App := TDextApplication.Create;
-  var Builder := App.GetApplicationBuilder;
+  var Builder := App.Builder;
 
   // Simple Route
-  Builder.MapGetR<IResult>('/hello', 
+  Builder.MapGet<IResult>('/hello', 
     function: IResult
     begin
       Result := Results.Ok('{"message": "Hello Dext!"}');
     end);
 
   // Route with parameter and binding
-  Builder.MapGetR<Integer, IResult>('/users/{id}',
+  Builder.MapGet<Integer, IResult>('/users/{id}',
     function(Id: Integer): IResult
     begin
       Result := Results.Json(Format('{"userId": %d}', [Id]));
@@ -162,7 +161,7 @@ App.Services.AddSingleton<IEmailService, TEmailService>;
 // 2. Define Endpoint with Dependencies
 // - 'Dto': Automatically bound from JSON Body (Smart Binding)
 // - 'EmailService': Automatically injected from DI Container
-App.MapPostR<TUserDto, IEmailService, IResult>('/register',
+App.Builder.MapPost<TUserDto, IEmailService, IResult>('/register',
   function(Dto: TUserDto; EmailService: IEmailService): IResult
   begin
     EmailService.SendWelcome(Dto.Email);
@@ -253,6 +252,7 @@ The repository contains practical example projects:
 - **`Examples/Web.ControllerExample`**: Demonstrates Controller-based API implementation (includes a minimal **Vite** frontend client).
 - **`Examples/Web.SwaggerExample`**: Shows how to integrate and customize OpenAPI/Swagger documentation.
 - **`Examples/Web.TaskFlowAPI`**: A complete "Real World" REST API demonstrating layered architecture, ORM, Auth, and DI.
+- **`Examples/Dext.Starter.Admin`**: **(Recommended)** A Modern Admin Panel with HTMX, Service Layer, and Minimal APIs. [Read the Guide](Examples/Dext.Starter.Admin/README.md).
 
 
 ---
@@ -267,10 +267,10 @@ The repository contains practical example projects:
 ## 🗺️ Roadmaps
 
 Follow the project development:
-- [ORM Roadmap](Docs/ORM_ROADMAP.md)
-- [Web Framework Roadmap](Docs/WEB_ROADMAP.md)
-- [Infra & IDE Roadmap](Docs/INFRA_ROADMAP.md)
-- [Architecture & Performance](Docs/ARCHITECTURE_PERFORMANCE.md)
+- [ORM Roadmap](Docs/Roadmap/orm-roadmap.md)
+- [Web Framework Roadmap](Docs/Roadmap/web-roadmap.md)
+- [Infra & IDE Roadmap](Docs/Roadmap/infra-roadmap.md)
+- [Architecture & Performance](Docs/architecture-performance.md)
 
 ---
 

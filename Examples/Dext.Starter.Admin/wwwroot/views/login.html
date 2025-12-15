@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Dext Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/json-enc.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <!-- Left Side: Form -->
+        <div class="w-full md:w-1/2 flex flex-col justify-center px-8 md:px-24 py-12 bg-white">
+            <div class="mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
+                <p class="text-gray-600">Please enter your details to sign in.</p>
+            </div>
+
+            <form hx-post="/auth/login" hx-ext="json-enc" hx-trigger="submit" class="mt-8 space-y-6">
+                <input type="hidden" name="remember" value="true">
+                <div class="rounded-md shadow-sm -space-y-px">
+                    <div>
+                        <label for="username" class="sr-only">Username</label>
+                        <input id="username" name="Username" type="text" autocomplete="username" required
+                            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                            placeholder="Username" value="admin">
+                    </div>
+                    <div>
+                        <label for="password" class="sr-only">Password</label>
+                        <input id="password" name="Password" type="password" autocomplete="current-password" required
+                            class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                            placeholder="Password" value="admin">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center">
+                        <input id="remember-me" name="remember-me" type="checkbox"
+                            class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        <label for="remember-me" class="ml-2 block text-sm text-gray-900">Remember me</label>
+                    </div>
+                    <div class="text-sm">
+                        <a href="#" class="font-medium text-indigo-600 hover:text-indigo-500">Forgot password?</a>
+                    </div>
+                </div>
+
+                <button type="submit"
+                    class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition">
+                    Sign in
+                    <img class="htmx-indicator ml-2 w-5 h-5 text-white"
+                        src="https://raw.githubusercontent.com/n3r4zzurr0/svg-spinners/main/svg-css/ring-resize.svg"
+                        alt="Loading...">
+                </button>
+
+                <div id="error-message"
+                    class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+                    role="alert">
+                    <strong class="font-bold">Error!</strong>
+                    <span class="block sm:inline" id="error-text">Invalid credentials</span>
+                </div>
+            </form>
+
+            <p class="mt-8 text-center text-sm text-gray-600">
+                Don't have an account? <a href="#" class="font-medium text-indigo-600 hover:text-indigo-500">Sign up for
+                    free</a>
+            </p>
+        </div>
+
+        <!-- Right Side: Image -->
+        <div class="hidden md:block w-1/2 bg-cover bg-center"
+            style="background-image: url('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-1.2.1&auto=format&fit=crop&w=1950&q=80');">
+            <div class="w-full h-full bg-indigo-900 bg-opacity-40 flex items-center justify-center">
+                <div class="text-white text-center px-12">
+                    <h2 class="text-4xl font-bold mb-4">Dext Admin Starter</h2>
+                    <p class="text-lg text-gray-200">The high-performance foundation for your next Delphi web
+                        application.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Handle JWT login response
+        document.body.addEventListener('htmx:afterRequest', function (evt) {
+            if (evt.detail.pathInfo.requestPath === '/auth/login') {
+                if (evt.detail.successful) {
+                    try {
+                        var response = JSON.parse(evt.detail.xhr.responseText);
+
+                        // Store JWT token and user info in localStorage
+                        localStorage.setItem('auth_token', response.token);
+                        localStorage.setItem('username', response.username);
+                        localStorage.setItem('role', response.role);
+
+                        // Redirect to dashboard
+                        window.location.href = '/';
+                    } catch (e) {
+                        console.error('Error parsing login response:', e);
+                        document.getElementById('error-text').textContent = 'An error occurred';
+                        document.getElementById('error-message').classList.remove('hidden');
+                    }
+                } else {
+                    // Show error message
+                    try {
+                        var error = JSON.parse(evt.detail.xhr.responseText);
+                        document.getElementById('error-text').textContent = error.error || 'Invalid credentials';
+                    } catch (e) {
+                        document.getElementById('error-text').textContent = 'Invalid credentials';
+                    }
+                    document.getElementById('error-message').classList.remove('hidden');
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

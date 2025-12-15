@@ -35,7 +35,8 @@ requires
   FireDAC,
   FireDACCommon,
   FireDACCommonDriver,
-  Dext.Core;
+  Dext.Core,
+  FireDACSqliteDriver;
 
 contains
   Dext.Entity.Query in 'Data\Dext.Entity.Query.pas',
@@ -64,6 +65,7 @@ contains
   Dext.Entity.Migrations.Operations in 'Data\Dext.Entity.Migrations.Operations.pas',
   Dext.Entity.Migrations.Runner in 'Data\Dext.Entity.Migrations.Runner.pas',
   Dext.Entity.Migrations.Serializers.Json in 'Data\Dext.Entity.Migrations.Serializers.Json.pas',
-  Dext.Hosting.CLI in 'Hosting\Dext.Hosting.CLI.pas';
+  Dext.Hosting.CLI in 'Hosting\Dext.Hosting.CLI.pas',
+  Dext.Entity.Setup in 'Data\Dext.Entity.Setup.pas';
 
 end.

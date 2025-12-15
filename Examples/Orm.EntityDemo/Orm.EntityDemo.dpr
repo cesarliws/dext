@@ -1,10 +1,10 @@
-﻿
+
 program Orm.EntityDemo;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   Dext.Utils,
   System.SysUtils,
   FireDAC.Comp.Client,
@@ -62,7 +62,7 @@ begin
     //RegisterExpectedMemoryLeak(Unknown)
   end;
 
-  WriteLn('📊 Database Provider: ' + TDbConfig.GetProviderName);
+  WriteLn('?? Database Provider: ' + TDbConfig.GetProviderName);
   WriteLn('');
 end;
 
@@ -117,21 +117,20 @@ begin
   RunTest(TAsyncTest);
 
   WriteLn('');
-  WriteLn('✨ All tests completed.');
+  WriteLn('? All tests completed.');
 end;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   SetConsoleCharSet(65001);
   try
-    WriteLn('🚀 Dext Entity ORM Demo Suite');
+    WriteLn('?? Dext Entity ORM Demo Suite');
     WriteLn('=============================');
     WriteLn('');
     ConfigureDatabase(dpSQLiteMemory);
     RunAllTests;
   except
     on E: Exception do
-      Writeln('❌ Critical Error: ', E.ClassName, ': ', E.Message);
+      Writeln('? Critical Error: ', E.ClassName, ': ', E.Message);
   end;
 
   ReadLn;

@@ -1,0 +1,55 @@
+<h2 class="text-2xl font-semibold text-gray-800 mb-6">Dashboard Overview</h2>
+
+<!-- Stats Cards -->
+<div id="stats-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" hx-get="/dashboard/stats"
+    hx-trigger="load">
+    <!-- Skeleton Loading State -->
+    <div class="bg-white rounded-lg shadow p-6 animate-pulse h-32"></div>
+    <div class="bg-white rounded-lg shadow p-6 animate-pulse h-32"></div>
+</div>
+
+<!-- Chart Section -->
+<div class="bg-white rounded-lg shadow p-6 h-96">
+    <h3 class="text-lg font-medium text-gray-900 mb-4">Sales Analytics</h3>
+    <canvas id="salesChart"></canvas>
+</div>
+
+<!-- Chart.js Init Script -->
+<script>
+    // Always initialize chart (HTMX destroys old instance when replacing DOM)
+    // Fetch chart data
+    fetch('/dashboard/chart', {
+        headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('auth_token')
+        }
+    })
+        .then(response => {
+            if (response.ok) return response.json();
+            throw new Error('Network response was not ok');
+        })
+        .then(data => {
+            const canvas = document.getElementById('salesChart');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                // Ensure no previous instance exists on this canvas if Chart.js tracks it
+                // (Though replace logic usually handles it, explict destruction is safer if we had reference)
+
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: data.labels,
+                        datasets: [{
+                            label: data.datasets[0].label,
+                            data: data.datasets[0].data,
+                            borderColor: 'rgb(79, 70, 229)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        });
+</script>

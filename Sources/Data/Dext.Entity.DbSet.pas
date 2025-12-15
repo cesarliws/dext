@@ -33,6 +33,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   System.Variants,
+  Dext,
   Dext.Collections,
   Dext.Core.Activator,
   Dext.Core.ValueConverters,
@@ -43,7 +44,6 @@ uses
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Query,
   Dext.Specifications.Base,
-  Dext.Specifications.Expression,
   Dext.Specifications.Interfaces,
   Dext.Specifications.SQL.Generator,
   Dext.Specifications.Types,
@@ -1377,4 +1377,5 @@ begin
 end;
 
 end.
+
 

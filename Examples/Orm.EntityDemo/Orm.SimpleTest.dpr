@@ -3,7 +3,7 @@ program Orm.SimpleTest;
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   FireDAC.Comp.Client,
   FireDAC.Stan.Def,
@@ -30,7 +30,6 @@ var
   U: TUser;
   Users: IList<TUser>;
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
     WriteLn('Simple IList Test');
     WriteLn('=================');

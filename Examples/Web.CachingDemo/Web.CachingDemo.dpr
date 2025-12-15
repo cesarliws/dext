@@ -1,45 +1,44 @@
-﻿program Web.CachingDemo;
+program Web.CachingDemo;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
-  Dext.Core.WebApplication,
-  Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Http.Interfaces,
-  Dext.Http.Results,
+  Dext.Web.WebApplication,
+  Dext.Web.ApplicationBuilder.Extensions,
+  Dext.Web.Interfaces,
+  Dext.Web.Results,
   Dext.Caching;
 
 var
   App: IWebApplication;
   RequestCount: Integer = 0;
 begin
-  ReportMemoryLeaksOnShutdown := True;
 
   try
-    WriteLn('💾 Dext Response Caching Demo');
+    WriteLn('?? Dext Response Caching Demo');
     WriteLn('==============================');
     WriteLn;
 
     App := TDextApplication.Create;
     var Builder := App.GetApplicationBuilder;
 
-    // ✅ Configurar Response Caching
-    WriteLn('📦 Configuring Response Caching...');
+    // ? Configurar Response Caching
+    WriteLn('?? Configuring Response Caching...');
     TApplicationBuilderCacheExtensions.UseResponseCache(Builder,
       procedure(Cache: TResponseCacheBuilder)
       begin
         Cache
           .WithDefaultDuration(30)       // Cache por 30 segundos
-          .WithMaxSize(100)               // Máximo 100 entradas
+          .WithMaxSize(100)               // M�ximo 100 entradas
           .VaryByQueryString              // Considerar query params
           .ForMethods(['GET', 'HEAD']);   // Apenas GET e HEAD
       end);
-    WriteLn('   ✅ Response caching configured: 30 seconds TTL');
+    WriteLn('   ? Response caching configured: 30 seconds TTL');
     WriteLn;
 
-    // ✅ Endpoint que retorna timestamp (para ver o cache funcionando)
+    // ? Endpoint que retorna timestamp (para ver o cache funcionando)
     TApplicationBuilderExtensions.MapGetR<IResult>(Builder, '/api/time',
       function: IResult
       begin
@@ -53,7 +52,7 @@ begin
         ));
       end);
 
-    // ✅ Endpoint com query params (vary by query)
+    // ? Endpoint com query params (vary by query)
     TApplicationBuilderExtensions.MapGetR<IResult>(Builder, '/api/data',
       function: IResult
       begin
@@ -69,13 +68,13 @@ begin
         Result := Results.Ok('{"message":"Caching Demo - Try /api/time or /api/data"}');
       end);
 
-    WriteLn('✅ Endpoints configured');
+    WriteLn('? Endpoints configured');
     WriteLn;
-    WriteLn('═══════════════════════════════════════════');
-    WriteLn('🌐 Server running on http://localhost:8080');
-    WriteLn('═══════════════════════════════════════════');
+    WriteLn('-------------------------------------------');
+    WriteLn('?? Server running on http://localhost:8080');
+    WriteLn('-------------------------------------------');
     WriteLn;
-    WriteLn('📝 Test Commands:');
+    WriteLn('?? Test Commands:');
     WriteLn;
     WriteLn('# Test caching (run multiple times within 30 seconds)');
     WriteLn('curl http://localhost:8080/api/time');
@@ -94,7 +93,7 @@ begin
     WriteLn('  X-Cache: HIT | MISS');
     WriteLn('  Cache-Control: public, max-age=30');
     WriteLn;
-    WriteLn('═══════════════════════════════════════════');
+    WriteLn('-------------------------------------------');
     WriteLn('Press Enter to stop the server...');
     WriteLn;
 
@@ -102,12 +101,12 @@ begin
     ReadLn;
 
     WriteLn;
-    WriteLn('✅ Server stopped successfully');
+    WriteLn('? Server stopped successfully');
 
   except
     on E: Exception do
     begin
-      WriteLn('❌ Error: ', E.Message);
+      WriteLn('? Error: ', E.Message);
       WriteLn('Press Enter to exit...');
       ReadLn;
     end;

@@ -1,35 +1,28 @@
-﻿program Web.JwtAuthDemo;
+program Web.JwtAuthDemo;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   System.DateUtils,
   System.Rtti,
-  Dext.Core.WebApplication,
+  Dext.Web.WebApplication,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
-  Dext.Core.ApplicationBuilder.Extensions,
-  Dext.Http.Results,
+  Dext.Web.Interfaces,
+  Dext.Web.ApplicationBuilder.Extensions,
+  Dext.Web.Results,
   Dext.Auth.JWT,
   Dext.Auth.Identity,
   Dext.Auth.Middleware,
   Dext.Auth.Attributes,
-  Dext.Core.HandlerInvoker;
+  Dext.Web.HandlerInvoker;
 
 type
-  // DTO para login
+  // DTO for login
   TLoginRequest = record
     Username: string;
     Password: string;
-  end;
-
-  // DTO para dados protegidos
-  TProtectedData = record
-    Message: string;
-    UserId: string;
-    Timestamp: string;
   end;
 
 var
@@ -38,43 +31,41 @@ var
   SecretKey: string;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
 
   try
-    WriteLn('🔐 Dext JWT Authentication Demo');
+    WriteLn('Dext JWT Authentication Demo');
     WriteLn('================================');
     WriteLn;
 
-    // Secret key para assinar tokens (em produção, use uma chave forte e armazene com segurança)
+    // Secret key for signing tokens (in production, use a strong key and store securely)
     SecretKey := 'my-super-secret-key-change-this-in-production';
 
-    // Criar handler JWT global (reutilizável)
+    // Create global JWT handler (reusable)
     JwtHandler := TJwtTokenHandler.Create(SecretKey, 'DextAuthDemo', 'DextAPI', 60);
 
     App := TDextApplication.Create;
     var Builder := App.GetApplicationBuilder;
 
-    // ✅ 1. Middleware de Autenticação JWT
-    // ✅ 1. Middleware de Autenticação JWT
-    WriteLn('📦 Configuring JWT Authentication Middleware...');
+    // 1. JWT Authentication Middleware
+    WriteLn('[*] Configuring JWT Authentication Middleware...');
     TApplicationBuilderJwtExtensions.UseJwtAuthentication(Builder, TJwtOptions.Create(SecretKey));
-    WriteLn('   ✅ JWT middleware registered');
+    WriteLn('   [OK] JWT middleware registered');
     WriteLn;
 
-    // ✅ 2. Endpoint de Login (público - gera token)
-    WriteLn('🔓 Registering public endpoints...');
+    // 2. Login Endpoint (public - generates token)
+    WriteLn('[*] Registering public endpoints...');
     TApplicationBuilderExtensions.MapPostR<TLoginRequest, IResult>(Builder, '/api/auth/login',
-      THandlerFunc<TLoginRequest, IResult>(function(Request: TLoginRequest): IResult
+      function(Request: TLoginRequest): IResult
       var
         Claims: TArray<TClaim>;
         Token: string;
       begin
-        WriteLn(Format('🔑 Login attempt: %s', [Request.Username]));
+        WriteLn(Format('[*] Login attempt: %s', [Request.Username]));
 
-        // Validação simples (em produção, valide contra banco de dados)
+        // Simple validation (in production, validate against database)
         if (Request.Username = 'admin') and (Request.Password = 'password') then
         begin
-          // ✅ Criar claims usando fluent builder
+          // Create claims using fluent builder
           Claims := TClaimsBuilder.Create
             .WithNameIdentifier('123')
             .WithName(Request.Username)
@@ -82,23 +73,23 @@ begin
             .WithEmail('admin@example.com')
             .Build;
 
-          // Gerar token
+          // Generate token
           Token := JwtHandler.GenerateToken(Claims);
 
-          WriteLn('   ✅ Login successful');
+          WriteLn('   [OK] Login successful');
           Result := Results.Ok(Format('{"token":"%s","expiresIn":3600}', [Token]));
         end
         else
         begin
-          WriteLn('   ❌ Invalid credentials');
+          WriteLn('   [ERROR] Invalid credentials');
           Result := Results.BadRequest('{"error":"Invalid username or password"}');
         end;
-      end));
+      end);
 
-    // ✅ 3. Endpoint Protegido (requer autenticação)
-    WriteLn('🔒 Registering protected endpoints...');
+    // 3. Protected Endpoint (requires authentication)
+    WriteLn('[*] Registering protected endpoints...');
     TApplicationBuilderExtensions.MapGetR<IHttpContext, IResult>(Builder, '/api/protected',
-      THandlerFunc<IHttpContext, IResult>(function(Context: IHttpContext): IResult
+      function(Context: IHttpContext): IResult
       var
         User: IClaimsPrincipal;
         UserName: string;
@@ -106,69 +97,69 @@ begin
       begin
         User := Context.User;
 
-        // Verificar se está autenticado
+        // Check if authenticated
         if (User = nil) or not User.Identity.IsAuthenticated then
         begin
-          WriteLn('   ❌ Unauthorized access attempt');
+          WriteLn('   [ERROR] Unauthorized access attempt');
           Result := Results.StatusCode(401, '{"error":"Unauthorized"}');
           Exit;
         end;
 
-        // Extrair informações do usuário
+        // Extract user information
         UserName := User.Identity.Name;
         UserId := User.FindClaim(TClaimTypes.NameIdentifier).Value;
 
-        WriteLn(Format('   ✅ Authorized access: %s (ID: %s)', [UserName, UserId]));
+        WriteLn(Format('   [OK] Authorized access: %s (ID: %s)', [UserName, UserId]));
 
         Result := Results.Ok(Format(
           '{"message":"This is protected data","userId":"%s","username":"%s","timestamp":"%s"}',
           [UserId, UserName, DateTimeToStr(Now)]
         ));
-      end));
+      end);
 
-    // ✅ 4. Endpoint Admin (requer role específica)
+    // 4. Admin Endpoint (requires specific role)
     TApplicationBuilderExtensions.MapGetR<IHttpContext, IResult>(Builder, '/api/admin',
-      THandlerFunc<IHttpContext, IResult>(function(Context: IHttpContext): IResult
+      function(Context: IHttpContext): IResult
       var
         User: IClaimsPrincipal;
       begin
         User := Context.User;
 
-        // Verificar autenticação
+        // Check authentication
         if (User = nil) or not User.Identity.IsAuthenticated then
         begin
           Result := Results.StatusCode(401, '{"error":"Unauthorized"}');
           Exit;
         end;
 
-        // Verificar role
+        // Check role
         if not User.IsInRole('Admin') then
         begin
-          WriteLn(Format('   ❌ Forbidden: %s is not an Admin', [User.Identity.Name]));
+          WriteLn(Format('   [ERROR] Forbidden: %s is not an Admin', [User.Identity.Name]));
           Result := Results.StatusCode(403, '{"error":"Forbidden - Admin role required"}');
           Exit;
         end;
 
-        WriteLn(Format('   ✅ Admin access granted: %s', [User.Identity.Name]));
+        WriteLn(Format('   [OK] Admin access granted: %s', [User.Identity.Name]));
         Result := Results.Ok('{"message":"Welcome, Admin!"}');
-      end));
+      end);
 
-    // ✅ 5. Endpoint Público (sem autenticação)
+    // 5. Public Endpoint (no authentication)
     TApplicationBuilderExtensions.MapGetR<IResult>(Builder, '/api/public',
-      THandlerFunc<IResult>(function: IResult
+      function: IResult
       begin
-        WriteLn('   📖 Public endpoint accessed');
+        WriteLn('   [*] Public endpoint accessed');
         Result := Results.Ok('{"message":"This is public data, no authentication required"}');
-      end));
+      end);
 
     WriteLn;
-    WriteLn('✅ All endpoints configured');
+    WriteLn('[OK] All endpoints configured');
     WriteLn;
-    WriteLn('═══════════════════════════════════════════');
-    WriteLn('🌐 Server running on http://localhost:8080');
-    WriteLn('═══════════════════════════════════════════');
+    WriteLn('=========================================');
+    WriteLn('Server running on http://localhost:8080');
+    WriteLn('=========================================');
     WriteLn;
-    WriteLn('📝 Test Commands:');
+    WriteLn('Test Commands:');
     WriteLn;
     WriteLn('# 1. Login (get JWT token)');
     WriteLn('curl -X POST http://localhost:8080/api/auth/login ^');
@@ -190,7 +181,7 @@ begin
     WriteLn('# 5. Try accessing protected without token (should fail)');
     WriteLn('curl http://localhost:8080/api/protected');
     WriteLn;
-    WriteLn('═══════════════════════════════════════════');
+    WriteLn('=========================================');
     WriteLn('Press Enter to stop the server...');
     WriteLn;
 
@@ -200,12 +191,12 @@ begin
     JwtHandler.Free;
 
     WriteLn;
-    WriteLn('✅ Server stopped successfully');
+    WriteLn('[OK] Server stopped successfully');
 
   except
     on E: Exception do
     begin
-      WriteLn('❌ Error: ', E.Message);
+      WriteLn('[ERROR] ', E.Message);
       WriteLn('Press Enter to exit...');
       ReadLn;
     end;

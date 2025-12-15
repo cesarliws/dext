@@ -1,4 +1,4 @@
-﻿// Examples/MinimalAPI/MinimalAPIExample.pas
+// Examples/MinimalAPI/MinimalAPIExample.pas
 program Web.MinimalAPIExample;
 
 {$APPTYPE CONSOLE}
@@ -6,13 +6,15 @@ program Web.MinimalAPIExample;
 {$R *.res}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.DateUtils,
   System.SysUtils,
   Dext.WebHost,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces;
+  Dext.Web.Interfaces,
+  Dext.Web.Results,
+  Dext.Web.ApplicationBuilder.Extensions;
 
 type
   ISomeService = interface
@@ -37,7 +39,6 @@ var
   Host: IWebHost;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   Builder := TDextWebHost.CreateDefaultBuilder;
 
   Builder.ConfigureServices(
@@ -49,24 +50,35 @@ begin
   Builder.Configure(
     procedure(App: IApplicationBuilder)
     begin
+      // Simple GET endpoint
       App.Map('/hello',
         procedure(Context: IHttpContext)
         begin
           Context.Response.Write('Hello from Dext!');
         end);
 
+      // GET with time
       App.Map('/time',
         procedure(Context: IHttpContext)
         begin
           Context.Response.Write(Format('Server time: %s', [DateTimeToStr(Now)]));
         end);
 
+      // Simple JSON endpoint
       App.Map('/json',
         procedure(Context: IHttpContext)
         begin
           Context.Response.Json('{"message": "Hello JSON!", "timestamp": "' +
             DateTimeToStr(Now) + '"}');
         end);
+        
+      WriteLn('Routes mapped:');
+      WriteLn('  GET /hello');
+      WriteLn('  GET /time');
+      WriteLn('  GET /json');
+      WriteLn('');
+      WriteLn('Server running on http://localhost:8080');
+      WriteLn('Press Ctrl+C to stop');
     end);
 
   Host := Builder.Build;

@@ -369,7 +369,8 @@ begin
     FObj.O[Name] := nil
   else if Value is TJsonDataObjectAdapter then
   begin
-    FObj.O[Name] := (Value as TJsonDataObjectAdapter).FObj.Clone as TJsonObject;
+    // Don't clone - use direct reference so child modifications are reflected
+    FObj.O[Name] := (Value as TJsonDataObjectAdapter).FObj;
   end;
 end;
 
@@ -379,7 +380,8 @@ begin
     FObj.A[Name] := nil
   else if Value is TJsonDataArrayAdapter then
   begin
-    FObj.A[Name] := (Value as TJsonDataArrayAdapter).FArr.Clone as TJsonArray;
+    // Don't clone - use direct reference so child modifications are reflected
+    FObj.A[Name] := (Value as TJsonDataArrayAdapter).FArr;
   end;
 end;
 

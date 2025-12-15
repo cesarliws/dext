@@ -310,6 +310,87 @@ type
     function Serialize(const AValue: TValue): string; overload;
   end;
 
+  /// <summary>
+  ///   Fluent JSON builder for programmatic JSON construction.
+  ///   Example usage:
+  ///     TJsonBuilder.Create
+  ///       .Add('name', 'John')
+  ///       .Add('age', 30)
+  ///       .AddObject('address')
+  ///         .Add('city', 'NYC')
+  ///       .EndObject
+  ///       .AddArray('tags')
+  ///         .AddValue('one')
+  ///         .AddValue('two')
+  ///       .EndArray
+  ///       .ToString
+  /// </summary>
+  TJsonBuilder = class
+  private
+    type
+      TBuilderNode = class
+        NodeType: (ntObject, ntArray);
+        Parent: TBuilderNode;
+        Key: string;
+        JsonObj: IDextJsonObject;
+        JsonArr: IDextJsonArray;
+      end;
+  private
+    FRoot: TBuilderNode;
+    FCurrent: TBuilderNode;
+    FNodeStack: TList<TBuilderNode>;
+    function GetCurrentObject: IDextJsonObject;
+    function GetCurrentArray: IDextJsonArray;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    
+    /// <summary>Adds a string value to the current object.</summary>
+    function Add(const AKey, AValue: string): TJsonBuilder; overload;
+    
+    /// <summary>Adds an integer value to the current object.</summary>
+    function Add(const AKey: string; AValue: Integer): TJsonBuilder; overload;
+    
+    /// <summary>Adds a 64-bit integer value to the current object.</summary>
+    function Add(const AKey: string; AValue: Int64): TJsonBuilder; overload;
+    
+    /// <summary>Adds a floating-point value to the current object.</summary>
+    function Add(const AKey: string; AValue: Double): TJsonBuilder; overload;
+    
+    /// <summary>Adds a boolean value to the current object.</summary>
+    function Add(const AKey: string; AValue: Boolean): TJsonBuilder; overload;
+    
+    /// <summary>Starts a nested object with the given key.</summary>
+    function AddObject(const AKey: string): TJsonBuilder;
+    
+    /// <summary>Ends the current nested object and returns to the parent.</summary>
+    function EndObject: TJsonBuilder;
+    
+    /// <summary>Starts a nested array with the given key.</summary>
+    function AddArray(const AKey: string): TJsonBuilder;
+    
+    /// <summary>Ends the current nested array and returns to the parent.</summary>
+    function EndArray: TJsonBuilder;
+    
+    /// <summary>Adds a string value to the current array.</summary>
+    function AddValue(const AValue: string): TJsonBuilder; overload;
+    
+    /// <summary>Adds an integer value to the current array.</summary>
+    function AddValue(AValue: Integer): TJsonBuilder; overload;
+    
+    /// <summary>Adds a boolean value to the current array.</summary>
+    function AddValue(AValue: Boolean): TJsonBuilder; overload;
+    
+    /// <summary>Returns the built JSON as a compact string.</summary>
+    function ToString: string; override;
+    
+    /// <summary>Returns the built JSON as an indented string.</summary>
+    function ToIndentedString: string;
+    
+    /// <summary>Creates a new JSON builder instance.</summary>
+    class function New: TJsonBuilder;
+  end;
+
 implementation
 
 uses
@@ -1539,5 +1620,165 @@ begin
   end;
 end;
 
-end.
+{ TJsonBuilder }
 
+constructor TJsonBuilder.Create;
+begin
+  inherited Create;
+  FNodeStack := TList<TBuilderNode>.Create;
+  
+  FRoot := TBuilderNode.Create;
+  FRoot.NodeType := ntObject;
+  FRoot.JsonObj := TDextJson.Provider.CreateObject;
+  FRoot.Parent := nil;
+  
+  FCurrent := FRoot;
+  FNodeStack.Add(FRoot);
+end;
+
+destructor TJsonBuilder.Destroy;
+var
+  Node: TBuilderNode;
+begin
+  for Node in FNodeStack do
+    Node.Free;
+  FNodeStack.Free;
+  inherited;
+end;
+
+class function TJsonBuilder.New: TJsonBuilder;
+begin
+  Result := TJsonBuilder.Create;
+end;
+
+function TJsonBuilder.GetCurrentObject: IDextJsonObject;
+begin
+  if FCurrent.NodeType = ntObject then
+    Result := FCurrent.JsonObj
+  else
+    raise EDextJsonException.Create('Current context is not an object');
+end;
+
+function TJsonBuilder.GetCurrentArray: IDextJsonArray;
+begin
+  if FCurrent.NodeType = ntArray then
+    Result := FCurrent.JsonArr
+  else
+    raise EDextJsonException.Create('Current context is not an array');
+end;
+
+function TJsonBuilder.Add(const AKey, AValue: string): TJsonBuilder;
+begin
+  GetCurrentObject.SetString(AKey, AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.Add(const AKey: string; AValue: Integer): TJsonBuilder;
+begin
+  GetCurrentObject.SetInteger(AKey, AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.Add(const AKey: string; AValue: Int64): TJsonBuilder;
+begin
+  GetCurrentObject.SetInt64(AKey, AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.Add(const AKey: string; AValue: Double): TJsonBuilder;
+begin
+  GetCurrentObject.SetDouble(AKey, AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.Add(const AKey: string; AValue: Boolean): TJsonBuilder;
+begin
+  GetCurrentObject.SetBoolean(AKey, AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.AddObject(const AKey: string): TJsonBuilder;
+var
+  NewNode: TBuilderNode;
+  NewObj: IDextJsonObject;
+begin
+  NewObj := TDextJson.Provider.CreateObject;
+  GetCurrentObject.SetObject(AKey, NewObj);
+  
+  NewNode := TBuilderNode.Create;
+  NewNode.NodeType := ntObject;
+  NewNode.JsonObj := NewObj;
+  NewNode.Parent := FCurrent;
+  NewNode.Key := AKey;
+  
+  FNodeStack.Add(NewNode);
+  FCurrent := NewNode;
+  Result := Self;
+end;
+
+function TJsonBuilder.EndObject: TJsonBuilder;
+begin
+  if FCurrent.Parent = nil then
+    raise EDextJsonException.Create('Cannot end root object');
+    
+  FCurrent := FCurrent.Parent;
+  Result := Self;
+end;
+
+function TJsonBuilder.AddArray(const AKey: string): TJsonBuilder;
+var
+  NewNode: TBuilderNode;
+  NewArr: IDextJsonArray;
+begin
+  NewArr := TDextJson.Provider.CreateArray;
+  GetCurrentObject.SetArray(AKey, NewArr);
+  
+  NewNode := TBuilderNode.Create;
+  NewNode.NodeType := ntArray;
+  NewNode.JsonArr := NewArr;
+  NewNode.Parent := FCurrent;
+  NewNode.Key := AKey;
+  
+  FNodeStack.Add(NewNode);
+  FCurrent := NewNode;
+  Result := Self;
+end;
+
+function TJsonBuilder.EndArray: TJsonBuilder;
+begin
+  if FCurrent.Parent = nil then
+    raise EDextJsonException.Create('Cannot end root array');
+    
+  FCurrent := FCurrent.Parent;
+  Result := Self;
+end;
+
+function TJsonBuilder.AddValue(const AValue: string): TJsonBuilder;
+begin
+  GetCurrentArray.Add(AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.AddValue(AValue: Integer): TJsonBuilder;
+begin
+  GetCurrentArray.Add(AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.AddValue(AValue: Boolean): TJsonBuilder;
+begin
+  GetCurrentArray.Add(AValue);
+  Result := Self;
+end;
+
+function TJsonBuilder.ToString: string;
+begin
+  Result := FRoot.JsonObj.ToJson(False);
+end;
+
+function TJsonBuilder.ToIndentedString: string;
+begin
+  Result := FRoot.JsonObj.ToJson(True);
+end;
+
+end.

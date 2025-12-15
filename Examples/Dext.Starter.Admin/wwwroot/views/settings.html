@@ -1,0 +1,139 @@
+<h2 class="text-2xl font-semibold text-gray-800 mb-6">Settings</h2>
+
+<!-- Notification area -->
+<div id="notification-area"></div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Profile Settings -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Profile Information</h3>
+
+        <form hx-post="/settings/profile" hx-ext="json-enc" hx-target="#notification-area" hx-swap="innerHTML"
+            class="space-y-4">
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700">Display Name</label>
+                <input type="text" name="Name" id="name" value="Admin User"
+                    class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email Address</label>
+                <input type="email" name="Email" id="email" value="admin@dext.com"
+                    class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label for="role" class="block text-sm font-medium text-gray-700">Role</label>
+                <input type="text" name="role" id="role" value="Administrator" disabled
+                    class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 bg-gray-50 text-gray-500">
+            </div>
+
+            <button type="submit"
+                class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                Save Changes
+            </button>
+        </form>
+    </div>
+
+    <!-- Application Settings -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Application Settings</h3>
+
+        <form hx-post="/settings/app" hx-ext="json-enc" hx-target="#notification-area" hx-swap="innerHTML">
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900">Email Notifications</p>
+                        <p class="text-sm text-gray-500">Receive email notifications for important updates</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="EmailNotifications" id="emailNotifications" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                        </div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900">Dark Mode</p>
+                        <p class="text-sm text-gray-500">Enable dark mode theme</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="DarkMode" id="darkMode" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                        </div>
+                    </label>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900">Auto-save</p>
+                        <p class="text-sm text-gray-500">Automatically save changes</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="AutoSave" id="autoSave" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600">
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit"
+                class="w-full mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                Save Settings
+            </button>
+        </form>
+    </div>
+
+    <!-- Security Settings -->
+    <div class="bg-white rounded-lg shadow p-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Change Password</h3>
+
+        <form hx-post="/settings/password" hx-ext="json-enc" hx-target="#notification-area" hx-swap="innerHTML"
+            class="space-y-4">
+            <div>
+                <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password</label>
+                <input type="password" name="CurrentPassword" id="current_password"
+                    class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label for="new_password" class="block text-sm font-medium text-gray-700">New Password</label>
+                <input type="password" name="NewPassword" id="new_password"
+                    class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <div>
+                <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New
+                    Password</label>
+                <input type="password" name="ConfirmPassword" id="confirm_password"
+                    class="mt-1 block w-full px-4 py-2 rounded-lg border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500">
+            </div>
+
+            <button type="submit"
+                class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+                Update Password
+            </button>
+        </form>
+    </div>
+
+    <!-- Danger Zone -->
+    <div id="dangerZone" class="bg-white rounded-lg shadow p-6 border-2 border-red-200">
+        <h3 class="text-lg font-medium text-red-900 mb-4">Danger Zone</h3>
+
+        <div class="space-y-4">
+            <div>
+                <p class="text-sm text-gray-600 mb-2">Once you delete your account, there is no going back. Please be
+                    certain.</p>
+                <button hx-post="/settings/delete-account"
+                    hx-confirm="Are you sure you want to delete your account? This action cannot be undone."
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                    Delete Account
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

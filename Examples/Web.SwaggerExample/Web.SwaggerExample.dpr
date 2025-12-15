@@ -1,21 +1,21 @@
-﻿program Web.SwaggerExample;
+program Web.SwaggerExample;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
-  Dext.Core.ApplicationBuilder.Extensions,
+  Dext.Web.ApplicationBuilder.Extensions,
   Dext.Swagger.Middleware,
   Dext.OpenAPI.Attributes,
   Dext.OpenAPI.Extensions,
   Dext.OpenAPI.Generator,
   Dext.OpenAPI.Types,
-  Dext.Http.Results,
+  Dext.Web.Results,
   Dext.Json;
 
 type
@@ -85,9 +85,8 @@ begin
 end;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
-    Writeln('🚀 Starting Dext Swagger Example...');
+    Writeln('?? Starting Dext Swagger Example...');
     Writeln('');
     
     InitializeSampleData;
@@ -114,18 +113,18 @@ begin
     var Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
-        Writeln('📚 Configuring services...');
+        Writeln('?? Configuring services...');
         // Register IApplicationBuilder in services for Swagger middleware
         // This will be done automatically by the framework
       end)
       .Configure(procedure(App: IApplicationBuilder)
       begin
-        Writeln('📚 Configuring Swagger...');
+        Writeln('?? Configuring Swagger...');
         
         // Add Swagger middleware
         TSwaggerExtensions.UseSwagger(App, Options);
         
-        Writeln('📚 Configuring routes...');
+        Writeln('?? Configuring routes...');
         Writeln('');
         
         // ========================================
@@ -311,12 +310,12 @@ begin
       .Build;
 
     Writeln('');
-    Writeln('✅ Server configured successfully!');
+    Writeln('? Server configured successfully!');
     Writeln('');
-    Writeln('📖 Swagger UI available at: http://localhost:8080/swagger');
-    Writeln('📄 OpenAPI JSON available at: http://localhost:8080/swagger.json');
+    Writeln('?? Swagger UI available at: http://localhost:8080/swagger');
+    Writeln('?? OpenAPI JSON available at: http://localhost:8080/swagger.json');
     Writeln('');
-    Writeln('🔗 Available endpoints:');
+    Writeln('?? Available endpoints:');
     Writeln('   GET    /api/users');
     Writeln('   GET    /api/users/{id}');
     Writeln('   POST   /api/users');
@@ -338,7 +337,7 @@ begin
   except
     on E: Exception do
     begin
-      Writeln('❌ Error: ', E.Message);
+      Writeln('? Error: ', E.Message);
       Writeln('Press Enter to exit...');
       Readln;
     end;

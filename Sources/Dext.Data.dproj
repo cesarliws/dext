@@ -120,6 +120,7 @@
         <DCCReference Include="FireDACCommon.dcp"/>
         <DCCReference Include="FireDACCommonDriver.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
+        <DCCReference Include="FireDACSqliteDriver.dcp"/>
         <DCCReference Include="Data\Dext.Entity.Query.pas"/>
         <DCCReference Include="Data\Dext.Specifications.SQL.Generator.pas"/>
         <DCCReference Include="Data\Dext.Entity.Attributes.pas"/>
@@ -147,6 +148,7 @@
         <DCCReference Include="Data\Dext.Entity.Migrations.Runner.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Serializers.Json.pas"/>
         <DCCReference Include="Hosting\Dext.Hosting.CLI.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Setup.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -64,6 +64,10 @@ type
 
     // Equality
     class operator Equal(const A, B: TServiceType): Boolean;
+    
+    // Implicit Conversion
+    class operator Implicit(A: TClass): TServiceType;
+    class operator Implicit(A: PTypeInfo): TServiceType;
   end;
 
   IServiceScope = interface
@@ -229,6 +233,19 @@ begin
     Result := IsEqualGUID(A.FGuid, B.FGuid)
   else
     Result := A.AsClass = B.AsClass;
+end;
+
+class operator TServiceType.Implicit(A: TClass): TServiceType;
+begin
+  Result := TServiceType.FromClass(A);
+end;
+
+class operator TServiceType.Implicit(A: PTypeInfo): TServiceType;
+begin
+  if A.Kind = tkInterface then
+    Result := TServiceType.FromInterface(A)
+  else
+    Result := TServiceType.FromClass(A);
 end;
 
 { TDextServices }

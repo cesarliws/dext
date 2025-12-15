@@ -45,6 +45,9 @@
         <Projects Include="Web.FrameworkTests\Web.FrameworkTests.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Dext.Starter.Admin\Dext.Starter.Admin.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -179,14 +182,23 @@
     <Target Name="Web_FrameworkTests:Make">
         <MSBuild Projects="Web.FrameworkTests\Web.FrameworkTests.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Dext_Starter_Admin">
+        <MSBuild Projects="Dext.Starter.Admin\Dext.Starter.Admin.dproj"/>
+    </Target>
+    <Target Name="Dext_Starter_Admin:Clean">
+        <MSBuild Projects="Dext.Starter.Admin\Dext.Starter.Admin.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Starter_Admin:Make">
+        <MSBuild Projects="Dext.Starter.Admin\Dext.Starter.Admin.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Core_TestConfig;Orm_EntityDemo;Orm_SimpleTest;Orm_TestDbSet;Orm_SpecificationDemo;Web_ControllerExample;Web_CachingDemo;Web_DextStore;Web_SwaggerExample;Web_JwtAuthDemo;Web_MinimalAPIExample;Web_RateLimitDemo;Web_TaskFlowAPI;Web_FrameworkTests"/>
+        <CallTarget Targets="Core_TestConfig;Orm_EntityDemo;Orm_SimpleTest;Orm_TestDbSet;Orm_SpecificationDemo;Web_ControllerExample;Web_CachingDemo;Web_DextStore;Web_SwaggerExample;Web_JwtAuthDemo;Web_MinimalAPIExample;Web_RateLimitDemo;Web_TaskFlowAPI;Web_FrameworkTests;Dext_Starter_Admin"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Core_TestConfig:Clean;Orm_EntityDemo:Clean;Orm_SimpleTest:Clean;Orm_TestDbSet:Clean;Orm_SpecificationDemo:Clean;Web_ControllerExample:Clean;Web_CachingDemo:Clean;Web_DextStore:Clean;Web_SwaggerExample:Clean;Web_JwtAuthDemo:Clean;Web_MinimalAPIExample:Clean;Web_RateLimitDemo:Clean;Web_TaskFlowAPI:Clean;Web_FrameworkTests:Clean"/>
+        <CallTarget Targets="Core_TestConfig:Clean;Orm_EntityDemo:Clean;Orm_SimpleTest:Clean;Orm_TestDbSet:Clean;Orm_SpecificationDemo:Clean;Web_ControllerExample:Clean;Web_CachingDemo:Clean;Web_DextStore:Clean;Web_SwaggerExample:Clean;Web_JwtAuthDemo:Clean;Web_MinimalAPIExample:Clean;Web_RateLimitDemo:Clean;Web_TaskFlowAPI:Clean;Web_FrameworkTests:Clean;Dext_Starter_Admin:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Core_TestConfig:Make;Orm_EntityDemo:Make;Orm_SimpleTest:Make;Orm_TestDbSet:Make;Orm_SpecificationDemo:Make;Web_ControllerExample:Make;Web_CachingDemo:Make;Web_DextStore:Make;Web_SwaggerExample:Make;Web_JwtAuthDemo:Make;Web_MinimalAPIExample:Make;Web_RateLimitDemo:Make;Web_TaskFlowAPI:Make;Web_FrameworkTests:Make"/>
+        <CallTarget Targets="Core_TestConfig:Make;Orm_EntityDemo:Make;Orm_SimpleTest:Make;Orm_TestDbSet:Make;Orm_SpecificationDemo:Make;Web_ControllerExample:Make;Web_CachingDemo:Make;Web_DextStore:Make;Web_SwaggerExample:Make;Web_JwtAuthDemo:Make;Web_MinimalAPIExample:Make;Web_RateLimitDemo:Make;Web_TaskFlowAPI:Make;Web_FrameworkTests:Make;Dext_Starter_Admin:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

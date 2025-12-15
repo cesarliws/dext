@@ -7,7 +7,7 @@ uses
   System.JSON,
   REST.Json,
   Dext,
-  Dext.Http,
+  Dext.Web,
   DextStore.Models,
   DextStore.Services;
 

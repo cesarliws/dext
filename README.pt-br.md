@@ -59,30 +59,30 @@ A fundação do framework, utilizável em qualquer tipo de aplicação.
 
 ### 🌐 Web API
 - **Roteamento & Endpoints**
-  - [Minimal API](Docs/MinimalAPI.md)
-  - [Validação](Docs/ModelBinding.md) # (Inclui validação)
+  - [Minimal API](Docs/minimal-api.md)
+  - [Validação](Docs/model-binding.md) # (Inclui validação)
 - **Segurança & Middleware**
-  - [Autenticação JWT](Docs/JWT-Authentication.md)
-  - [CORS](Docs/CORS.md)
-  - [Rate Limiting](Docs/Rate-Limiting.md)
+  - [Autenticação JWT](Docs/jwt-authentication.md)
+  - [CORS](Docs/cors.md)
+  - [Rate Limiting](Docs/rate-limiting.md)
 - **Avançado**
-  - [Background Services](Docs/BackgroundServices.md)
-  - [Action Filters](Docs/ActionFilters.md)
-  - [Swagger / OpenAPI](Docs/SWAGGER.md)
+  - [Background Services](Docs/background-services.md)
+  - [Action Filters](Docs/action-filters.md)
+  - [Swagger / OpenAPI](Docs/swagger.md)
 
 ### 🗄️ Acesso a Dados (ORM)
-- [Configuração de Banco de Dados](Docs/DATABASE_CONFIG.md)
-- [Fluent Query API](Docs/FLUENT_QUERY_API.md)
-- [Migrations](Docs/MIGRATIONS_GUIDE.md)
-- [Lazy Loading](Docs/LAZY_LOADING_ADVANCED.md)
-- [Bulk Operations](Docs/BULK_OPERATIONS.md)
-- [Soft Delete](Docs/SOFT_DELETE.md)
+- [Configuração de Banco de Dados](Docs/database-config.md)
+- [Fluent Query API](Docs/fluent-query-api.md)
+- [Migrations](Docs/migrations-guide.md)
+- [Lazy Loading](Docs/lazy-loading-advanced.md)
+- [Bulk Operations](Docs/bulk-operations.md)
+- [Soft Delete](Docs/soft-delete.md)
 
 ### ⚙️ Core & Infraestrutura
-- [Dependency Injection & Scopes](Docs/ScopedServices.md)
-- [Configuration & Options Pattern](Docs/OptionsPattern.md)
-- [Async Programming](Docs/ASYNC_API.md)
-- [Caching](Docs/Caching.md)
+- [Dependency Injection & Scopes](Docs/scoped-services.md)
+- [Configuration & Options Pattern](Docs/options-pattern.md)
+- [Async Programming](Docs/async-api.md)
+- [Caching](Docs/caching.md)
 
 ---
 
@@ -98,7 +98,7 @@ A fundação do framework, utilizável em qualquer tipo de aplicação.
    git clone https://github.com/dext-framework/dext.git
    ```
 
-   > 📦 **Nota sobre Pacotes**: O projeto está organizado em pacotes modulares localizados no diretório `Sources` (ex: `Dext.Core.dpk`, `Dext.Web.dpk`, `Dext.Entity.dpk`). Você pode abrir `Sources/DextFramework.groupproj` para carregar todos os pacotes de uma vez.
+   > 📦 **Nota sobre Pacotes**: O projeto está organizado em pacotes modulares localizados no diretório `Sources` (ex: `Dext.Core.dpk`, `Dext.Web.Core.dpk`, `Dext.Data.dpk`). Você pode abrir `Sources/DextFramework.groupproj` para carregar todos os pacotes de uma vez.
 
 2. **Configure os Paths no Delphi:**
    Adicione os seguintes caminhos ao seu **Library Path** (para compilação) e **Browsing Path** (para navegação no código):
@@ -124,22 +124,21 @@ A fundação do framework, utilizável em qualquer tipo de aplicação.
 program MyAPI;
 
 uses
-  Dext.Core.WebApplication,
-  Dext.Http.Results;
+  Dext.Web;
 
 begin
   var App := TDextApplication.Create;
-  var Builder := App.GetApplicationBuilder;
+  var Builder := App.Builder;
 
   // Rota simples
-  Builder.MapGetR<IResult>('/hello', 
+  Builder.MapGet<IResult>('/hello', 
     function: IResult
     begin
       Result := Results.Ok('{"message": "Hello Dext!"}');
     end);
 
   // Rota com parâmetro e binding
-  Builder.MapGetR<Integer, IResult>('/users/{id}',
+  Builder.MapGet<Integer, IResult>('/users/{id}',
     function(Id: Integer): IResult
     begin
       Result := Results.Json(Format('{"userId": %d}', [Id]));
@@ -160,7 +159,7 @@ App.Services.AddSingleton<IEmailService, TEmailService>;
 // 2. Defina o Endpoint com Dependências
 // - 'Dto': Automaticamente populado a partir do JSON Body (Smart Binding)
 // - 'EmailService': Automaticamente injetado do Container de DI
-App.MapPostR<TUserDto, IEmailService, IResult>('/register',
+App.Builder.MapPost<TUserDto, IEmailService, IResult>('/register',
   function(Dto: TUserDto; EmailService: IEmailService): IResult
   begin
     EmailService.SendWelcome(Dto.Email);
@@ -251,6 +250,7 @@ O repositório contém projetos de exemplo práticos:
 - **`Examples/Web.ControllerExample`**: Demonstra implementação de API baseada em Controllers (inclui um cliente web em **Vite**).
 - **`Examples/Web.SwaggerExample`**: Mostra como integrar e customizar a documentação OpenAPI/Swagger.
 - **`Examples/Web.TaskFlowAPI`**: Uma API REST "Mundo Real" completa demonstrando arquitetura em camadas, ORM, Auth e DI.
+- **`Examples/Dext.Starter.Admin`**: **(Recomendado)** Um Painel Administrativo Moderno com HTMX, Camada de Serviço e Minimal APIs. [Leia o Guia](Examples/Dext.Starter.Admin/README.md).
 
 ---
 
@@ -264,10 +264,10 @@ O repositório contém projetos de exemplo práticos:
 ## 🗺️ Roadmaps
 
 Acompanhe o desenvolvimento do projeto:
-- [ORM Roadmap](Docs/ORM_ROADMAP.md)
-- [Web Framework Roadmap](Docs/WEB_ROADMAP.md)
-- [Infra & IDE Roadmap](Docs/INFRA_ROADMAP.md)
-- [Arquitetura & Performance](Docs/ARCHITECTURE_PERFORMANCE.pt-br.md)
+- [ORM Roadmap](Docs/Roadmap/orm-roadmap.md)
+- [Web Framework Roadmap](Docs/Roadmap/web-roadmap.md)
+- [Infra & IDE Roadmap](Docs/Roadmap/infra-roadmap.md)
+- [Arquitetura & Performance](Docs/architecture-performance.pt-br.md)
 
 ---
 

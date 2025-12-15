@@ -5,7 +5,7 @@ program FluentAPIDemo;
 uses
   System.SysUtils,
   System.Rtti,
-  Dext.Http.Cors in '..\Sources\Core\Dext.Http.Cors.pas',
+  Dext.Web.Cors in '..\Sources\Core\Dext.Web.Cors.pas',
   Dext.Auth.JWT in '..\Sources\Core\Dext.Auth.JWT.pas',
   Dext.Auth.Middleware in '..\Sources\Core\Dext.Auth.Middleware.pas';
 

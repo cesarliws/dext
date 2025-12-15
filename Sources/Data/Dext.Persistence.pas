@@ -32,6 +32,7 @@ unit Dext.Persistence;
 interface
 
 uses
+  FireDAC.Comp.Client,
   System.SysUtils,
   Dext.Entity,
   Dext.Entity.Core,
@@ -43,9 +44,35 @@ uses
   Dext.Entity.Grouping,
   Dext.Entity.Joining,
   Dext.Types.Lazy,
-  Dext.Specifications.Types;
+  Dext.Specifications.Types,
+  // New Units
+  Dext.Entity.Dialects,
+  Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.LazyLoading,
+  Dext.Entity.Mapping,
+  Dext.Entity.Migrations,
+  Dext.Entity.Migrations.Builder,
+  Dext.Entity.Migrations.Differ,
+  Dext.Entity.Migrations.Extractor,
+  Dext.Entity.Migrations.Generator,
+  Dext.Entity.Migrations.Json,
+  Dext.Entity.Migrations.Model,
+  Dext.Entity.Migrations.Operations,
+  Dext.Entity.Migrations.Runner,
+  Dext.Entity.Naming,
+  Dext.Entity.Scaffolding,
+  Dext.Entity.Drivers.FireDAC,
+  Dext.Entity.Setup, // Add Setup
+  Dext.DI.Interfaces, // Add DI Interfaces
+  Dext.Specifications.SQL.Generator;
 
 type
+  TFDConnection = FireDAC.Comp.Client.TFDConnection;
+  TFireDACConnection = Dext.Entity.Drivers.FireDAC.TFireDACConnection;
+  TFireDACTransaction = Dext.Entity.Drivers.FireDAC.TFireDACTransaction;
+  TFireDACReader = Dext.Entity.Drivers.FireDAC.TFireDACReader;
+  TFireDACCommand = Dext.Entity.Drivers.FireDAC.TFireDACCommand;
+
   // Core Interfaces
   IDbContext = Dext.Entity.Core.IDbContext;
   IDbSet = Dext.Entity.Core.IDbSet;
@@ -55,6 +82,10 @@ type
   EOptimisticConcurrencyException = Dext.Entity.Core.EOptimisticConcurrencyException;
 
   IExpression = Dext.Specifications.Interfaces.IExpression;
+  IChangeTracker = Dext.Entity.Core.IChangeTracker;
+  ICollectionEntry = Dext.Entity.Core.ICollectionEntry;
+  IReferenceEntry = Dext.Entity.Core.IReferenceEntry;
+  IEntityEntry = Dext.Entity.Core.IEntityEntry;
   
   // Specification Builder Helper (Static Class)
   Specification = Dext.Specifications.Fluent.Specification;
@@ -62,6 +93,84 @@ type
   // Query Helpers
   TQueryGrouping = Dext.Entity.Grouping.TQuery;
   TQueryJoin = Dext.Entity.Joining.TJoining;
+
+  // Driver Interfaces
+  IDbConnection = Dext.Entity.Drivers.Interfaces.IDbConnection;
+  IDbTransaction = Dext.Entity.Drivers.Interfaces.IDbTransaction;
+  IDbCommand = Dext.Entity.Drivers.Interfaces.IDbCommand;
+  IDbReader = Dext.Entity.Drivers.Interfaces.IDbReader;
+  ISQLDialect = Dext.Entity.Dialects.ISQLDialect;
+
+  // Dialects
+  TBaseDialect = Dext.Entity.Dialects.TBaseDialect;
+  TSQLiteDialect = Dext.Entity.Dialects.TSQLiteDialect;
+  TPostgreSQLDialect = Dext.Entity.Dialects.TPostgreSQLDialect;
+  TFirebirdDialect = Dext.Entity.Dialects.TFirebirdDialect;
+  TSQLServerDialect = Dext.Entity.Dialects.TSQLServerDialect;
+  TMySQLDialect = Dext.Entity.Dialects.TMySQLDialect;
+  TOracleDialect = Dext.Entity.Dialects.TOracleDialect;
+
+  // Mapping
+  TModelBuilder = Dext.Entity.Mapping.TModelBuilder;
+
+  // Setup
+  TDbContextOptions = Dext.Entity.Setup.TDbContextOptions;
+  TDbContextOptionsBuilder = Dext.Entity.Setup.TDbContextOptionsBuilder;
+  
+  // Migrations - Interfaces
+  IMigration = Dext.Entity.Migrations.IMigration;
+  IColumnBuilder = Dext.Entity.Migrations.Builder.IColumnBuilder;
+
+  // Migrations - Core Classes
+  TMigrationRegistry = Dext.Entity.Migrations.TMigrationRegistry;
+  TMigrator = Dext.Entity.Migrations.Runner.TMigrator;
+  
+  // Migrations - Builders & Generators
+  TSchemaBuilder = Dext.Entity.Migrations.Builder.TSchemaBuilder;
+  TTableBuilder = Dext.Entity.Migrations.Builder.TTableBuilder;
+  TColumnBuilder = Dext.Entity.Migrations.Builder.TColumnBuilder;
+  TMigrationGenerator = Dext.Entity.Migrations.Generator.TMigrationGenerator;
+  TJsonMigration = Dext.Entity.Migrations.Json.TJsonMigration;
+  TJsonMigrationLoader = Dext.Entity.Migrations.Json.TJsonMigrationLoader;
+
+  // Migrations - Model Extractors & Differs
+  TModelDiffer = Dext.Entity.Migrations.Differ.TModelDiffer;
+  TDbContextModelExtractor = Dext.Entity.Migrations.Extractor.TDbContextModelExtractor;
+  
+  // Migrations - Operations
+  TMigrationOperation = Dext.Entity.Migrations.Operations.TMigrationOperation;
+  TCreateTableOperation = Dext.Entity.Migrations.Operations.TCreateTableOperation;
+  TDropTableOperation = Dext.Entity.Migrations.Operations.TDropTableOperation;
+  TAddColumnOperation = Dext.Entity.Migrations.Operations.TAddColumnOperation;
+  TDropColumnOperation = Dext.Entity.Migrations.Operations.TDropColumnOperation;
+  TAlterColumnOperation = Dext.Entity.Migrations.Operations.TAlterColumnOperation;
+  TAddForeignKeyOperation = Dext.Entity.Migrations.Operations.TAddForeignKeyOperation;
+  TDropForeignKeyOperation = Dext.Entity.Migrations.Operations.TDropForeignKeyOperation;
+  TCreateIndexOperation = Dext.Entity.Migrations.Operations.TCreateIndexOperation;
+  TDropIndexOperation = Dext.Entity.Migrations.Operations.TDropIndexOperation;
+  TSqlOperation = Dext.Entity.Migrations.Operations.TSqlOperation;
+
+  // Migrations - Snapshot Model
+  TSnapshotModel = Dext.Entity.Migrations.Model.TSnapshotModel;
+  TSnapshotTable = Dext.Entity.Migrations.Model.TSnapshotTable;
+  TSnapshotColumn = Dext.Entity.Migrations.Model.TSnapshotColumn;
+  TSnapshotForeignKey = Dext.Entity.Migrations.Model.TSnapshotForeignKey;
+
+  // Naming
+  INamingStrategy = Dext.Entity.Naming.INamingStrategy;
+  TDefaultNamingStrategy = Dext.Entity.Naming.TDefaultNamingStrategy;
+  TSnakeCaseNamingStrategy = Dext.Entity.Naming.TSnakeCaseNamingStrategy;
+  TLowerCaseNamingStrategy = Dext.Entity.Naming.TLowerCaseNamingStrategy;
+  TUppercaseNamingStrategy = Dext.Entity.Naming.TUppercaseNamingStrategy;
+
+  // Scaffolding
+  ISchemaProvider = Dext.Entity.Scaffolding.ISchemaProvider;
+  IEntityGenerator = Dext.Entity.Scaffolding.IEntityGenerator;
+  TFireDACSchemaProvider = Dext.Entity.Scaffolding.TFireDACSchemaProvider;
+  TDelphiEntityGenerator = Dext.Entity.Scaffolding.TDelphiEntityGenerator;
+
+  // SQL Generation
+  ISQLColumnMapper = Dext.Specifications.SQL.Generator.ISQLColumnMapper;
 
   // Atributes
   TableAttribute = Dext.Entity.Attributes.TableAttribute;
@@ -102,6 +211,29 @@ type
   /// </summary>
   TPropExpression = Dext.Specifications.Types.TPropExpression;
 
+  /// <summary>
+  ///   Persistence Setup Helper
+  /// </summary>
+  TDbContextClass = class of TDbContext;
+  
+  /// <summary>
+  ///   Helper for TDextServices to add Persistence features.
+  /// </summary>
+  TDextPersistenceServicesHelper = record helper for TDextServices
+  public
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(Config: TProc<TDbContextOptions>): TDextServices;
+  end;
+
+  TPersistence = class
+  public
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container.
+    /// </summary>
+    class procedure AddDbContext<T: TDbContext>(Services: IServiceCollection; Config: TProc<TDbContextOptions>);
+  end;
 
 const
   caNoAction = Dext.Entity.Attributes.TCascadeAction.caNoAction;
@@ -113,7 +245,88 @@ implementation
 
 uses
   System.Rtti,
-  Dext.Specifications.OrderBy;
+  Dext.Specifications.OrderBy,
+  Dext.DI.Core; // Added for IServiceProvider, TServiceType
+
+{ TDextPersistenceServicesHelper }
+
+function TDextPersistenceServicesHelper.AddDbContext<T>(Config: TProc<TDbContextOptions>): TDextServices;
+begin
+  TPersistence.AddDbContext<T>(Self.Unwrap, Config);
+  Result := Self;
+end;
+
+{ TPersistence }
+
+class procedure TPersistence.AddDbContext<T>(Services: IServiceCollection; Config: TProc<TDbContextOptions>);
+begin
+  Services.AddScoped(
+    TServiceType.FromClass(T),
+    T,
+    function(Provider: IServiceProvider): TObject
+    begin
+      var Options := TDbContextOptions.Create;
+      try
+        // Apply user configuration
+        if Assigned(Config) then
+          Config(Options);
+
+        // 1. Connection Creation (Pooled)
+        var Connection: IDbConnection;
+        
+        if Options.CustomConnection <> nil then
+        begin
+          Connection := Options.CustomConnection;
+        end
+        else
+        begin
+          // FireDAC Creation
+          var FDConn := TFDConnection.Create(nil);
+          
+          if Options.DriverName <> '' then
+            FDConn.DriverName := Options.DriverName;
+            
+          if Options.ConnectionString <> '' then
+            FDConn.ConnectionString := Options.ConnectionString;
+            
+          for var Pair in Options.Params do
+             FDConn.Params.Values[Pair.Key] := Pair.Value;
+             
+          // Pooling Setup
+          if Options.Pooling then
+          begin
+            FDConn.Params.Values['Pooled'] := 'True';
+            if Options.PoolMax > 0 then
+              FDConn.Params.Values['Pool_MaximumItems'] := Options.PoolMax.ToString;
+          end;
+          
+          try
+            FDConn.Open; 
+          except
+             FDConn.Free;
+             raise;
+          end;
+
+          Connection := TFireDACConnection.Create(FDConn, True); // Owns FDConn
+        end;
+
+        // 2. Dialect Resolution
+        var Dialect := Options.Dialect;
+        if Dialect = nil then
+          Dialect := TSQLiteDialect.Create;
+
+        // 3. Create Context
+        var Ctx := TDbContextClass(T).Create(Connection, Dialect, nil);
+        Result := Ctx;
+        
+      except
+        Options.Free;
+        raise;
+      end;
+      Options.Free;
+    end
+  );
+end;
 
 { Lazy<T> }
 

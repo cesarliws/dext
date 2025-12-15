@@ -54,8 +54,8 @@ Dext/
 │   ├── Dext.Core.ModelBinding.pas      # Binding de parâmetros
 │   ├── Dext.Validation.pas             # Sistema de validação
 │   ├── Dext.Auth.Middleware.pas        # Autenticação JWT
-│   ├── Dext.Http.Cors.pas              # CORS middleware
-│   ├── Dext.Http.StaticFiles.pas       # Static files middleware
+│   ├── Dext.Web.Cors.pas              # CORS middleware
+│   ├── Dext.Web.StaticFiles.pas       # Static files middleware
 │   └── Dext.Json.pas                   # Serialização JSON
 │
 └── Examples/
@@ -82,8 +82,8 @@ program Web.ControllerExample;
 uses
   Dext.Core.WebApplication,
   Dext.DI.Extensions,
-  Dext.Http.Cors,
-  Dext.Http.StaticFiles,
+  Dext.Web.Cors,
+  Dext.Web.StaticFiles,
   Dext.Auth.Middleware;
 
 begin

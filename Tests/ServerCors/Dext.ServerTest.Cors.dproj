@@ -182,7 +182,7 @@
         <DCCReference Include="Dext.ServerTest.Cors.Consts.pas"/>
         <DCCReference Include="Dext.Json.Test.pas"/>
         <DCCReference Include="Dext.ModelBinding.Tests.pas"/>
-        <DCCReference Include="..\Common\Dext.Http.Mocks.pas"/>
+        <DCCReference Include="..\Common\Dext.Web.Mocks.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

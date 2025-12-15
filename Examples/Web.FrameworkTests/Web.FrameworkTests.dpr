@@ -1,9 +1,9 @@
-﻿program Web.FrameworkTests;
+program Web.FrameworkTests;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   WebFrameworkTests.Tests.Base in 'WebFrameworkTests.Tests.Base.pas',
   WebFrameworkTests.Tests.Routing in 'WebFrameworkTests.Tests.Routing.pas',
@@ -26,15 +26,14 @@ begin
     end;
   except
     on E: Exception do
-      WriteLn('❌ Critical Error running test: ' + E.Message);
+      WriteLn('? Critical Error running test: ' + E.Message);
   end;
 end;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   
   try
-    WriteLn('🌐 Dext Web Framework Stability Tests');
+    WriteLn('?? Dext Web Framework Stability Tests');
     WriteLn('=====================================');
     
     // Execute Tests
@@ -42,10 +41,10 @@ begin
     RunTest(TAsyncTest);
     
     WriteLn('');
-    WriteLn('✨ All tests completed.');
+    WriteLn('? All tests completed.');
   except
     on E: Exception do
-      Writeln('❌ Critical Error: ', E.ClassName, ': ', E.Message);
+      Writeln('? Critical Error: ', E.ClassName, ': ', E.Message);
   end;
 
   WriteLn('Press Enter to exit...');

@@ -27,8 +27,8 @@ msbuild "Dext.Data.dproj" /t:Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%
 if %ERRORLEVEL% NEQ 0 goto Error
 
 echo.
-echo Building Dext.Http...
-msbuild "Dext.Http.dproj" /t:Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_DcpOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
+echo Building Dext.Web...
+msbuild "Dext.Web.Core.dproj" /t:Build /p:Configuration=%BUILD_CONFIG% /p:Platform=%PLATFORM% /p:DCC_DcuOutput="%OUTPUT_PATH%" /p:DCC_DcpOutput="%OUTPUT_PATH%" /p:DCC_UnitSearchPath="%OUTPUT_PATH%" /v:minimal
 if %ERRORLEVEL% NEQ 0 goto Error
 
 echo.
@@ -36,7 +36,7 @@ echo ==========================================
 echo Build Completed Successfully!
 echo Output: %OUTPUT_PATH%
 echo ==========================================
-pause
+if not "%1"=="--no-wait" pause
 cd ..
 exit /b 0
 
@@ -45,6 +45,6 @@ echo.
 echo ==========================================
 echo BUILD FAILED!
 echo ==========================================
-pause
+if not "%1"=="--no-wait" pause
 cd ..
 exit /b 1

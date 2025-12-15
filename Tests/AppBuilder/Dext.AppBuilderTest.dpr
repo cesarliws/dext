@@ -1,19 +1,19 @@
 program Dext.AppBuilderTest;
 
 uses
-  FastMM5,
+  Dext.MM,
   System.Classes,
   System.SysUtils,
   System.Rtti,
   Dext.DI.Interfaces,
   Dext.DI.Core,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
-  Dext.Http.Core,
-  Dext.Http.Middleware,
+  Dext.Web.Interfaces,
+  Dext.Web.Core,
+  Dext.Web.Middleware,
   Dext.Logging,
   Dext.Logging.Console,
-  Dext.Http.Mocks in '..\Common\Dext.Http.Mocks.pas';
+  Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas';
 
 {$APPTYPE CONSOLE}
 
@@ -26,7 +26,6 @@ var
   Services: IServiceCollection;
   ServiceProvider: IServiceProvider;
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
     Writeln('=== Testing ApplicationBuilder ===');
 

@@ -4,10 +4,9 @@ program Orm.TestDbSet;
 
 
 uses
-  FastMM5,
+  Dext.MM,
   TestUnit in 'TestUnit.pas';
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   RunTest;
 end.

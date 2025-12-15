@@ -1,22 +1,22 @@
-Ôªøprogram Dext.ServerTest.Cors;
+program Dext.ServerTest.Cors;
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   System.Rtti,
   Dext.Utils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
-  Dext.Http.Middleware,
-  Dext.Http.Cors,
+  Dext.Web.Middleware,
+  Dext.Web.Cors,
   Dext.Logging,
   Dext.Logging.Console,
   Dext.ServerTest.Cors.Consts in 'Dext.ServerTest.Cors.Consts.pas',
   Dext.Json.Test in 'Dext.Json.Test.pas',
   Dext.ModelBinding.Tests in 'Dext.ModelBinding.Tests.pas',
-  Dext.Http.Mocks in '..\Common\Dext.Http.Mocks.pas';
+  Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas';
 
 {$APPTYPE CONSOLE}
 
@@ -55,7 +55,6 @@ begin
 end;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
     TestDextJson;
     TestDextJsonRecords;
@@ -75,7 +74,7 @@ begin
     TestAllFeaturesCombined;
     TestEdgeCases;
     TestLocalization;
-    TestProviders; // ‚úÖ Adicionado teste de drivers
+    TestProviders; // ? Adicionado teste de drivers
     Readln;
     Exit;
     TestBindingAttributes;
@@ -110,14 +109,14 @@ begin
     var Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
-        // Registrar servi√ßos
+        // Registrar serviÁos
         TServiceCollectionExtensions.AddSingleton<ITimeService, TTimeService>(Services);
         TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(Services);
       end)
       .Configure(procedure(App: IApplicationBuilder)
       begin
-        // ‚úÖ CORRE√á√ÉO: Usar TApplicationBuilderCorsExtensions.UseCors
-        TApplicationBuilderCorsExtensions.UseCors(App,  // ‚Üê CORRETO!
+        // ? CORRE«√O: Usar TApplicationBuilderCorsExtensions.UseCors
+        TApplicationBuilderCorsExtensions.UseCors(App,  // ? CORRETO!
           procedure(CorsBuilder: TCorsBuilder)
           begin
             CorsBuilder
@@ -127,7 +126,7 @@ begin
               .AllowCredentials;
           end);
 
-        // Configurar pipeline (agora App j√° tem CORS configurado)
+        // Configurar pipeline (agora App j· tem CORS configurado)
         var ExceptionOptions := TExceptionHandlerOptions.Development;
         App.UseMiddleware(TExceptionHandlerMiddleware, TValue.From(ExceptionOptions));
         
@@ -169,7 +168,7 @@ begin
                Month := Ctx.Request.RouteParams['month'];
                Ctx.Response.Write(Format('Posts from %s/%s', [Year, Month]));
              end)
-           // ‚úÖ NOVA ROTA: Espec√≠fica para testar CORS
+           // ? NOVA ROTA: EspecÌfica para testar CORS
            .Map('/cors-test',
              procedure(Ctx: IHttpContext)
              begin
@@ -178,14 +177,14 @@ begin
             .Map('/cors-demo',
               procedure(Ctx: IHttpContext)
               begin
-                // ‚úÖ CORRE√á√ÉO: Usar SetContentType ANTES de Write
+                // ? CORRE«√O: Usar SetContentType ANTES de Write
                 Ctx.Response.SetContentType('text/html; charset=utf-8');
                 Ctx.Response.Write(TextCorsHtml);
               end)
             .Map('/cors-test-page',
               procedure(Ctx: IHttpContext)
               begin
-                // ‚úÖ Simular que esta p√°gina vem de http://localhost:3000
+                // ? Simular que esta p·gina vem de http://localhost:3000
                 Ctx.Response.AddHeader('Access-Control-Allow-Origin', 'http://localhost:8080');
                 Ctx.Response.SetContentType('text/html; charset=utf-8');
                 Ctx.Response.Write(TextCorsHtmlTestPage);
@@ -193,10 +192,10 @@ begin
       end)
       .Build;
 
-    // üöÄ INICIAR SERVIDOR REAL!
+    // ?? INICIAR SERVIDOR REAL!
     Host.Run;
 
-    // Manter servidor rodando at√© Enter
+    // Manter servidor rodando atÈ Enter
     Readln;
 
     Host.Stop;

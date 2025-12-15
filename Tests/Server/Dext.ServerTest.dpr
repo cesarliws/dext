@@ -1,15 +1,15 @@
-﻿program Dext.ServerTest;
+program Dext.ServerTest;
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   System.Rtti,
  Dext.Utils,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Http.Interfaces,
+  Dext.Web.Interfaces,
   Dext.WebHost,
-  Dext.Http.Middleware,
+  Dext.Web.Middleware,
   Dext.Logging,
   Dext.Logging.Console;
 
@@ -50,14 +50,13 @@ begin
 end;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
     Writeln('=== Starting Dext Web Server ===');
 
     var Host := TDextWebHost.CreateDefaultBuilder
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
-        // Registrar serviços
+        // Registrar servi�os
         TServiceCollectionExtensions.AddSingleton<ITimeService, TTimeService>(Services);
         TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(Services);
       end)
@@ -107,9 +106,9 @@ begin
       end)
       .Build;
 
-    // 🚀 INICIAR SERVIDOR REAL!
+    // ?? INICIAR SERVIDOR REAL!
     Host.Run;
-    // Manter servidor rodando até Enter
+    // Manter servidor rodando at� Enter
     //Readln;
     Host.Stop;
   except

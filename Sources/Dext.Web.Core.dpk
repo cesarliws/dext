@@ -1,0 +1,90 @@
+﻿package Dext.Web.Core;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Dext Framework - Web & HTTP'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  IndySystem,
+  IndyProtocols,
+  IndyCore,
+  Dext.Core,
+  Dext.Data;
+
+contains
+  Dext.Web in 'Web\Dext.Web.pas',
+  Dext.Web.Core in 'Web\Dext.Web.Core.pas',
+  Dext.Web.Interfaces in 'Web\Dext.Web.Interfaces.pas',
+  Dext.Web.Pipeline in 'Web\Dext.Web.Pipeline.pas',
+  Dext.Web.Middleware in 'Web\Dext.Web.Middleware.pas',
+  Dext.Web.Middleware.Extensions in 'Web\Dext.Web.Middleware.Extensions.pas',
+  Dext.Web.Extensions in 'Web\Dext.Web.Extensions.pas',
+  Dext.Web.Routing in 'Web\Dext.Web.Routing.pas',
+  Dext.Web.RoutingMiddleware in 'Web\Dext.Web.RoutingMiddleware.pas',
+  Dext.Web.Results in 'Web\Dext.Web.Results.pas',
+  Dext.Web.Formatters.Interfaces in 'Web\Dext.Web.Formatters.Interfaces.pas',
+  Dext.Web.Formatters.Json in 'Web\Dext.Web.Formatters.Json.pas',
+  Dext.Web.Formatters.Selector in 'Web\Dext.Web.Formatters.Selector.pas',
+  Dext.Web.Injection in 'Web\Dext.Web.Injection.pas',
+  Dext.Web.Versioning in 'Web\Dext.Web.Versioning.pas',
+  Dext.Web.Cors in 'Web\Dext.Web.Cors.pas',
+  Dext.Web.StaticFiles in 'Web\Dext.Web.StaticFiles.pas',
+  Dext.Web.Indy in 'Web\Dext.Web.Indy.pas',
+  Dext.Web.Indy.Server in 'Web\Dext.Web.Indy.Server.pas',
+  Dext.Web.Middleware.Logging in 'Web\Dext.Web.Middleware.Logging.pas',
+  Dext.Caching in 'Web\Caching\Dext.Caching.pas',
+  Dext.Caching.Redis in 'Web\Caching\Dext.Caching.Redis.pas',
+  Dext.Web.Controllers in 'Web\Mvc\Dext.Web.Controllers.pas',
+  Dext.Web.ControllerScanner in 'Web\Mvc\Dext.Web.ControllerScanner.pas',
+  Dext.Web.ModelBinding in 'Web\Mvc\Dext.Web.ModelBinding.pas',
+  Dext.Web.ModelBinding.Extensions in 'Web\Mvc\Dext.Web.ModelBinding.Extensions.pas',
+  Dext.Web.HandlerInvoker in 'Web\Mvc\Dext.Web.HandlerInvoker.pas',
+  Dext.Web.Routing.Attributes in 'Web\Mvc\Dext.Web.Routing.Attributes.pas',
+  Dext.WebHost in 'Web\Dext.WebHost.pas',
+  Dext.Auth.Identity in 'Web\Dext.Auth.Identity.pas',
+  Dext.Auth.Attributes in 'Web\Dext.Auth.Attributes.pas',
+  Dext.Auth.Middleware in 'Web\Dext.Auth.Middleware.pas',
+  Dext.Auth.JWT in 'Web\Dext.Auth.JWT.pas',
+  Dext.DI.Middleware in 'Web\Dext.DI.Middleware.pas',
+  Dext.HealthChecks in 'Web\Dext.HealthChecks.pas',
+  Dext.Filters in 'Web\Dext.Filters.pas',
+  Dext.Filters.BuiltIn in 'Web\Dext.Filters.BuiltIn.pas',
+  Dext.RateLimiting.Core in 'Web\Dext.RateLimiting.Core.pas',
+  Dext.RateLimiting.Limiters in 'Web\Dext.RateLimiting.Limiters.pas',
+  Dext.RateLimiting.Policy in 'Web\Dext.RateLimiting.Policy.pas',
+  Dext.RateLimiting in 'Web\Dext.RateLimiting.pas',
+  Dext.OpenAPI.Types in 'Web\Dext.OpenAPI.Types.pas',
+  Dext.OpenAPI.Attributes in 'Web\Dext.OpenAPI.Attributes.pas',
+  Dext.OpenAPI.Generator in 'Web\Dext.OpenAPI.Generator.pas',
+  Dext.OpenAPI.Extensions in 'Web\Dext.OpenAPI.Extensions.pas',
+  Dext.Swagger.Middleware in 'Web\Dext.Swagger.Middleware.pas',
+  Dext.Web.ApplicationBuilder.Extensions in 'Web\Hosting\Dext.Web.ApplicationBuilder.Extensions.pas',
+  Dext.Web.WebApplication in 'Web\Hosting\Dext.Web.WebApplication.pas';
+
+end.

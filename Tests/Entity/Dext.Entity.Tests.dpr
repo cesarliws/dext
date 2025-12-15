@@ -1,11 +1,11 @@
-﻿program Dext.Entity.Tests;
+program Dext.Entity.Tests;
 
 {$APPTYPE CONSOLE}
 
 
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   Dext.Utils,
   Dext.Entity.Dialects in '..\Entity\Dext.Entity.Dialects.pas',
@@ -27,9 +27,8 @@ var
   TestNS: TNamingStrategyTest;
   TestMap: TMappingTest;
 begin
-  ReportMemoryLeaksOnShutdown := True;
   SetConsoleCharSet(65001);
-  WriteLn('🧪 Running Dext Entity Unit Tests...');
+  WriteLn('?? Running Dext Entity Unit Tests...');
   WriteLn('====================================');
   
   // Fluent Mapping
@@ -95,7 +94,7 @@ begin
   end;
   
   WriteLn('');
-  WriteLn('✨ All unit tests completed.');
+  WriteLn('? All unit tests completed.');
 end;
 
 begin

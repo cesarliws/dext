@@ -1,23 +1,22 @@
-﻿program Web.ControllerExample;
+program Web.ControllerExample;
 
 {$APPTYPE CONSOLE}
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   System.Rtti,
   Dext,
-  Dext.Http,
+  Dext.Web,
   Dext.Utils,
-  Dext.Http.Middleware.Logging, // Added logging middleware
+  Dext.Web.Middleware.Logging, // Added logging middleware
   ControllerExample.Controller in 'ControllerExample.Controller.pas',
   ControllerExample.Services in 'ControllerExample.Services.pas';
 
 begin
   SetConsoleCharSet(65001); // Fix console encoding
-  ReportMemoryLeaksOnShutdown := True;
   try
-    WriteLn('🚀 Starting Dext Controller Example...');
+    WriteLn('?? Starting Dext Controller Example...');
     var App: IWebApplication := TDextApplication.Create;
 
     // Add Logging Middleware FIRST
@@ -89,7 +88,7 @@ begin
 
     // 7. Run Application
     WriteLn('');
-    WriteLn('📋 Feature Test Instructions:');
+    WriteLn('?? Feature Test Instructions:');
     WriteLn('---------------------------------------------------------');
     WriteLn('1. Content Negotiation (defaults to JSON):');
     WriteLn('   curl -H "Accept: application/json" http://localhost:8080/api/greet/negotiated');
@@ -106,6 +105,6 @@ begin
     App.Run(8080);
   except
     on E: Exception do
-      Writeln('❌ Error: ', E.ClassName, ': ', E.Message);
+      Writeln('? Error: ', E.ClassName, ': ', E.Message);
   end;
 end.

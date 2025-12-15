@@ -70,13 +70,13 @@ contains
   Dext in 'Core\Dext.pas',
   Dext.Specifications.Base in 'Core\Dext.Specifications.Base.pas',
   Dext.Specifications.Evaluator in 'Core\Dext.Specifications.Evaluator.pas',
-  Dext.Specifications.Expression in 'Core\Dext.Specifications.Expression.pas',
   Dext.Specifications.Fluent in 'Core\Dext.Specifications.Fluent.pas',
   Dext.Specifications.Interfaces in 'Core\Dext.Specifications.Interfaces.pas',
   Dext.Specifications.OrderBy in 'Core\Dext.Specifications.OrderBy.pas',
   Dext.Specifications.Types in 'Core\Dext.Specifications.Types.pas',
   Dext.Threading.Async in 'Core\Dext.Threading.Async.pas',
-  Dext.Validation in 'Core\Dext.Validation.pas';
+  Dext.Validation in 'Core\Dext.Validation.pas',
+  Dext.MM in 'Core\Dext.MM.pas';
 
 end.
 

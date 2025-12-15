@@ -1,29 +1,29 @@
-﻿program Web.TaskFlowAPI;
+program Web.TaskFlowAPI;
 
 uses
-  FastMM5,
-  Dext.Core.WebApplication,
+  Dext.MM,
+  Dext.Web.WebApplication,
   Dext.DI.Extensions,
-  Dext.Core.Routing,
-  Dext.Core.ModelBinding,
-  Dext.Http.Interfaces,
+  Dext.Web.Routing.Attributes,
+  Dext.Web.ModelBinding,
+  Dext.Web.Interfaces,
   TaskFlow.Domain,
   TaskFlow.Repository.Interfaces,
   TaskFlow.Repository.Mock,
   TaskFlow.Handlers.Tasks,
-  Dext.Core.HandlerInvoker,
-  Dext.Core.ApplicationBuilder.Extensions, // ✅ Extensões genéricas
-  Dext.Http.Results, // ✅ Helpers de Resultado
+  Dext.Web.HandlerInvoker,
+  Dext.Web.ApplicationBuilder.Extensions,
+  Dext.Web.Results,
   System.SysUtils;
 
 type
-  // ✅ Modelo para teste
+  // Model for testing
   TUser = record
     Name: string;
     Email: string;
   end;
 
-  // ✅ Serviço para teste
+  // Service for testing
   IUserService = interface
     ['{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}']
     function CreateUser(const User: TUser): TUser;
@@ -38,136 +38,131 @@ type
 
 function TUserService.CreateUser(const User: TUser): TUser;
 begin
-  // Simula criação (retorna o mesmo usuário)
+  // Simulate creation (returns same user)
   Result := User;
-  WriteLn(Format('👤 UserService: Creating user "%s" (%s)', [User.Name, User.Email]));
+  WriteLn(Format('User Service: Creating user "%s" (%s)', [User.Name, User.Email]));
 end;
 
 var
   App: IWebApplication;
 
 begin
-  ReportMemoryLeaksOnShutdown := True;
 
   try
-    WriteLn('🚀 Starting TaskFlow API...');
-    WriteLn('📦 Dext Framework v0.1.0');
-    WriteLn('⏰ ', FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
+    WriteLn('Starting TaskFlow API...');
+    WriteLn('Dext Framework v0.2.0');
+    WriteLn(FormatDateTime('yyyy-mm-dd hh:nn:ss', Now));
     WriteLn('');
 
-    // 1. Criar aplicação Dext
+    // 1. Create Dext Application
     App := TDextApplication.Create;
 
-    // 2. Configurar DI Container
+    // 2. Configure DI Container
     TServiceCollectionExtensions.AddSingleton<ITaskRepository, TTaskRepositoryMock>(App.GetServices);
-    TServiceCollectionExtensions.AddSingleton<IUserService, TUserService>(App.GetServices); // ✅ Registrar UserService
+    TServiceCollectionExtensions.AddSingleton<IUserService, TUserService>(App.GetServices);
 
-    // 3. Mapear Handlers
+    // 3. Map Controller Routes (auto-discovery)
     App.MapControllers;
 
-    WriteLn('✅ Auto-mapped routes registered');
+    WriteLn('[OK] Auto-mapped routes registered');
     WriteLn('');
 
-    // 4. ✅ MAPEAMENTO COM SMART BINDING (FASE 2)
+    // 4. Manual Route Mapping with API
     var AppBuilder := App.GetApplicationBuilder;
 
-    // ✅ Functional Middleware: Logging Simples
+    // Functional Middleware: Simple Logging
     AppBuilder.Use(
       procedure(Context: IHttpContext; Next: TRequestDelegate)
       begin
-        WriteLn(Format('📝 [LOG] Request: %s %s', [Context.Request.Method, Context.Request.Path]));
-        
-        // Chama o próximo middleware
+        WriteLn(Format('[LOG] Request: %s %s', [Context.Request.Method, Context.Request.Path]));
         Next(Context);
-        
-        WriteLn('📝 [LOG] Response sent');
+        WriteLn('[LOG] Response sent');
       end);
 
-    // Rota raiz
+    // Root route - Simple handler
     AppBuilder.MapGet('/',
       procedure(Context: IHttpContext)
       begin
         Context.Response.Json('{"message": "Dext Framework API", "status": "running", "version": "0.2.0"}');
       end);
 
-    // GET /api/tasks - Lista todas as tarefas (Simples)
+    // GET /api/tasks - List all tasks (Simple)
     AppBuilder.MapGet('/api/tasks',
       procedure(Context: IHttpContext)
       begin
         Context.Response.Json('{"message": "Tasks endpoint", "count": 5}');
       end);
 
-    // GET /api/tasks/{id} - Smart Binding de Inteiro (Route Param) + Results
+    // GET /api/tasks/{id} - Route Param Binding + IResult
     TApplicationBuilderExtensions.MapGetR<Integer, IResult>(AppBuilder, '/api/tasks/{id}',
       function(Id: Integer): IResult
       begin
-        WriteLn(Format('🎯 HANDLER: GetTaskById (%d)', [Id]));
+        WriteLn(Format('[HANDLER] GetTaskById (%d)', [Id]));
         Result := Results.Json(Format('{"id": %d, "title": "Sample Task", "status": "pending"}', [Id]));
       end);
 
-    // GET /api/tasks/stats - Mantido simples
+    // GET /api/tasks/stats - Simple handler
     AppBuilder.MapGet('/api/tasks/stats',
       procedure(Context: IHttpContext)
       begin
         Context.Response.Json('{"total": 10, "completed": 3, "pending": 7}');
       end);
 
-    // DELETE /api/tasks/{id} - Smart Binding + Service Injection (Simulado)
+    // DELETE /api/tasks/{id} - Route Param + Context
     TApplicationBuilderExtensions.MapDelete<Integer, IHttpContext>(AppBuilder, '/api/tasks/{id}',
       procedure(Id: Integer; Context: IHttpContext)
       begin
-        WriteLn(Format('🎯 HANDLER: DeleteTask (%d)', [Id]));
-        // Aqui poderíamos injetar um ITaskService
+        WriteLn(Format('[HANDLER] DeleteTask (%d)', [Id]));
         Context.Response.StatusCode := 204; // No Content
       end);
 
-    // ✅ NOVO: Endpoint com Handler Injection (Minimal API Style) + Results
-    // Recebe: Body (TUser), Serviço (IUserService) -> Retorna IResult
+    // POST /api/users - Body Binding + Service Injection + IResult
     TApplicationBuilderExtensions.MapPostR<TUser, IUserService, IResult>(AppBuilder, '/api/users',
       function(User: TUser; UserService: IUserService): IResult
       var
         CreatedUser: TUser;
       begin
-        WriteLn('🎯 HANDLER: CreateUser executing via Handler Injection');
+        WriteLn('[HANDLER] CreateUser via Handler Injection');
         
-        // Lógica de negócio usando o serviço injetado
+        // Business logic using injected service
         CreatedUser := UserService.CreateUser(User);
         
-        // Resposta usando Results helper
+        // Response using Results helper
         Result := Results.Created('/api/users/1', 
           Format('{"message": "User created", "name": "%s", "email": "%s"}', 
           [CreatedUser.Name, CreatedUser.Email]));
           
-        WriteLn('✅ Handler completed');
+        WriteLn('[OK] Handler completed');
       end);
 
-    WriteLn('✅ Manual routes mapped:');
+    WriteLn('[OK] Manual routes mapped:');
     WriteLn('   GET /');
     WriteLn('   GET /api/tasks');
-    WriteLn('   GET /api/tasks/1');
+    WriteLn('   GET /api/tasks/{id}');
     WriteLn('   GET /api/tasks/stats');
-    WriteLn('   GET /api/tasks/error');
-    WriteLn('   POST /api/users (New!)'); // ✅ Novo endpoint
+    WriteLn('   DELETE /api/tasks/{id}');
+    WriteLn('   POST /api/users');
     WriteLn('');
-    WriteLn('🌐 Server running on: http://localhost:8080');
+    WriteLn('Server running on: http://localhost:8080');
     WriteLn('');
-    WriteLn('🎯 Test with:');
+    WriteLn('Test with:');
     WriteLn('   curl http://localhost:8080/');
     WriteLn('   curl http://localhost:8080/api/tasks');
-    WriteLn('   curl http://localhost:8080/api/tasks/error');
+    WriteLn('   curl http://localhost:8080/api/tasks/1');
+    WriteLn('   curl -X POST -H "Content-Type: application/json" -d ''{"name":"John","email":"john@test.com"}'' http://localhost:8080/api/users');
     WriteLn('');
-    WriteLn('⏹️  Press Enter to stop');
+    WriteLn('Press Enter to stop');
     WriteLn('');
 
-    // 5. 🚀 INICIAR SERVIDOR!
+    // 5. Start Server!
     App.Run(8080);
     ReadLn;
 
   except
     on E: Exception do
     begin
-      WriteLn('❌ Startup error: ', E.Message);
-      WriteLn('💀 Application terminated');
+      WriteLn('[ERROR] Startup error: ', E.Message);
+      WriteLn('Application terminated');
       ReadLn;
     end;
   end;

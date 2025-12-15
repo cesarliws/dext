@@ -152,13 +152,13 @@
         <DCCReference Include="Core\Dext.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Base.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Evaluator.pas"/>
-        <DCCReference Include="Core\Dext.Specifications.Expression.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Fluent.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Interfaces.pas"/>
         <DCCReference Include="Core\Dext.Specifications.OrderBy.pas"/>
         <DCCReference Include="Core\Dext.Specifications.Types.pas"/>
         <DCCReference Include="Core\Dext.Threading.Async.pas"/>
         <DCCReference Include="Core\Dext.Validation.pas"/>
+        <DCCReference Include="Core\Dext.MM.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

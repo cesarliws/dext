@@ -1,7 +1,7 @@
-ï»¿program Dext.DITest;
+program Dext.DITest;
 
 uses
-  FastMM5,
+  Dext.MM,
   System.SysUtils,
   Dext.DI.Interfaces,
   Dext.DI.Core,
@@ -62,12 +62,11 @@ var
   Logger: ILogger;
   DataService: IDataService;
 begin
-  ReportMemoryLeaksOnShutdown := True;
   try
-    // Configurar serviÃ§os
+    // Configurar serviços
     Services := TDextServiceCollection.Create;
 
-    // Registrar serviÃ§os usando helpers genÃ©ricos - agora com interfaces!
+    // Registrar serviços usando helpers genéricos - agora com interfaces!
     TServiceCollectionExtensions.AddSingleton<ILogger, TConsoleLogger>(Services);
     // TServiceCollectionExtensions.AddTransient<IDataService, TDataService>(Services);
     // Registrar IDataService com factory para injetar ILogger
@@ -83,23 +82,23 @@ begin
     // Construir provider
     Provider := Services.BuildServiceProvider;
 
-    // Resolver serviÃ§os
+    // Resolver serviços
     Logger := TServiceProviderExtensions.GetService<ILogger>(Provider);
     DataService := TServiceProviderExtensions.GetService<IDataService>(Provider);
 
-    // Usar serviÃ§os
+    // Usar serviços
     if Assigned(Logger) then
       Logger.Log('Application started');
 
     if Assigned(DataService) then
       Writeln('Data: ', DataService.GetData);
 
-    // Testar singleton - mesma instÃ¢ncia
+    // Testar singleton - mesma instância
     var Logger2: ILogger := TServiceProviderExtensions.GetService<ILogger>(Provider);
     if Logger = Logger2 then
-      Writeln('âœ“ Singleton working - same instance')
+      Writeln('? Singleton working - same instance')
     else
-      Writeln('âœ— Singleton broken - different instances');
+      Writeln('? Singleton broken - different instances');
 
   except
     on E: Exception do
