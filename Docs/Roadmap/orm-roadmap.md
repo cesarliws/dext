@@ -417,6 +417,10 @@ O núcleo do ORM está funcional, suportando operações CRUD, mapeamento básic
 #### 3. Relacionamentos
 - [x] **Foreign Keys**: Mapeamento via `[ForeignKey]`.
 - [x] **Cascade Delete**: Suporte via Constraint de banco de dados.
+- [ ] **Polymorphic Associations**: Suporte a relacionamentos "Any" (ex: Comment belongs to Post OR Video).
+  - *Strategy*: `SourceID` + `SourceType` discriminator columns.
+  - *Use Case*: Sistema de Reputação do Dext Forum (Pontos vêm de Post ou Thread).
+
 
 ---
 

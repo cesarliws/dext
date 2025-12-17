@@ -1,160 +1,28 @@
-# ⚙️ Sistema de Configuração (Configuration)
+# Configuração e Compatibilidade
 
-O **Dext** possui um sistema de configuração robusto e flexível, inspirado no `Microsoft.Extensions.Configuration` do ASP.NET Core. Ele permite carregar configurações de múltiplas fontes (JSON, Variáveis de Ambiente, etc.) e acessá-las de forma unificada e tipada.
+O Dext Framework utiliza um sistema de diretivas de compilação para garantir compatibilidade entre diferentes versões do Delphi e oferecer flexibilidade na escolha de dependências.
 
-## 🚀 Visão Geral
+## Arquivo de Configuração (`Dext.inc`)
 
-O sistema de configuração é baseado em pares chave-valor, mas suporta estruturas hierárquicas (como objetos JSON). As chaves são separadas por dois pontos (`:`), permitindo acesso profundo a propriedades aninhadas.
+O arquivo `Sources\Dext.inc` contém as definições globais do projeto. Ele detecta automaticamente a versão do compilador e habilita recursos modernos quando disponíveis.
 
-### Principais Características
+### Definições Automáticas
 
-*   **Múltiplas Fontes**: Carregue configurações de arquivos JSON, variáveis de ambiente, argumentos de linha de comando (futuro), etc.
-*   **Hierárquico**: Suporte a seções e sub-seções.
-*   **Unificado**: Acesso transparente independente da origem do valor.
-*   **Sobrescrita**: Fontes adicionadas por último sobrescrevem valores de fontes anteriores (ex: Variáveis de Ambiente sobrescrevem `appsettings.json`).
+| Diretiva | Descrição | Versão Mínima |
+|----------|-----------|---------------|
+| `DEXT_HAS_SYSTEM_HASH` | Habilita o uso da unit `System.Hash` (nativa) para criptografia e hashing, eliminando dependências do OpenSSL/Indy. | Delphi XE8 (Ver 29.0) |
 
----
+### Overrides (Manual)
 
-## 📦 Instalação
+Você pode forçar certos comportamentos definindo diretivas globais no seu projeto (`Project Options > Delphi Compiler > Conditional Defines`) ou descomentando/adicionando no `Dext.inc`.
 
-O sistema de configuração faz parte do core do Dext. Certifique-se de que seu projeto referencia as units necessárias:
+| Diretiva | Descrição |
+|----------|-----------|
+| `DEXT_FORCE_INDY_HASH` | Força o uso do Indy (`IdHMACSHA256`) mesmo em versões modernas do Delphi que possuem `System.Hash`. Útil se você precisar de compatibilidade estrita com sistemas legados ou encontrar problemas com a implementação nativa. |
 
-```delphi
-uses
-  Dext.Configuration.Interfaces,
-  Dext.Configuration.Core,
-  Dext.Configuration.Json,
-  Dext.Configuration.EnvironmentVariables;
-```
+## Módulos Afetados
 
----
+### JWT (`Dext.Auth.JWT`)
 
-## 🛠️ Como Usar
-
-### 1. Construindo a Configuração
-
-Utilize o `TConfigurationBuilder` para configurar as fontes e gerar a raiz de configuração (`IConfigurationRoot`).
-
-```delphi
-var
-  Builder: IConfigurationBuilder;
-  Config: IConfigurationRoot;
-begin
-  Builder := TConfigurationBuilder.Create
-    .SetBasePath(GetCurrentDir)
-    .AddJsonFile('appsettings.json', True) // Opcional = True
-    .AddEnvironmentVariables; // Carrega variáveis de ambiente
-
-  Config := Builder.Build;
-end;
-```
-
-### 2. Acessando Valores
-
-Você pode acessar valores simples usando a sintaxe de indexador ou métodos auxiliares.
-
-**Exemplo de `appsettings.json`:**
-```json
-{
-  "AppSettings": {
-    "Message": "Olá Mundo",
-    "MaxItems": 100
-  },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Debug"
-    }
-  }
-}
-```
-
-**Lendo valores:**
-
-```delphi
-var
-  Message: string;
-  MaxItems: Integer;
-  LogLevel: string;
-begin
-  // Acesso direto por chave hierárquica
-  Message := Config['AppSettings:Message']; 
-  
-  // Conversão de tipos (se disponível helpers, ou manual)
-  MaxItems := StrToIntDef(Config['AppSettings:MaxItems'], 0);
-  
-  // Acesso profundo
-  LogLevel := Config['Logging:LogLevel:Default'];
-end;
-```
-
-### 3. Seções (Sections)
-
-Para organizar melhor o código, você pode trabalhar com sub-seções da configuração.
-
-```delphi
-var
-  AppSection: IConfigurationSection;
-begin
-  AppSection := Config.GetSection('AppSettings');
-  
-  // Agora as chaves são relativas à seção
-  WriteLn(AppSection['Message']); // "Olá Mundo"
-end;
-```
-
----
-
-## 🔌 Providers Suportados
-
-### JSON Provider (`AddJsonFile`)
-
-Carrega configurações de arquivos JSON. Suporta estruturas aninhadas e arrays.
-
-```delphi
-Builder.AddJsonFile('config.json', Optional: Boolean = False);
-```
-
-### Environment Variables Provider (`AddEnvironmentVariables`)
-
-Carrega configurações das variáveis de ambiente do sistema operacional. Útil para Docker e CI/CD.
-
-```delphi
-Builder.AddEnvironmentVariables;
-```
-
-**Nota:** Variáveis de ambiente com `__` (duplo sublinhado) são convertidas para `:` na hierarquia de configuração.
-Exemplo: `Logging__LogLevel__Default` mapeia para `Logging:LogLevel:Default`.
-
----
-
-## 🧩 Exemplo Completo
-
-Veja o exemplo em `Examples\TestConfig.dpr` para uma demonstração funcional.
-
-```delphi
-program TestConfig;
-
-{$APPTYPE CONSOLE}
-
-uses
-  System.SysUtils,
-  Dext.Configuration.Interfaces,
-  Dext.Configuration.Core,
-  Dext.Configuration.Json,
-  Dext.Configuration.EnvironmentVariables;
-
-begin
-  try
-    var Config := TConfigurationBuilder.Create
-      .SetBasePath(GetCurrentDir)
-      .AddJsonFile('appsettings.json', True)
-      .AddEnvironmentVariables
-      .Build;
-
-    WriteLn('Message: ' + Config['AppSettings:Message']);
-  except
-    on E: Exception do
-      WriteLn(E.ClassName, ': ', E.Message);
-  end;
-end.
-```
+- **Padrão (XE8+):** Usa `System.Hash.THashSHA2`. Não requer DLLs externas.
+- **Legado (< XE8):** Usa `IdHMACSHA256`. Requer DLLs do OpenSSL (`libeay32.dll`, `ssleay32.dll`) no PATH ou na pasta do executável.

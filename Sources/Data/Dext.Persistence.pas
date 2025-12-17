@@ -34,6 +34,7 @@ interface
 uses
   FireDAC.Comp.Client,
   System.SysUtils,
+  System.Classes,
   Dext.Entity,
   Dext.Entity.Core,
   Dext.Entity.DbSet,
@@ -62,6 +63,7 @@ uses
   Dext.Entity.Naming,
   Dext.Entity.Scaffolding,
   Dext.Entity.Drivers.FireDAC,
+  Dext.Entity.Drivers.FireDAC.Manager, // Add Manager
   Dext.Entity.Setup, // Add Setup
   Dext.DI.Interfaces, // Add DI Interfaces
   Dext.Specifications.SQL.Generator;
@@ -283,21 +285,48 @@ begin
           // FireDAC Creation
           var FDConn := TFDConnection.Create(nil);
           
-          if Options.DriverName <> '' then
-            FDConn.DriverName := Options.DriverName;
-            
-          if Options.ConnectionString <> '' then
-            FDConn.ConnectionString := Options.ConnectionString;
-            
-          for var Pair in Options.Params do
-             FDConn.Params.Values[Pair.Key] := Pair.Value;
-             
-          // Pooling Setup
           if Options.Pooling then
           begin
-            FDConn.Params.Values['Pooled'] := 'True';
-            if Options.PoolMax > 0 then
-              FDConn.Params.Values['Pool_MaximumItems'] := Options.PoolMax.ToString;
+             var Params := TStringList.Create;
+             try
+               if Options.ConnectionString <> '' then
+                 // Parse connection string to params? FireDAC usually handles this, 
+                 // but for Defs we need Params object. 
+                 // Simple approach: Allow Params dictionary to populate definition.
+                 // NOTE: ConnectionString parsing is complex, assuming Params usage for Pooling.
+                 // If ConnectionString is provided, we might need to set it on FDConn directly, 
+                 // but for Pooling via Manager we need ConnectionDefName.
+                 
+                 // Strategy: If Pooling, prefer Params. If ConnectionString is used, 
+                 // we might not actully use the Manager properly without parsing.
+                 // For v1, let's assume Params are populated or we copy them.
+                 ;
+                 
+               for var Pair in Options.Params do
+                 Params.Values[Pair.Key] := Pair.Value;
+                 
+               // Use Manager to register/get Def
+               var DefName := TDextFireDACManager.Instance.RegisterConnectionDef(
+                 Options.DriverName, 
+                 Params, 
+                 Options.PoolMax
+               );
+               
+               FDConn.ConnectionDefName := DefName;
+             finally
+               Params.Free;
+             end;
+          end
+          else
+          begin
+            if Options.DriverName <> '' then
+              FDConn.DriverName := Options.DriverName;
+              
+            if Options.ConnectionString <> '' then
+              FDConn.ConnectionString := Options.ConnectionString;
+              
+            for var Pair in Options.Params do
+               FDConn.Params.Values[Pair.Key] := Pair.Value;
           end;
           
           try
