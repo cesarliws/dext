@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -172,7 +172,7 @@ type
     function BindHeader(AType: PTypeInfo; Context: IHttpContext): TValue;
     function BindServices(AType: PTypeInfo; Context: IHttpContext): TValue;
 
-    // Helper methods com gen�ricos
+    // Helper methods com genéricos
     function BindBody<T>(Context: IHttpContext): T; overload;
     function BindQuery<T>(Context: IHttpContext): T; overload;
     function BindRoute<T>(Context: IHttpContext): T; overload;
@@ -188,7 +188,7 @@ type
     class function BindRoute<T>(ABinder: IModelBinder; Context: IHttpContext): T; static;
   end;
 
-  // ? BINDING PROVIDER
+  // ✅ BINDING PROVIDER
   IBindingSourceProvider = interface
     ['{8D4F3A7C-1E4A-4B8D-B0E7-9F3A8C5D2B1E}']
     function GetBindingSource(Param: TRttiParameter): TBindingSource;
@@ -298,11 +298,11 @@ begin
 
   JsonString := ReadStreamToString(Stream);
 
-  // ? Usar settings com CaseInsensitive = True para resolver problema de binding
-  // quando JSON vem com campos em lowercase mas record Delphi est� em PascalCase
+  // ✅ Usar settings com CaseInsensitive = True para resolver problema de binding
+  // quando JSON vem com campos em lowercase mas record Delphi está em PascalCase
   Settings := TDextSettings.Default.WithCaseInsensitive;
 
-  // Desserializar record usando a abstra��o do Dext.Json
+  // Desserializar record usando a abstração do Dext.Json
   try
     Result := TDextJson.Deserialize(AType, JsonString, Settings);
   except
@@ -350,7 +350,7 @@ begin
         if QueryParams.IndexOfName(FieldName) >= 0 then
         begin
           FieldValue := QueryParams.Values[FieldName];
-          // ? CORRE��O 1: URL Decode
+          // ✅ CORREÇÃO 1: URL Decode
           FieldValue := TNetEncoding.URL.Decode(FieldValue);
 
           try
@@ -358,7 +358,7 @@ begin
             Field.SetValue(Result.GetReferenceToRawData, Val);
           except
             on E: Exception do
-              Writeln(Format('?? BindQuery warning: Error converting field "%s" value "%s": %s',
+              Writeln(Format('⚠️ BindQuery warning: Error converting field "%s" value "%s": %s',
                 [FieldName, FieldValue, E.Message]));
           end;
         end; // if parameter exists
@@ -403,7 +403,7 @@ var
   FieldValue: string;
   SingleParamValue: string;
 begin
-  // ? SUPPORT FOR PRIMITIVES (Single Route Param Inference)
+  // ✅ SUPPORT FOR PRIMITIVES (Single Route Param Inference)
   if (AType.Kind in [tkInteger, tkInt64, tkFloat, tkString, tkLString, tkWString, tkUString, tkEnumeration]) or
      ((AType.Kind = tkRecord) and (AType = TypeInfo(TGUID))) then
   begin
@@ -452,16 +452,16 @@ begin
       // Buscar valor do route parameter
       if TryGetCaseInsensitive(RouteParams, FieldName, FieldValue) then
       begin
-        // FieldValue j� foi preenchido pelo TryGetCaseInsensitive
+        // FieldValue já foi preenchido pelo TryGetCaseInsensitive
 
-        // ? MESMA CONVERS�O ROBUSTA DO BINDQUERY
+        // ✅ MESMA CONVERSÃO ROBUSTA DO BINDQUERY
         try
           var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
           Field.SetValue(Result.GetReferenceToRawData, Val);
         except
           on E: Exception do
           begin
-            Writeln(Format('?? BindRoute warning: Error converting field "%s" value "%s": %s',
+            Writeln(Format('⚠️ BindRoute warning: Error converting field "%s" value "%s": %s',
               [FieldName, FieldValue, E.Message]));
           end;
         end; // try
@@ -492,8 +492,8 @@ end;
 //    RttiType := ContextRtti.GetType(AType);
 //    RouteParams := Context.Request.RouteParams;
 //
-//    // ? DEBUG: Antes do loop
-//    Writeln('?? BindRoute - Processing record type: ', RttiType.Name);
+//    // ✅ DEBUG: Antes do loop
+//    Writeln('🔍 BindRoute - Processing record type: ', RttiType.Name);
 //    Writeln('  RouteParams available: ', RouteParams.Count);
 //
 //    for Field in RttiType.GetFields do
@@ -506,8 +506,8 @@ end;
 //        SourceProvider.Free;
 //      end;
 //
-//      // ? DEBUG: Para cada campo
-//      Writeln('?? Processing field: ', Field.Name);
+//      // ✅ DEBUG: Para cada campo
+//      Writeln('🔍 Processing field: ', Field.Name);
 //      Writeln('  Looking for RouteParam: ', FieldName);
 //      Writeln('  Field type: ', Field.FieldType.Name);
 //
@@ -515,9 +515,9 @@ end;
 //      if RouteParams.ContainsKey(FieldName) then
 //      begin
 //        FieldValue := RouteParams[FieldName];
-//        Writeln('  ? Found value: ', FieldValue);
+//        Writeln('  ✅ Found value: ', FieldValue);
 //
-//        // ? CONVERS�O (c�digo existente)
+//        // ✅ CONVERSÃO (código existente)
 //        try
 //          case Field.FieldType.TypeKind of
 //            tkInteger:
@@ -596,12 +596,12 @@ end;
 //          end; // case
 //        except
 //          on E: Exception do
-//            Writeln('  ? Conversion error: ', E.Message);
+//            Writeln('  ❌ Conversion error: ', E.Message);
 //        end;
 //      end
 //      else
 //      begin
-//        Writeln('  ? RouteParam not found: ', FieldName);
+//        Writeln('  ❌ RouteParam not found: ', FieldName);
 //      end;
 //    end;
 //
@@ -646,12 +646,12 @@ begin
       end;
 
       // Buscar valor do header (case-insensitive)
-      var HeaderKey := FieldName.ToLower; // Headers s�o case-insensitive
+      var HeaderKey := FieldName.ToLower; // Headers são case-insensitive
       if Headers.ContainsKey(HeaderKey) then
       begin
         FieldValue := Headers[HeaderKey];
 
-        // ? MESMA CONVERS�O ROBUSTA
+        // ✅ MESMA CONVERSÃO ROBUSTA
         try
           case Field.FieldType.TypeKind of
             tkInteger:
@@ -729,7 +729,7 @@ begin
         except
           on E: Exception do
           begin
-            Writeln(Format('?? BindHeader warning: Error converting field "%s" value "%s": %s',
+            Writeln(Format('⚠️ BindHeader warning: Error converting field "%s" value "%s": %s',
               [FieldName, FieldValue, E.Message]));
           end;
         end; // try
@@ -760,7 +760,7 @@ var
   Attr: TCustomAttribute;
   ParamName: string;
 begin
-  WriteLn(Format('    ?? Binding parameter: %s (Type: %s)',
+  WriteLn(Format('    🔍 Binding parameter: %s (Type: %s)',
     [AParam.Name, AParam.ParamType.Name]));
 
   // 1. IHttpContext
@@ -773,13 +773,13 @@ begin
   // 2. Explicit Attributes
   for Attr in AParam.GetAttributes do
   begin
-    WriteLn(Format('    ?? Found attribute: %s', [Attr.ClassName]));
+    WriteLn(Format('    🔍 Found attribute: %s', [Attr.ClassName]));
     if Attr is FromQueryAttribute then
     begin
       ParamName := FromQueryAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
 
-      WriteLn(Format('    ?? FromQuery: %s', [ParamName]));
+      WriteLn(Format('    📋 FromQuery: %s', [ParamName]));
       var QueryParams := AContext.Request.Query;
       if QueryParams.IndexOfName(ParamName) >= 0 then
         Result := ConvertStringToType(TNetEncoding.URL.Decode(QueryParams.Values[ParamName]), AParam.ParamType.Handle)
@@ -791,7 +791,7 @@ begin
     begin
       ParamName := FromRouteAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
-      WriteLn(Format('    ???  FromRoute: %s', [ParamName]));
+      WriteLn(Format('    🛣️  FromRoute: %s', [ParamName]));
 
       var RouteParams := AContext.Request.RouteParams;
       var RouteValue: string;
@@ -803,13 +803,13 @@ begin
     end
     else if Attr is FromBodyAttribute then
     begin
-      WriteLn('    ?? FromBody');
+      WriteLn('    📦 FromBody');
       Result := BindBody(AParam.ParamType.Handle, AContext);
       Exit;
     end
     else if Attr is FromServicesAttribute then
     begin
-      WriteLn(Format('    ? FromServices: %s', [AParam.ParamType.Name]));
+      WriteLn(Format('    ⚡ FromServices: %s', [AParam.ParamType.Name]));
       Result := BindServices(AParam.ParamType.Handle, AContext);
       Exit;
     end
@@ -818,7 +818,7 @@ begin
       ParamName := FromHeaderAttribute(Attr).Name;
       if ParamName = '' then ParamName := AParam.Name;
 
-      WriteLn(Format('    ?? FromHeader: %s', [ParamName]));
+      WriteLn(Format('    📨 FromHeader: %s', [ParamName]));
       var Headers := AContext.Request.Headers;
       if Headers.ContainsKey(LowerCase(ParamName)) then
         Result := ConvertStringToType(Headers[LowerCase(ParamName)], AParam.ParamType.Handle)
@@ -829,25 +829,25 @@ begin
   end;
 
   // 3. Inference
-  WriteLn('    ?? No binding attribute - trying inference');
+  WriteLn('    🤔 No binding attribute - trying inference');
 
   if (AParam.ParamType.TypeKind = tkRecord) then
   begin
     // Smart Binding for Records: GET/DELETE -> Query, Others -> Body
     if (AContext.Request.Method = 'GET') or (AContext.Request.Method = 'DELETE') then
     begin
-      WriteLn('    ?? Inferring FromQuery (record, GET/DELETE)');
+      WriteLn('    📋 Inferring FromQuery (record, GET/DELETE)');
       Result := BindQuery(AParam.ParamType.Handle, AContext);
     end
     else
     begin
-      WriteLn('    ?? Inferring FromBody (record, POST/PUT/...)');
+      WriteLn('    📦 Inferring FromBody (record, POST/PUT/...)');
       Result := BindBody(AParam.ParamType.Handle, AContext);
     end;
   end
   else if (AParam.ParamType.TypeKind = tkInterface) then
   begin
-    WriteLn('    ? Inferring FromServices (interface)');
+    WriteLn('    ⚡ Inferring FromServices (interface)');
     Result := BindServices(AParam.ParamType.Handle, AContext);
   end
   else
@@ -859,12 +859,12 @@ begin
     
     if TryGetCaseInsensitive(RouteParams, ParamName, RouteValue) then
     begin
-      WriteLn(Format('    ???  Inferred FromRoute: %s', [ParamName]));
+      WriteLn(Format('    🛣️  Inferred FromRoute: %s', [ParamName]));
       Result := ConvertStringToType(RouteValue, AParam.ParamType.Handle);
     end
     else
     begin
-      WriteLn(Format('    ?? Inferred FromQuery: %s', [ParamName]));
+      WriteLn(Format('    📋 Inferred FromQuery: %s', [ParamName]));
       var QueryParams := AContext.Request.Query;
       if QueryParams.IndexOfName(ParamName) >= 0 then
         Result := ConvertStringToType(TNetEncoding.URL.Decode(QueryParams.Values[ParamName]), AParam.ParamType.Handle)
@@ -890,7 +890,7 @@ begin
   try
     Services := Context.GetServices;
 
-    // ? NOVO: Suporte direto a interfaces
+    // ✅ NOVO: Suporte direto a interfaces
     if AType.Kind = tkInterface then
     begin
       var InterfaceType := ContextRtti.GetType(AType) as TRttiInterfaceType;
@@ -908,7 +908,7 @@ begin
 
     TValue.Make(nil, AType, Result);
     RttiType := ContextRtti.GetType(AType);
-    // Services j� inicializado acima
+    // Services já inicializado acima
 
     for Field in RttiType.GetFields do
     begin
@@ -933,24 +933,24 @@ begin
                 var InterfaceType := Field.FieldType as TRttiInterfaceType;
                 ServiceType := TServiceType.FromInterface(InterfaceType.GUID);
 
-                // Obter servi�o do container DI como interface
+                // Obter serviço do container DI como interface
                 var InterfaceInstance := Services.GetServiceAsInterface(ServiceType);
                 if Assigned(InterfaceInstance) then
                 begin
-                  // ? CORRE��O: Criar TValue do tipo espec�fico da interface
+                  // ✅ CORREÇÃO: Criar TValue do tipo específico da interface
                   TValue.Make(@InterfaceInstance, Field.FieldType.Handle, ServiceInstance);
                   Field.SetValue(Result.GetReferenceToRawData, ServiceInstance);
                 end
                 else
                 begin
-                  // Servi�o n�o encontrado - pode ser opcional ou requerido?
+                  // Serviço não encontrado - pode ser opcional ou requerido?
                   // Por enquanto, deixamos o campo como nil
                 end;
               end;
 
             tkClass:
               begin
-                // ? CORRE��O: Usar o RTTI para obter a classe corretamente
+                // ✅ CORREÇÃO: Usar o RTTI para obter a classe corretamente
                 var ClassType := (Field.FieldType as TRttiInstanceType).MetaclassType;
                 ServiceType := TServiceType.FromClass(ClassType);
 

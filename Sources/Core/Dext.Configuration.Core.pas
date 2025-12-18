@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -254,7 +254,7 @@ end;
 
 destructor TConfigurationRoot.Destroy;
 begin
-  WriteLn('??? TConfigurationRoot.Destroy');
+  WriteLn('🗑️ TConfigurationRoot.Destroy');
   if FProviders <> nil then
   begin
     for var I := 0 to FProviders.Count - 1 do

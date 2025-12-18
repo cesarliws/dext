@@ -1,4 +1,4 @@
-unit Dext.Web.Middleware.Logging;
+﻿unit Dext.Web.Middleware.Logging;
 
 interface
 
@@ -24,12 +24,12 @@ begin
   Method := AContext.Request.Method;
   Path := AContext.Request.Path;
   
-  WriteLn('?? [REQ] ' + Format('%s %s', [Method, Path]));
+  WriteLn('📝 [REQ] ' + Format('%s %s', [Method, Path]));
   
   try
     ANext(AContext);
   finally
-    WriteLn('? [RES] ' + Format('%s %s -> %d',
+    WriteLn('✅ [RES] ' + Format('%s %s -> %d',
       [Method, Path, AContext.Response.StatusCode]));
   end;
 end;

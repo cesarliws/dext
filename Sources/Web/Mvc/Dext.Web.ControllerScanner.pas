@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -112,14 +112,14 @@ begin
   try
     Types := FCtx.GetTypes;
 
-    WriteLn('?? Scanning ', Length(Types), ' types...');
+    WriteLn('🔍 Scanning ', Length(Types), ' types...');
 
     for RttiType in Types do
     begin
-      // ? FILTRAR: Records ou Classes
+      // ✅ FILTRAR: Records ou Classes
       if (RttiType.TypeKind in [tkRecord, tkClass]) then
       begin
-        // Verificar se tem m�todos com atributos de rota
+        // Verificar se tem métodos com atributos de rota
         var HasRouteMethods := False;
         var MethodsList: TList<TControllerMethod> := TList<TControllerMethod>.Create;
 
@@ -128,17 +128,17 @@ begin
 
           for Method in Methods do
           begin
-            // ? APENAS M�TODOS EST�TICOS (para records) ou P�BLICOS (para classes)
+            // ✅ APENAS MÉTODOS ESTÁTICOS (para records) ou PÚBLICOS (para classes)
             if (RttiType.TypeKind = tkRecord) and (not Method.IsStatic) then
               Continue;
 
-            // Para classes, aceitamos m�todos de inst�ncia
+            // Para classes, aceitamos métodos de instância
             if (RttiType.TypeKind = tkClass) and (Method.Visibility <> mvPublic) and (Method.Visibility <> mvPublished) then
                Continue;
 
             var Attributes := Method.GetAttributes;
 
-            // ? PROCURAR ATRIBUTOS [DextGet], [DextPost], etc.
+            // ✅ PROCURAR ATRIBUTOS [DextGet], [DextPost], etc.
             for Attr in Attributes do
             begin
               if Attr is DextRouteAttribute then
@@ -155,14 +155,14 @@ begin
             end;
           end;
 
-          // ? SE TEM M�TODOS DE ROTA, ADICIONAR COMO CONTROLLER
+          // ✅ SE TEM MÉTODOS DE ROTA, ADICIONAR COMO CONTROLLER
           if HasRouteMethods then
           begin
-            WriteLn('    ?? ADDING CONTROLLER: ', RttiType.Name);
+            WriteLn('    🎉 ADDING CONTROLLER: ', RttiType.Name);
             ControllerInfo.RttiType := RttiType;
             ControllerInfo.Methods := MethodsList.ToArray;
 
-            // ? VERIFICAR ATRIBUTO [DextController] PARA PREFIXO
+            // ✅ VERIFICAR ATRIBUTO [DextController] PARA PREFIXO
             ControllerInfo.ControllerAttribute := nil;
             var TypeAttributes := RttiType.GetAttributes;
             for Attr in TypeAttributes do
@@ -184,7 +184,7 @@ begin
     end;
 
     Result := Controllers.ToArray;
-    WriteLn('?? Total controllers found: ', Length(Result));
+    WriteLn('🎯 Total controllers found: ', Length(Result));
 
   finally
     Controllers.Free;
@@ -197,7 +197,7 @@ var
   Controller: TControllerInfo;
 begin
   Controllers := FindControllers;
-  WriteLn('?? Registering ', Length(Controllers), ' controllers in DI...');
+  WriteLn('🔧 Registering ', Length(Controllers), ' controllers in DI...');
 
   for Controller in Controllers do
   begin
@@ -206,7 +206,7 @@ begin
       // Register as Transient
       var ClassType := Controller.RttiType.AsInstance.MetaclassType;
       Services.AddTransient(TServiceType.FromClass(ClassType), ClassType);
-      WriteLn('  ? Registered service: ', Controller.RttiType.Name);
+      WriteLn('  ✅ Registered service: ', Controller.RttiType.Name);
     end;
   end;
 end;
@@ -221,26 +221,26 @@ begin
   Result := 0;
   Controllers := FindControllers;
 
-  WriteLn('?? Found ', Length(Controllers), ' controllers:');
+  WriteLn('🔍 Found ', Length(Controllers), ' controllers:');
 
-  // ? CACHE DE M�TODOS PARA EVITAR PROBLEMAS DE REFER�NCIA RTTI
+  // ✅ CACHE DE MÉTODOS PARA EVITAR PROBLEMAS DE REFERÊNCIA RTTI
   for Controller in Controllers do
   begin
-    // ? CALCULAR PREFIXO DO CONTROLLER
+    // ✅ CALCULAR PREFIXO DO CONTROLLER
     var Prefix := '';
     if Assigned(Controller.ControllerAttribute) then
       Prefix := Controller.ControllerAttribute.Prefix;
 
-    WriteLn('  ?? ', Controller.RttiType.Name, ' (Prefix: "', Prefix, '")');
+    WriteLn('  📦 ', Controller.RttiType.Name, ' (Prefix: "', Prefix, '")');
 
     for ControllerMethod in Controller.Methods do
     begin
-      // ? CONSTRUIR PATH COMPLETO: Prefix + MethodPath
+      // ✅ CONSTRUIR PATH COMPLETO: Prefix + MethodPath
       FullPath := Prefix + ControllerMethod.Path;
 
       WriteLn('    ', ControllerMethod.HttpMethod, ' ', FullPath, ' -> ', ControllerMethod.Method.Name);
 
-      // ? VERIFICAR [SwaggerIgnore]
+      // ✅ VERIFICAR [SwaggerIgnore]
       var IsIgnored := False;
       for var Attr in ControllerMethod.Method.GetAttributes do
         if Attr is SwaggerIgnoreAttribute then
@@ -251,11 +251,11 @@ begin
 
       if IsIgnored then
       begin
-        WriteLn('      ?? Ignored by [SwaggerIgnore]');
+        WriteLn('      🚫 Ignored by [SwaggerIgnore]');
         Continue;
       end;
 
-      // ? CRIAR CACHE DO M�TODO
+      // ✅ CRIAR CACHE DO MÉTODO
       var CachedMethod: TCachedMethod;
       CachedMethod.TypeName := Controller.RttiType.QualifiedName;
       CachedMethod.MethodName := ControllerMethod.Method.Name;
@@ -263,7 +263,7 @@ begin
       CachedMethod.FullPath := FullPath;
       CachedMethod.HttpMethod := ControllerMethod.HttpMethod;
       
-      // ? CHECK AUTH ATTRIBUTES (Controller or Method level)
+      // ✅ CHECK AUTH ATTRIBUTES (Controller or Method level)
       CachedMethod.RequiresAuth := False;
       for var Attr in Controller.RttiType.GetAttributes do
         if Attr is SwaggerAuthorizeAttribute then
@@ -288,16 +288,16 @@ begin
         CachedMethod.RequiresAuth := HasAuthorizeAttribute and not HasAllowAnonymousAttribute;
       end;
 
-      // ? FILTERS REMOVED FROM CACHE
+      // ✅ FILTERS REMOVED FROM CACHE
       // We now fetch them dynamically in ExecuteCachedMethod to avoid AVs
       
       FCachedMethods.Add(CachedMethod);
 
-      // ? REGISTRAR ROTA USANDO CACHE (EVITA PROBLEMAS DE REFER�NCIA RTTI)
-      // Usar CreateHandler para garantir captura correta da vari�vel no loop
+      // ✅ REGISTRAR ROTA USANDO CACHE (EVITA PROBLEMAS DE REFERÊNCIA RTTI)
+      // Usar CreateHandler para garantir captura correta da variável no loop
       AppBuilder.MapEndpoint(ControllerMethod.HttpMethod, FullPath, CreateHandler(CachedMethod));
 
-      // ? PROCESSAR ATRIBUTOS DE SEGURAN�A (SwaggerAuthorize)
+      // ✅ PROCESSAR ATRIBUTOS DE SEGURANÇA (SwaggerAuthorize)
       var SecuritySchemes := TList<string>.Create;
       try
         // 1. Atributos do Controller
@@ -306,7 +306,7 @@ begin
           if Attr is SwaggerAuthorizeAttribute then
             SecuritySchemes.Add(SwaggerAuthorizeAttribute(Attr).Scheme);
 
-        // 2. Atributos do M�todo
+        // 2. Atributos do Método
         var MethodAttrs := ControllerMethod.Method.GetAttributes;
         for var Attr in MethodAttrs do
           if Attr is SwaggerAuthorizeAttribute then
@@ -321,14 +321,14 @@ begin
             var Metadata := Routes[High(Routes)];
             Metadata.Security := SecuritySchemes.ToArray;
             AppBuilder.UpdateLastRouteMetadata(Metadata);
-            WriteLn('      ?? Secured with: ', string.Join(', ', Metadata.Security));
+            WriteLn('      🔒 Secured with: ', string.Join(', ', Metadata.Security));
           end;
         end;
       finally
         SecuritySchemes.Free;
       end;
 
-      // ? PROCESSAR [SwaggerOperation] e [SwaggerResponse]
+      // ✅ PROCESSAR [SwaggerOperation] e [SwaggerResponse]
       var Routes := AppBuilder.GetRoutes;
       if Length(Routes) > 0 then
       begin
@@ -355,8 +355,8 @@ begin
     end;
   end;
 
-  WriteLn('? Registered ', Result, ' auto-routes');
-  WriteLn('?? Cached ', FCachedMethods.Count, ' methods for runtime execution');
+  WriteLn('✅ Registered ', Result, ' auto-routes');
+  WriteLn('💾 Cached ', FCachedMethods.Count, ' methods for runtime execution');
 end;
 
 destructor TControllerScanner.Destroy;
@@ -383,30 +383,30 @@ var
   Filter: IActionFilter;
   I: Integer;
 begin
-  WriteLn('?? Executing: ', CachedMethod.FullPath, ' -> ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+  WriteLn('🔄 Executing: ', CachedMethod.FullPath, ' -> ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
 
-  // ? ENFORCE AUTHORIZATION
+  // ✅ ENFORCE AUTHORIZATION
   if CachedMethod.RequiresAuth then
   begin
     if (Context.User = nil) or (Context.User.Identity = nil) or (not Context.User.Identity.IsAuthenticated) then
     begin
-      WriteLn('? Authorization failed: User not authenticated');
+      WriteLn('⛔ Authorization failed: User not authenticated');
       Context.Response.Status(401).Json('{"error": "Unauthorized"}');
       Exit;
     end;
   end;
 
   Ctx := TRttiContext.Create;
-  // ? RE-OBTER O TIPO EM TEMPO DE EXECU��O
+  // ✅ RE-OBTER O TIPO EM TEMPO DE EXECUÇÃO
   ControllerType := Ctx.FindType(CachedMethod.TypeName);
   if ControllerType = nil then
   begin
-    WriteLn('? Controller type not found: ', CachedMethod.TypeName);
+    WriteLn('❌ Controller type not found: ', CachedMethod.TypeName);
     Context.Response.Status(500).Json(Format('{"error": "Controller type not found: %s"}', [CachedMethod.TypeName]));
     Exit;
   end;
 
-  // ? ENCONTRAR O M�TODO EM TEMPO DE EXECU��O
+  // ✅ ENCONTRAR O MÉTODO EM TEMPO DE EXECUÇÃO
   Method := nil;
   for var M in ControllerType.GetMethods do
   begin
@@ -419,7 +419,7 @@ begin
 
   if Method = nil then
   begin
-    WriteLn('? Method not found: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
+    WriteLn('❌ Method not found: ', CachedMethod.TypeName, '.', CachedMethod.MethodName);
     Context.Response.Status(500).Json(Format('{"error": "Method not found: %s.%s"}', [CachedMethod.TypeName, CachedMethod.MethodName]));
     Exit;
   end;
@@ -436,14 +436,14 @@ begin
       if Supports(FilterAttr, IActionFilter) then
         FilterList.Add(FilterAttr);
 
-    // ? EXECUTE ACTION FILTERS - OnActionExecuting
+    // ✅ EXECUTE ACTION FILTERS - OnActionExecuting
     var ActionDescriptor: TActionDescriptor;
     ActionDescriptor.ControllerName := CachedMethod.TypeName;
     ActionDescriptor.ActionName := CachedMethod.MethodName;
     ActionDescriptor.HttpMethod := CachedMethod.HttpMethod;
     ActionDescriptor.Route := CachedMethod.FullPath;
 
-    // ? FIX: Use interface variable to prevent premature destruction (RefCount issue)
+    // ✅ FIX: Use interface variable to prevent premature destruction (RefCount issue)
     var ExecutingContext: IActionExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
     try
       for FilterAttr in FilterList do
@@ -455,7 +455,7 @@ begin
           // Check for short-circuit
           if Assigned(ExecutingContext.Result) then
           begin
-            WriteLn('? Filter short-circuited execution');
+            WriteLn('⚡ Filter short-circuited execution');
             ExecutingContext.Result.Execute(Context);
             Exit;
           end;
@@ -464,22 +464,22 @@ begin
     except
       on E: Exception do
       begin
-        WriteLn('? Error in OnActionExecuting filter: ', E.Message);
+        WriteLn('❌ Error in OnActionExecuting filter: ', E.Message);
         raise;
       end;
     end;
 
-    // ? EXECUTAR O M�TODO DO CONTROLLER
+    // ✅ EXECUTAR O MÉTODO DO CONTROLLER
     try
       if CachedMethod.IsClass then
       begin
-        // ? RESOLVER INST�NCIA VIA DI
+        // ✅ RESOLVER INSTÂNCIA VIA DI
         ControllerInstance := Context.GetServices.GetService(
           TServiceType.FromClass(ControllerType.AsInstance.MetaclassType));
 
         if ControllerInstance = nil then
         begin
-          WriteLn('? Controller instance not found: ', CachedMethod.TypeName);
+          WriteLn('❌ Controller instance not found: ', CachedMethod.TypeName);
           Context.Response.Status(500).Json(Format('{"error": "Controller instance not found: %s"}', [CachedMethod.TypeName]));
           Exit;
         end;
@@ -500,7 +500,7 @@ begin
       end
       else
       begin
-        // ? RECORDS EST�TICOS
+        // ✅ RECORDS ESTÁTICOS
         var Binder: IModelBinder := TModelBinder.Create;
         var Invoker := THandlerInvoker.Create(Context, Binder);
         try
@@ -511,8 +511,8 @@ begin
         end;
       end;
 
-      // ? EXECUTE ACTION FILTERS - OnActionExecuted
-      // ? FIX: Use interface variable
+      // ✅ EXECUTE ACTION FILTERS - OnActionExecuted
+      // ✅ FIX: Use interface variable
       var ExecutedContext: IActionExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
       // Execute filters in reverse order
       for I := FilterList.Count - 1 downto 0 do
@@ -525,10 +525,10 @@ begin
     except
       on E: Exception do
       begin
-        WriteLn('? Error executing method: ', E.Message);
+        WriteLn('❌ Error executing method: ', E.Message);
           
-        // ? EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
-        // ? FIX: Use interface variable
+        // ✅ EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
+        // ✅ FIX: Use interface variable
         var ExecutedContext: IActionExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
         for I := FilterList.Count - 1 downto 0 do
         begin
@@ -538,7 +538,7 @@ begin
             Filter.OnActionExecuted(ExecutedContext);
             if ExecutedContext.ExceptionHandled then
             begin
-              WriteLn('? Exception handled by filter');
+              WriteLn('✅ Exception handled by filter');
               Exit; // Don't re-raise
             end;
           end;

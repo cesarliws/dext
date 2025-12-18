@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -91,7 +91,7 @@ end;
 
 destructor TSwaggerMiddleware.Destroy;
 begin
-  WriteLn('??? TSwaggerMiddleware.Destroying...');
+  WriteLn('🗑️ TSwaggerMiddleware.Destroying...');
   FGenerator.Free;
   inherited;
 end;
