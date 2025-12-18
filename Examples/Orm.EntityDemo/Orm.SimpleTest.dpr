@@ -17,7 +17,7 @@ uses
   FireDAC.DApt.Intf,
   FireDAC.DApt,
   Dext.Collections,
-  Dext.Persistence,
+  Dext.Entity,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
   EntityDemo.Entities in 'EntityDemo.Entities.pas',

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -72,14 +72,14 @@ type
     function GetBody: TStream;
     function GetRouteParams: TDictionary<string, string>;
     function GetHeaders: TDictionary<string, string>;
-    function GetRemoteIpAddress: string; // ✅ Added
+    function GetRemoteIpAddress: string; // ? Added
     property Method: string read GetMethod;
     property Path: string read GetPath;
     property Query: TStrings read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TDictionary<string, string> read GetRouteParams;
     property Headers: TDictionary<string, string> read GetHeaders;
-    property RemoteIpAddress: string read GetRemoteIpAddress; // ✅ Added
+    property RemoteIpAddress: string read GetRemoteIpAddress; // ? Added
   end;
 
   IHttpResponse = interface
@@ -88,9 +88,9 @@ type
     function Status(AValue: Integer): IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
-    procedure SetContentLength(const AValue: Int64); // ✅ Added
+    procedure SetContentLength(const AValue: Int64); // ? Added
     procedure Write(const AContent: string); overload;
-    procedure Write(const ABuffer: TBytes); overload; // ✅ Added
+    procedure Write(const ABuffer: TBytes); overload; // ? Added
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
     property StatusCode: Integer read GetStatusCode write SetStatusCode;
@@ -122,9 +122,9 @@ type
     function UseMiddleware(AMiddleware: TClass): IApplicationBuilder; overload;
     function UseMiddleware(AMiddleware: TClass; const AParam: TValue): IApplicationBuilder; overload;
     function UseMiddleware(AMiddleware: TClass; const AParams: array of TValue): IApplicationBuilder; overload;
-    function UseMiddleware(AMiddleware: IMiddleware): IApplicationBuilder; overload; // ✅ Singleton Middleware
+    function UseMiddleware(AMiddleware: IMiddleware): IApplicationBuilder; overload; // ? Singleton Middleware
     
-    // ✅ Functional Middleware
+    // ? Functional Middleware
     function Use(AMiddleware: TMiddlewareDelegate): IApplicationBuilder;
 
     function UseModelBinding: IApplicationBuilder;
@@ -137,9 +137,9 @@ type
     function MapDelete(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function Build: TRequestDelegate;
     
-    function GetRoutes: TArray<TEndpointMetadata>; // ✅ Introspection
-    procedure UpdateLastRouteMetadata(const AMetadata: TEndpointMetadata); // ✅ For fluent API
-    procedure SetServiceProvider(const AProvider: IServiceProvider); // ✅ Update Provider before Build
+    function GetRoutes: TArray<TEndpointMetadata>; // ? Introspection
+    procedure UpdateLastRouteMetadata(const AMetadata: TEndpointMetadata); // ? For fluent API
+    procedure SetServiceProvider(const AProvider: IServiceProvider); // ? Update Provider before Build
   end;
 
   IWebHost = interface
@@ -182,11 +182,11 @@ type
     function GetServices: TDextServices;
     function GetBuilder: TDextAppBuilder;
     function UseMiddleware(Middleware: TClass): IWebApplication;
-    function UseStartup(Startup: IStartup): IWebApplication; // ✅ Non-generic
+    function UseStartup(Startup: IStartup): IWebApplication; // ? Non-generic
     function MapControllers: IWebApplication;
     function GetApplicationBuilder: IApplicationBuilder;
     function GetConfiguration: IConfiguration;
-    function BuildServices: IServiceProvider; // ✅ Automation
+    function BuildServices: IServiceProvider; // ? Automation
     procedure Run(Port: Integer = 8080);
 
     property Services: TDextServices read GetServices;

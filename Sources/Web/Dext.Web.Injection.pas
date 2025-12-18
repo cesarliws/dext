@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -51,16 +51,16 @@ var
 begin
   Context := TRttiContext.Create;
   try
-    // Obter mÃ©todo do anonymous method via RTTI
+    // Obter método do anonymous method via RTTI
     Method := Context.GetType(AHandler.TypeInfo).GetMethod('Invoke');
 
     Parameters := Method.GetParameters;
     SetLength(Arguments, Length(Parameters));
 
-    // Primeiro parÃ¢metro Ã© sempre IHttpContext
+    // Primeiro parâmetro é sempre IHttpContext
     Arguments[0] := TValue.From<IHttpContext>(AContext);
 
-    // Resolver demais parÃ¢metros do container DI
+    // Resolver demais parâmetros do container DI
     for I := 1 to High(Parameters) do
     begin
       var ParamType := Parameters[I].ParamType;

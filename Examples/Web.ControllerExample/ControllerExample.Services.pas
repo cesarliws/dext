@@ -1,4 +1,4 @@
-﻿unit ControllerExample.Services;
+unit ControllerExample.Services;
 
 interface
 
@@ -8,7 +8,7 @@ uses
   System.SyncObjs,
   System.Threading,
   Dext,
-  Dext.Web; // ✅ All-in-one framework unit
+  Dext.Web; // ? All-in-one framework unit
 
 type
   // Settings Class for IOptions<T>
@@ -49,11 +49,11 @@ end;
 
 procedure TWorkerService.Execute(Token: ICancellationToken);
 begin
-  WriteLn('👷 WorkerService started.');
+  WriteLn('?? WorkerService started.');
   
   while not Token.IsCancellationRequested do
   begin
-    WriteLn(Format('👷 WorkerService running at: %s', [DateTimeToStr(Now)]));
+    WriteLn(Format('?? WorkerService running at: %s', [DateTimeToStr(Now)]));
     
     try
       // Wait for 5 seconds or until cancelled
@@ -64,7 +64,7 @@ begin
     end;
   end;
   
-  WriteLn('👷 WorkerService stopping.');
+  WriteLn('?? WorkerService stopping.');
 end;
 
 end.

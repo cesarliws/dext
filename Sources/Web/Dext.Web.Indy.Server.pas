@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -93,8 +93,8 @@ end;
 procedure TIndyWebServer.HandleParseAuthentication(AContext: TIdContext;
   const AAuthType, AAuthData: string; var VUsername, VPassword: string; var Handled: Boolean);
 begin
-  // Ignorar autenticaÃ§Ã£o do Indy para permitir que o Middleware do Dext trate (ex: Bearer Token)
-  // Se nÃ£o fizermos isso, o Indy levanta uma exceÃ§Ã£o "Unsupported authorization scheme" para esquemas desconhecidos
+  // Ignorar autenticação do Indy para permitir que o Middleware do Dext trate (ex: Bearer Token)
+  // Se não fizermos isso, o Indy levanta uma exceção "Unsupported authorization scheme" para esquemas desconhecidos
   Handled := True;
 end;
 
@@ -121,7 +121,7 @@ begin
   except
     on E: Exception do
     begin
-      // Tratamento de erro genÃ©rico
+      // Tratamento de erro genérico
       AResponseInfo.ResponseNo := 500;
       AResponseInfo.ContentText := 'Internal Server Error: ' + E.Message;
       AResponseInfo.ContentType := 'text/plain; charset=utf-8';

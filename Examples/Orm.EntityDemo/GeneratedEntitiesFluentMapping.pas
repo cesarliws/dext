@@ -7,7 +7,7 @@ uses
   Dext.Entity.Mapping,
   Dext.Types.Nullable,
   Dext.Types.Lazy,
-  Dext.Persistence,
+  Dext.Entity,
   System.SysUtils,
   System.Classes;
 

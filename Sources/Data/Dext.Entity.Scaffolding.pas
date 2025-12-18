@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -101,7 +101,7 @@ uses
   FireDAC.Phys.Intf,
   FireDAC.Stan.Intf, // Needed for mkTableFields constants if used, or just rely on strings
   System.StrUtils,
-  Dext.Entity,
+  Dext.Entity.Context,
   Dext.Entity.Drivers.FireDAC,
   Dext.Types.Lazy,
   Dext.Types.Nullable;
@@ -454,7 +454,7 @@ begin
        SB.AppendLine('  Dext.Entity.Mapping,');
     SB.AppendLine('  Dext.Types.Nullable,');
     SB.AppendLine('  Dext.Types.Lazy,');
-    SB.AppendLine('  Dext.Persistence,'); // Added Dext.Persistence
+    SB.AppendLine('  Dext.Entity,'); // Coringa unit
     SB.AppendLine('  System.SysUtils,');
     SB.AppendLine('  System.Classes;');
     SB.AppendLine('');

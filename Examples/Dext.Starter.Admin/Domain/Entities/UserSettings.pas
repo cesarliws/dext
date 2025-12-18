@@ -3,7 +3,7 @@ unit UserSettings;
 interface
 
 uses
-  Dext.Persistence;
+  Dext.Entity;
 
 type
   [Table('UserSettings')]

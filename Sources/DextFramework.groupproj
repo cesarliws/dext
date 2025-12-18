@@ -6,7 +6,7 @@
         <Projects Include="Dext.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="Dext.Data.dproj">
+        <Projects Include="Dext.EF.Core.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="Dext.Web.Core.dproj">
@@ -35,14 +35,14 @@
     <Target Name="Dext_Core:Make">
         <MSBuild Projects="Dext.Core.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Dext_Data">
-        <MSBuild Projects="Dext.Data.dproj"/>
+    <Target Name="Dext_EF_Core">
+        <MSBuild Projects="Dext.EF.Core.dproj"/>
     </Target>
-    <Target Name="Dext_Data:Clean">
-        <MSBuild Projects="Dext.Data.dproj" Targets="Clean"/>
+    <Target Name="Dext_EF_Core:Clean">
+        <MSBuild Projects="Dext.EF.Core.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="Dext_Data:Make">
-        <MSBuild Projects="Dext.Data.dproj" Targets="Make"/>
+    <Target Name="Dext_EF_Core:Make">
+        <MSBuild Projects="Dext.EF.Core.dproj" Targets="Make"/>
     </Target>
     <Target Name="Dext_Web_Core">
         <MSBuild Projects="Dext.Web.Core.dproj"/>
@@ -72,13 +72,13 @@
         <MSBuild Projects="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_Data;Dext_Web_Core;Dext_Starter_Admin;Web_ControllerExample"/>
+        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;Dext_Starter_Admin;Web_ControllerExample"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_Data:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean;Web_ControllerExample:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean;Web_ControllerExample:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_Data:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make;Web_ControllerExample:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make;Web_ControllerExample:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

@@ -1,4 +1,4 @@
-ï»¿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -681,7 +681,7 @@ end;
 
 class function TDextJson.Deserialize(AType: PTypeInfo; const AJson: string): TValue;
 begin
-  // Usar RTTI para chamar o mÃ©todo genÃ©rico apropriado
+  // Usar RTTI para chamar o método genérico apropriado
   case AType.Kind of
     tkInteger:
       Result := TValue.From<Integer>(Deserialize<Integer>(AJson));
@@ -835,11 +835,11 @@ begin
       ActualFieldName := FieldName;
       Found := AJson.Contains(FieldName);
 
-      // Se nÃ£o encontrou e CaseInsensitive estÃ¡ habilitado, buscar ignorando case
+      // Se não encontrou e CaseInsensitive está habilitado, buscar ignorando case
       if (not Found) and FSettings.CaseInsensitive then
       begin
-        // Precisamos iterar pelas chaves do JSON para encontrar uma correspondÃªncia case-insensitive
-        // Como nÃ£o temos acesso direto Ã s chaves via interface, vamos tentar variaÃ§Ãµes comuns
+        // Precisamos iterar pelas chaves do JSON para encontrar uma correspondência case-insensitive
+        // Como não temos acesso direto às chaves via interface, vamos tentar variações comuns
         var LowerFieldName := LowerCase(FieldName);
         var UpperFieldName := UpperCase(FieldName);
         
@@ -855,7 +855,7 @@ begin
           ActualFieldName := UpperFieldName;
           Found := True;
         end
-        // Tentar primeira letra minÃºscula (camelCase)
+        // Tentar primeira letra minúscula (camelCase)
         else if Length(FieldName) > 0 then
         begin
           var CamelCaseName := LowerCase(FieldName[1]) + Copy(FieldName, 2, Length(FieldName) - 1);

@@ -3,7 +3,7 @@ unit User;
 interface
 
 uses
-  Dext.Persistence; // Correct unit
+  Dext.Entity; // Correct unit
 
 type
   [Table('AppUsers')]

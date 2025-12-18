@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Scaffolding;
+unit EntityDemo.Tests.Scaffolding;
 
 interface
 
@@ -27,7 +27,7 @@ var
   MetaList: TArray<TMetaTable>;
   Code: string;
 begin
-  Log('🏗️ Running Scaffolding Tests...');
+  Log('??? Running Scaffolding Tests...');
 
   // Ensure database exists and has schema
   // Setup; // Already called by TBaseTest.Create
@@ -83,9 +83,9 @@ begin
   Log('   Saved to ' + FileName);
 
   if TFile.Exists(FileName) then
-    Log('   ✅ Fluent Mapping File successfully created!')
+    Log('   ? Fluent Mapping File successfully created!')
   else
-    Log('   ❌ Fluent Mapping File NOT created!');
+    Log('   ? Fluent Mapping File NOT created!');
 
   Log('');
 end;

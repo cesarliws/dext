@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.LazyLoading;
+unit EntityDemo.Tests.LazyLoading;
 
 interface
 
@@ -25,7 +25,7 @@ implementation
 
 procedure TLazyLoadingTest.Run;
 begin
-  Log('🔬 Running Lazy Loading 1:1 Tests...');
+  Log('?? Running Lazy Loading 1:1 Tests...');
   WriteLn('');
   
   TestLazyLoadReference;
@@ -34,7 +34,7 @@ begin
   TestMemoryManagement;
   
   WriteLn('');
-  LogSuccess('All Lazy Loading tests passed! ✅');
+  LogSuccess('All Lazy Loading tests passed! ?');
 end;
 
 procedure TLazyLoadingTest.TestLazyLoadReference;
@@ -45,7 +45,7 @@ var
   SavedUserId: Integer;
   SavedProfileId: Integer;
 begin
-  Log('📝 Test 1: Lazy Load Reference (1:1)');
+  Log('?? Test 1: Lazy Load Reference (1:1)');
   
   // Create profile
   Profile := TUserProfile.Create;
@@ -101,7 +101,7 @@ var
   i: Integer;
   SavedDocId: Integer;
 begin
-  Log('📄 Test 2: Lazy Load BLOB (TBytes)');
+  Log('?? Test 2: Lazy Load BLOB (TBytes)');
   
   // Create large binary data (simulate PDF/image)
   SetLength(TestData, 1024 * 100); // 100KB
@@ -159,7 +159,7 @@ var
   i: Integer;
   SavedArticleId: Integer;
 begin
-  Log('📰 Test 3: Lazy Load Large Text (TEXT/CLOB)');
+  Log('?? Test 3: Lazy Load Large Text (TEXT/CLOB)');
   
   // Create large text (simulate article body)
   LargeText := '';
@@ -199,7 +199,7 @@ begin
     
     if BodyLength <> ExpectedLength then
     begin
-      WriteLn(Format('  ⚠️  Length mismatch: Got %d, Expected %d (diff: %d)', [BodyLength, ExpectedLength, BodyLength - ExpectedLength]));
+      WriteLn(Format('  ??  Length mismatch: Got %d, Expected %d (diff: %d)', [BodyLength, ExpectedLength, BodyLength - ExpectedLength]));
 
       // Check last characters
       if BodyLength > 0 then
@@ -209,7 +209,7 @@ begin
         
         // Check if it's just a trailing space/newline
         if (BodyLength = ExpectedLength + 1) and (LoadedArticle.Body[BodyLength] = ' ') then
-          WriteLn('  ℹ️  Difference is a trailing space (acceptable)');
+          WriteLn('  ??  Difference is a trailing space (acceptable)');
       end;
     end;
     
@@ -230,7 +230,7 @@ var
   SavedUserId: Integer;
   SavedProfileId: Integer;
 begin
-  Log('🧹 Test 4: Memory Management');
+  Log('?? Test 4: Memory Management');
   
   // Create and save entities
   Profile := TUserProfile.Create;

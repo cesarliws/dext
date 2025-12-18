@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -83,7 +83,7 @@ uses
 
 type
   // ===========================================================================
-  // 🏷️ Aliases for Common Web Types
+  // ??? Aliases for Common Web Types
   // ===========================================================================
   
   // Core Web Application
@@ -309,7 +309,7 @@ const
   bsForm = Dext.Web.ModelBinding.TBindingSource.bsForm;
 
   // ===========================================================================
-  // 🛠️ Fluent Helpers & Wrappers
+  // ??? Fluent Helpers & Wrappers
   // ===========================================================================
 
 type
@@ -351,7 +351,7 @@ type
   /// </summary>
   TDextHttpAppBuilderHelper = record helper for TDextAppBuilder
   public
-    // 🏭 Factory Methods
+    // ?? Factory Methods
     
     /// <summary>
     ///   Creates a new instance of TCorsOptions with default settings.
@@ -368,7 +368,7 @@ type
     /// </summary>
     function CreateStaticFileOptions: TStaticFileOptions;
     
-    // 🔌 Extensions
+    // ?? Extensions
     
     /// <summary>
     ///   Adds CORS middleware to the pipeline using the provided options.
@@ -400,7 +400,7 @@ type
     /// </summary>
     function UseStaticFiles(const ARootPath: string): TDextAppBuilder; overload;
     
-    // 🧩 Core Forwarding
+    // ?? Core Forwarding
     
     /// <summary>
     ///   Adds a middleware class to the pipeline. The middleware must have a constructor accepting RequestDelegate (and optionally other services).
@@ -436,12 +436,12 @@ type
     function Build: TRequestDelegate;
 
     // -------------------------------------------------------------------------
-    // 🧱 Middleware
+    // ?? Middleware
     // -------------------------------------------------------------------------
     function UseStaticFiles: TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // 🛣️ Routing - POST
+    // ??? Routing - POST
     // -------------------------------------------------------------------------
     
     /// <summary>
@@ -468,7 +468,7 @@ type
     function MapPost<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // 🛣️ Routing - GET
+    // ??? Routing - GET
     // -------------------------------------------------------------------------
     
     /// <summary>
@@ -507,7 +507,7 @@ type
     function MapGet<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // 🛣️ Routing - PUT
+    // ??? Routing - PUT
     // -------------------------------------------------------------------------
     function MapPut<T>(const Path: string; Handler: THandlerProc<T>): TDextAppBuilder; overload;
     function MapPut<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TDextAppBuilder; overload;
@@ -518,7 +518,7 @@ type
     function MapPut<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TDextAppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // 🛣️ Routing - DELETE
+    // ??? Routing - DELETE
     // -------------------------------------------------------------------------
     function MapDelete<T>(const Path: string; Handler: THandlerProc<T>): TDextAppBuilder; overload;
     function MapDelete<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TDextAppBuilder; overload;

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -32,7 +32,7 @@ uses
   System.Classes,
   System.Generics.Collections,
   Dext.DI.Interfaces,
-  Dext.Core.CancellationToken; // ✅ Added
+  Dext.Core.CancellationToken; // ? Added
 
 type
   IHostedService = interface
@@ -41,7 +41,7 @@ type
     procedure Stop;
   end;
 
-  // ✅ Interface for THostedServiceManager to enable ARC management
+  // ? Interface for THostedServiceManager to enable ARC management
   IHostedServiceManager = interface
     ['{F1E2D3C4-B5A6-7890-1234-567890ABCDEF}']
     procedure RegisterService(Service: IHostedService);
@@ -119,7 +119,7 @@ begin
     FService.Execute(FToken);
   except
     on E: Exception do
-      WriteLn(Format('❌ Error in BackgroundService thread: %s', [E.Message]));
+      WriteLn(Format('? Error in BackgroundService thread: %s', [E.Message]));
   end;
 end;
 
@@ -180,15 +180,15 @@ procedure THostedServiceManager.StartAsync;
 var
   Service: IHostedService;
 begin
-  WriteLn('🚀 Starting Hosted Services...');
+  WriteLn('?? Starting Hosted Services...');
   for Service in FServices do
   begin
     try
       Service.Start;
-      WriteLn(Format('  ✅ Started %s', [(Service as TObject).ClassName]));
+      WriteLn(Format('  ? Started %s', [(Service as TObject).ClassName]));
     except
       on E: Exception do
-        WriteLn(Format('  ❌ Failed to start %s: %s', [(Service as TObject).ClassName, E.Message]));
+        WriteLn(Format('  ? Failed to start %s: %s', [(Service as TObject).ClassName, E.Message]));
     end;
   end;
 end;
@@ -197,15 +197,15 @@ procedure THostedServiceManager.StopAsync;
 var
   Service: IHostedService;
 begin
-  WriteLn('🛑 Stopping Hosted Services...');
+  WriteLn('?? Stopping Hosted Services...');
   for Service in FServices do
   begin
     try
       Service.Stop;
-      WriteLn(Format('  ✅ Stopped %s', [(Service as TObject).ClassName]));
+      WriteLn(Format('  ? Stopped %s', [(Service as TObject).ClassName]));
     except
       on E: Exception do
-        WriteLn(Format('  ❌ Failed to stop %s: %s', [(Service as TObject).ClassName, E.Message]));
+        WriteLn(Format('  ? Failed to stop %s: %s', [(Service as TObject).ClassName, E.Message]));
     end;
   end;
 end;
@@ -239,7 +239,7 @@ var
 begin
   CapturedServices := FHostedServices.ToArray;
   
-  // ✅ Register as INTERFACE to enable ARC management
+  // ? Register as INTERFACE to enable ARC management
   FServices.AddSingleton(
     TServiceType.FromInterface(IHostedServiceManager),
     THostedServiceManager,

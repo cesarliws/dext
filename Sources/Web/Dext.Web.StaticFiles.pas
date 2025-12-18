@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -236,7 +236,7 @@ end;
 class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ABuilder: IApplicationBuilder): IApplicationBuilder;
 begin
-  // âœ… Instantiate Singleton Middleware
+  // ✅ Instantiate Singleton Middleware
   var Middleware := TStaticFileMiddleware.Create(TStaticFileOptions.Create);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
@@ -245,7 +245,7 @@ class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
   const ABuilder: IApplicationBuilder;
   const AOptions: TStaticFileOptions): IApplicationBuilder;
 begin
-  // âœ… Instantiate Singleton Middleware
+  // ✅ Instantiate Singleton Middleware
   var Middleware := TStaticFileMiddleware.Create(AOptions);
   Result := ABuilder.UseMiddleware(Middleware);
 end;
@@ -259,7 +259,7 @@ begin
   Options := TStaticFileOptions.Create;
   Options.RootPath := ARootPath;
   
-  // âœ… Instantiate Singleton Middleware
+  // ✅ Instantiate Singleton Middleware
   var Middleware := TStaticFileMiddleware.Create(Options);
   Result := ABuilder.UseMiddleware(Middleware);
 end;

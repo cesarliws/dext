@@ -1,4 +1,4 @@
-﻿unit DextStore.Services;
+unit DextStore.Services;
 
 interface
 
@@ -10,7 +10,7 @@ uses
 
 type
   // ===========================================================================
-  // 🛒 Product Service (In-Memory Repository)
+  // ?? Product Service (In-Memory Repository)
   // ===========================================================================
   IProductService = interface
     ['{10A20B30-C4D5-4E6F-A7B8-C9D0E1F2A3B4}']
@@ -36,7 +36,7 @@ type
   end;
 
   // ===========================================================================
-  // 🛍️ Cart Service (Session-based, simplified as User-based for demo)
+  // ??? Cart Service (Session-based, simplified as User-based for demo)
   // ===========================================================================
   ICartService = interface
     ['{20B30C40-D5E6-4F7A-B8C9-D0E1F2A3B4C5}']
@@ -63,7 +63,7 @@ type
   end;
 
   // ===========================================================================
-  // 📦 Order Service
+  // ?? Order Service
   // ===========================================================================
   IOrderService = interface
     ['{30C40D50-E6F7-4A8B-C9D0-E1F2A3B4C5D6}']

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -50,9 +50,9 @@ type
     function GetConfiguration: IConfiguration;
     function GetServices: TDextServices;
     function GetBuilder: TDextAppBuilder;
-    function BuildServices: IServiceProvider; // ✅
+    function BuildServices: IServiceProvider; // ?
     function UseMiddleware(Middleware: TClass): IWebApplication;
-    function UseStartup(Startup: IStartup): IWebApplication; // ✅ Non-generic
+    function UseStartup(Startup: IStartup): IWebApplication; // ? Non-generic
     function MapControllers: IWebApplication;
     procedure Run(Port: Integer = 8080);
   end;
@@ -116,7 +116,7 @@ begin
     end
   );
   
-  // ✅ Create a temporary provider for ApplicationBuilder
+  // ? Create a temporary provider for ApplicationBuilder
   // The real provider will be built in Run() after all services are registered
   FServiceProvider := FServices.BuildServiceProvider;
   FAppBuilder := TApplicationBuilder.Create(FServiceProvider);
@@ -152,7 +152,7 @@ end;
 
 function TDextApplication.BuildServices: IServiceProvider;
 begin
-  // ✅ REBUILD ServiceProvider to include all services registered after Create()
+  // ? REBUILD ServiceProvider to include all services registered after Create()
   FServiceProvider := nil; // Release old provider
   FServiceProvider := FServices.BuildServiceProvider;
   FAppBuilder.SetServiceProvider(FServiceProvider);
@@ -183,7 +183,7 @@ var
   RequestHandler: TRequestDelegate;
   HostedManager: THostedServiceManager;
 begin
-  // ✅ REBUILD ServiceProvider to include all services registered after Create()
+  // ? REBUILD ServiceProvider to include all services registered after Create()
   FServiceProvider := nil; // Release old provider
   FServiceProvider := FServices.BuildServiceProvider;
   FAppBuilder.SetServiceProvider(FServiceProvider);
@@ -191,7 +191,7 @@ begin
   // Start Hosted Services
   HostedManager := nil;
   try
-    // ✅ Resolve as INTERFACE (enables ARC management)
+    // ? Resolve as INTERFACE (enables ARC management)
     var ManagerIntf := FServiceProvider.GetServiceAsInterface(TServiceType.FromInterface(IHostedServiceManager));
     if ManagerIntf <> nil then
     begin

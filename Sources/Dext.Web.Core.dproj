@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{257BA51B-4993-4F54-A190-67E6B947E5DF}</ProjectGuid>
         <MainSource>Dext.Web.Core.dpk</MainSource>
@@ -119,7 +119,7 @@
         <DCCReference Include="IndyProtocols.dcp"/>
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
-        <DCCReference Include="Dext.Data.dcp"/>
+        <DCCReference Include="Dext.EF.dcp"/>
         <DCCReference Include="Web\Dext.Web.pas"/>
         <DCCReference Include="Web\Dext.Web.Core.pas"/>
         <DCCReference Include="Web\Dext.Web.Interfaces.pas"/>

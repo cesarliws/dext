@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -37,7 +37,7 @@ uses
   Dext.Collections,
   Dext.Core.Activator,
   Dext.Core.ValueConverters,
-  Dext.Data.TypeSystem,
+  Dext.Entity.TypeSystem,
   Dext.Entity.Attributes,
   Dext.Entity.Core,
   Dext.Entity.Dialects,

@@ -1,4 +1,4 @@
-﻿unit AppStartup;
+unit AppStartup;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   System.SysUtils,
   Dext,
   Dext.Web,
-  Dext.Persistence,
+  Dext.Entity,
   // Features
   Auth.Service,
   Auth.Endpoints,

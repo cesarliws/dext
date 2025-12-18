@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -31,12 +31,12 @@ interface
 uses
   Dext.Web.Core,
   Dext.Web.Interfaces,
-  Dext.Web.Routing;  // ✅ Para IRouteMatcher
+  Dext.Web.Routing;  // ? Para IRouteMatcher
 
 type
   TRoutingMiddleware = class(TMiddleware)
   private
-    FRouteMatcher: IRouteMatcher;  // ✅ Interface - sem reference circular!
+    FRouteMatcher: IRouteMatcher;  // ? Interface - sem reference circular!
   public
     constructor Create(const ARouteMatcher: IRouteMatcher);
     destructor Destroy; override;
@@ -54,7 +54,7 @@ uses
 constructor TRoutingMiddleware.Create(const ARouteMatcher: IRouteMatcher);
 begin
   inherited Create;
-  FRouteMatcher := ARouteMatcher;  // ✅ Interface gerencia ciclo de vida
+  FRouteMatcher := ARouteMatcher;  // ? Interface gerencia ciclo de vida
 end;
 
 destructor TRoutingMiddleware.Destroy;
@@ -72,11 +72,11 @@ begin
   var Path := AContext.Request.Path;
   var Method := AContext.Request.Method;
 
-  // ✅ USAR RouteMatcher via interface com suporte a Método
+  // ? USAR RouteMatcher via interface com suporte a M�todo
   if FRouteMatcher.FindMatchingRoute(AContext, Handler, RouteParams, Metadata) then
   begin
     try
-      // ✅ INJETAR parâmetros de rota se encontrados
+      // ? INJETAR par�metros de rota se encontrados
       if Assigned(RouteParams) and (AContext is TIndyHttpContext) then
       begin
         IndyContext := TIndyHttpContext(AContext);

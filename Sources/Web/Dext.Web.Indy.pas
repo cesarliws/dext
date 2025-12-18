@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -39,9 +39,9 @@ type
     FQuery: TStrings;
     FBodyStream: TStream;
     FRouteParams: TDictionary<string, string>;
-    FHeaders: TDictionary<string, string>; // ✅ NOVO
+    FHeaders: TDictionary<string, string>; // ? NOVO
     function ParseQueryString(const AQuery: string): TStrings;
-    function ParseHeaders(AHeaderList: TIdHeaderList): TDictionary<string, string>; // ✅ NOVO
+    function ParseHeaders(AHeaderList: TIdHeaderList): TDictionary<string, string>; // ? NOVO
   public
     constructor Create(ARequestInfo: TIdHTTPRequestInfo);
     destructor Destroy; override;
@@ -52,7 +52,7 @@ type
     function GetBody: TStream;
     function GetRouteParams: TDictionary<string, string>;
     function GetHeaders: TDictionary<string, string>;
-    function GetRemoteIpAddress: string; // ✅ Added
+    function GetRemoteIpAddress: string; // ? Added
   end;
 
   TIndyHttpResponse = class(TInterfacedObject, IHttpResponse)
@@ -64,11 +64,11 @@ type
     function GetStatusCode: Integer;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
-    procedure SetContentLength(const AValue: Int64); // ✅ Added
+    procedure SetContentLength(const AValue: Int64); // ? Added
     procedure Write(const AContent: string); overload;
-    procedure Write(const ABuffer: TBytes); overload; // ✅ Added
+    procedure Write(const ABuffer: TBytes); overload; // ? Added
     procedure Json(const AJson: string);
-    procedure AddHeader(const AName, AValue: string); // ✅ NOVO: Implementação da interface
+    procedure AddHeader(const AName, AValue: string); // ? NOVO: Implementa��o da interface
   end;
 
   TIndyHttpContext = class(TInterfacedObject, IHttpContext)
@@ -104,17 +104,17 @@ begin
   FRouteParams := TDictionary<string, string>.Create;
   FHeaders := ParseHeaders(FRequestInfo.RawHeaders);
   
-  // Criar cópia do body stream para não depender do lifecycle do Indy
+  // Criar c�pia do body stream para n�o depender do lifecycle do Indy
   if Assigned(FRequestInfo.PostStream) then
   begin
     FBodyStream := TMemoryStream.Create;
     FBodyStream.CopyFrom(FRequestInfo.PostStream, 0);
     FBodyStream.Position := 0;
   end
-  // Se PostStream não existe, tentar ler de FormParams (form-urlencoded)
+  // Se PostStream n�o existe, tentar ler de FormParams (form-urlencoded)
   else if (FRequestInfo.FormParams <> '') or (FRequestInfo.UnparsedParams <> '') then
   begin
-    // Usar UnparsedParams se disponível, senão FormParams
+    // Usar UnparsedParams se dispon�vel, sen�o FormParams
     if FRequestInfo.UnparsedParams <> '' then
       FormData := FRequestInfo.UnparsedParams
     else
@@ -132,11 +132,11 @@ begin
   FQuery.Free;
   FBodyStream.Free;
   FRouteParams.Free;
-  FHeaders.Free; // ✅ NOVO: Liberar headers
+  FHeaders.Free; // ? NOVO: Liberar headers
   inherited Destroy;
 end;
 
-// ✅ NOVO: Parsear headers do Indy para dicionário
+// ? NOVO: Parsear headers do Indy para dicion�rio
 function TIndyHttpRequest.ParseHeaders(AHeaderList: TIdHeaderList): TDictionary<string, string>;
 var
   I: Integer;
@@ -158,7 +158,7 @@ end;
 
 function TIndyHttpRequest.GetHeaders: TDictionary<string, string>;
 begin
-  Result := FHeaders; // ✅ NOVO: Retornar headers
+  Result := FHeaders; // ? NOVO: Retornar headers
 end;
 
 function TIndyHttpRequest.GetRemoteIpAddress: string;
@@ -226,7 +226,7 @@ begin
   FResponseInfo := AResponseInfo;
 end;
 
-// ✅ NOVO: Adicionar header à response
+// ? NOVO: Adicionar header � response
 procedure TIndyHttpResponse.AddHeader(const AName, AValue: string);
 begin
   FResponseInfo.CustomHeaders.AddValue(AName, AValue);
@@ -337,12 +337,12 @@ var
   IndyRequest: TIndyHttpRequest;
   Param: TPair<string, string>;
 begin
-  // ✅ CORREÇÃO: Cast manual em vez de Supports
+  // ? CORRE��O: Cast manual em vez de Supports
   if FRequest is TIndyHttpRequest then
   begin
     IndyRequest := TIndyHttpRequest(FRequest);
 
-    // Limpar parâmetros existentes e adicionar os novos
+    // Limpar par�metros existentes e adicionar os novos
     IndyRequest.FRouteParams.Clear;
     for Param in AParams do
     begin

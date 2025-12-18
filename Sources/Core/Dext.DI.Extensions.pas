@@ -1,4 +1,4 @@
-ï»¿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -102,7 +102,7 @@ begin
     TServiceType.FromClass(T), T, AFactory);
 end;
 
-// ImplementaÃ§Ãµes para interfaces
+// Implementações para interfaces
 class function TServiceCollectionExtensions.AddSingleton<TService, TImplementation>(
   const ACollection: IServiceCollection;
   const AFactory: TFunc<IServiceProvider, TObject>): IServiceCollection;

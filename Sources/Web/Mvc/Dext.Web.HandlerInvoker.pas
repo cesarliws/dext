@@ -1,4 +1,4 @@
-ï»¿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -36,8 +36,8 @@ uses
   Dext.Web.ModelBinding;
 
 type
-  { Invoker bÃ¡sico - FASE 1.1 }
-  // DefiniÃ§Ã£o de tipos de handlers genÃ©ricos
+  { Invoker básico - FASE 1.1 }
+  // Definição de tipos de handlers genéricos
   THandlerProc<T> = reference to procedure(Arg1: T);
   THandlerProc<T1, T2> = reference to procedure(Arg1: T1; Arg2: T2);
   THandlerProc<T1, T2, T3> = reference to procedure(Arg1: T1; Arg2: T2; Arg3: T3);
@@ -68,7 +68,7 @@ type
   public
     constructor Create(AContext: IHttpContext; AModelBinder: IModelBinder);
 
-    // InvocaÃ§Ã£o estÃ¡tica (legado/simples)
+    // Invocação estática (legado/simples)
     /// <summary>
     ///   Invokes a static handler (procedure(Ctx: IHttpContext)).
     /// </summary>
@@ -496,14 +496,14 @@ var
   ResIntf: IResult;
   I: Integer;
 begin
-  // âœ… VERIFICAÃ‡ÃƒO DE SEGURANÃ‡A APRIMORADA
+  // ? VERIFICAÇÃO DE SEGURANÇA APRIMORADA
   if not Assigned(AMethod) then
   begin
     FContext.Response.Status(500).Json('{"error": "Internal server error: Method reference lost"}');
     Exit(False);
   end;
 
-  // âœ… DYNAMIC BINDING: Use ModelBinder to resolve all parameters
+  // ? DYNAMIC BINDING: Use ModelBinder to resolve all parameters
   // This supports: IHttpContext, Route Params, Query Params, Body (Records), Services (Interfaces)
   try
     Args := FModelBinder.BindMethodParameters(AMethod, FContext);
@@ -515,7 +515,7 @@ begin
     end;
   end;
 
-  // âœ… VALIDATION: Validate all record parameters
+  // ? VALIDATION: Validate all record parameters
   for I := 0 to High(Args) do
   begin
     if not Validate(Args[I]) then Exit(False);
@@ -524,21 +524,21 @@ begin
   try
     ResultValue := AMethod.Invoke(AInstance, Args);
 
-    // âœ… LIDAR COM PROCEDURES (SEM RETORNO)
+    // ? LIDAR COM PROCEDURES (SEM RETORNO)
     if ResultValue.IsEmpty then
     begin
-      // NÃ£o faz nada - o controller jÃ¡ setou a resposta via Ctx.Response
+      // Não faz nada - o controller já setou a resposta via Ctx.Response
     end
     else
     begin
-      // âœ… VERIFICAR SE RETORNOU IResult (APENAS SE NÃƒO ESTIVER VAZIO)
+      // ? VERIFICAR SE RETORNOU IResult (APENAS SE NÃO ESTIVER VAZIO)
       if ResultValue.TryAsType<IResult>(ResIntf) then
       begin
         ResIntf.Execute(FContext);
       end
       else
       begin
-        // âœ… AUTO-SERIALIZATION
+        // ? AUTO-SERIALIZATION
         FContext.Response.Json(TDextJson.Serialize(ResultValue));
       end;
     end;

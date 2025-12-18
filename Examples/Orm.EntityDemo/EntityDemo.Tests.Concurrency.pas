@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Concurrency;
+unit EntityDemo.Tests.Concurrency;
 
 interface
 
@@ -6,7 +6,7 @@ uses
   System.SysUtils,
   EntityDemo.Tests.Base,
   EntityDemo.Entities,
-  Dext.Persistence,
+  Dext.Entity,
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Dialects,
   FireDAC.Comp.Client;
@@ -25,7 +25,7 @@ procedure TConcurrencyTest.Run;
 var
   Context2: TDbContext;
 begin
-  Log('🛡️ Running Optimistic Concurrency Tests...');
+  Log('??? Running Optimistic Concurrency Tests...');
   Log('========================================');
 
   // 1. Setup
@@ -73,7 +73,7 @@ begin
       LogError('User B update should have failed!');
     except
       on E: EOptimisticConcurrencyException do
-        LogSuccess('✅ Caught expected Concurrency Exception: ' + E.Message);
+        LogSuccess('? Caught expected Concurrency Exception: ' + E.Message);
       on E: Exception do
         LogError('Caught unexpected exception: ' + E.ClassName + ' - ' + E.Message);
     end;
@@ -113,7 +113,7 @@ begin
       LogError('User B update after delete should have failed!');
     except
       on E: EOptimisticConcurrencyException do
-        LogSuccess('✅ Caught expected Concurrency Exception (Delete): ' + E.Message);
+        LogSuccess('? Caught expected Concurrency Exception (Delete): ' + E.Message);
       on E: Exception do
         LogError('Caught unexpected exception: ' + E.ClassName + ' - ' + E.Message);
     end;

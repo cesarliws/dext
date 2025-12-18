@@ -15,7 +15,6 @@ uses
   Dext.DI.Core,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Persistence,
   Dext.Entity,
   Dext.Entity.Setup,
   Dext.Entity.Drivers.Interfaces,

@@ -1,10 +1,10 @@
-unit EntityDemo.Tests.TypeSystem;
+﻿unit EntityDemo.Tests.TypeSystem;
 
 interface
 
 uses
   System.SysUtils, System.Generics.Collections, Dext.Entity, Dext.Entity.Query,
-  Dext.Collections, Dext.Persistence, Dext.Data.TypeSystem,
+  Dext.Collections, Dext.Entity.TypeSystem,
   Dext.Specifications.Interfaces, Dext.Specifications.Types, Dext.Specifications.Fluent,
   EntityDemo.Entities, EntityDemo.Tests.Base, EntityDemo.Entities.Info;
 

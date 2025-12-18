@@ -6,7 +6,7 @@ uses
   Dext,
   Dext.Web,
   Dext.Collections,
-  Dext.Persistence,
+  Dext.Entity,
   Dext.Json,
   Customer,
   Customer.Dto,

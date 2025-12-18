@@ -4,7 +4,7 @@ interface
 
 uses
   System.TypInfo,
-  Dext.Data.TypeSystem,
+  Dext.Entity.TypeSystem,
   Dext.Types.Nullable,
   EntityDemo.Entities;
 

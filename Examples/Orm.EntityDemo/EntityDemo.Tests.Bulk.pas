@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Bulk;
+unit EntityDemo.Tests.Bulk;
 
 interface
 
@@ -26,7 +26,7 @@ var
   Duration: TDateTime;
   Count: Integer;
 begin
-  Log('📦 Running Bulk Operation Tests...');
+  Log('?? Running Bulk Operation Tests...');
   Log('================================');
 
   BulkUsers := TObjectList<TUser>.Create(False);

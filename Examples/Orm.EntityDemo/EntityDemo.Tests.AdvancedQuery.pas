@@ -1,15 +1,15 @@
-﻿unit EntityDemo.Tests.AdvancedQuery;
+unit EntityDemo.Tests.AdvancedQuery;
 
 interface
 
 uses
   System.SysUtils, System.Generics.Collections, Dext.Entity, Dext.Entity.Query,
   Dext.Collections, // Add Collections unit
-  Dext.Entity.Grouping, Dext.Entity.Joining, Dext.Persistence,
+  Dext.Entity.Grouping, Dext.Entity.Joining,
   Dext.Specifications.Interfaces, Dext.Specifications.Fluent,
   EntityDemo.Entities, EntityDemo.Tests.Base,
   // NEW:
-  Dext.Data.TypeSystem,
+  Dext.Entity.TypeSystem,
   EntityDemo.Entities.Info;
 
 type
@@ -31,7 +31,7 @@ implementation
 
 procedure TAdvancedQueryTest.Run;
 begin
-  Log('🧪 Running Advanced Query Tests...');
+  Log('?? Running Advanced Query Tests...');
   TestAggregations;
   TestDistinct;
   TestPagination;

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,7 +33,7 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Generics.Collections,
-  Dext.Entity, // Add concrete TDbContext
+  Dext.Entity.Context, // Add concrete TDbContext
   Dext.Entity.Core,
   Dext.Entity.Mapping,
   Dext.Entity.Attributes,

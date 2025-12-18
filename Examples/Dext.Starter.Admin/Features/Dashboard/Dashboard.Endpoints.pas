@@ -6,7 +6,7 @@ uses
   Dext,
   Dext.Web,
   Dext.Web.Results, // Added for Results helper
-  Dext.Persistence,
+  Dext.Entity,
   DbContext,
   Customer, Order, // Feature units
   Admin.Utils, // Shared

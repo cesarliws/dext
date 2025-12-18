@@ -1,10 +1,10 @@
-﻿unit EntityDemo.Tests.FluentAPI;
+unit EntityDemo.Tests.FluentAPI;
 
 interface
 
 uses
   EntityDemo.Tests.Base,
-  Dext.Persistence;
+  Dext.Entity;
 
 type
   TFluentAPITest = class(TBaseTest)
@@ -25,7 +25,7 @@ uses
 
 procedure TFluentAPITest.Run;
 begin
-  Log('🔍 Running Fluent API Tests...');
+  Log('?? Running Fluent API Tests...');
   Log('==============================');
   Log('');
   Log('This test demonstrates all available fluent operators:');
@@ -59,38 +59,38 @@ begin
   Log('');
 
   // Test using TAdultUsersSpec which uses: UserEntity.Age >= 18
-  Log('📊 Test: Using Specification with Fluent API');
+  Log('?? Test: Using Specification with Fluent API');
   Log('---------------------------------------------');
   var AdultSpec := TAdultUsersSpec.Create;
   var Adults := FContext.Entities<TUser>.List(AdultSpec);
-  LogSuccess(Format('✓ Found %d adult user(s) using: UserEntity.Age >= 18', [Adults.Count]));
+  LogSuccess(Format('? Found %d adult user(s) using: UserEntity.Age >= 18', [Adults.Count]));
   AssertTrue(Adults.Count = 2, 'Adult users spec', 'Expected 2 adult users');
   AdultSpec.Free;
 
   Log('');
-  Log('🚀 Test: Inline Queries (without Specification)');
+  Log('?? Test: Inline Queries (without Specification)');
   Log('------------------------------------------------');
   
   // Inline query - muito mais simples!
   var InlineAdults := FContext.Entities<TUser>.List(UserEntity.Age >= 18);
-  LogSuccess(Format('✓ Inline query: Found %d adult(s)', [InlineAdults.Count]));
+  LogSuccess(Format('? Inline query: Found %d adult(s)', [InlineAdults.Count]));
   AssertTrue(InlineAdults.Count = 2, 'Inline adults', 'Expected 2 adults');
   
   // FirstOrDefault inline
   var John := FContext.Entities<TUser>.FirstOrDefault(UserEntity.Name.StartsWith('John'));
   if John <> nil then
-    LogSuccess(Format('✓ FirstOrDefault: Found user "%s"', [John.Name]))
+    LogSuccess(Format('? FirstOrDefault: Found user "%s"', [John.Name]))
   else
     LogError('FirstOrDefault failed');
   
   // Count inline
   var AdultCount := FContext.Entities<TUser>.Count(UserEntity.Age >= 18);
-  LogSuccess(Format('✓ Count: %d adult user(s)', [AdultCount]));
+  LogSuccess(Format('? Count: %d adult user(s)', [AdultCount]));
   
   // Any inline
   var HasMinors := FContext.Entities<TUser>.Any(UserEntity.Age < 18);
   if HasMinors then
-    LogSuccess('✓ Any: Found minor users')
+    LogSuccess('? Any: Found minor users')
   else
     LogError('Any: No minor users found');
   
@@ -98,17 +98,17 @@ begin
   var ComplexResult := FContext.Entities<TUser>.List(
     (UserEntity.Age >= 18) and UserEntity.Name.Contains('o')
   );
-  LogSuccess(Format('✓ Complex inline: Found %d user(s) with Age >= 18 AND Name contains "o"', [ComplexResult.Count]));
+  LogSuccess(Format('? Complex inline: Found %d user(s) with Age >= 18 AND Name contains "o"', [ComplexResult.Count]));
 
   Log('');
-  Log('✨ Test: Fluent Specification Builder');
+  Log('? Test: Fluent Specification Builder');
   Log('--------------------------------------');
   
   // Managed Specification with automatic cleanup
   var FluentAdults := FContext.Entities<TUser>.List(
     Specification.Where<TUser>(UserEntity.Age >= 18)
   );
-  LogSuccess(Format('✓ Fluent Spec: Found %d adult(s)', [FluentAdults.Count]));
+  LogSuccess(Format('? Fluent Spec: Found %d adult(s)', [FluentAdults.Count]));
   AssertTrue(FluentAdults.Count = 2, 'Fluent spec adults', 'Expected 2 adults');
   
   // Complex fluent with chaining
@@ -117,7 +117,7 @@ begin
       .Take(10)
       .Skip(0)
   );
-  LogSuccess(Format('✓ Fluent Complex: Found %d user(s) with chaining', [FluentComplex.Count]));
+  LogSuccess(Format('? Fluent Complex: Found %d user(s) with chaining', [FluentComplex.Count]));
 
   Log('');
   Log(' Test: OrderBy Tipado');
@@ -128,7 +128,7 @@ begin
     Specification.Where<TUser>(UserEntity.Age >= 18)
       .OrderBy(UserEntity.Name.Asc)
   );
-  LogSuccess(Format('✓ OrderBy Asc: Found %d user(s) ordered by Name ascending', [OrderedAsc.Count]));
+  LogSuccess(Format('? OrderBy Asc: Found %d user(s) ordered by Name ascending', [OrderedAsc.Count]));
   if OrderedAsc.Count > 0 then
     LogSuccess(Format('  First: %s', [OrderedAsc[0].Name]));
   
@@ -137,12 +137,12 @@ begin
     Specification.Where<TUser>(UserEntity.Age >= 18)
       .OrderBy(UserEntity.Age.Desc)
   );
-  LogSuccess(Format('✓ OrderBy Desc: Found %d user(s) ordered by Age descending', [OrderedDesc.Count]));
+  LogSuccess(Format('? OrderBy Desc: Found %d user(s) ordered by Age descending', [OrderedDesc.Count]));
   if OrderedDesc.Count > 0 then
     LogSuccess(Format('  First: %s (Age: %d)', [OrderedDesc[0].Name, OrderedDesc[0].Age]));
 
   Log('');
-  Log('🔗 Test: Include (Eager Loading)');
+  Log('?? Test: Include (Eager Loading)');
   Log('--------------------------------');
   
   // Create user with address
@@ -172,44 +172,44 @@ begin
   begin
     var LoadedUser := UsersWithAddr[0];
     if LoadedUser.Address <> nil then
-      LogSuccess(Format('✓ Include: Address loaded: %s, %s', [LoadedUser.Address.Street, LoadedUser.Address.City]))
+      LogSuccess(Format('? Include: Address loaded: %s, %s', [LoadedUser.Address.Street, LoadedUser.Address.City]))
     else
       LogError('Include: Address NOT loaded (nil)');
   end;
   Addr.Free;
   Log('');
-  Log('📖 Available Fluent Operators:');
+  Log('?? Available Fluent Operators:');
   Log('------------------------------');
   Log('');
-  Log('🔢 Comparison Operators:');
-  Log('  • UserEntity.Age = 25');
-  Log('  • UserEntity.Age <> 25');
-  Log('  • UserEntity.Age > 20');
-  Log('  • UserEntity.Age >= 18');
-  Log('  • UserEntity.Age < 30');
-  Log('  • UserEntity.Age <= 30');
+  Log('?? Comparison Operators:');
+  Log('  � UserEntity.Age = 25');
+  Log('  � UserEntity.Age <> 25');
+  Log('  � UserEntity.Age > 20');
+  Log('  � UserEntity.Age >= 18');
+  Log('  � UserEntity.Age < 30');
+  Log('  � UserEntity.Age <= 30');
   Log('');
-  Log('🔤 String Operators:');
-  Log('  • UserEntity.Name.StartsWith(''John'')');
-  Log('  • UserEntity.Name.EndsWith(''son'')');
-  Log('  • UserEntity.Name.Contains(''Smith'')');
-  Log('  • UserEntity.Name.Like(''%Doe%'')');
-  Log('  • UserEntity.Name.NotLike(''%Test%'')');
+  Log('?? String Operators:');
+  Log('  � UserEntity.Name.StartsWith(''John'')');
+  Log('  � UserEntity.Name.EndsWith(''son'')');
+  Log('  � UserEntity.Name.Contains(''Smith'')');
+  Log('  � UserEntity.Name.Like(''%Doe%'')');
+  Log('  � UserEntity.Name.NotLike(''%Test%'')');
   Log('');
-  Log('📏 Range Operators:');
-  Log('  • UserEntity.Age.Between(18, 65)');
+  Log('?? Range Operators:');
+  Log('  � UserEntity.Age.Between(18, 65)');
   Log('');
-  Log('❓ Null Operators:');
-  Log('  • UserEntity.Name.IsNull');
-  Log('  • UserEntity.Name.IsNotNull');
+  Log('? Null Operators:');
+  Log('  � UserEntity.Name.IsNull');
+  Log('  � UserEntity.Name.IsNotNull');
   Log('');
-  Log('🔗 Logical Operators:');
-  Log('  • (UserEntity.Age >= 18) and (UserEntity.Age <= 65)');
-  Log('  • (UserEntity.Age < 18) or (UserEntity.Age > 65)');
-  Log('  • not (UserEntity.Age = 25)');
+  Log('?? Logical Operators:');
+  Log('  � (UserEntity.Age >= 18) and (UserEntity.Age <= 65)');
+  Log('  � (UserEntity.Age < 18) or (UserEntity.Age > 65)');
+  Log('  � not (UserEntity.Age = 25)');
   Log('');
   
-  LogSuccess('✅ Fluent API demonstration complete!');
+  LogSuccess('? Fluent API demonstration complete!');
   Log('');
 end;
 

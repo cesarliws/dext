@@ -1,4 +1,4 @@
-﻿unit EntityDemo.DbConfig;
+unit EntityDemo.DbConfig;
 
 interface
 
@@ -176,7 +176,7 @@ end;
 class procedure TDbConfig.SetProvider(AProvider: TDatabaseProvider);
 begin
   FCurrentProvider := AProvider;
-  WriteLn('🔄 Database Provider changed to: ' + GetProviderName);
+  WriteLn('?? Database Provider changed to: ' + GetProviderName);
 end;
 
 class function TDbConfig.CreateConnection: IDbConnection;
@@ -277,14 +277,14 @@ class procedure TDbConfig.ConfigureSQLite(const AFileName: string);
 begin
   TDbConfig.SetProvider(dpSQLite);
   FSQLiteFile := AFileName;
-  WriteLn('✅ SQLite configured: ' + AFileName);
+  WriteLn('? SQLite configured: ' + AFileName);
 end;
 
 class procedure TDbConfig.ConfigureSQLiteMemory;
 begin
   TDbConfig.SetProvider(dpSQLite);
   FSQLiteFile := ':memory:';
-  WriteLn('✅ SQLite configured: In-Memory');
+  WriteLn('? SQLite configured: In-Memory');
 end;
 
 class procedure TDbConfig.ConfigurePostgreSQL(
@@ -301,7 +301,7 @@ begin
   FPostgreSQLDatabase := ADatabase;
   FPostgreSQLUsername := AUsername;
   FPostgreSQLPassword := APassword;
-  WriteLn(Format('✅ PostgreSQL configured: %s:%d/%s', [AHost, APort, ADatabase]));
+  WriteLn(Format('? PostgreSQL configured: %s:%d/%s', [AHost, APort, ADatabase]));
 end;
 
 class procedure TDbConfig.ConfigureFirebird(
@@ -314,7 +314,7 @@ begin
   FFirebirdFile := AFileName;
   FFirebirdUsername := AUsername;
   FFirebirdPassword := APassword;
-  WriteLn('✅ Firebird configured: ' + AFileName);
+  WriteLn('? Firebird configured: ' + AFileName);
 end;
 
 class procedure TDbConfig.ConfigureSQLServer(
@@ -329,7 +329,7 @@ begin
   FSQLServerDatabase := ADatabase;
   FSQLServerUsername := AUsername;
   FSQLServerPassword := APassword;
-  WriteLn(Format('✅ SQL Server configured: %s/%s (SQL Auth: %s)', [AHost, ADatabase, AUsername]));
+  WriteLn(Format('? SQL Server configured: %s/%s (SQL Auth: %s)', [AHost, ADatabase, AUsername]));
 end;
 
 class procedure TDbConfig.ConfigureSQLServerWindowsAuth(
@@ -342,7 +342,7 @@ begin
   FSQLServerDatabase := ADatabase;
   FSQLServerUsername := '';  // Empty username triggers Windows Authentication
   FSQLServerPassword := '';
-  WriteLn(Format('✅ SQL Server configured: %s/%s (Windows Authentication)', [AHost, ADatabase]));
+  WriteLn(Format('? SQL Server configured: %s/%s (Windows Authentication)', [AHost, ADatabase]));
 end;
 
 class procedure TDbConfig.ResetDatabase;
@@ -354,14 +354,14 @@ begin
       if TFile.Exists(FSQLiteFile) then
       begin
         TFile.Delete(FSQLiteFile);
-        WriteLn('🗑️  Deleted SQLite database: ' + FSQLiteFile);
+        WriteLn('???  Deleted SQLite database: ' + FSQLiteFile);
       end;
     end;
     
     dpPostgreSQL:
     begin
       // PostgreSQL: Drop all tables (handled by EnsureCreated)
-      WriteLn('⚠️  PostgreSQL: Tables will be recreated by EnsureCreated');
+      WriteLn('??  PostgreSQL: Tables will be recreated by EnsureCreated');
     end;
     
     dpFirebird:
@@ -370,14 +370,14 @@ begin
       if TFile.Exists(FFirebirdFile) then
       begin
         TFile.Delete(FFirebirdFile);
-        WriteLn('🗑️  Deleted Firebird database: ' + FFirebirdFile);
+        WriteLn('???  Deleted Firebird database: ' + FFirebirdFile);
       end;
     end;
     
     dpSQLServer:
     begin
       // SQL Server: Tables will be recreated by EnsureCreated
-      WriteLn('⚠️  SQL Server: Tables will be recreated by EnsureCreated');
+      WriteLn('??  SQL Server: Tables will be recreated by EnsureCreated');
     end;
   end;
 end;

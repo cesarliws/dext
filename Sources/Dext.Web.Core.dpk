@@ -1,4 +1,4 @@
-﻿package Dext.Web.Core;
+package Dext.Web.Core;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -35,7 +35,7 @@ requires
   IndyProtocols,
   IndyCore,
   Dext.Core,
-  Dext.Data;
+  Dext.EF.Core;
 
 contains
   Dext.Web in 'Web\Dext.Web.pas',

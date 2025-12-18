@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{2821CF93-219A-4CB2-B1A9-9F82C2C53C1E}</ProjectGuid>
         <MainSource>Dext.Core.dpk</MainSource>

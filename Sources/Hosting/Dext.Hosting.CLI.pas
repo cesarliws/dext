@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -204,7 +204,7 @@ begin
 
   if SourcePath <> '' then
   begin
-    WriteLn('   ðŸ“‚ Loading migrations from: ' + SourcePath);
+    WriteLn('   📂 Loading migrations from: ' + SourcePath);
     TJsonMigrationLoader.LoadFromDirectory(SourcePath);
   end;
 

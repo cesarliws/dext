@@ -3,7 +3,7 @@ unit DbContext;
 interface
 
 uses
-  Dext.Persistence,
+  Dext.Entity,
   Dext.Entity.Mapping,  // For TModelBuilder
   User,
   UserSettings,

@@ -3,7 +3,7 @@ unit Customer;
 interface
 
 uses
-  Dext.Persistence; // Correct unit
+  Dext.Entity; // Correct unit
 
 type
   TCustomerStatus = (Active, Inactive, Blocked);

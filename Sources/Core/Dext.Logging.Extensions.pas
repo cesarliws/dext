@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -131,7 +131,7 @@ var
   LMinLevel: TLogLevel;
 begin
   LBuilderObj := TLoggingBuilder.Create(AServices);
-  LBuilderIntf := LBuilderObj; // MantÃ©m a referÃªncia viva
+  LBuilderIntf := LBuilderObj; // Mantém a referência viva
   
   if Assigned(AConfigure) then
     AConfigure(LBuilderIntf);

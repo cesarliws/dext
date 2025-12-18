@@ -1,4 +1,4 @@
-unit Dext.Data.TypeSystem;
+unit Dext.Entity.TypeSystem;
 
 interface
 

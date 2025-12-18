@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -23,7 +23,7 @@
 {  Created: 2025-12-08                                                      }
 {                                                                           }
 {***************************************************************************}
- // Dext.Web.Core.pas - Versão Corrigida
+ // Dext.Web.Core.pas - Vers�o Corrigida
 unit Dext.Web.Core;
 
 interface
@@ -44,10 +44,10 @@ type
   TMiddlewareRegistration = record
     MiddlewareClass: TClass;
     MiddlewareDelegate: TMiddlewareDelegate;
-    MiddlewareInstance: IMiddleware; // ✅ Singleton Instance
+    MiddlewareInstance: IMiddleware; // ? Singleton Instance
     Parameters: TArray<TValue>;
     IsDelegate: Boolean;
-    IsInstance: Boolean; // ✅ Flag for Singleton
+    IsInstance: Boolean; // ? Flag for Singleton
   end;
 
   TAnonymousMiddleware = class(TInterfacedObject, IMiddleware)
@@ -61,7 +61,7 @@ type
   TApplicationBuilder = class(TInterfacedObject, IApplicationBuilder)
   private
     FMiddlewares: TList<TMiddlewareRegistration>;
-    FRoutes: TList<TRouteDefinition>; // ✅ Changed to List of Definitions
+    FRoutes: TList<TRouteDefinition>; // ? Changed to List of Definitions
     FServiceProvider: IServiceProvider;
 
     function CreateMiddlewarePipeline(const ARegistration: TMiddlewareRegistration; ANext: TRequestDelegate): TRequestDelegate;
@@ -73,15 +73,15 @@ type
     function UseMiddleware(AMiddleware: TClass): IApplicationBuilder; overload;
     function UseMiddleware(AMiddleware: TClass; const AParam: TValue): IApplicationBuilder; overload;
     function UseMiddleware(AMiddleware: TClass; const AParams: array of TValue): IApplicationBuilder; overload;
-    function UseMiddleware(AMiddleware: IMiddleware): IApplicationBuilder; overload; // ✅ Singleton
+    function UseMiddleware(AMiddleware: IMiddleware): IApplicationBuilder; overload; // ? Singleton
     
-    // ✅ Functional Middleware
+    // ? Functional Middleware
     function Use(AMiddleware: TMiddlewareDelegate): IApplicationBuilder;
 
     function UseModelBinding: IApplicationBuilder;
 
     function Map(const APath: string; ADelegate: TRequestDelegate): IApplicationBuilder;
-    function MapEndpoint(const AMethod, APath: string; ADelegate: TRequestDelegate): IApplicationBuilder; // ✅ NOVO
+    function MapEndpoint(const AMethod, APath: string; ADelegate: TRequestDelegate): IApplicationBuilder; // ? NOVO
     function MapPost(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function MapGet(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function MapPut(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
@@ -123,9 +123,9 @@ var
   Registration: TMiddlewareRegistration;
 begin
   Registration.IsDelegate := True;
-  Registration.IsInstance := False; // ✅ Initialize explicitly
+  Registration.IsInstance := False; // ? Initialize explicitly
   Registration.MiddlewareDelegate := AMiddleware;
-  Registration.MiddlewareInstance := nil; // ✅ Initialize explicitly
+  Registration.MiddlewareInstance := nil; // ? Initialize explicitly
   Registration.MiddlewareClass := nil;
   SetLength(Registration.Parameters, 0);
   
@@ -139,7 +139,7 @@ function TApplicationBuilder.CreateMiddlewarePipeline(const ARegistration: TMidd
   ANext: TRequestDelegate): TRequestDelegate;
 var
   LServiceProvider: IServiceProvider;
-  LRegistration: TMiddlewareRegistration; // ✅ Capture copy
+  LRegistration: TMiddlewareRegistration; // ? Capture copy
 begin
   LServiceProvider := FServiceProvider;
   LRegistration := ARegistration; // Copy record to local var for closure capture
@@ -151,12 +151,12 @@ begin
     begin
       if LRegistration.IsDelegate then
       begin
-        // ✅ Handle Anonymous Middleware
+        // ? Handle Anonymous Middleware
         MiddlewareInstance := TAnonymousMiddleware.Create(LRegistration.MiddlewareDelegate);
       end
       else if LRegistration.IsInstance then
       begin
-        // ✅ Handle Singleton Middleware
+        // ? Handle Singleton Middleware
         MiddlewareInstance := LRegistration.MiddlewareInstance;
       end
       else
@@ -186,9 +186,9 @@ end;
 procedure InjectRouteParams(AContext: IHttpContext;
   const AParams: TDictionary<string, string>);
 begin
-  // Precisamos estender as implementações concretas para suportar RouteParams
-  // Por enquanto, vamos adicionar suporte básico
-  // Esta é uma implementação temporária - precisaremos atualizar TIndyHttpRequest
+  // Precisamos estender as implementa��es concretas para suportar RouteParams
+  // Por enquanto, vamos adicionar suporte b�sico
+  // Esta � uma implementa��o tempor�ria - precisaremos atualizar TIndyHttpRequest
 end;
 
 { TApplicationBuilder }
@@ -227,15 +227,15 @@ begin
 
   Registration.MiddlewareClass := AMiddleware;
   Registration.IsDelegate := False;
-  Registration.IsInstance := False; // ✅ Initialize explicitly
+  Registration.IsInstance := False; // ? Initialize explicitly
   Registration.MiddlewareDelegate := nil;
-  Registration.MiddlewareInstance := nil; // ✅ Initialize explicitly
+  Registration.MiddlewareInstance := nil; // ? Initialize explicitly
   SetLength(Registration.Parameters, 1);
   Registration.Parameters[0] := AParam;
 
   FMiddlewares.Add(Registration);
 
-  Writeln('✅ MIDDLEWARE REGISTERED: ', AMiddleware.ClassName);
+  Writeln('? MIDDLEWARE REGISTERED: ', AMiddleware.ClassName);
   if not AParam.IsEmpty then
     Writeln('   With parameter type: ', AParam.TypeInfo.Name);
 
@@ -252,9 +252,9 @@ begin
 
   Registration.MiddlewareClass := AMiddleware;
   Registration.IsDelegate := False;
-  Registration.IsInstance := False; // ✅ Initialize explicitly
+  Registration.IsInstance := False; // ? Initialize explicitly
   Registration.MiddlewareDelegate := nil;
-  Registration.MiddlewareInstance := nil; // ✅ Initialize explicitly
+  Registration.MiddlewareInstance := nil; // ? Initialize explicitly
   SetLength(Registration.Parameters, Length(AParams));
 
   for I := 0 to High(AParams) do
@@ -277,15 +277,15 @@ begin
   SetLength(Registration.Parameters, 0);
 
   FMiddlewares.Add(Registration);
-  Writeln('✅ SINGLETON MIDDLEWARE REGISTERED: ', (AMiddleware as TObject).ClassName);
+  Writeln('? SINGLETON MIDDLEWARE REGISTERED: ', (AMiddleware as TObject).ClassName);
   
   Result := Self;
 end;
 
 function TApplicationBuilder.UseModelBinding: IApplicationBuilder;
 begin
-  // Por enquanto apenas retorna self - podemos adicionar configurações futuras
-  // como opções de binding, validadores, etc.
+  // Por enquanto apenas retorna self - podemos adicionar configura��es futuras
+  // como op��es de binding, validadores, etc.
   Result := Self;
 end;
 
@@ -293,17 +293,17 @@ end;
 
 function TApplicationBuilder.UseMiddleware(AMiddleware: TClass): IApplicationBuilder;
 var
-  Registration: TMiddlewareRegistration; // ✅ USAR O NOVO RECORD
+  Registration: TMiddlewareRegistration; // ? USAR O NOVO RECORD
 begin
   if not AMiddleware.InheritsFrom(TMiddleware) then
     raise EArgumentException.Create('Middleware must inherit from TMiddleware');
 
-  // ✅ CRIAR REGISTRATION SEM PARÂMETROS
+  // ? CRIAR REGISTRATION SEM PAR�METROS
   Registration.MiddlewareClass := AMiddleware;
   Registration.IsDelegate := False;
-  Registration.IsInstance := False; // ✅ Initialize explicitly
+  Registration.IsInstance := False; // ? Initialize explicitly
   Registration.MiddlewareDelegate := nil;
-  Registration.MiddlewareInstance := nil; // ✅ Initialize explicitly
+  Registration.MiddlewareInstance := nil; // ? Initialize explicitly
   SetLength(Registration.Parameters, 0); // Array vazio
 
   FMiddlewares.Add(Registration);
@@ -316,7 +316,7 @@ var
 begin
   RouteDef := TRouteDefinition.Create(AMethod, APath, ADelegate);
   FRoutes.Add(RouteDef);
-  Writeln(Format('📍 REGISTERED %s %s', [AMethod, APath]));
+  Writeln(Format('?? REGISTERED %s %s', [AMethod, APath]));
   Result := Self;
 end;
 
@@ -471,17 +471,17 @@ begin
       AContext.Response.Write('Not Found');
     end;
 
-  // ✅ CRIAR RouteMatcher (interface - auto-gerenciável)
+  // ? CRIAR RouteMatcher (interface - auto-gerenci�vel)
   RouteMatcher := TRouteMatcher.Create(FRoutes);
 
-  // ✅ CRIAR RoutingMiddleware com a interface
+  // ? CRIAR RoutingMiddleware com a interface
   RoutingMiddleware := TRoutingMiddleware.Create(RouteMatcher);
 
-  // ✅ USAR FUNÇÃO ISOLADA para criar o delegate
-  // Isso impede que o delegate capture variáveis locais deste método Build (como ActRec)
+  // ? USAR FUN��O ISOLADA para criar o delegate
+  // Isso impede que o delegate capture vari�veis locais deste m�todo Build (como ActRec)
   RoutingHandler := CreateRoutingDelegate(RoutingMiddleware, FinalPipeline);
 
-  // Construir pipeline: outros middlewares → roteamento → 404
+  // Construir pipeline: outros middlewares ? roteamento ? 404
   for var I := FMiddlewares.Count - 1 downto 0 do
   begin
     RoutingHandler := CreateMiddlewarePipeline(FMiddlewares[I], RoutingHandler);

@@ -1,11 +1,11 @@
-﻿unit ControllerExample.Controller;
+unit ControllerExample.Controller;
 
 {
 1. Binding: Body, Query, Route, Header, Services.
-2. Auto-Serialização: Retorno direto de objetos/records.
-3. Validação: Atributos [Required], [StringLength].
-4. Autorização: Atributo [SwaggerAuthorize].
-5. Controllers Funcionais: Records com métodos estáticos.
+2. Auto-Serializa��o: Retorno direto de objetos/records.
+3. Valida��o: Atributos [Required], [StringLength].
+4. Autoriza��o: Atributo [SwaggerAuthorize].
+5. Controllers Funcionais: Records com m�todos est�ticos.
 }
 
 interface
@@ -13,7 +13,7 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  Dext, // ✅ All-in-one framework unit
+  Dext, // ? All-in-one framework unit
   Dext.Web,
   Dext.Web.Results,
   ControllerExample.Services, // For TMySettings
@@ -93,7 +93,7 @@ type
   // Controller Class (Instance-based with DI)
   [DextController('/api/greet')]
   // TODO : Rename Attribute
-  [SwaggerAuthorize('Bearer')] // ✅ Protect entire controller
+  [SwaggerAuthorize('Bearer')] // ? Protect entire controller
   TGreetingController = class
   private
     FService: IGreetingService;
@@ -129,7 +129,7 @@ type
   end;
 
   // ============================================================================
-  // 🎯 ACTION FILTERS DEMONSTRATION
+  // ?? ACTION FILTERS DEMONSTRATION
   // ============================================================================
 
   /// <summary>
@@ -155,7 +155,7 @@ type
   ///   Controller demonstrating all Action Filter features
   /// </summary>
   [DextController('/api/filters')]
-  [LogAction] // ✅ Controller-level filter: logs ALL methods
+  [LogAction] // ? Controller-level filter: logs ALL methods
   TFiltersController = class
   public
     // Example 1: Built-in LogAction filter
@@ -332,7 +332,7 @@ begin
   // Check if context is valid
   if (AContext = nil) or (AContext.HttpContext = nil) then
   begin
-    WriteLn('⛔ RequireAdminRole: Invalid context');
+    WriteLn('? RequireAdminRole: Invalid context');
     Exit;
   end;
 
@@ -341,14 +341,14 @@ begin
      (AContext.HttpContext.User.Identity = nil) or
      (not AContext.HttpContext.User.Identity.IsAuthenticated) then
   begin
-    WriteLn('⛔ RequireAdminRole: User not authenticated');
+    WriteLn('? RequireAdminRole: User not authenticated');
     AContext.Result := Results.StatusCode(401, '{"error":"Authentication required"}');
     Exit;
   end;
 
   if not AContext.HttpContext.User.IsInRole('admin') then
   begin
-    WriteLn('⛔ RequireAdminRole: User is not admin');
+    WriteLn('? RequireAdminRole: User is not admin');
     AContext.Result := Results.StatusCode(403, '{"error":"Admin role required"}');
   end;
 end;
@@ -359,7 +359,7 @@ end;
 procedure TimingFilterAttribute.OnActionExecuting(AContext: IActionExecutingContext);
 begin
   FStartTime := Now;
-  WriteLn(Format('⏱️  TimingFilter: Starting %s.%s',
+  WriteLn(Format('??  TimingFilter: Starting %s.%s',
     [AContext.ActionDescriptor.ControllerName, AContext.ActionDescriptor.ActionName]));
 end;
 
@@ -368,7 +368,7 @@ var
   ElapsedMs: Int64;
 begin
   ElapsedMs := MilliSecondsBetween(Now, FStartTime);
-  WriteLn(Format('⏱️  TimingFilter: Completed in %d ms', [ElapsedMs]));
+  WriteLn(Format('??  TimingFilter: Completed in %d ms', [ElapsedMs]));
 
   // Add timing header to response
   AContext.HttpContext.Response.AddHeader('X-Execution-Time-Ms', IntToStr(ElapsedMs));

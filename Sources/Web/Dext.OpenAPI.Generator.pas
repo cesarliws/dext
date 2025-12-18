@@ -1,4 +1,4 @@
-﻿unit Dext.OpenAPI.Generator;
+unit Dext.OpenAPI.Generator;
 
 interface
 
@@ -38,7 +38,7 @@ type
     ApiKeyDescription: string;
     
     // Global responses (e.g., 429, 500) applied to all operations
-    GlobalResponses: TArray<TPair<Integer, string>>; // ✅ Changed to Array for automatic memory management
+    GlobalResponses: TArray<TPair<Integer, string>>; // ? Changed to Array for automatic memory management
     
     class function Default: TOpenAPIOptions; static;
     
@@ -60,7 +60,7 @@ type
     /// <summary>
     ///   Adds a global response (e.g., 429 Too Many Requests) to all operations.
     /// </summary>
-    function WithGlobalResponse(AStatusCode: Integer; const ADescription: string): TOpenAPIOptions; // ✅ Added
+    function WithGlobalResponse(AStatusCode: Integer; const ADescription: string): TOpenAPIOptions; // ? Added
   end;
 
   /// <summary>
@@ -148,7 +148,7 @@ begin
   Result.ApiKeyName := '';
   Result.ApiKeyLocation := aklHeader;
   Result.ApiKeyDescription := '';
-  SetLength(Result.GlobalResponses, 0); // ✅ Initialize array
+  SetLength(Result.GlobalResponses, 0); // ? Initialize array
 end;
 
 function TOpenAPIOptions.WithGlobalResponse(AStatusCode: Integer; const ADescription: string): TOpenAPIOptions;
@@ -666,7 +666,7 @@ begin
   
   Result.Responses.Add('200', Response);
   
-  // ✅ Add Global Responses (e.g., 429, 500)
+  // ? Add Global Responses (e.g., 429, 500)
   for var GlobalResp in FOptions.GlobalResponses do
   begin
     // Don't overwrite if specific response exists (though unlikely for 200 here)

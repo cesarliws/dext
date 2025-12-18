@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,7 +33,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections,
-  Dext.Data.TypeSystem,
+  Dext.Entity.TypeSystem,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
   Dext.Entity.Naming, // Add Naming unit

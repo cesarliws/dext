@@ -7,7 +7,7 @@ uses
   System.Hash,
   Dext.DI.Interfaces,
   Dext.DI.Extensions,
-  Dext.Persistence,
+  Dext.Entity,
   DbContext,
   User,
   UserSettings,

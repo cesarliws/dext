@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -37,7 +37,7 @@ type
     procedure HandleRequest(AContext: IHttpContext);
   end;
 
-  // Para Approach 1: Records estÃ¡ticos
+  // Para Approach 1: Records estáticos
   // TStaticHandler movido para Dext.Web.Interfaces
 
   // Para Approach 2: Classes com DI

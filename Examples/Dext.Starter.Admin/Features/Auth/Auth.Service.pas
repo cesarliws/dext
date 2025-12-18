@@ -4,7 +4,7 @@ interface
 
 uses
   Dext,
-  Dext.Persistence,
+  Dext.Entity,
   DbContext,
   User,
   System.SysUtils,

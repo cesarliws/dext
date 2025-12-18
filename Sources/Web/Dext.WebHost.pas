@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -120,10 +120,10 @@ var
   ServiceProvider: IServiceProvider;
   Port: Integer;
 begin
-  // ✅ PRIMEIRO construir o ServiceProvider, DEPOIS criar AppBuilder
+  // ? PRIMEIRO construir o ServiceProvider, DEPOIS criar AppBuilder
   ServiceProvider := FServices.BuildServiceProvider;
 
-  AppBuilder := TApplicationBuilder.Create(ServiceProvider); // ✅ CORREÇÃO
+  AppBuilder := TApplicationBuilder.Create(ServiceProvider); // ? CORRE��O
 
   if Assigned(FAppConfig) then
     FAppConfig(AppBuilder);

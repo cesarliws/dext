@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.LazyExecution;
+unit EntityDemo.Tests.LazyExecution;
 
 interface
 
@@ -30,7 +30,7 @@ var
   Count: Integer;
   Name: string;
 begin
-  Log('🔄 Running Lazy Execution Tests...');
+  Log('?? Running Lazy Execution Tests...');
   Log('===================================');
   Log('');
   
@@ -58,15 +58,15 @@ begin
   Log('');
   
   // Test 1: Lazy Query - Query is NOT executed yet!
-  Log('📋 Test 1: Lazy Query Creation');
+  Log('?? Test 1: Lazy Query Creation');
   Log('------------------------------');
   LazyQuery := FContext.Entities<TUser>.Query(UserEntity.Age >= 18);
-  LogSuccess('✓ Query created (NOT executed yet!)');
+  LogSuccess('? Query created (NOT executed yet!)');
   Log('  The query will only execute when we enumerate it.');
   Log('');
   
   // Test 2: Force execution by enumerating
-  Log('🔍 Test 2: Force Execution via Enumeration');
+  Log('?? Test 2: Force Execution via Enumeration');
   Log('------------------------------------------');
   Count := 0;
   for User in LazyQuery do
@@ -80,22 +80,22 @@ begin
   Log('');
   
   // Test 3: Query can be enumerated multiple times
-  Log('🔁 Test 3: Re-enumerate Same Query');
+  Log('?? Test 3: Re-enumerate Same Query');
   Log('-----------------------------------');
   Count := 0;
   for User in LazyQuery do
   begin
     Inc(Count);
   end;
-  LogSuccess(Format('✓ Re-enumerated: Found %d users again', [Count]));
+  LogSuccess(Format('? Re-enumerated: Found %d users again', [Count]));
   Log('  Note: Query executes AGAIN (not cached)');
   Log('');
   
   // Test 4: Query all records (lazy)
-  Log('📊 Test 4: Query All Records (Lazy)');
+  Log('?? Test 4: Query All Records (Lazy)');
   Log('------------------------------------');
   var AllQuery := FContext.Entities<TUser>.QueryAll();
-  LogSuccess('✓ Query() created for all records');
+  LogSuccess('? Query() created for all records');
   
   Count := 0;
   for User in AllQuery do
@@ -106,23 +106,23 @@ begin
   Log('');
   
   // Test 5: Demonstrate difference between List() and Query()
-  Log('⚡ Test 5: List() vs Query() - Execution Timing');
+  Log('? Test 5: List() vs Query() - Execution Timing');
   Log('------------------------------------------------');
   Log('  List():  Executes IMMEDIATELY and returns IList<T>');
   Log('  Query(): Defers execution until enumerated (IEnumerable<T>)');
   Log('');
   
   var EagerList := FContext.Entities<TUser>.List(UserEntity.Age >= 18);
-  LogSuccess(Format('✓ List() executed immediately: %d results', [EagerList.Count]));
+  LogSuccess(Format('? List() executed immediately: %d results', [EagerList.Count]));
   // EagerList.Free; // REMOVED: Managed by ARC (IList<T>)
   
   var LazyEnum := FContext.Entities<TUser>.Query(UserEntity.Age >= 18);
-  LogSuccess('✓ Query() created (deferred execution)');
-  Log(Format('  → Execution happens when we enumerate it (Query object: %p)', [Pointer(@LazyEnum)]));
+  LogSuccess('? Query() created (deferred execution)');
+  Log(Format('  ? Execution happens when we enumerate it (Query object: %p)', [Pointer(@LazyEnum)]));
   Log('');
   
   // Test 6: Projections (Select)
-  Log('🎯 Test 6: Projections (Select)');
+  Log('?? Test 6: Projections (Select)');
   Log('------------------------------');
   var NamesQuery: TFluentQuery<string>;
   NamesQuery := FContext.Entities<TUser>
@@ -132,7 +132,7 @@ begin
         Result := U.Name;
       end);
       
-  LogSuccess('✓ Select<string> created (deferred execution)');
+  LogSuccess('? Select<string> created (deferred execution)');
   
   Count := 0;
   for Name in NamesQuery do
@@ -146,11 +146,11 @@ begin
     'Expected 2 names');
   Log('');
   
-  LogSuccess('✅ Lazy Execution & Projection tests complete!');
+  LogSuccess('? Lazy Execution & Projection tests complete!');
   Log('');
   
   // Test 7: Where (Filtering)
-  Log('🔍 Test 7: Where (Filtering)');
+  Log('?? Test 7: Where (Filtering)');
   Log('---------------------------');
   var FilteredQuery := FContext
     .Entities<TUser>
@@ -170,7 +170,7 @@ begin
   Log('');
 
   // Test 8: Skip & Take (Pagination)
-  Log('📄 Test 8: Skip & Take (Pagination)');
+  Log('?? Test 8: Skip & Take (Pagination)');
   Log('----------------------------------');
   // Order is not guaranteed without OrderBy, but for this test we assume insertion order or DB order
   // Alice(25), Bob(30), Charlie(17)
@@ -189,16 +189,16 @@ begin
   AssertTrue(Count = 1, 'Found 1 user', 'Expected 1 user');
   Log('');
 
-  LogSuccess('✅ Fluent API (Where, Skip, Take) tests complete!');
+  LogSuccess('? Fluent API (Where, Skip, Take) tests complete!');
   Log('');
-  Log('💡 Key Takeaways:');
-  Log('  • Query() returns TFluentQuery<T> with deferred execution');
-  Log('  • Select<TResult>() projects results to a new type');
-  Log('  • Where() filters results in memory (lazy)');
-  Log('  • Skip() and Take() enable pagination');
-  Log('  • List() returns IList<T> with immediate execution and ARC memory management');
-  Log('  • Use Query() when you might not need all results');
-  Log('  • Use List() when you need to materialize results immediately');
+  Log('?? Key Takeaways:');
+  Log('  � Query() returns TFluentQuery<T> with deferred execution');
+  Log('  � Select<TResult>() projects results to a new type');
+  Log('  � Where() filters results in memory (lazy)');
+  Log('  � Skip() and Take() enable pagination');
+  Log('  � List() returns IList<T> with immediate execution and ARC memory management');
+  Log('  � Use Query() when you might not need all results');
+  Log('  � Use List() when you need to materialize results immediately');
   Log('');
 end;
 

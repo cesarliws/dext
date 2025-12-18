@@ -1,10 +1,10 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{4E4AC89E-3AE7-42E3-BC30-DA50C065D579}</ProjectGuid>
-        <MainSource>Dext.Data.dpk</MainSource>
+        <MainSource>Dext.EF.Core.dpk</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Debug</Config>
-        <ProjectName Condition="'$(ProjectName)'==''">Dext.Data</ProjectName>
+        <ProjectName Condition="'$(ProjectName)'==''">Dext.EF.Core</ProjectName>
         <TargetedPlatforms>1081473</TargetedPlatforms>
         <AppType>Package</AppType>
         <FrameworkType>None</FrameworkType>
@@ -121,24 +121,20 @@
         <DCCReference Include="FireDACCommonDriver.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
         <DCCReference Include="FireDACSqliteDriver.dcp"/>
-        <DCCReference Include="Hosting\Dext.Hosting.CLI.pas"/>
-        <DCCReference Include="Data\Dext.Data.TypeSystem.pas"/>
         <DCCReference Include="Data\Dext.Entity.pas"/>
-        <DCCReference Include="Data\Dext.Persistence.pas"/>
-        <DCCReference Include="Data\Dext.Entity.DbSet.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Core.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Query.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Drivers.FireDAC.Manager.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Setup.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Drivers.FireDAC.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Migrations.Runner.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Mapping.pas"/>
-        <DCCReference Include="Data\Dext.Entity.LazyLoading.pas"/>
         <DCCReference Include="Data\Dext.Entity.Attributes.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Context.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Core.pas"/>
+        <DCCReference Include="Data\Dext.Entity.DbSet.pas"/>
         <DCCReference Include="Data\Dext.Entity.Dialects.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Drivers.FireDAC.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Drivers.FireDAC.Manager.pas"/>
         <DCCReference Include="Data\Dext.Entity.Drivers.Interfaces.pas"/>
         <DCCReference Include="Data\Dext.Entity.Grouping.pas"/>
         <DCCReference Include="Data\Dext.Entity.Joining.pas"/>
+        <DCCReference Include="Data\Dext.Entity.LazyLoading.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Mapping.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Migrations.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Builder.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Differ.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Extractor.pas"/>
@@ -146,10 +142,14 @@
         <DCCReference Include="Data\Dext.Entity.Migrations.Json.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Model.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Operations.pas"/>
-        <DCCReference Include="Data\Dext.Entity.Migrations.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Migrations.Runner.pas"/>
         <DCCReference Include="Data\Dext.Entity.Migrations.Serializers.Json.pas"/>
         <DCCReference Include="Data\Dext.Entity.Naming.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Query.pas"/>
         <DCCReference Include="Data\Dext.Entity.Scaffolding.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Setup.pas"/>
+        <DCCReference Include="Data\Dext.Entity.TypeSystem.pas"/>
+        <DCCReference Include="Hosting\Dext.Hosting.CLI.pas"/>
         <DCCReference Include="Data\Dext.Specifications.SQL.Generator.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
@@ -169,7 +169,7 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">Dext.Data.dpk</Source>
+                    <Source Name="MainSource">Dext.EF.Core.dpk</Source>
                 </Source>
                 <Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k370.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
@@ -200,9 +200,9 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\Output\Win32\Debug\Dext.Data.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\Output\Win32\Debug\Dext.EF.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>Dext.Data.bpl</RemoteName>
+                        <RemoteName>Dext.EF.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

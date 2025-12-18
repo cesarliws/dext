@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Collections;
+unit EntityDemo.Tests.Collections;
 
 interface
 
@@ -38,11 +38,11 @@ var
   LList: IList<Integer>;
   LFiltered: IList<Integer>;
 begin
-  Log('🚀 Running Collections Tests...');
+  Log('?? Running Collections Tests...');
   Log('=============================');
 
   // Test 1: Basic List Operations
-  Log('📝 Testing Basic List Operations...');
+  Log('?? Testing Basic List Operations...');
   LList := TSmartList<Integer>.Create;
   LList.Add(1);
   LList.Add(2);
@@ -58,7 +58,7 @@ begin
 
 
   // Test 2: Functional Methods
-  Log('🔍 Testing Functional Methods...');
+  Log('?? Testing Functional Methods...');
   LList.Clear;
   LList.AddRange([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
@@ -90,7 +90,7 @@ var
   LFiltered: IList<TPerson>;
   P: TPerson;
 begin
-  Log('🧠 Testing Expression Evaluation...');
+  Log('?? Testing Expression Evaluation...');
 
   LList := TCollections.CreateObjectList<TPerson>;
   LList.Add(TPerson.Create('John', 25));

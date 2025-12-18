@@ -1,4 +1,4 @@
-Ôªøunit TaskFlow.Domain;
+unit TaskFlow.Domain;
 
 interface
 
@@ -15,7 +15,7 @@ type
   TTaskPriority = (tpLow, tpMedium, tpHigh, tpCritical);
 
   // ===========================================================================
-  // HELPERS PARA CONVERS√ÉO DE ENUMS
+  // HELPERS PARA CONVERS√O DE ENUMS
   // ===========================================================================
   TTaskStatusHelper = record helper for TTaskStatus
   public
@@ -35,7 +35,7 @@ type
   end;
 
   // ===========================================================================
-  // RECORDS DE DOM√çNIO
+  // RECORDS DE DOMÕNIO
   // ===========================================================================
   TTaskFilter = record
   public
@@ -150,7 +150,7 @@ type
   end;
 
 // ===========================================================================
-// FUN√á√ïES GLOBAIS √öTEIS
+// FUN«’ES GLOBAIS ⁄TEIS
 // ===========================================================================
 function GenerateTaskId: Integer;
 
@@ -163,7 +163,7 @@ var
   GTaskIdCounter: Integer = 0;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TTaskStatusHelper
+// IMPLEMENTA«√O TTaskStatusHelper
 // ===========================================================================
 function TTaskStatusHelper.ToString: string;
 begin
@@ -182,7 +182,7 @@ begin
   case Self of
     tsPending: Result := 'Pendente';
     tsInProgress: Result := 'Em Progresso';
-    tsCompleted: Result := 'Conclu√≠da';
+    tsCompleted: Result := 'ConcluÌda';
     tsCancelled: Result := 'Cancelada';
   else
     Result := 'Desconhecido';
@@ -200,7 +200,7 @@ const
   ValidValues: array[0..9] of string = (
     'pending', 'pendente',
     'in_progress', 'inprogress', 'em_progresso',
-    'completed', 'concluida', 'conclu√≠da',
+    'completed', 'concluida', 'concluÌda',
     'cancelled', 'cancelada'
   );
 var
@@ -231,7 +231,7 @@ begin
 end;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TTaskPriorityHelper
+// IMPLEMENTA«√O TTaskPriorityHelper
 // ===========================================================================
 function TTaskPriorityHelper.ToString: string;
 begin
@@ -249,9 +249,9 @@ function TTaskPriorityHelper.ToDisplayText: string;
 begin
   case Self of
     tpLow: Result := 'Baixa';
-    tpMedium: Result := 'M√©dia';
+    tpMedium: Result := 'MÈdia';
     tpHigh: Result := 'Alta';
-    tpCritical: Result := 'Cr√≠tica';
+    tpCritical: Result := 'CrÌtica';
   else
     Result := 'Desconhecida';
   end;
@@ -284,11 +284,11 @@ begin
   // TODO: converter para array
   if (LowerValue = 'low') or (LowerValue = 'baixa') then
     Priority := tpLow
-  else if (LowerValue = 'medium') or (LowerValue = 'media') or (LowerValue = 'm√©dia') then
+  else if (LowerValue = 'medium') or (LowerValue = 'media') or (LowerValue = 'mÈdia') then
     Priority := tpMedium
   else if (LowerValue = 'high') or (LowerValue = 'alta') then
     Priority := tpHigh
-  else if (LowerValue = 'critical') or (LowerValue = 'critica') or (LowerValue = 'cr√≠tica') then
+  else if (LowerValue = 'critical') or (LowerValue = 'critica') or (LowerValue = 'crÌtica') then
     Priority := tpCritical
   else
   begin
@@ -298,7 +298,7 @@ begin
 end;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TTaskFilter
+// IMPLEMENTA«√O TTaskFilter
 // ===========================================================================
 constructor TTaskFilter.Create(APage, APageSize: Integer);
 begin
@@ -341,16 +341,16 @@ end;
 
 function TTaskFilter.HasStatusFilter: Boolean;
 begin
-  Result := Status <> tsPending; // Consideramos pending como "n√£o filtrado"
+  Result := Status <> tsPending; // Consideramos pending como "n„o filtrado"
 end;
 
 function TTaskFilter.HasPriorityFilter: Boolean;
 begin
-  Result := Priority <> tpMedium; // Consideramos medium como "n√£o filtrado"
+  Result := Priority <> tpMedium; // Consideramos medium como "n„o filtrado"
 end;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TTask
+// IMPLEMENTA«√O TTask
 // ===========================================================================
 constructor TTask.Create(const ATitle, ADescription: string;
   APriority: TTaskPriority; ADueDate: TDateTime);
@@ -362,7 +362,7 @@ begin
   Self.Priority := APriority;
   Self.CreatedAt := Now;
   Self.DueDate := ADueDate;
-  Self.UserId := 'system'; // Default - ser√° substitu√≠do quando tivermos auth
+  Self.UserId := 'system'; // Default - ser· substituÌdo quando tivermos auth
 end;
 
 class function TTask.CreateQuick(const ATitle: string;
@@ -389,7 +389,7 @@ end;
 
 function TTask.CanChangeStatus(NewStatus: TTaskStatus): Boolean;
 begin
-  // L√≥gica de transi√ß√£o de status
+  // LÛgica de transiÁ„o de status
   case Status of
     tsPending: Result := NewStatus in [tsInProgress, tsCancelled];
     tsInProgress: Result := NewStatus in [tsCompleted, tsCancelled];
@@ -408,7 +408,7 @@ begin
 end;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TTaskListResponse
+// IMPLEMENTA«√O TTaskListResponse
 // ===========================================================================
 constructor TTaskListResponse.Create(ATasks: TArray<TTask>; ATotalCount, APage, APageSize: Integer);
 begin
@@ -438,7 +438,7 @@ begin
 end;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TCreateTaskRequest
+// IMPLEMENTA«√O TCreateTaskRequest
 // ===========================================================================
 function TCreateTaskRequest.Validate: TArray<string>;
 begin
@@ -471,7 +471,7 @@ begin
 end;
 
 // ===========================================================================
-// IMPLEMENTA√á√ÉO TTaskResponse
+// IMPLEMENTA«√O TTaskResponse
 // ===========================================================================
 constructor TTaskResponse.Create(const Task: TTask);
 begin
@@ -488,7 +488,7 @@ begin
 end;
 
 // ===========================================================================
-// FUN√á√ïES GLOBAIS
+// FUN«’ES GLOBAIS
 // ===========================================================================
 function GenerateTaskId: Integer;
 begin

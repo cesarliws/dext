@@ -1,4 +1,4 @@
-Ôªøunit TaskFlow.Handlers.Tasks;
+unit TaskFlow.Handlers.Tasks;
 
 interface
 
@@ -7,9 +7,9 @@ uses
   System.JSON,
   System.Generics.Collections,
   System.Rtti,
-  Dext.Web.ModelBinding,      // ‚úÖ Para [FromQuery], [FromRoute], [FromBody]
-  Dext.DI.Interfaces,          // ‚úÖ Para [FromServices]
-  Dext.Web.Routing.Attributes,           // ‚úÖ NOVA UNIT - Nossos atributos customizados
+  Dext.Web.ModelBinding,      // ? Para [FromQuery], [FromRoute], [FromBody]
+  Dext.DI.Interfaces,          // ? Para [FromServices]
+  Dext.Web.Routing.Attributes,           // ? NOVA UNIT - Nossos atributos customizados
   TaskFlow.Domain,
   TaskFlow.Repository.Interfaces;
 
@@ -71,7 +71,7 @@ type
   TTaskHandlers = record
   public
     // ========================================================================
-    // OPERA√á√ïES CRUD
+    // OPERA«’ES CRUD
     // ========================================================================
 
     /// <summary>Lista todas as tarefas com suporte a filtros</summary>
@@ -81,7 +81,7 @@ type
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskListResponse; static;
 
-    /// <summary>Obt√©m uma tarefa espec√≠fica por ID</summary>
+    /// <summary>ObtÈm uma tarefa especÌfica por ID</summary>
     [DextGet('/tasks/{id}')]
     class function GetTask(
       [FromRoute] Id: Integer;
@@ -111,48 +111,48 @@ type
     ): TDextResponse; static;
 
     // ========================================================================
-    // OPERA√á√ïES ESPECIAIS
+    // OPERA«’ES ESPECIAIS
     // ========================================================================
 
-    /// <summary>Busca avan√ßada de tarefas</summary>
+    /// <summary>Busca avanÁada de tarefas</summary>
     [DextGet('/tasks/search')]
     class function SearchTasks(
       [FromQuery] Filter: TTaskFilter;
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskListResponse; static;
 
-    /// <summary>Obt√©m tarefas por status</summary>
+    /// <summary>ObtÈm tarefas por status</summary>
     [DextGet('/tasks/status/{status}')]
     class function GetTasksByStatus(
       [FromRoute] Status: TTaskStatus;
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskListResponse; static;
 
-    /// <summary>Obt√©m tarefas por prioridade</summary>
+    /// <summary>ObtÈm tarefas por prioridade</summary>
     [DextGet('/tasks/priority/{priority}')]
     class function GetTasksByPriority(
       [FromRoute] Priority: TTaskPriority;
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskListResponse; static;
 
-    /// <summary>Obt√©m tarefas atrasadas</summary>
+    /// <summary>ObtÈm tarefas atrasadas</summary>
     [DextGet('/tasks/overdue')]
     class function GetOverdueTasks(
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskListResponse; static;
 
     // ========================================================================
-    // OPERA√á√ïES EM LOTE
+    // OPERA«’ES EM LOTE
     // ========================================================================
 
-    /// <summary>Atualiza status de m√∫ltiplas tarefas</summary>
+    /// <summary>Atualiza status de m˙ltiplas tarefas</summary>
     [DextPost('/tasks/bulk/status')]
     class function BulkUpdateStatus(
       [FromBody] Request: TBulkStatusUpdateRequest;
       [FromServices] TaskRepo: ITaskRepository
     ): TBulkOperationResponse; static;
 
-    /// <summary>Exclui m√∫ltiplas tarefas</summary>
+    /// <summary>Exclui m˙ltiplas tarefas</summary>
     [DextPost('/tasks/bulk/delete')]
     class function BulkDeleteTasks(
       [FromBody] Request: TBulkDeleteRequest;
@@ -160,7 +160,7 @@ type
     ): TBulkOperationResponse; static;
 
     // ========================================================================
-    // OPERA√á√ïES DE STATUS
+    // OPERA«’ES DE STATUS
     // ========================================================================
 
     /// <summary>Atualiza o status de uma tarefa</summary>
@@ -171,7 +171,7 @@ type
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskResponse; static;
 
-    /// <summary>Marca tarefa como conclu√≠da</summary>
+    /// <summary>Marca tarefa como concluÌda</summary>
     [DextPost('/tasks/{id}/complete')]
     class function CompleteTask(
       [FromRoute] Id: Integer;
@@ -193,16 +193,16 @@ type
     ): TTaskResponse; static;
 
     // ========================================================================
-    // ESTAT√çSTICAS E RELAT√ìRIOS
+    // ESTATÕSTICAS E RELAT”RIOS
     // ========================================================================
 
-    /// <summary>Obt√©m estat√≠sticas das tarefas</summary>
+    /// <summary>ObtÈm estatÌsticas das tarefas</summary>
     [DextGet('/tasks/stats')]
     class function GetTasksStats(
       [FromServices] TaskRepo: ITaskRepository
     ): TTaskStats; static;
 
-    /// <summary>Obt√©m contagem por status</summary>
+    /// <summary>ObtÈm contagem por status</summary>
     [DextGet('/tasks/stats/status')]
     class function GetStatusCounts(
       [FromServices] TaskRepo: ITaskRepository
@@ -217,7 +217,7 @@ implementation
 { TTaskHandlers }
 
 // ============================================================================
-// OPERA√á√ïES CRUD
+// OPERA«’ES CRUD
 // ============================================================================
 
 class function TTaskHandlers.GetTasks(Filter: TTaskFilter;
@@ -227,7 +227,7 @@ var
   TotalCount: Integer;
 begin
   try
-    // Se n√£o tem filtro espec√≠fico, usa padr√£o
+    // Se n„o tem filtro especÌfico, usa padr„o
     if not Filter.HasStatusFilter and not Filter.HasPriorityFilter and not Filter.HasDateFilter then
     begin
       Tasks := TaskRepo.GetAll;
@@ -236,7 +236,7 @@ begin
     else
     begin
       Tasks := TaskRepo.SearchTasks(Filter);
-      TotalCount := Length(Tasks); // Em uma implementa√ß√£o real, ter√≠amos count separado
+      TotalCount := Length(Tasks); // Em uma implementaÁ„o real, terÌamos count separado
     end;
 
     Result := TTaskListResponse.Create(Tasks, TotalCount, Filter.Page, Filter.PageSize);
@@ -284,7 +284,7 @@ begin
       Request.DueDate
     );
 
-    // Salvar no reposit√≥rio
+    // Salvar no repositÛrio
     Task := TaskRepo.CreateTask(Task);
     Result := TTaskResponse.CreateFromTask(Task);
 
@@ -316,7 +316,7 @@ begin
     UpdatedTask.Priority := Request.Priority;
     UpdatedTask.DueDate := Request.DueDate;
 
-    // Salvar altera√ß√µes
+    // Salvar alteraÁıes
     UpdatedTask := TaskRepo.UpdateTask(Id, UpdatedTask);
     Result := TTaskResponse.CreateFromTask(UpdatedTask);
 
@@ -346,7 +346,7 @@ begin
 end;
 
 // ============================================================================
-// OPERA√á√ïES ESPECIAIS (continua√ß√£o na pr√≥xima mensagem devido ao limite de tamanho)
+// OPERA«’ES ESPECIAIS (continuaÁ„o na prÛxima mensagem devido ao limite de tamanho)
 // ============================================================================
 
 class function TTaskHandlers.SearchTasks(Filter: TTaskFilter;
@@ -357,7 +357,7 @@ begin
       raise EDextHttpException.Create(400, 'Invalid filter parameters');
 
     var Tasks := TaskRepo.SearchTasks(Filter);
-    var TotalCount := TaskRepo.GetTaskCount; // Em produ√ß√£o, ter√≠amos count com filtro
+    var TotalCount := TaskRepo.GetTaskCount; // Em produÁ„o, terÌamos count com filtro
 
     Result := TTaskListResponse.Create(Tasks, TotalCount, Filter.Page, Filter.PageSize);
 
@@ -414,7 +414,7 @@ begin
 end;
 
 // ============================================================================
-// CONTINUA√á√ÉO NAS PR√ìXIMAS MENSAGENS...
+// CONTINUA«√O NAS PR”XIMAS MENSAGENS...
 // ============================================================================
 
 { TUpdateStatusRequest }
@@ -422,7 +422,7 @@ end;
 function TUpdateStatusRequest.Validate: TArray<string>;
 begin
   Result := [];
-  // Valida√ß√£o b√°sica - status deve ser v√°lido
+  // ValidaÁ„o b·sica - status deve ser v·lido
   if not (Status in [Low(TTaskStatus)..High(TTaskStatus)]) then
     Result := Result + ['Invalid status value'];
 end;
@@ -509,7 +509,7 @@ begin
 end;
 
 // ============================================================================
-// OPERA√á√ïES EM LOTE
+// OPERA«’ES EM LOTE
 // ============================================================================
 
 class function TTaskHandlers.BulkUpdateStatus(Request: TBulkStatusUpdateRequest;
@@ -555,7 +555,7 @@ begin
 end;
 
 // ============================================================================
-// OPERA√á√ïES DE STATUS
+// OPERA«’ES DE STATUS
 // ============================================================================
 
 class function TTaskHandlers.UpdateTaskStatus(Id: Integer; Request: TUpdateStatusRequest;
@@ -573,7 +573,7 @@ begin
     // Obter tarefa existente
     ExistingTask := TaskRepo.GetById(Id);
 
-    // Validar transi√ß√£o de status
+    // Validar transiÁ„o de status
     if not ExistingTask.CanChangeStatus(Request.Status) then
       raise EDextHttpException.Create(400,
         Format('Cannot change status from %s to %s',
@@ -583,7 +583,7 @@ begin
     UpdatedTask := ExistingTask;
     UpdatedTask.Status := Request.Status;
 
-    // Salvar altera√ß√µes
+    // Salvar alteraÁıes
     UpdatedTask := TaskRepo.UpdateTask(Id, UpdatedTask);
     Result := TTaskResponse.CreateFromTask(UpdatedTask);
 
@@ -625,7 +625,7 @@ begin
 end;
 
 // ============================================================================
-// ESTAT√çSTICAS E RELAT√ìRIOS
+// ESTATÕSTICAS E RELAT”RIOS
 // ============================================================================
 
 class function TTaskHandlers.GetTasksStats(

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -490,21 +490,21 @@ procedure TResponseCacheMiddleware.Invoke(AContext: IHttpContext; ANext: TReques
 var
   CacheKey: string;
 begin
-  // Skip non‑cacheable methods (POST, PUT, DELETE, etc.)
+  // Skip non-cacheable methods (POST, PUT, DELETE, etc.)
   if not IsCacheable(AContext) then
   begin
     ANext(AContext);
     Exit;
   end;
 
-  // Build the cache key (method + path + query + vary‑by headers)
+  // Build the cache key (method + path + query + vary-by headers)
   CacheKey := GenerateCacheKey(AContext);
 
   // Try to serve a cached response (HIT)
   if TryServeFromCache(AContext, CacheKey) then
     Exit; // response already written, stop pipeline
 
-  // MISS – add cache‑control headers
+  // MISS � add cache-control headers
   AContext.Response.AddHeader('X-Cache', 'MISS');
   AContext.Response.AddHeader('Cache-Control',
     Format('public, max-age=%d', [FOptions.DefaultDuration]));

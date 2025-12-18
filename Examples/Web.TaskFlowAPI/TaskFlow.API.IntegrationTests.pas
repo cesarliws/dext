@@ -1,4 +1,4 @@
-﻿unit TaskFlow.API.IntegrationTests;
+unit TaskFlow.API.IntegrationTests;
 
 interface
 
@@ -26,7 +26,7 @@ implementation
 //  ContentStream: TStringStream;
 //begin
 //  WriteLn('');
-//  WriteLn('🔬 INTEGRATION TESTS');
+//  WriteLn('?? INTEGRATION TESTS');
 //  WriteLn('===================');
 //
 //  HttpClient := THTTPClient.Create;
@@ -37,23 +37,23 @@ implementation
 //    Response := HttpClient.Get('http://localhost:8080/api/tasks');
 //    WriteLn('   Status: ', Response.StatusCode, ' - ', Response.StatusText);
 //    if Response.StatusCode = 200 then
-//      WriteLn('   ✅ Success! Content: ', Copy(Response.ContentAsString, 1, 100), '...');
+//      WriteLn('   ? Success! Content: ', Copy(Response.ContentAsString, 1, 100), '...');
 //
 //    // TESTE 2: GET /api/tasks/1
 //    WriteLn('2. Testing GET /api/tasks/1...');
 //    Response := HttpClient.Get('http://localhost:8080/api/tasks/1');
 //    WriteLn('   Status: ', Response.StatusCode, ' - ', Response.StatusText);
 //    if Response.StatusCode = 200 then
-//      WriteLn('   ✅ Task found!')
+//      WriteLn('   ? Task found!')
 //    else if Response.StatusCode = 404 then
-//      WriteLn('   ℹ️  Task not found (expected for some IDs)');
+//      WriteLn('   ??  Task not found (expected for some IDs)');
 //
 //    // TESTE 3: POST /api/tasks
 //    WriteLn('3. Testing POST /api/tasks...');
 //    JSONContent := TJSONObject.Create;
 //    try
 //      JSONContent.AddPair('title', 'Nova Tarefa via API');
-//      JSONContent.AddPair('description', 'Criada através do teste de integração');
+//      JSONContent.AddPair('description', 'Criada atrav�s do teste de integra��o');
 //      JSONContent.AddPair('priority', 'high');
 //      JSONContent.AddPair('dueDate', FormatDateTime('yyyy-mm-dd', Now + 5));
 //
@@ -67,7 +67,7 @@ implementation
 //        WriteLn('   Status: ', Response.StatusCode, ' - ', Response.StatusText);
 //        if Response.StatusCode in [200, 201] then
 //        begin
-//          WriteLn('   ✅ Task created successfully!');
+//          WriteLn('   ? Task created successfully!');
 //          WriteLn('   Response: ', Copy(Response.ContentAsString, 1, 200));
 //        end;
 //      finally
@@ -82,28 +82,28 @@ implementation
 //    Response := HttpClient.Get('http://localhost:8080/api/tasks/stats');
 //    WriteLn('   Status: ', Response.StatusCode, ' - ', Response.StatusText);
 //    if Response.StatusCode = 200 then
-//      WriteLn('   ✅ Stats retrieved!');
+//      WriteLn('   ? Stats retrieved!');
 //
 //    // TESTE 5: GET /api/tasks/overdue
 //    WriteLn('5. Testing GET /api/tasks/overdue...');
 //    Response := HttpClient.Get('http://localhost:8080/api/tasks/overdue');
 //    WriteLn('   Status: ', Response.StatusCode, ' - ', Response.StatusText);
 //    if Response.StatusCode = 200 then
-//      WriteLn('   ✅ Overdue tasks retrieved!');
+//      WriteLn('   ? Overdue tasks retrieved!');
 //
 //    // TESTE 6: GET /api/tasks/search com query parameters
 //    WriteLn('6. Testing GET /api/tasks/search?status=completed...');
 //    Response := HttpClient.Get('http://localhost:8080/api/tasks/search?status=completed');
 //    WriteLn('   Status: ', Response.StatusCode, ' - ', Response.StatusText);
 //    if Response.StatusCode = 200 then
-//      WriteLn('   ✅ Search with query params working!');
+//      WriteLn('   ? Search with query params working!');
 //
 //    WriteLn('');
-//    WriteLn('🎉 INTEGRATION TESTS COMPLETED!');
+//    WriteLn('?? INTEGRATION TESTS COMPLETED!');
 //
 //  except
 //    on E: Exception do
-//      WriteLn('❌ Test error: ', E.Message);
+//      WriteLn('? Test error: ', E.Message);
 //  end;
 //
 //  HttpClient.Free;
@@ -134,15 +134,15 @@ begin
         Response := HttpClient.Get(URL);
 
       if Response.StatusCode in [200, 201] then
-        WriteLn('✅ ', Response.StatusCode)
+        WriteLn('? ', Response.StatusCode)
       else
-        WriteLn('❌ ', Response.StatusCode, ' - ', Response.StatusText);
+        WriteLn('? ', Response.StatusCode, ' - ', Response.StatusText);
 
     except
       on E: ENetHTTPClientException do
-        WriteLn('❌ HTTP Error: ', E.Message);
+        WriteLn('? HTTP Error: ', E.Message);
       on E: Exception do
-        WriteLn('❌ Error: ', E.Message);
+        WriteLn('? Error: ', E.Message);
     end;
 
   finally
@@ -156,7 +156,7 @@ var
   JSONContent: string;
 begin
   WriteLn('');
-  WriteLn('🔬 INTEGRATION TESTS');
+  WriteLn('?? INTEGRATION TESTS');
   WriteLn('===================');
 
   // Configurar headers para JSON
@@ -173,7 +173,7 @@ begin
   TestEndpoint('6. GET /api/tasks/search', 'http://localhost:8080/api/tasks/search?status=completed', 'GET');
 
   WriteLn('');
-  WriteLn('🎉 INTEGRATION TESTS COMPLETED!');
+  WriteLn('?? INTEGRATION TESTS COMPLETED!');
 end;
 
 end.
