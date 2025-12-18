@@ -116,12 +116,19 @@ type
   private
     FExpression: IExpression;
   public
+    class function From(const AExpression: IExpression): TFluentExpression; static;
     class operator Implicit(const Value: IExpression): TFluentExpression;
     class operator Implicit(const Value: TFluentExpression): IExpression;
     
     // Logical Operators (AND, OR, NOT)
     class operator LogicalAnd(const Left, Right: TFluentExpression): TFluentExpression;
+    class operator LogicalAnd(const Left: TFluentExpression; const Right: IExpression): TFluentExpression;
+    class operator LogicalAnd(const Left: IExpression; const Right: TFluentExpression): TFluentExpression;
+    
     class operator LogicalOr(const Left, Right: TFluentExpression): TFluentExpression;
+    class operator LogicalOr(const Left: TFluentExpression; const Right: IExpression): TFluentExpression;
+    class operator LogicalOr(const Left: IExpression; const Right: TFluentExpression): TFluentExpression;
+    
     class operator LogicalNot(const Value: TFluentExpression): TFluentExpression;
     
     property Expression: IExpression read FExpression;
@@ -256,6 +263,11 @@ end;
 
 { TFluentExpression }
 
+class function TFluentExpression.From(const AExpression: IExpression): TFluentExpression;
+begin
+  Result.FExpression := AExpression;
+end;
+
 class operator TFluentExpression.Implicit(const Value: IExpression): TFluentExpression;
 begin
   Result.FExpression := Value;
@@ -271,9 +283,29 @@ begin
   Result.FExpression := TLogicalExpression.Create(Left.FExpression, Right.FExpression, loAnd);
 end;
 
+class operator TFluentExpression.LogicalAnd(const Left: TFluentExpression; const Right: IExpression): TFluentExpression;
+begin
+  Result.FExpression := TLogicalExpression.Create(Left.FExpression, Right, loAnd);
+end;
+
+class operator TFluentExpression.LogicalAnd(const Left: IExpression; const Right: TFluentExpression): TFluentExpression;
+begin
+  Result.FExpression := TLogicalExpression.Create(Left, Right.FExpression, loAnd);
+end;
+
 class operator TFluentExpression.LogicalOr(const Left, Right: TFluentExpression): TFluentExpression;
 begin
   Result.FExpression := TLogicalExpression.Create(Left.FExpression, Right.FExpression, loOr);
+end;
+
+class operator TFluentExpression.LogicalOr(const Left: TFluentExpression; const Right: IExpression): TFluentExpression;
+begin
+  Result.FExpression := TLogicalExpression.Create(Left.FExpression, Right, loOr);
+end;
+
+class operator TFluentExpression.LogicalOr(const Left: IExpression; const Right: TFluentExpression): TFluentExpression;
+begin
+  Result.FExpression := TLogicalExpression.Create(Left, Right.FExpression, loOr);
 end;
 
 class operator TFluentExpression.LogicalNot(const Value: TFluentExpression): TFluentExpression;

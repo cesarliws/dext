@@ -31,9 +31,12 @@ uses
   System.Generics.Collections,
   System.SysUtils,
   System.TypInfo,
-  System.Rtti;
+  System.Rtti,
+  System.Variants;
 
 type
+  TInheritanceStrategy = (None, TablePerHierarchy, TablePerType);
+
   // Forward declarations
   IPropertyBuilder<T: class> = interface;
 
@@ -45,6 +48,8 @@ type
     function ToTable(const AName: string): IEntityTypeBuilder<T>;
     function HasKey(const APropertyName: string): IEntityTypeBuilder<T>; overload;
     function HasKey(const APropertyNames: array of string): IEntityTypeBuilder<T>; overload;
+    function HasDiscriminator(const AColumn: string; const AValue: Variant): IEntityTypeBuilder<T>;
+    function MapInheritance(AStrategy: TInheritanceStrategy): IEntityTypeBuilder<T>;
     function Prop(const APropertyName: string): IPropertyBuilder<T>;
     function Ignore(const APropertyName: string): IEntityTypeBuilder<T>;
   end;
@@ -96,6 +101,10 @@ type
     FSoftDeleteProp: string;
     FSoftDeleteDeletedValue: Variant;
     FSoftDeleteNotDeletedValue: Variant;
+    // Inheritance Configuration
+    FInheritanceStrategy: TInheritanceStrategy;
+    FDiscriminatorColumn: string;
+    FDiscriminatorValue: Variant;
 
   public
     constructor Create(AEntityType: PTypeInfo);
@@ -110,6 +119,10 @@ type
     property SoftDeleteProp: string read FSoftDeleteProp;
     property SoftDeleteDeletedValue: Variant read FSoftDeleteDeletedValue;
     property SoftDeleteNotDeletedValue: Variant read FSoftDeleteNotDeletedValue;
+    
+    property InheritanceStrategy: TInheritanceStrategy read FInheritanceStrategy write FInheritanceStrategy;
+    property DiscriminatorColumn: string read FDiscriminatorColumn write FDiscriminatorColumn;
+    property DiscriminatorValue: Variant read FDiscriminatorValue write FDiscriminatorValue;
 
     function GetOrAddProperty(const APropName: string): TPropertyMap;
   end;
@@ -130,6 +143,8 @@ type
     function Table(const AName: string): TEntityBuilder<T>;
     function HasKey(const APropertyName: string): TEntityBuilder<T>; overload;
     function HasKey(const APropertyNames: array of string): TEntityBuilder<T>; overload;
+    function HasDiscriminator(const AColumn: string; const AValue: Variant): TEntityBuilder<T>;
+    function MapInheritance(AStrategy: TInheritanceStrategy): TEntityBuilder<T>;
     
     // Property Selection
     function Prop(const APropertyName: string): TEntityBuilder<T>;
@@ -159,6 +174,8 @@ type
     function ToTable(const AName: string): IEntityTypeBuilder<T>;
     function HasKey(const APropertyName: string): IEntityTypeBuilder<T>; overload;
     function HasKey(const APropertyNames: array of string): IEntityTypeBuilder<T>; overload;
+    function HasDiscriminator(const AColumn: string; const AValue: Variant): IEntityTypeBuilder<T>;
+    function MapInheritance(AStrategy: TInheritanceStrategy): IEntityTypeBuilder<T>;
     function Prop(const APropertyName: string): IPropertyBuilder<T>;
     function Ignore(const APropertyName: string): IEntityTypeBuilder<T>;
     function HasSoftDelete(const APropertyName: string): IEntityTypeBuilder<T>; overload;
@@ -215,6 +232,9 @@ begin
   FSoftDeleteProp := '';
   FSoftDeleteDeletedValue := 1;  // Default (1 = Deleted)
   FSoftDeleteNotDeletedValue := 0; // Default (0 = Not Deleted)
+  FInheritanceStrategy := TInheritanceStrategy.None;
+  FDiscriminatorColumn := '';
+  FDiscriminatorValue := Null;
 
 
 end;
@@ -288,6 +308,20 @@ begin
     FMap.Keys.Add(Prop);
     FMap.GetOrAddProperty(Prop).IsPK := True;
   end;
+  Result := Self;
+end;
+
+function TEntityBuilder<T>.HasDiscriminator(const AColumn: string; const AValue: Variant): TEntityBuilder<T>;
+begin
+  FMap.DiscriminatorColumn := AColumn;
+  FMap.DiscriminatorValue := AValue;
+  FMap.InheritanceStrategy := TInheritanceStrategy.TablePerHierarchy; // Default to TPH if Discriminator is set
+  Result := Self;
+end;
+
+function TEntityBuilder<T>.MapInheritance(AStrategy: TInheritanceStrategy): TEntityBuilder<T>;
+begin
+  FMap.InheritanceStrategy := AStrategy;
   Result := Self;
 end;
 
@@ -381,6 +415,20 @@ begin
     FMap.Keys.Add(Prop);
     FMap.GetOrAddProperty(Prop).IsPK := True;
   end;
+  Result := Self;
+end;
+
+function TEntityTypeBuilder<T>.HasDiscriminator(const AColumn: string; const AValue: Variant): IEntityTypeBuilder<T>;
+begin
+  FMap.DiscriminatorColumn := AColumn;
+  FMap.DiscriminatorValue := AValue;
+  FMap.InheritanceStrategy := TInheritanceStrategy.TablePerHierarchy; // Default to TPH
+  Result := Self;
+end;
+
+function TEntityTypeBuilder<T>.MapInheritance(AStrategy: TInheritanceStrategy): IEntityTypeBuilder<T>;
+begin
+  FMap.InheritanceStrategy := AStrategy;
   Result := Self;
 end;
 

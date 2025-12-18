@@ -64,8 +64,7 @@ type
     destructor Destroy; override;
     
     // Fluent Builders (public for TSpecificationBuilder)
-    procedure Where(const AExpression: IExpression); overload;
-    procedure Where(const AExpr: TFluentExpression); overload;
+    procedure Where(const AExpression: IExpression);
     procedure Include(const APath: string); virtual;
     procedure OrderBy(const AOrderBy: IOrderBy); virtual;
     procedure Select(const AColumn: string); virtual;
@@ -122,10 +121,7 @@ begin
     FExpression := TLogicalExpression.Create(FExpression, AExpression, loAnd);
 end;
 
-procedure TSpecification<T>.Where(const AExpr: TFluentExpression);
-begin
-  Where(AExpr.Expression);
-end;
+
 
 procedure TSpecification<T>.Include(const APath: string);
 begin

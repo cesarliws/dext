@@ -1,4 +1,4 @@
-{***************************************************************************}
+ï»¿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -306,6 +306,7 @@ type
     constructor Create(const ASettings: TDextSettings);
     function Deserialize<T>(const AJson: string): T;
     function DeserializeRecord(AJson: IDextJsonObject; AType: PTypeInfo): TValue;
+    function DeserializeObject(AJson: IDextJsonObject; AType: PTypeInfo): TValue;
     function Serialize<T>(const AValue: T): string; overload;
     function Serialize(const AValue: TValue): string; overload;
   end;
@@ -681,7 +682,7 @@ end;
 
 class function TDextJson.Deserialize(AType: PTypeInfo; const AJson: string): TValue;
 begin
-  // Usar RTTI para chamar o método genérico apropriado
+  // Usar RTTI para chamar o mÃ©todo genÃ©rico apropriado
   case AType.Kind of
     tkInteger:
       Result := TValue.From<Integer>(Deserialize<Integer>(AJson));
@@ -811,6 +812,158 @@ begin
   end;
 end;
 
+function TDextSerializer.DeserializeObject(AJson: IDextJsonObject; AType: PTypeInfo): TValue;
+var
+  Context: TRttiContext;
+  RttiType: TRttiType;
+  Prop: TRttiProperty;
+  PropName: string;
+  ActualPropName: string;
+  PropValue: TValue;
+  Found: Boolean;
+  Instance: TObject;
+  CreateMethod: TRttiMethod;
+begin
+  Context := TRttiContext.Create;
+  try
+    RttiType := Context.GetType(AType);
+    
+    // Create Instance
+    CreateMethod := RttiType.GetMethod('Create');
+    if (CreateMethod <> nil) and (Length(CreateMethod.GetParameters) = 0) then
+    begin
+      Result := CreateMethod.Invoke(RttiType.AsInstance.MetaclassType, []);
+      Instance := Result.AsObject;
+    end
+    else
+    begin
+       // Try parameterless constructor if found by naming convention or common pattern?
+       // For now, assume parameterless Create exists or use Activator if we had one.
+       // Fallback: try to find any constructor?
+       // Dext.Core.Activator uses a more robust approach, but here we stick to RTTI for now.
+       raise EDextJsonException.CreateFmt('Cannot find parameterless constructor for %s', [AType.NameFld.ToString]);
+    end;
+
+    for Prop in RttiType.GetProperties do
+    begin
+      if (Prop.Visibility <> mvPublic) and (Prop.Visibility <> mvPublished) then
+        Continue;
+
+      if not Prop.IsWritable then
+        Continue;
+
+      PropName := ApplyCaseStyle(Prop.Name);
+      
+      // Check JsonName
+      for var Attr in Prop.GetAttributes do
+        if Attr is JsonNameAttribute then
+        begin
+          PropName := JsonNameAttribute(Attr).Name;
+          Break;
+        end;
+
+      ActualPropName := PropName;
+      Found := AJson.Contains(PropName);
+
+      if (not Found) and FSettings.CaseInsensitive then
+      begin
+         // Simple scan
+         var LowerProp := LowerCase(PropName);
+         // This is inefficient but functional for now. 
+         // Optimize later by iterating JSON keys once if performance needed.
+         for var I := 0 to AJson.GetCount - 1 do
+         begin
+            var Key := AJson.GetName(I);
+            if LowerCase(Key) = LowerProp then
+            begin
+               ActualPropName := Key;
+               Found := True;
+               Break;
+            end;
+         end;
+      end;
+
+      if not Found then Continue;
+
+      // Deserialization Logic (Similar to DeserializeRecord but for Properties)
+      case Prop.PropertyType.TypeKind of
+        tkInteger:
+          PropValue := TValue.From<Integer>(AJson.GetInteger(ActualPropName));
+          
+        tkInt64:
+          PropValue := TValue.From<Int64>(AJson.GetInt64(ActualPropName));
+          
+        tkFloat:
+          begin
+             if Prop.PropertyType.Handle = TypeInfo(TDateTime) then
+             begin
+               var DtStr := AJson.GetString(ActualPropName);
+               var DtVal: TDateTime;
+               if TryParseCommonDate(DtStr, DtVal) then
+                 PropValue := TValue.From<TDateTime>(DtVal)
+               else
+                 PropValue := TValue.Empty;
+             end
+             else
+               PropValue := TValue.From<Double>(AJson.GetDouble(ActualPropName));
+          end;
+          
+        tkString, tkLString, tkWString, tkUString:
+          PropValue := TValue.From<string>(AJson.GetString(ActualPropName));
+          
+        tkEnumeration:
+           if Prop.PropertyType.Handle = TypeInfo(Boolean) then
+             PropValue := TValue.From<Boolean>(AJson.GetBoolean(ActualPropName))
+           else
+           begin
+              // Enum handling
+              var EnumStr := AJson.GetString(ActualPropName);
+               if EnumStr <> '' then
+                 PropValue := TValue.FromOrdinal(Prop.PropertyType.Handle, GetEnumValue(Prop.PropertyType.Handle, EnumStr))
+               else
+                 PropValue := TValue.FromOrdinal(Prop.PropertyType.Handle, AJson.GetInteger(ActualPropName));
+           end;
+
+        tkClass:
+           begin
+              // Use field type handle
+              if IsListType(Prop.PropertyType.Handle) then
+              begin
+                 var NestedArr := AJson.GetArray(ActualPropName);
+                 if NestedArr <> nil then
+                   PropValue := DeserializeList(NestedArr, Prop.PropertyType.Handle)
+                 else
+                   PropValue := TValue.Empty;
+              end
+              else
+              begin
+                 var NestedObj := AJson.GetObject(ActualPropName);
+                 if NestedObj <> nil then
+                   PropValue := DeserializeObject(NestedObj, Prop.PropertyType.Handle)
+                 else
+                   PropValue := TValue.Empty;
+              end;
+           end;
+
+        tkRecord:
+           begin
+              var NestedObj := AJson.GetObject(ActualPropName);
+              if NestedObj <> nil then
+                PropValue := DeserializeRecord(NestedObj, Prop.PropertyType.Handle)
+              else
+                PropValue := TValue.Empty;
+           end;
+      end;
+
+      if not PropValue.IsEmpty then
+        Prop.SetValue(Instance, PropValue);
+    end;
+
+  finally
+    Context.Free;
+  end;
+end;
+
 function TDextSerializer.DeserializeRecord(AJson: IDextJsonObject; AType: PTypeInfo): TValue;
 var
   Context: TRttiContext;
@@ -835,11 +988,11 @@ begin
       ActualFieldName := FieldName;
       Found := AJson.Contains(FieldName);
 
-      // Se não encontrou e CaseInsensitive está habilitado, buscar ignorando case
+      // Se nÃ£o encontrou e CaseInsensitive estÃ¡ habilitado, buscar ignorando case
       if (not Found) and FSettings.CaseInsensitive then
       begin
-        // Precisamos iterar pelas chaves do JSON para encontrar uma correspondência case-insensitive
-        // Como não temos acesso direto às chaves via interface, vamos tentar variações comuns
+        // Precisamos iterar pelas chaves do JSON para encontrar uma correspondÃªncia case-insensitive
+        // Como nÃ£o temos acesso direto Ã s chaves via interface, vamos tentar variaÃ§Ãµes comuns
         var LowerFieldName := LowerCase(FieldName);
         var UpperFieldName := UpperCase(FieldName);
         
@@ -855,7 +1008,7 @@ begin
           ActualFieldName := UpperFieldName;
           Found := True;
         end
-        // Tentar primeira letra minúscula (camelCase)
+        // Tentar primeira letra minÃºscula (camelCase)
         else if Length(FieldName) > 0 then
         begin
           var CamelCaseName := LowerCase(FieldName[1]) + Copy(FieldName, 2, Length(FieldName) - 1);
@@ -956,6 +1109,26 @@ begin
             else
               FieldValue := TValue.Empty;
           end;
+        tkClass:
+          begin
+             // Check if it is a list
+             if IsListType(Field.FieldType.Handle) then
+             begin
+               var NestedArr := AJson.GetArray(ActualFieldName);
+               if NestedArr <> nil then
+                 FieldValue := DeserializeList(NestedArr, Field.FieldType.Handle)
+               else
+                 FieldValue := TValue.Empty;
+             end
+             else
+             begin
+               var NestedObj := AJson.GetObject(ActualFieldName);
+               if NestedObj <> nil then
+                 FieldValue := DeserializeObject(NestedObj, Field.FieldType.Handle)
+               else
+                 FieldValue := TValue.Empty;
+             end;
+          end;
       end;
 
       if not FieldValue.IsEmpty then
@@ -996,6 +1169,10 @@ begin
   if AType.Kind = tkRecord then
   begin
     Result := DeserializeRecord(AJson, AType);
+  end
+  else if AType.Kind = tkClass then
+  begin
+    Result := DeserializeObject(AJson, AType);
   end
   else if IsArrayType(AType) then
   begin
@@ -1547,6 +1724,14 @@ begin
             else
               ElementValue := TValue.Empty;
           end;
+        tkClass:
+          begin
+            var Node := AJson.GetNode(I);
+            if (Node <> nil) and (Node.GetNodeType = jntObject) then
+               ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
+            else
+               ElementValue := TValue.Empty;
+          end;
       else
         ElementValue := TValue.Empty;
       end;
@@ -1592,7 +1777,10 @@ begin
       var Node := AJson.GetNode(I);
       if (Node <> nil) and (Node.GetNodeType = jntObject) then
       begin
-        ElementValue := DeserializeRecord(Node as IDextJsonObject, ElementType);
+        if ElementType.Kind = tkClass then
+          ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
+        else
+          ElementValue := DeserializeRecord(Node as IDextJsonObject, ElementType);
       end
       else
       begin

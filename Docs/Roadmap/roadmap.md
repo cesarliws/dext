@@ -162,6 +162,9 @@ Foco em GenAI, Semantic Kernel, RAG e integração com LLMs.
 ### 6. [🛠️ IDE Integration Roadmap](Docs/IDE_ROADMAP.md)
 Foco em produtividade, code intelligence, wizards e integração com a IDE do Delphi.
 
+### 7. [🚀 Strategic Improvements (Dec 2025)](framework-improvements-2025-12.md)
+Plano estratégico focado em Dext SO4 (Fórum/Social) e melhorias de Core (Nullable 2.0, Immutability).
+
 ---
 
 ## 📅 Roadmap Geral (High Level)
@@ -245,6 +248,7 @@ Foco em produtividade, code intelligence, wizards e integração com a IDE do De
   - Suporte a múltiplos providers
   - Configuração via código ou environment variables
 - [ ] **Migrations**: Sistema de migração de schema (Prioridade Alta - Dext Forum).
+- [ ] **Stored Procedures**: Mapeamento e execução de Stored Procedures e Functions.
 
 ### 6. Ecossistema & Tooling (📅 Planejado para v1.1)
 - [ ] **CLI**: Ferramenta de linha de comando (`dext new webapi`).

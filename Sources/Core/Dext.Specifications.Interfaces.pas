@@ -82,6 +82,7 @@ type
     procedure Include(const APath: string);
     procedure OrderBy(const AOrderBy: IOrderBy);
     procedure Select(const AColumn: string);
+    procedure Where(const AExpression: IExpression);
   end;
 
   /// <summary>

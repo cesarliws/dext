@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{4E4AC89E-3AE7-42E3-BC30-DA50C065D579}</ProjectGuid>
         <MainSource>Dext.EF.Core.dpk</MainSource>
@@ -60,7 +60,7 @@
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
-        <SanitizedProjectName>Dext_Data</SanitizedProjectName>
+        <SanitizedProjectName>Dext_EF_Core</SanitizedProjectName>
         <DCC_Description>Dext Framework - ORM &amp; Data Access</DCC_Description>
         <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
         <DCC_OutputNeverBuildDcps>true</DCC_OutputNeverBuildDcps>

@@ -106,6 +106,8 @@ type
     function GetNextParamName: string;
     function GetTableName: string;
     function GetSoftDeleteFilter: string;
+    function GetDiscriminatorFilter: string;
+    function GetDiscriminatorValueSQL: string;
 
   public
     constructor Create(ADialect: ISQLDialect; AMap: TEntityMap = nil);
@@ -607,6 +609,32 @@ begin
   end;
 end;
 
+function TSQLGenerator<T>.GetDiscriminatorValueSQL: string;
+begin
+  if (FMap <> nil) and (FMap.DiscriminatorValue <> Null) then
+  begin
+    if VarIsType(FMap.DiscriminatorValue, varString) or VarIsType(FMap.DiscriminatorValue, varUString) then
+      Result := QuotedStr(VarToStr(FMap.DiscriminatorValue))
+    else
+      Result := VarToStr(FMap.DiscriminatorValue);
+  end
+  else
+    Result := 'NULL';
+end;
+
+function TSQLGenerator<T>.GetDiscriminatorFilter: string;
+begin
+  Result := '';
+  if (FMap <> nil) and (FMap.InheritanceStrategy = TInheritanceStrategy.TablePerHierarchy) and 
+     (FMap.DiscriminatorColumn <> '') and (GetDiscriminatorValueSQL <> 'NULL') then
+  begin
+    Result := FDialect.QuoteIdentifier(FMap.DiscriminatorColumn) + ' = ' + GetDiscriminatorValueSQL;
+    // Note: DiscriminatorColumn should be quoted if needed, but FMap usually has raw name. 
+    // Ideally use FDialect.QuoteIdentifier(FMap.DiscriminatorColumn).
+    // Let's fix that below.
+  end;
+end;
+
 function TSQLGenerator<T>.GenerateInsert(const AEntity: T): string;
 var
   Ctx: TRttiContext;
@@ -696,6 +724,32 @@ begin
       FParams.Add(ParamName, Val);
     end;
     
+    // Add Discriminator
+    if (FMap <> nil) and (FMap.InheritanceStrategy = TInheritanceStrategy.TablePerHierarchy) and 
+       (FMap.DiscriminatorColumn <> '') then
+    begin
+       // Check if already added? (Optimization: explicit loop check or just trust map setup usually implies shadow)
+       // For now, simpler: assume shadow property if configured via HasDiscriminator
+       // We should ideally check if ColName/Prop above handled it.
+       // But HasDiscriminator implies it's metadata driven.
+       // If a property maps to it, IsMapped would be true.
+       // We can check if SBCols contains the column name... but string search is flaky.
+       // Let's rely on standard practice: If users map it properly, they shouldn't use HasDiscriminator with const value?
+       // Actually HasDiscriminator SETS the value.
+       
+       // Safe Add:
+       if not SBCols.ToString.Contains(FDialect.QuoteIdentifier(FMap.DiscriminatorColumn)) then
+       begin
+         if SBCols.Length > 0 then
+         begin
+           SBCols.Append(', ');
+           SBVals.Append(', ');
+         end;
+         SBCols.Append(FDialect.QuoteIdentifier(FMap.DiscriminatorColumn));
+         SBVals.Append(GetDiscriminatorValueSQL);
+       end;
+    end;
+
     Result := Format('INSERT INTO %s (%s) VALUES (%s)', 
       [FDialect.QuoteIdentifier(GetTableName), SBCols.ToString, SBVals.ToString]);
       
@@ -1059,6 +1113,16 @@ begin
     
     // Add soft delete filter
     var SoftDeleteFilter := GetSoftDeleteFilter;
+    var DiscriminatorFilter := GetDiscriminatorFilter;
+    
+    // Combine filters
+    if DiscriminatorFilter <> '' then
+    begin
+       if SoftDeleteFilter <> '' then
+         SoftDeleteFilter := SoftDeleteFilter + ' AND ' + DiscriminatorFilter
+       else
+         SoftDeleteFilter := DiscriminatorFilter;
+    end;
     
     if WhereSQL <> '' then
     begin
@@ -1188,8 +1252,19 @@ begin
 
     // Add soft delete filter
     var SoftDeleteFilter := GetSoftDeleteFilter;
-    if SoftDeleteFilter <> '' then
-      SB.Append(' WHERE ').Append(SoftDeleteFilter);
+    var DiscriminatorFilter := GetDiscriminatorFilter;
+    
+    if DiscriminatorFilter <> '' then
+    begin
+       if SoftDeleteFilter <> '' then
+         SoftDeleteFilter := ' WHERE ' + SoftDeleteFilter + ' AND ' + DiscriminatorFilter
+       else
+         SoftDeleteFilter := ' WHERE ' + DiscriminatorFilter;
+    end
+    else if SoftDeleteFilter <> '' then
+       SoftDeleteFilter := ' WHERE ' + SoftDeleteFilter;
+       
+    SB.Append(SoftDeleteFilter);
 
     Result := SB.ToString;
   finally
@@ -1226,6 +1301,15 @@ begin
     
     // Add soft delete filter
     var SoftDeleteFilter := GetSoftDeleteFilter;
+    var DiscriminatorFilter := GetDiscriminatorFilter;
+    
+    if DiscriminatorFilter <> '' then
+    begin
+       if SoftDeleteFilter <> '' then
+         SoftDeleteFilter := SoftDeleteFilter + ' AND ' + DiscriminatorFilter
+       else
+         SoftDeleteFilter := DiscriminatorFilter;
+    end;
     
     if WhereSQL <> '' then
     begin
@@ -1253,7 +1337,16 @@ begin
   
   // Add soft delete filter
   SoftDeleteFilter := GetSoftDeleteFilter;
-  if SoftDeleteFilter <> '' then
+  var DiscriminatorFilter := GetDiscriminatorFilter;
+  
+  if DiscriminatorFilter <> '' then
+  begin
+     if SoftDeleteFilter <> '' then
+       Result := Result + ' WHERE ' + SoftDeleteFilter + ' AND ' + DiscriminatorFilter
+     else
+       Result := Result + ' WHERE ' + DiscriminatorFilter;
+  end
+  else if SoftDeleteFilter <> '' then
     Result := Result + ' WHERE ' + SoftDeleteFilter;
 end;
 

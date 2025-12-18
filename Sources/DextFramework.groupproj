@@ -18,6 +18,9 @@
         <Projects Include="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -71,14 +74,23 @@
     <Target Name="Web_ControllerExample:Make">
         <MSBuild Projects="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Orm_EntityDemo">
+        <MSBuild Projects="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj"/>
+    </Target>
+    <Target Name="Orm_EntityDemo:Clean">
+        <MSBuild Projects="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Orm_EntityDemo:Make">
+        <MSBuild Projects="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;Dext_Starter_Admin;Web_ControllerExample"/>
+        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;Dext_Starter_Admin;Web_ControllerExample;Orm_EntityDemo"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean;Web_ControllerExample:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean;Web_ControllerExample:Clean;Orm_EntityDemo:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make;Web_ControllerExample:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make;Web_ControllerExample:Make;Orm_EntityDemo:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

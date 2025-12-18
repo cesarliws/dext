@@ -130,8 +130,7 @@ type
     class function Construct(const AInit: TProc<IEntityBuilder<T>>): T; static;
   end;
 
-var
-  GlobalRttiContext: TRttiContext;
+
 
 implementation
 
@@ -147,21 +146,37 @@ begin
 end;
 
 function TPropertyInfo.GetValue(Instance: TObject): TValue;
+var
+  Ctx: TRttiContext;
 begin
-  var RttiType := GlobalRttiContext.GetType(Instance.ClassType);
-  var RttiProp := RttiType.GetProperty(FName);
-  if RttiProp <> nil then
-    Result := RttiProp.GetValue(Instance)
-  else
-    Result := TValue.Empty;
+  Ctx := TRttiContext.Create;
+  try
+    var RttiType := Ctx.GetType(Instance.ClassType);
+    if RttiType = nil then Exit(TValue.Empty);
+    var RttiProp := RttiType.GetProperty(FName);
+    if RttiProp <> nil then
+      Result := RttiProp.GetValue(Instance)
+    else
+      Result := TValue.Empty;
+  finally
+    Ctx.Free;
+  end;
 end;
 
 procedure TPropertyInfo.SetValue(Instance: TObject; const Value: TValue);
+var
+  Ctx: TRttiContext;
 begin
-  var RttiType := GlobalRttiContext.GetType(Instance.ClassType);
-  var RttiProp := RttiType.GetProperty(FName);
-  if RttiProp <> nil then
-    RttiProp.SetValue(Instance, Value);
+  Ctx := TRttiContext.Create;
+  try
+    var RttiType := Ctx.GetType(Instance.ClassType);
+    if RttiType = nil then Exit;
+    var RttiProp := RttiType.GetProperty(FName);
+    if RttiProp <> nil then
+      RttiProp.SetValue(Instance, Value);
+  finally
+    Ctx.Free;
+  end;
 end;
 
 { TProp<T> }
@@ -235,13 +250,19 @@ begin
 end;
 
 function TProp<T>.In_(const Values: TArray<T>): TFluentExpression;
+var
+  LBinary: IExpression;
 begin
-  Result := TBinaryExpression.Create(FInfo.Name, boIn, TValue.From<TArray<T>>(Values));
+  LBinary := TBinaryExpression.Create(FInfo.Name, boIn, TValue.From<TArray<T>>(Values));
+  Result := TFluentExpression.From(LBinary);
 end;
 
 function TProp<T>.NotIn(const Values: TArray<T>): TFluentExpression;
+var
+  LBinary: IExpression;
 begin
-  Result := TBinaryExpression.Create(FInfo.Name, boNotIn, TValue.From<TArray<T>>(Values));
+  LBinary := TBinaryExpression.Create(FInfo.Name, boNotIn, TValue.From<TArray<T>>(Values));
+  Result := TFluentExpression.From(LBinary);
 end;
 
 function TProp<T>.IsNull: TFluentExpression;
@@ -283,8 +304,10 @@ begin
 end;
 
 class function TEntityType<T>.Construct(const AInit: TProc<IEntityBuilder<T>>): T;
+var
+  Builder: IEntityBuilder<T>;
 begin
-  var Builder := New;
+  Builder := New;
   if Assigned(AInit) then
     AInit(Builder);
   Result := Builder.Build;
@@ -293,19 +316,25 @@ end;
 { TEntityBuilder<T> }
 
 constructor TEntityBuilder<T>.Create;
+var
+  Ctx: TRttiContext;
+  RType: TRttiType;
+  Method: TRttiMethod;
 begin
   inherited Create;
-  // Use RTTI context to create instance if T doesn't have a parameterless constructor known to compiler?
-  // Since T: class, we can use T.Create if we have a way.
-  // RTTI is safer to ensure we get a valid instance of the generic type.
-  var RType := GlobalRttiContext.GetType(TypeInfo(T));
-  if (RType <> nil) and RType.IsInstance then
-  begin
-    var Method := RType.AsInstance.GetMethod('Create');
-    if Method <> nil then
-      FEntity := Method.Invoke(RType.AsInstance.MetaclassType, []).AsType<T>
-    else
-      FEntity := Default(T); // Should not happen with T: class if it has public Create
+  Ctx := TRttiContext.Create;
+  try
+    RType := Ctx.GetType(TypeInfo(T));
+    if (RType <> nil) and (RType is TRttiInstanceType) then
+    begin
+      Method := TRttiInstanceType(RType).GetMethod('Create');
+      if Method <> nil then
+        FEntity := Method.Invoke(TRttiInstanceType(RType).MetaclassType, []).AsType<T>
+      else
+        FEntity := Default(T);
+    end;
+  finally
+    Ctx.Free;
   end;
 end;
 
@@ -358,10 +387,5 @@ begin
   Result := Prop(AProp.Info, TValue.From<TDateTime>(AValue));
 end;
 
-initialization
-  GlobalRttiContext := TRttiContext.Create;
-
-finalization
-  GlobalRttiContext.Free;
 
 end.

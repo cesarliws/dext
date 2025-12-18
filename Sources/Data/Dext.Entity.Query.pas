@@ -121,6 +121,7 @@ type
     ///   Filters a sequence of values based on a predicate.
     /// </summary>
     function Where(const APredicate: TPredicate<T>): TFluentQuery<T>; overload;
+    function WherePredicate(const APredicate: TPredicate<T>): TFluentQuery<T>;
     function Where(const AExpression: IExpression): TFluentQuery<T>; overload;
 
     /// <summary>
@@ -512,7 +513,7 @@ begin
     end);
 end;
 
-function TFluentQuery<T>.Where(const APredicate: TPredicate<T>): TFluentQuery<T>;
+function TFluentQuery<T>.WherePredicate(const APredicate: TPredicate<T>): TFluentQuery<T>;
 var
   LSource: TFluentQuery<T>;
 begin
@@ -524,9 +525,27 @@ begin
     end);
 end;
 
+function TFluentQuery<T>.Where(const APredicate: TPredicate<T>): TFluentQuery<T>;
+begin
+  Result := WherePredicate(APredicate);
+end;
+
 function TFluentQuery<T>.Where(const AExpression: IExpression): TFluentQuery<T>;
 begin
-  Result := Where(AExpression);
+  if FSpecification <> nil then
+  begin
+    FSpecification.Where(AExpression);
+    Result := Self;
+  end
+  else
+    Result := WherePredicate(
+      TPredicate<T>(function(const Item: T): Boolean
+      begin
+        if PTypeInfo(TypeInfo(T))^.Kind = tkClass then
+           Result := TExpressionEvaluator.Evaluate(AExpression, TValue.From<T>(Item).AsObject)
+        else
+          Result := False;
+      end));
 end;
 
 function TFluentQuery<T>.Skip(const ACount: Integer): TFluentQuery<T>;

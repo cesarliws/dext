@@ -68,6 +68,7 @@ begin
     .Add(TUser.Create('Alice', 20)) // NY
     .Add(TEntityType<TUser>.Construct(procedure(B: IEntityBuilder<TUser>) begin B.Prop(TUserType.Name, 'Bob').Prop(TUserType.Age, 30).Prop(TUserType.City, 'NY'); end))
     .Add(TUser.Create('Charlie', 40)); // LA (default)
+  FContext.SaveChanges;
   FContext.Entities<TUser>[2].City := 'LA'; // Fix Charlie's city
   FContext.SaveChanges;
   

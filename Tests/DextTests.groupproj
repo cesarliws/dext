@@ -27,6 +27,12 @@
         <Projects Include="ServerCors\Dext.ServerTest.Cors.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="TestJsonCore.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="TestOrmInheritance.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -107,14 +113,32 @@
     <Target Name="Dext_ServerTest_Cors:Make">
         <MSBuild Projects="ServerCors\Dext.ServerTest.Cors.dproj" Targets="Make"/>
     </Target>
+    <Target Name="TestJsonCore">
+        <MSBuild Projects="TestJsonCore.dproj"/>
+    </Target>
+    <Target Name="TestJsonCore:Clean">
+        <MSBuild Projects="TestJsonCore.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestJsonCore:Make">
+        <MSBuild Projects="TestJsonCore.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="TestOrmInheritance">
+        <MSBuild Projects="TestOrmInheritance.dproj"/>
+    </Target>
+    <Target Name="TestOrmInheritance:Clean">
+        <MSBuild Projects="TestOrmInheritance.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="TestOrmInheritance:Make">
+        <MSBuild Projects="TestOrmInheritance.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_AppBuilderTest;Dext_DITest;Dext_Entity_Tests;Dext_MinimalAPITest;Dext_RouteParamsTest;Dext_ScopedServicesTest;Dext_ServerTest;Dext_ServerTest_Cors"/>
+        <CallTarget Targets="Dext_AppBuilderTest;Dext_DITest;Dext_Entity_Tests;Dext_MinimalAPITest;Dext_RouteParamsTest;Dext_ScopedServicesTest;Dext_ServerTest;Dext_ServerTest_Cors;TestJsonCore;TestOrmInheritance"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_AppBuilderTest:Clean;Dext_DITest:Clean;Dext_Entity_Tests:Clean;Dext_MinimalAPITest:Clean;Dext_RouteParamsTest:Clean;Dext_ScopedServicesTest:Clean;Dext_ServerTest:Clean;Dext_ServerTest_Cors:Clean"/>
+        <CallTarget Targets="Dext_AppBuilderTest:Clean;Dext_DITest:Clean;Dext_Entity_Tests:Clean;Dext_MinimalAPITest:Clean;Dext_RouteParamsTest:Clean;Dext_ScopedServicesTest:Clean;Dext_ServerTest:Clean;Dext_ServerTest_Cors:Clean;TestJsonCore:Clean;TestOrmInheritance:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_AppBuilderTest:Make;Dext_DITest:Make;Dext_Entity_Tests:Make;Dext_MinimalAPITest:Make;Dext_RouteParamsTest:Make;Dext_ScopedServicesTest:Make;Dext_ServerTest:Make;Dext_ServerTest_Cors:Make"/>
+        <CallTarget Targets="Dext_AppBuilderTest:Make;Dext_DITest:Make;Dext_Entity_Tests:Make;Dext_MinimalAPITest:Make;Dext_RouteParamsTest:Make;Dext_ScopedServicesTest:Make;Dext_ServerTest:Make;Dext_ServerTest_Cors:Make;TestJsonCore:Make;TestOrmInheritance:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
