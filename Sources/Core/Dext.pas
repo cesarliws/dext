@@ -49,6 +49,7 @@ uses
   Dext.Options,
   Dext.Options.Extensions,
   Dext.Specifications.Evaluator,
+  Dext.Specifications.Fluent,
   Dext.Specifications.Interfaces,
   Dext.Specifications.OrderBy,
   Dext.Specifications.Types,
@@ -103,7 +104,10 @@ type
   
   // Specifications
   IExpression = Dext.Specifications.Interfaces.IExpression;
-
+  TFluentExpression = Dext.Specifications.Types.TFluentExpression;
+  
+  // Specifications Fluent
+  Specification = Dext.Specifications.Fluent.Specification;
   
   // Activator
   TActivator = Dext.Core.Activator.TActivator;

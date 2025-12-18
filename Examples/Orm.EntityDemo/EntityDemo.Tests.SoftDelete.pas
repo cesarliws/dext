@@ -9,6 +9,7 @@ uses
   Dext.Entity.Drivers.Interfaces,
   Dext.Persistence,
   Dext.Collections,
+  Dext.Specifications.Fluent,
   Dext.Entity; // Added for TDbContext
 
 type
@@ -31,17 +32,23 @@ type
 
 implementation
 
+uses
+  Dext.Specifications.Interfaces,
+  Dext.Specifications.Types;
+
 { TSoftDeleteTest }
 
 procedure TSoftDeleteTest.ResetData;
-begin
-  if FContext <> nil then
-    FContext.Clear;
+  var
+    Cmd: IDbCommand;
+  begin
+    if FContext <> nil then
+      FContext.Clear;
 
-  try
-    var Cmd := FContext.Connection.CreateCommand('DELETE FROM tasks') as IDbCommand;
-    Cmd.ExecuteNonQuery;
-  except
+    try
+      Cmd := FContext.Connection.CreateCommand('DELETE FROM tasks') as IDbCommand;
+      Cmd.ExecuteNonQuery;
+    except
     // ignore
   end;
 end;
@@ -81,30 +88,32 @@ end;
 // ... existing tests ...
 
 procedure TSoftDeleteTest.TestFluentMapping;
-var
-  Entity: TFluentSoftDelete;
-  LoadedEntity: TFluentSoftDelete;
-  SavedId: Integer;
-begin
-  Log('🔧 Test 9: Fluent Mapping Soft Delete');
-  
-  // 1. Configure Mapping (Runtime)
-  var Context := TDbContext(TObject(FContext)); // Cast to access concrete methods
-  
-  Context.ModelBuilder.Entity<TFluentSoftDelete>
-    .HasSoftDelete('IsRemoved'); // Map soft delete to 'IsRemoved' property
+  var
+    Context: TDbContext;
+    Cmd: IDbCommand;
+    Entity: TFluentSoftDelete;
+    LoadedEntity: TFluentSoftDelete;
+    SavedId: Integer;
+  begin
+    Log('🔧 Test 9: Fluent Mapping Soft Delete');
     
-  // Force DbSet creation so EnsureCreated sees it
-  FContext.Entities<TFluentSoftDelete>;
+    // 1. Configure Mapping (Runtime)
+    Context := TDbContext(TObject(FContext)); // Cast to access concrete methods
     
-  // Ensure table exists (since it's new)
-  Context.EnsureCreated;
-  
-  // Clean table
-  try
-    var Cmd := FContext.Connection.CreateCommand('DELETE FROM fluent_soft_delete') as IDbCommand;
-    Cmd.ExecuteNonQuery;
-  except
+    Context.ModelBuilder.Entity<TFluentSoftDelete>
+      .HasSoftDelete('IsRemoved'); // Map soft delete to 'IsRemoved' property
+      
+    // Force DbSet creation so EnsureCreated sees it
+    FContext.Entities<TFluentSoftDelete>;
+      
+    // Ensure table exists (since it's new)
+    Context.EnsureCreated;
+    
+    // Clean table
+    try
+      Cmd := FContext.Connection.CreateCommand('DELETE FROM fluent_soft_delete') as IDbCommand;
+      Cmd.ExecuteNonQuery;
+    except
   end;
   
   // 2. Add Entity
@@ -189,6 +198,8 @@ procedure TSoftDeleteTest.TestSoftDeleteNotInList;
 var
   Task1, Task2, Task3: TTask;
   Tasks: IList<TTask>;
+  Task: TTask; // Declared for the loop
+  HasTask1, HasTask2, HasTask3: Boolean; // Declared for the checks
 begin
   Log('📋 Test 2: Soft Deleted Tasks Not in List');
   
@@ -228,11 +239,11 @@ begin
   AssertTrue(Tasks.Count = 2, '2 tasks in list after soft delete', Format('Expected 2, got %d', [Tasks.Count]));
   
   // Verify it's Task1 and Task3
-  var HasTask1 := False;
-  var HasTask2 := False;
-  var HasTask3 := False;
+  HasTask1 := False;
+  HasTask2 := False;
+  HasTask3 := False;
   
-  for var Task in Tasks do
+  for Task in Tasks do
   begin
     if Task.Title = 'Task 1' then HasTask1 := True;
     if Task.Title = 'Task 2' then HasTask2 := True;
@@ -291,6 +302,10 @@ var
   Tasks: array[1..5] of TTask;
   i: Integer;
   Count: Integer;
+  TaskList: IList<TTask>;
+  Titles: TArray<string>;
+  Title: string;
+  HasTask1, HasTask2, HasTask3, HasTask4, HasTask5: Boolean;
 begin
   Log('🗑️ Test 4: Multiple Soft Deletes');
   
@@ -323,22 +338,21 @@ begin
   AssertTrue(Count = 3, '3 tasks remaining', Format('Expected 3, got %d', [Count]));
   
   // List and verify
-  var TaskList := FContext.Entities<TTask>.List;
+  TaskList := FContext.Entities<TTask>.List;
   AssertTrue(TaskList.Count = 3, '3 tasks in list', Format('Expected 3, got %d', [TaskList.Count]));
   
   // Verify it's tasks 1, 3, and 5
-  var Titles: TArray<string>;
   SetLength(Titles, TaskList.Count);
   for i := 0 to TaskList.Count - 1 do
     Titles[i] := TaskList[i].Title;
   
-  var HasTask1 := False;
-  var HasTask2 := False;
-  var HasTask3 := False;
-  var HasTask4 := False;
-  var HasTask5 := False;
+  HasTask1 := False;
+  HasTask2 := False;
+  HasTask3 := False;
+  HasTask4 := False;
+  HasTask5 := False;
   
-  for var Title in Titles do
+  for Title in Titles do
   begin
     if Title = 'Task 1' then HasTask1 := True;
     if Title = 'Task 2' then HasTask2 := True;

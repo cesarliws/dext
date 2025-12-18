@@ -15,6 +15,9 @@
         <Projects Include="..\Examples\Dext.Starter.Admin\Dext.Starter.Admin.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -59,14 +62,23 @@
     <Target Name="Dext_Starter_Admin:Make">
         <MSBuild Projects="..\Examples\Dext.Starter.Admin\Dext.Starter.Admin.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Web_ControllerExample">
+        <MSBuild Projects="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj"/>
+    </Target>
+    <Target Name="Web_ControllerExample:Clean">
+        <MSBuild Projects="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Web_ControllerExample:Make">
+        <MSBuild Projects="..\Examples\Web.ControllerExample\Web.ControllerExample.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_Data;Dext_Web_Core;Dext_Starter_Admin"/>
+        <CallTarget Targets="Dext_Core;Dext_Data;Dext_Web_Core;Dext_Starter_Admin;Web_ControllerExample"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_Data:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_Data:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean;Web_ControllerExample:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_Data:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_Data:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make;Web_ControllerExample:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

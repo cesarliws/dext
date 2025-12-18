@@ -32,12 +32,11 @@ type
     
     FManager: TFDManager;
     FDefinitions: TDictionary<string, string>; // Hash -> DefName
-
     constructor Create;
-    destructor Destroy; override;
   public
     class constructor Create;
     class destructor Destroy;
+    destructor Destroy; override;
     
     /// <summary>
     ///   Access the singleton instance.
@@ -51,6 +50,11 @@ type
     function RegisterConnectionDef(const ADriverName: string; 
       const AParams: TStrings; 
       APoolMax: Integer = 50): string;
+
+    /// <summary>
+    ///   Registers a connection definition from an INI-style string (key=value lines).
+    /// </summary>
+    function RegisterConnectionDefFromString(const ADefName, AConfig: string): string;
       
     /// <summary>
     ///   Ensures the FDManager is active.
@@ -75,16 +79,12 @@ end;
 
 constructor TDextFireDACManager.Create;
 begin
-  FManager := TFDManager.Create(nil);
-  FManager.ConnectionDefFileAutoLoad := False; // Disable INI loading
-  FManager.SilentMode := True;
+  FManager := TFDManager(FireDAC.Comp.Client.FDManager);
   FDefinitions := TDictionary<string, string>.Create;
 end;
 
 destructor TDextFireDACManager.Destroy;
 begin
-  FManager.Close; // Close all connections in pool
-  FManager.Free;
   FDefinitions.Free;
   inherited;
 end;
@@ -117,8 +117,6 @@ var
   DefName: string;
   Def: IFDStanConnectionDef;
 begin
-  EnsureActive;
-
   // Create a unique key based on params to avoid duplicating pools for same config
   HashKey := ADriverName + ';' + AParams.Text;
   
@@ -126,13 +124,24 @@ begin
   try
     // Return existing definition if matches
     if FDefinitions.TryGetValue(HashKey, DefName) then
-      Exit(DefName);
+    begin
+      // Ensure the manager still has it (might have been cleared)
+      if FManager.ConnectionDefs.FindConnectionDef(DefName) <> nil then
+        Exit(DefName);
+    end;
       
     // Create new Definition
-    DefName := 'DextPool_' + IntToHex(AParams.Text.GetHashCode, 8) + '_' + GetTickCount.ToString;
+    DefName := 'DextPool_' + IntToHex(HashKey.GetHashCode, 8);
     
-    Def := FManager.ConnectionDefs.AddConnectionDef;
-    Def.Name := DefName;
+    // Check if it already exists in the global manager (manual check)
+    Def := FManager.ConnectionDefs.FindConnectionDef(DefName);
+    if Def = nil then
+    begin
+      Def := FManager.ConnectionDefs.AddConnectionDef;
+      Def.Name := DefName;
+    end;
+
+    Def.Params.Clear;
     Def.Params.Assign(AParams);
     
     // Explicit Pooling Configuration
@@ -144,8 +153,46 @@ begin
     
     Def.Apply; // Register in FireDAC
     
-    FDefinitions.Add(HashKey, DefName);
+    // FireDAC pooling initialization requires the manager to be opened
+    EnsureActive;
+    
+    if not FDefinitions.ContainsKey(HashKey) then
+      FDefinitions.Add(HashKey, DefName);
+      
     Result := DefName;
+  finally
+    FCriticalSection.Leave;
+  end;
+end;
+
+function TDextFireDACManager.RegisterConnectionDefFromString(const ADefName,
+  AConfig: string): string;
+var
+  SL: TStringList;
+  Def: IFDStanConnectionDef;
+begin
+  FCriticalSection.Enter;
+  try
+    SL := TStringList.Create;
+    try
+      SL.Text := AConfig;
+      
+      Def := FManager.ConnectionDefs.FindConnectionDef(ADefName);
+      if Def = nil then
+      begin
+        Def := FManager.ConnectionDefs.AddConnectionDef;
+        Def.Name := ADefName;
+      end;
+      
+      Def.Params.Clear;
+      Def.Params.AddStrings(SL);
+      Def.Apply;
+      
+      EnsureActive;
+      Result := ADefName;
+    finally
+      SL.Free;
+    end;
   finally
     FCriticalSection.Leave;
   end;

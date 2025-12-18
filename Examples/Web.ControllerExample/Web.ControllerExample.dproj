@@ -133,6 +133,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <DCC_LargeAddressAware>true</DCC_LargeAddressAware>
         <DCC_MapFile>3</DCC_MapFile>
+        <Debugger_DebugSourcePath>C:\dev\Dext\Sources\Web\;$(Debugger_DebugSourcePath)</Debugger_DebugSourcePath>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

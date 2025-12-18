@@ -43,9 +43,16 @@ uses
   Dext.Entity.LazyLoading,
   Dext.Specifications.Interfaces,
   Dext,
+  Dext.Data.TypeSystem,
+  Dext.Specifications.Fluent,
   Dext.Specifications.Types;
 
 type
+  TFluentExpression = Dext.Specifications.Types.TFluentExpression;
+  
+  // TypeSystem
+  TPropertyMeta = Dext.Data.TypeSystem.TPropertyMeta;
+
   /// <summary>
   ///   Concrete implementation of DbContext.
   TChangeTracker = class(TInterfacedObject, IChangeTracker)

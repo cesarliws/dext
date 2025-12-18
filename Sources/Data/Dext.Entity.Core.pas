@@ -33,6 +33,7 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections,
+  Dext.Data.TypeSystem,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
   Dext.Entity.Naming, // Add Naming unit
@@ -66,7 +67,7 @@ type
   IDbSet = interface
     ['{30000000-0000-0000-0000-000000000000}']
     function FindObject(const AId: Variant): TObject;
-    procedure Add(const AEntity: TObject);
+    function Add(const AEntity: TObject): IDbSet;
     function GetTableName: string;
     function GenerateCreateTableScript: string;
     procedure Clear;
@@ -94,10 +95,14 @@ type
   /// </summary>
   IDbSet<T: class> = interface(IDbSet)
     // CRUD
-    procedure Add(const AEntity: T);
-    procedure Update(const AEntity: T);
-    procedure Remove(const AEntity: T);
-    procedure Detach(const AEntity: T); overload;
+    function Add(const AEntity: T): IDbSet<T>; overload;
+    function Add(const ABuilder: TFunc<IEntityBuilder<T>, T>): IDbSet<T>; overload;
+    function Update(const AEntity: T): IDbSet<T>;
+    function Remove(const AEntity: T): IDbSet<T>;
+    function Detach(const AEntity: T): IDbSet<T>; overload;
+    function GetItem(Index: Integer): T;
+
+    property Items[Index: Integer]: T read GetItem; default;
 
     // Bulk Operations
     procedure AddRange(const AEntities: TArray<T>); overload;
@@ -140,8 +145,8 @@ type
     // Soft Delete Control
     function IgnoreQueryFilters: IDbSet<T>;
     function OnlyDeleted: IDbSet<T>;
-    procedure HardDelete(const AEntity: T);
-    procedure Restore(const AEntity: T);
+    function HardDelete(const AEntity: T): IDbSet<T>;
+    function Restore(const AEntity: T): IDbSet<T>;
   end;
 
   ICollectionEntry = interface

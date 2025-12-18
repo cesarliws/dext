@@ -66,12 +66,22 @@ type
     function GetSelectedColumns: TArray<string>;
     function IsTrackingEnabled: Boolean;
     
+    property Expression: IExpression read GetExpression;
+    
     // Fluent methods
     procedure Take(const ACount: Integer);
     procedure Skip(const ACount: Integer);
     
     procedure EnableTracking(const AValue: Boolean);
     procedure AsNoTracking;
+    
+    procedure AddInclude(const APath: string); deprecated 'Use Include';
+    procedure AddOrderBy(const AOrderBy: IOrderBy); deprecated 'Use OrderBy';
+    procedure AddSelect(const AColumn: string); deprecated 'Use Select';
+
+    procedure Include(const APath: string);
+    procedure OrderBy(const AOrderBy: IOrderBy);
+    procedure Select(const AColumn: string);
   end;
 
   /// <summary>

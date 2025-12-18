@@ -149,6 +149,8 @@
         <DCCReference Include="Data\Dext.Entity.Migrations.Serializers.Json.pas"/>
         <DCCReference Include="Hosting\Dext.Hosting.CLI.pas"/>
         <DCCReference Include="Data\Dext.Entity.Setup.pas"/>
+        <DCCReference Include="Data\Dext.Data.TypeSystem.pas"/>
+        <DCCReference Include="Data\Dext.Entity.Drivers.FireDAC.Manager.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

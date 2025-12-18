@@ -16,6 +16,9 @@ implementation
 
 uses
   System.SysUtils,
+  Dext.Specifications.Fluent,
+  Dext.Specifications.Interfaces,
+  Dext.Specifications.Types,
   EntityDemo.Entities;
 
 { TFluentAPITest }

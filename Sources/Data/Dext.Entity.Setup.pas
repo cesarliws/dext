@@ -16,6 +16,8 @@ type
   private
     FDriverName: string;
     FConnectionString: string;
+    FConnectionDefName: string;
+    FConnectionDefString: string;
     FParams: TDictionary<string, string>;
     FPooling: Boolean;
     FPoolMax: Integer;
@@ -27,6 +29,8 @@ type
 
     property DriverName: string read FDriverName write FDriverName;
     property ConnectionString: string read FConnectionString write FConnectionString;
+    property ConnectionDefName: string read FConnectionDefName write FConnectionDefName;
+    property ConnectionDefString: string read FConnectionDefString write FConnectionDefString;
     property Params: TDictionary<string, string> read FParams;
     property Pooling: Boolean read FPooling write FPooling;
     property PoolMax: Integer read FPoolMax write FPoolMax;
@@ -36,6 +40,7 @@ type
     // Fluent Helpers
     function UseSQLite(const DatabaseFile: string): TDbContextOptions;
     function UseDriver(const ADriverName: string): TDbContextOptions;
+    function UseConnectionDef(const ADefName: string): TDbContextOptions;
     function WithPooling(Enable: Boolean = True; MaxSize: Integer = 50): TDbContextOptions;
   end;
 
@@ -71,12 +76,22 @@ end;
 function TDbContextOptions.UseDriver(const ADriverName: string): TDbContextOptions;
 begin
   FDriverName := ADriverName;
+  FConnectionDefName := '';
+  Result := Self;
+end;
+
+function TDbContextOptions.UseConnectionDef(const ADefName: string): TDbContextOptions;
+begin
+  FConnectionDefName := ADefName;
+  FDriverName := '';
+  FConnectionString := '';
   Result := Self;
 end;
 
 function TDbContextOptions.UseSQLite(const DatabaseFile: string): TDbContextOptions;
 begin
   FDriverName := 'SQLite';
+  FConnectionDefName := '';
   FParams.AddOrSetValue('Database', DatabaseFile);
   FParams.AddOrSetValue('LockingMode', 'Normal');
   // SQLite implies SQLiteDialect, but injection happens later or we set it here if we want defaults

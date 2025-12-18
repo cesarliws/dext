@@ -109,57 +109,60 @@ type
     function ToString: string; override;
   end;
   /// <summary>
+  ///   Represents an intermediate expression in the expression tree.
+  ///   Has implicit conversion to IExpression.
+  /// </summary>
+  TFluentExpression = record
+  private
+    FExpression: IExpression;
+  public
+    class operator Implicit(const Value: IExpression): TFluentExpression;
+    class operator Implicit(const Value: TFluentExpression): IExpression;
+    
+    // Logical Operators (AND, OR, NOT)
+    class operator LogicalAnd(const Left, Right: TFluentExpression): TFluentExpression;
+    class operator LogicalOr(const Left, Right: TFluentExpression): TFluentExpression;
+    class operator LogicalNot(const Value: TFluentExpression): TFluentExpression;
+    
+    property Expression: IExpression read FExpression;
+  end;
+
+  /// <summary>
   ///   Helper record to build expressions fluently.
   ///   Usage: PropExpression('Age') > 18
   /// </summary>
   TPropExpression = record
-  public
-    type
-      /// <summary>
-      ///   Represents an intermediate expression in the expression tree.
-      ///   Has implicit conversion to IExpression.
-      /// </summary>
-      TExpression = record
-      private
-        FExpression: IExpression;
-      public
-        class operator Implicit(const Value: IExpression): TExpression;
-        class operator Implicit(const Value: TExpression): IExpression;
-        
-        // Logical Operators (AND, OR, NOT) - return IExpression like Spring4D
-        class operator LogicalAnd(const Left, Right: TExpression): IExpression;
-        class operator LogicalOr(const Left, Right: TExpression): IExpression;
-        class operator LogicalNot(const Value: TExpression): IExpression;
-      end;
-    var
-      FName: string;
+  private
+    FName: string;
   public
     constructor Create(const AName: string);
     // Comparison Operators
-    class operator Equal(const Left: TPropExpression; const Right: TValue): TExpression;
-    class operator NotEqual(const Left: TPropExpression; const Right: TValue): TExpression;
-    class operator GreaterThan(const Left: TPropExpression; const Right: TValue): TExpression;
-    class operator GreaterThanOrEqual(const Left: TPropExpression; const Right: TValue): TExpression;
-    class operator LessThan(const Left: TPropExpression; const Right: TValue): TExpression;
-    class operator LessThanOrEqual(const Left: TPropExpression; const Right: TValue): TExpression;
+    class operator Equal(const Left: TPropExpression; const Right: TValue): TFluentExpression;
+    class operator NotEqual(const Left: TPropExpression; const Right: TValue): TFluentExpression;
+    class operator GreaterThan(const Left: TPropExpression; const Right: TValue): TFluentExpression;
+    class operator GreaterThanOrEqual(const Left: TPropExpression; const Right: TValue): TFluentExpression;
+    class operator LessThan(const Left: TPropExpression; const Right: TValue): TFluentExpression;
+    class operator LessThanOrEqual(const Left: TPropExpression; const Right: TValue): TFluentExpression;
+    
     class operator Implicit(const Value: TPropExpression): string;
+
     // Special Methods (Like, In, etc)
-    function Like(const Pattern: string): IExpression;
-    function NotLike(const Pattern: string): IExpression;
-    function StartsWith(const Value: string): IExpression;
-    function EndsWith(const Value: string): IExpression;
-    function Contains(const Value: string): IExpression;
+    function Like(const Pattern: string): TFluentExpression;
+    function NotLike(const Pattern: string): TFluentExpression;
+    function StartsWith(const Value: string): TFluentExpression;
+    function EndsWith(const Value: string): TFluentExpression;
+    function Contains(const Value: string): TFluentExpression;
     
-    function &In(const Values: TArray<string>): IExpression; overload;
-    function &In(const Values: TArray<Integer>): IExpression; overload;
-    function NotIn(const Values: TArray<string>): IExpression; overload;
-    function NotIn(const Values: TArray<Integer>): IExpression; overload;
+    function &In(const Values: TArray<string>): TFluentExpression; overload;
+    function &In(const Values: TArray<Integer>): TFluentExpression; overload;
+    function NotIn(const Values: TArray<string>): TFluentExpression; overload;
+    function NotIn(const Values: TArray<Integer>): TFluentExpression; overload;
     
-    function IsNull: IExpression;
-    function IsNotNull: IExpression;
+    function IsNull: TFluentExpression;
+    function IsNotNull: TFluentExpression;
     
-    // Between as a method (not operator) like Spring4D
-    function Between(const Lower, Upper: Variant): IExpression;
+    // Between as a method (not operator)
+    function Between(const Lower, Upper: Variant): TFluentExpression;
     
     // OrderBy support
     function Asc: IOrderBy;
@@ -251,31 +254,31 @@ begin
   Result := BoolToStr(FValue, True);
 end;
 
-{ TPropExpression.TExpression }
+{ TFluentExpression }
 
-class operator TPropExpression.TExpression.Implicit(const Value: IExpression): TExpression;
+class operator TFluentExpression.Implicit(const Value: IExpression): TFluentExpression;
 begin
   Result.FExpression := Value;
 end;
 
-class operator TPropExpression.TExpression.Implicit(const Value: TExpression): IExpression;
+class operator TFluentExpression.Implicit(const Value: TFluentExpression): IExpression;
 begin
   Result := Value.FExpression;
 end;
 
-class operator TPropExpression.TExpression.LogicalAnd(const Left, Right: TExpression): IExpression;
+class operator TFluentExpression.LogicalAnd(const Left, Right: TFluentExpression): TFluentExpression;
 begin
-  Result := TLogicalExpression.Create(Left.FExpression, Right.FExpression, loAnd);
+  Result.FExpression := TLogicalExpression.Create(Left.FExpression, Right.FExpression, loAnd);
 end;
 
-class operator TPropExpression.TExpression.LogicalOr(const Left, Right: TExpression): IExpression;
+class operator TFluentExpression.LogicalOr(const Left, Right: TFluentExpression): TFluentExpression;
 begin
-  Result := TLogicalExpression.Create(Left.FExpression, Right.FExpression, loOr);
+  Result.FExpression := TLogicalExpression.Create(Left.FExpression, Right.FExpression, loOr);
 end;
 
-class operator TPropExpression.TExpression.LogicalNot(const Value: TExpression): IExpression;
+class operator TFluentExpression.LogicalNot(const Value: TFluentExpression): TFluentExpression;
 begin
-  Result := TUnaryExpression.Create(Value.FExpression);
+  Result.FExpression := TUnaryExpression.Create(Value.FExpression);
 end;
 
 { TPropExpression }
@@ -285,67 +288,67 @@ begin
   FName := AName;
 end;
 
-class operator TPropExpression.Equal(const Left: TPropExpression; const Right: TValue): TExpression;
+class operator TPropExpression.Equal(const Left: TPropExpression; const Right: TValue): TFluentExpression;
 begin
   Result.FExpression := TBinaryExpression.Create(Left.FName, boEqual, Right);
 end;
 
-class operator TPropExpression.NotEqual(const Left: TPropExpression; const Right: TValue): TExpression;
+class operator TPropExpression.NotEqual(const Left: TPropExpression; const Right: TValue): TFluentExpression;
 begin
   Result.FExpression := TBinaryExpression.Create(Left.FName, boNotEqual, Right);
 end;
 
-class operator TPropExpression.GreaterThan(const Left: TPropExpression; const Right: TValue): TExpression;
+class operator TPropExpression.GreaterThan(const Left: TPropExpression; const Right: TValue): TFluentExpression;
 begin
   Result.FExpression := TBinaryExpression.Create(Left.FName, boGreaterThan, Right);
 end;
 
-class operator TPropExpression.GreaterThanOrEqual(const Left: TPropExpression; const Right: TValue): TExpression;
+class operator TPropExpression.GreaterThanOrEqual(const Left: TPropExpression; const Right: TValue): TFluentExpression;
 begin
   Result.FExpression := TBinaryExpression.Create(Left.FName, boGreaterThanOrEqual, Right);
 end;
 
-class operator TPropExpression.LessThan(const Left: TPropExpression; const Right: TValue): TExpression;
+class operator TPropExpression.LessThan(const Left: TPropExpression; const Right: TValue): TFluentExpression;
 begin
   Result.FExpression := TBinaryExpression.Create(Left.FName, boLessThan, Right);
 end;
 
-class operator TPropExpression.LessThanOrEqual(const Left: TPropExpression; const Right: TValue): TExpression;
+class operator TPropExpression.LessThanOrEqual(const Left: TPropExpression; const Right: TValue): TFluentExpression;
 begin
   Result.FExpression := TBinaryExpression.Create(Left.FName, boLessThanOrEqual, Right);
 end;
 
-function TPropExpression.Like(const Pattern: string): IExpression;
+function TPropExpression.Like(const Pattern: string): TFluentExpression;
 begin
-  Result := TBinaryExpression.Create(FName, boLike, Pattern);
+  Result.FExpression := TBinaryExpression.Create(FName, boLike, Pattern);
 end;
 
-function TPropExpression.NotLike(const Pattern: string): IExpression;
+function TPropExpression.NotLike(const Pattern: string): TFluentExpression;
 begin
-  Result := TBinaryExpression.Create(FName, boNotLike, Pattern);
+  Result.FExpression := TBinaryExpression.Create(FName, boNotLike, Pattern);
 end;
 
-function TPropExpression.StartsWith(const Value: string): IExpression;
+function TPropExpression.StartsWith(const Value: string): TFluentExpression;
 begin
   Result := Like(Value + '%');
 end;
 
-function TPropExpression.EndsWith(const Value: string): IExpression;
+function TPropExpression.EndsWith(const Value: string): TFluentExpression;
 begin
   Result := Like('%' + Value);
 end;
 
-function TPropExpression.Contains(const Value: string): IExpression;
+function TPropExpression.Contains(const Value: string): TFluentExpression;
 begin
   Result := Like('%' + Value + '%');
 end;
 
-function TPropExpression.&In(const Values: TArray<string>): IExpression;
+function TPropExpression.&In(const Values: TArray<string>): TFluentExpression;
 var
   Val: TValue;
 begin
   Val := TValue.From<TArray<string>>(Values);
-  Result := TBinaryExpression.Create(FName, boIn, Val);
+  Result.FExpression := TBinaryExpression.Create(FName, boIn, Val);
 end;
 
 class operator TPropExpression.Implicit(const Value: TPropExpression): string;
@@ -353,47 +356,46 @@ begin
   Result := Value.Name;
 end;
 
-function TPropExpression.&In(const Values: TArray<Integer>): IExpression;
+function TPropExpression.&In(const Values: TArray<Integer>): TFluentExpression;
 var
   Val: TValue;
 begin
   Val := TValue.From<TArray<Integer>>(Values);
-  Result := TBinaryExpression.Create(FName, boIn, Val);
+  Result.FExpression := TBinaryExpression.Create(FName, boIn, Val);
 end;
 
-function TPropExpression.NotIn(const Values: TArray<string>): IExpression;
+function TPropExpression.NotIn(const Values: TArray<string>): TFluentExpression;
 var
   Val: TValue;
 begin
   Val := TValue.From<TArray<string>>(Values);
-  Result := TBinaryExpression.Create(FName, boNotIn, Val);
+  Result.FExpression := TBinaryExpression.Create(FName, boNotIn, Val);
 end;
 
-function TPropExpression.NotIn(const Values: TArray<Integer>): IExpression;
+function TPropExpression.NotIn(const Values: TArray<Integer>): TFluentExpression;
 var
   Val: TValue;
 begin
   Val := TValue.From<TArray<Integer>>(Values);
-  Result := TBinaryExpression.Create(FName, boNotIn, Val);
+  Result.FExpression := TBinaryExpression.Create(FName, boNotIn, Val);
 end;
 
-function TPropExpression.IsNull: IExpression;
+function TPropExpression.IsNull: TFluentExpression;
 begin
-  Result := TUnaryExpression.Create(FName, uoIsNull);
+  Result.FExpression := TUnaryExpression.Create(FName, uoIsNull);
 end;
 
-function TPropExpression.IsNotNull: IExpression;
+function TPropExpression.IsNotNull: TFluentExpression;
 begin
-  Result := TUnaryExpression.Create(FName, uoIsNotNull);
+  Result.FExpression := TUnaryExpression.Create(FName, uoIsNotNull);
 end;
 
-function TPropExpression.Between(const Lower, Upper: Variant): IExpression;
+function TPropExpression.Between(const Lower, Upper: Variant): TFluentExpression;
 begin
   // (Prop >= Lower) AND (Prop <= Upper)
-  // Create expressions manually to avoid operator ambiguity
   var LowerCrit: IExpression := TBinaryExpression.Create(FName, boGreaterThanOrEqual, TValue.FromVariant(Lower));
   var UpperCrit: IExpression := TBinaryExpression.Create(FName, boLessThanOrEqual, TValue.FromVariant(Upper));
-  Result := TLogicalExpression.Create(LowerCrit, UpperCrit, loAnd);
+  Result.FExpression := TLogicalExpression.Create(LowerCrit, UpperCrit, loAnd);
 end;
 
 function TPropExpression.Asc: IOrderBy;

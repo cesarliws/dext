@@ -6,6 +6,7 @@ program Orm.EntityDemo;
 uses
   Dext.MM,
   Dext.Utils,
+  Dext,
   System.SysUtils,
   FireDAC.Comp.Client,
   EntityDemo.DbConfig in 'EntityDemo.DbConfig.pas',
@@ -28,7 +29,8 @@ uses
   EntityDemo.Tests.NoTracking in 'EntityDemo.Tests.NoTracking.pas',
   EntityDemo.Tests.MixedCompositeKeys in 'EntityDemo.Tests.MixedCompositeKeys.pas',
   EntityDemo.Tests.SoftDelete in 'EntityDemo.Tests.SoftDelete.pas',
-  EntityDemo.Tests.Async in 'EntityDemo.Tests.Async.pas';
+  EntityDemo.Tests.Async in 'EntityDemo.Tests.Async.pas',
+  EntityDemo.Tests.TypeSystem in 'EntityDemo.Tests.TypeSystem.pas';
 
 procedure ConfigureDatabase(Provider: TDatabaseProvider);
 begin
@@ -36,7 +38,6 @@ begin
   // Database Configuration
   // ========================================
   // Uncomment the provider you want to test:
-
   case Provider of
     // Option 1: SQLite (Default - Memory, good for development)
     dpSQLiteMemory: TDbConfig.ConfigureSQLiteMemory;
@@ -115,6 +116,8 @@ begin
   RunTest(TSoftDeleteTest);
   // 17. Async Tests
   RunTest(TAsyncTest);
+  // 18. TypeSystem Tests
+  RunTest(TTypeSystemTest);
 
   WriteLn('');
   WriteLn('? All tests completed.');

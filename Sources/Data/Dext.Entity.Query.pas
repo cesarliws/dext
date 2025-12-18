@@ -132,6 +132,11 @@ type
     ///   Returns a specified number of contiguous elements from the start of a sequence.
     /// </summary>
     function Take(const ACount: Integer): TFluentQuery<T>;
+    
+    /// <summary>
+    ///   Sorts the elements of a sequence in a specified order.
+    /// </summary>
+    function OrderBy(const AOrderBy: IOrderBy): TFluentQuery<T>;
 
     /// <summary>
     ///   Force execution and return materialized list.
@@ -527,25 +532,34 @@ end;
 function TFluentQuery<T>.Skip(const ACount: Integer): TFluentQuery<T>;
 var
   LSource: TFluentQuery<T>;
+  LFactory: TFunc<TQueryIterator<T>>;
 begin
   LSource := Self;
-  Result := TFluentQuery<T>.Create(
-    function: TQueryIterator<T>
+  LFactory := function: TQueryIterator<T>
     begin
       Result := TSkipIterator<T>.Create(LSource, ACount);
-    end);
+    end;
+  Result := TFluentQuery<T>.Create(LFactory, FSpecification);
 end;
 
 function TFluentQuery<T>.Take(const ACount: Integer): TFluentQuery<T>;
 var
   LSource: TFluentQuery<T>;
+  LFactory: TFunc<TQueryIterator<T>>;
 begin
   LSource := Self;
-  Result := TFluentQuery<T>.Create(
-    function: TQueryIterator<T>
+  LFactory := function: TQueryIterator<T>
     begin
       Result := TTakeIterator<T>.Create(LSource, ACount);
-    end);
+    end;
+  Result := TFluentQuery<T>.Create(LFactory, FSpecification);
+end;
+
+function TFluentQuery<T>.OrderBy(const AOrderBy: IOrderBy): TFluentQuery<T>;
+begin
+  if FSpecification <> nil then
+    FSpecification.OrderBy(AOrderBy);
+  Result := Self;
 end;
 
 function TFluentQuery<T>.ToList: IList<T>;
@@ -594,13 +608,14 @@ end;
 function TFluentQuery<T>.Distinct: TFluentQuery<T>;
 var
   LSource: TFluentQuery<T>;
+  LFactory: TFunc<TQueryIterator<T>>;
 begin
   LSource := Self;
-  Result := TFluentQuery<T>.Create(
-    function: TQueryIterator<T>
+  LFactory := function: TQueryIterator<T>
     begin
       Result := TDistinctIterator<T>.Create(LSource);
-    end);
+    end;
+  Result := TFluentQuery<T>.Create(LFactory, FSpecification);
 end;
 
 function TFluentQuery<T>.Join<TInner, TKey, TResult>(

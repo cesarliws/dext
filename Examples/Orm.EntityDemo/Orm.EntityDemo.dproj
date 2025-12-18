@@ -160,6 +160,7 @@
         <DCCReference Include="EntityDemo.Tests.MixedCompositeKeys.pas"/>
         <DCCReference Include="EntityDemo.Tests.SoftDelete.pas"/>
         <DCCReference Include="EntityDemo.Tests.Async.pas"/>
+        <DCCReference Include="EntityDemo.Tests.TypeSystem.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

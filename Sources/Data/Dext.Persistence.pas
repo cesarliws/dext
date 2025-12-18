@@ -66,6 +66,7 @@ uses
   Dext.Entity.Drivers.FireDAC.Manager, // Add Manager
   Dext.Entity.Setup, // Add Setup
   Dext.DI.Interfaces, // Add DI Interfaces
+  Dext.Data.TypeSystem,
   Dext.Specifications.SQL.Generator;
 
 type
@@ -83,14 +84,11 @@ type
   // Exceptions
   EOptimisticConcurrencyException = Dext.Entity.Core.EOptimisticConcurrencyException;
 
-  IExpression = Dext.Specifications.Interfaces.IExpression;
-  IChangeTracker = Dext.Entity.Core.IChangeTracker;
-  ICollectionEntry = Dext.Entity.Core.ICollectionEntry;
-  IReferenceEntry = Dext.Entity.Core.IReferenceEntry;
-  IEntityEntry = Dext.Entity.Core.IEntityEntry;
-  
-  // Specification Builder Helper (Static Class)
   Specification = Dext.Specifications.Fluent.Specification;
+  IExpression = Dext.Specifications.Interfaces.IExpression;
+  TFluentExpression = Dext.Specifications.Types.TFluentExpression;
+  
+  // TypeSystem
 
   // Query Helpers
   TQueryGrouping = Dext.Entity.Grouping.TQuery;
@@ -285,23 +283,21 @@ begin
           // FireDAC Creation
           var FDConn := TFDConnection.Create(nil);
           
-          if Options.Pooling then
+          if Options.ConnectionDefString <> '' then
+          begin
+            var DefName := Options.ConnectionDefName;
+            if DefName = '' then DefName := 'DextMemoryDef_' + IntToHex(Options.ConnectionDefString.GetHashCode, 8);
+            TDextFireDACManager.Instance.RegisterConnectionDefFromString(DefName, Options.ConnectionDefString);
+            FDConn.ConnectionDefName := DefName;
+          end
+          else if Options.ConnectionDefName <> '' then
+          begin
+            FDConn.ConnectionDefName := Options.ConnectionDefName;
+          end
+          else if Options.Pooling then
           begin
              var Params := TStringList.Create;
              try
-               if Options.ConnectionString <> '' then
-                 // Parse connection string to params? FireDAC usually handles this, 
-                 // but for Defs we need Params object. 
-                 // Simple approach: Allow Params dictionary to populate definition.
-                 // NOTE: ConnectionString parsing is complex, assuming Params usage for Pooling.
-                 // If ConnectionString is provided, we might need to set it on FDConn directly, 
-                 // but for Pooling via Manager we need ConnectionDefName.
-                 
-                 // Strategy: If Pooling, prefer Params. If ConnectionString is used, 
-                 // we might not actully use the Manager properly without parsing.
-                 // For v1, let's assume Params are populated or we copy them.
-                 ;
-                 
                for var Pair in Options.Params do
                  Params.Values[Pair.Key] := Pair.Value;
                  

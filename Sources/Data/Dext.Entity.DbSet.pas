@@ -37,6 +37,7 @@ uses
   Dext.Collections,
   Dext.Core.Activator,
   Dext.Core.ValueConverters,
+  Dext.Data.TypeSystem,
   Dext.Entity.Attributes,
   Dext.Entity.Core,
   Dext.Entity.Dialects,
@@ -78,13 +79,14 @@ type
     function GetPKColumns: TArray<string>;
     function GetRelatedId(const AObject: TObject): TValue;
     procedure DoLoadIncludes(const AEntities: IList<T>; const AIncludes: TArray<string>);
+    function GetItem(Index: Integer): T;
   public
     constructor Create(const AContext: IDbContext); reintroduce;
     destructor Destroy; override;
 
     function GetTableName: string;
     function FindObject(const AId: Variant): TObject;
-    procedure Add(const AEntity: TObject); overload;
+    function Add(const AEntity: TObject): IDbSet; overload;
     procedure Update(const AEntity: TObject); overload;
     procedure Remove(const AEntity: TObject); overload;
     function ListObjects(const AExpression: IExpression): IList<TObject>;
@@ -98,10 +100,11 @@ type
     procedure Detach(const AEntity: TObject); overload;
 
 
-    procedure Add(const AEntity: T); overload;
-    procedure Update(const AEntity: T); overload;
-    procedure Remove(const AEntity: T); overload;
-    procedure Detach(const AEntity: T); overload;
+    function Add(const AEntity: T): IDbSet<T>; overload;
+    function Add(const ABuilder: TFunc<IEntityBuilder<T>, T>): IDbSet<T>; overload;
+    function Update(const AEntity: T): IDbSet<T>; overload;
+    function Remove(const AEntity: T): IDbSet<T>; overload;
+    function Detach(const AEntity: T): IDbSet<T>; overload;
     function Find(const AId: Variant): T; overload;
     function Find(const AId: array of Integer): T; overload;
     function Find(const AId: array of Variant): T; overload;
@@ -136,8 +139,10 @@ type
     // Soft Delete Control
     function IgnoreQueryFilters: IDbSet<T>;
     function OnlyDeleted: IDbSet<T>;
-    procedure HardDelete(const AEntity: T);
-    procedure Restore(const AEntity: T);
+    function HardDelete(const AEntity: T): IDbSet<T>;
+    function Restore(const AEntity: T): IDbSet<T>;
+
+    property Items[Index: Integer]: T read GetItem; default;
   end;
 
 implementation
@@ -437,9 +442,10 @@ begin
   Result := Find(AId);
 end;
 
-procedure TDbSet<T>.Add(const AEntity: TObject);
+function TDbSet<T>.Add(const AEntity: TObject): IDbSet;
 begin
   Add(T(AEntity));
+  Result := Self;
 end;
 
 procedure TDbSet<T>.Update(const AEntity: TObject);
@@ -457,28 +463,44 @@ begin
   Detach(T(AEntity));
 end;
 
-procedure TDbSet<T>.Add(const AEntity: T);
+function TDbSet<T>.GetItem(Index: Integer): T;
+begin
+  Result := List[Index];
+end;
+
+function TDbSet<T>.Add(const AEntity: T): IDbSet<T>;
 begin
   FContext.ChangeTracker.Track(AEntity, esAdded);
+  Result := Self;
 end;
 
-procedure TDbSet<T>.Update(const AEntity: T);
+function TDbSet<T>.Add(const ABuilder: TFunc<IEntityBuilder<T>, T>): IDbSet<T>;
+begin
+  if Assigned(ABuilder) then
+    Add(ABuilder(TEntityType<T>.New));
+  Result := Self;
+end;
+
+function TDbSet<T>.Update(const AEntity: T): IDbSet<T>;
 begin
   FContext.ChangeTracker.Track(AEntity, esModified);
+  Result := Self;
 end;
 
-procedure TDbSet<T>.Remove(const AEntity: T);
+function TDbSet<T>.Remove(const AEntity: T): IDbSet<T>;
 begin
   FContext.ChangeTracker.Track(AEntity, esDeleted);
+  Result := Self;
 end;
 
-procedure TDbSet<T>.Detach(const AEntity: T);
+function TDbSet<T>.Detach(const AEntity: T): IDbSet<T>;
 var
   Id: string;
 begin
   Id := GetEntityId(AEntity);
   FIdentityMap.ExtractPair(Id);
   FContext.ChangeTracker.Remove(AEntity);
+  Result := Self;
 end;
 
 procedure TDbSet<T>.AddRange(const AEntities: TArray<T>);
@@ -1259,7 +1281,7 @@ begin
   Result := Self;
 end;
 
-procedure TDbSet<T>.HardDelete(const AEntity: T);
+function TDbSet<T>.HardDelete(const AEntity: T): IDbSet<T>;
 var
   Generator: TSqlGenerator<T>;
   Sql: string;
@@ -1276,9 +1298,10 @@ begin
   finally
     Generator.Free;
   end;
+  Result := Self;
 end;
 
-procedure TDbSet<T>.Restore(const AEntity: T);
+function TDbSet<T>.Restore(const AEntity: T): IDbSet<T>;
 var
   Ctx: TRttiContext;
   RType: TRttiType;
@@ -1365,7 +1388,7 @@ begin
             ValToSet := TValue.From(Boolean(NotDeletedVal))
           else 
             ValToSet := TValue.FromVariant(NotDeletedVal);
-
+ 
           Prop.SetValue(TObject(AEntity), ValToSet);
           PersistUpdate(AEntity);
         end;
@@ -1374,6 +1397,7 @@ begin
       Ctx.Free;
     end;
   end;
+  Result := Self;
 end;
 
 end.

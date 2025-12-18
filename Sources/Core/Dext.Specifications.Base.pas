@@ -65,11 +65,17 @@ type
     
     // Fluent Builders (public for TSpecificationBuilder)
     procedure Where(const AExpression: IExpression); overload;
-    procedure Where(const AExpr: Dext.Specifications.Types.TPropExpression.TExpression); overload;
+    procedure Where(const AExpr: TFluentExpression); overload;
+    procedure Include(const APath: string); virtual;
+    procedure OrderBy(const AOrderBy: IOrderBy); virtual;
+    procedure Select(const AColumn: string); virtual;
+    
+    // Legacy support
     procedure AddInclude(const APath: string);
     procedure AddOrderBy(const AOrderBy: IOrderBy);
-    procedure ApplyPaging(ASkip, ATake: Integer);
     procedure AddSelect(const AColumn: string);
+
+    procedure ApplyPaging(ASkip, ATake: Integer);
     
     // Fluent Helpers
     procedure Take(const ACount: Integer);
@@ -116,14 +122,19 @@ begin
     FExpression := TLogicalExpression.Create(FExpression, AExpression, loAnd);
 end;
 
-procedure TSpecification<T>.Where(const AExpr: Dext.Specifications.Types.TPropExpression.TExpression);
+procedure TSpecification<T>.Where(const AExpr: TFluentExpression);
 begin
-  Where(IExpression(AExpr));
+  Where(AExpr.Expression);
+end;
+
+procedure TSpecification<T>.Include(const APath: string);
+begin
+  FIncludes.Add(APath);
 end;
 
 procedure TSpecification<T>.AddInclude(const APath: string);
 begin
-  FIncludes.Add(APath);
+  Include(APath);
 end;
 
 procedure TSpecification<T>.ApplyPaging(ASkip, ATake: Integer);
@@ -163,9 +174,14 @@ begin
   Result := FIsPagingEnabled;
 end;
 
-procedure TSpecification<T>.AddOrderBy(const AOrderBy: IOrderBy);
+procedure TSpecification<T>.OrderBy(const AOrderBy: IOrderBy);
 begin
   FOrderBy.Add(AOrderBy);
+end;
+
+procedure TSpecification<T>.AddOrderBy(const AOrderBy: IOrderBy);
+begin
+  OrderBy(AOrderBy);
 end;
 
 function TSpecification<T>.GetSelectedColumns: TArray<string>;
@@ -173,9 +189,14 @@ begin
   Result := FSelectedColumns.ToArray;
 end;
 
-procedure TSpecification<T>.AddSelect(const AColumn: string);
+procedure TSpecification<T>.Select(const AColumn: string);
 begin
   FSelectedColumns.Add(AColumn);
+end;
+
+procedure TSpecification<T>.AddSelect(const AColumn: string);
+begin
+  Select(AColumn);
 end;
 
 procedure TSpecification<T>.Take(const ACount: Integer);

@@ -16,8 +16,9 @@ uses
   Dext, // ✅ All-in-one framework unit
   Dext.Web,
   Dext.Web.Results,
-  Dext.Options, // Needed for IOptions<T>
-  ControllerExample.Services; // For TMySettings
+  ControllerExample.Services, // For TMySettings
+  Dext.Collections,
+  Dext.Options;
 
 {.$RTTI EXPLICIT METHODS([vcPublic, vcPublished])}
 
@@ -43,6 +44,12 @@ type
     username: string;
     [Required]
     password: string;
+  end;
+
+  TPerson = record
+    Id: Integer;
+    Name: string;
+    Email: string;
   end;
 
   // Service Interface
@@ -150,6 +157,14 @@ type
     [DextGet('/protected')]
     [RequireHeader('Authorization', 'Authorization header required')]
     procedure ProtectedEndpoint(Ctx: IHttpContext);
+  end;
+
+  [DextController('/api/list')]
+  TListTestController = class
+  public
+    [DextGet('')]
+    [AllowAnonymous]
+    procedure GetPeople(Ctx: IHttpContext);
   end;
 
 implementation
@@ -350,11 +365,35 @@ begin
   Ctx.Response.Json('{"message":"Protected endpoint accessed"}');
 end;
 
+{ TListTestController }
+
+procedure TListTestController.GetPeople(Ctx: IHttpContext);
+var
+  People: IList<TPerson>;
+  Person: TPerson;
+begin
+  People := TCollections.CreateList<TPerson>;
+  
+  Person.Id := 1;
+  Person.Name := 'Cesar Romero';
+  Person.Email := 'cesar@dext.com';
+  People.Add(Person);
+  
+  Person.Id := 2;
+  Person.Name := 'Dext User';
+  Person.Email := 'user@dext.com';
+  People.Add(Person);
+  
+  // Reported issue: This generates empty JSON if IList is not understood
+  Results.Ok<IList<TPerson>>(People).Execute(Ctx);
+end;
+
 
 initialization
   // Force linker to include this class
   TGreetingController.ClassName;
   TAuthController.ClassName;
   TFiltersController.ClassName;
+  TListTestController.ClassName;
 
 end.

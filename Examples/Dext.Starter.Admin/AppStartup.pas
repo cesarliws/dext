@@ -106,7 +106,18 @@ begin
     Options.Params.AddOrSetValue('Synchronous', 'Normal');
     
     // Enable Pooling (Requires WAL mode)
-    ///Options.WithPooling(True, 20);
+    Options.WithPooling(True, 20);
+
+    // ADVANCED: You can also define a connection entirely by an INI-style string
+    {
+    Options.ConnectionDefName := 'DextAdminRuntimePool';
+    Options.ConnectionDefString := 
+      'DriverID=SQLite' + sLineBreak +
+      'Database=dext_admin.db' + sLineBreak +
+      'Pooled=True' + sLineBreak +
+      'Pool_MaximumItems=50' + sLineBreak +
+      'MonitorBy=FlatFile';
+    }
   end;
 end;
 

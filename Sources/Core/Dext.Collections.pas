@@ -38,6 +38,7 @@ uses
 
 type
   // Clean definition of IEnumerator<T> avoiding inheritance from System.Generics.Collections.IEnumerator
+  {$M+}
   IEnumerator<T> = interface
     function GetCurrent: T;
     function MoveNext: Boolean;
@@ -50,7 +51,6 @@ type
   end;
 
   // IList<T> inherits from our clean IEnumerable<T>
-  {$M+}
   IList<T> = interface(IEnumerable<T>)
     ['{8877539D-3522-488B-933B-8C4581177699}']
     function GetCount: Integer;

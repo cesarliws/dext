@@ -30,7 +30,8 @@ interface
 uses
   Dext.Specifications.Base,
   Dext.Specifications.Interfaces,
-  Dext.Specifications.OrderBy;
+  Dext.Specifications.OrderBy,
+  Dext.Specifications.Types;
 
 type
   /// <summary>
@@ -41,12 +42,14 @@ type
   private
     FSpec: ISpecification<T>;
     function GetSpec: ISpecification<T>;
+    function GetExpression: IExpression;
     function SpecObj: TSpecification<T>; inline;
   public
     class operator Implicit(const Value: TSpecificationBuilder<T>): ISpecification<T>;
 
     // Fluent methods
-    function Where(const AExpression: IExpression): TSpecificationBuilder<T>;
+    function Where(const AExpression: IExpression): TSpecificationBuilder<T>; overload;
+    function Where(const AExpr: TFluentExpression): TSpecificationBuilder<T>; overload;
     function OrderBy(const APropertyName: string; AAscending: Boolean = True): TSpecificationBuilder<T>; overload;
     function OrderBy(const AOrderBy: IOrderBy): TSpecificationBuilder<T>; overload;
     function Skip(ACount: Integer): TSpecificationBuilder<T>;
@@ -56,13 +59,15 @@ type
     function Select(const AColumns: TArray<string>): TSpecificationBuilder<T>; overload;
     
     property Spec: ISpecification<T> read GetSpec;
+    property Expression: IExpression read GetExpression;
   end;
 
   /// <summary>
   ///   Static factory for creating specification builders
   /// </summary>
   Specification = record
-    class function Where<T: class>(const AExpression: IExpression): TSpecificationBuilder<T>; static;
+    class function Where<T: class>(const AExpression: IExpression): TSpecificationBuilder<T>; overload; static;
+    class function Where<T: class>(const AExpr: TFluentExpression): TSpecificationBuilder<T>; overload; static;
     class function OrderBy<T: class>(const APropertyName: string; AAscending: Boolean = True): TSpecificationBuilder<T>; static;
     class function All<T: class>: TSpecificationBuilder<T>; static;
   end;
@@ -78,6 +83,11 @@ begin
   Result := FSpec;
 end;
 
+function TSpecificationBuilder<T>.GetExpression: IExpression;
+begin
+  Result := GetSpec.GetExpression;
+end;
+
 class operator TSpecificationBuilder<T>.Implicit(const Value: TSpecificationBuilder<T>): ISpecification<T>;
 begin
   Result := Value.GetSpec;
@@ -89,16 +99,22 @@ begin
   Result := Self;
 end;
 
+function TSpecificationBuilder<T>.Where(const AExpr: TFluentExpression): TSpecificationBuilder<T>;
+begin
+  SpecObj.Where(AExpr);
+  Result := Self;
+end;
+
 function TSpecificationBuilder<T>.OrderBy(const APropertyName: string; AAscending: Boolean): TSpecificationBuilder<T>;
 begin
-  SpecObj.AddOrderBy(TOrderBy.Create(APropertyName, AAscending));
+  SpecObj.OrderBy(TOrderBy.Create(APropertyName, AAscending));
   Result := Self;
 end;
 
 // Overload accepting IOrderBy directly
 function TSpecificationBuilder<T>.OrderBy(const AOrderBy: IOrderBy): TSpecificationBuilder<T>;
 begin
-  SpecObj.AddOrderBy(AOrderBy);
+  SpecObj.OrderBy(AOrderBy);
   Result := Self;
 end;
 
@@ -121,13 +137,13 @@ end;
 
 function TSpecificationBuilder<T>.Include(const APath: string): TSpecificationBuilder<T>;
 begin
-  SpecObj.AddInclude(APath);
+  SpecObj.Include(APath);
   Result := Self;
 end;
 
 function TSpecificationBuilder<T>.Select(const AColumn: string): TSpecificationBuilder<T>;
 begin
-  SpecObj.AddSelect(AColumn);
+  SpecObj.Select(AColumn);
   Result := Self;
 end;
 
@@ -136,7 +152,7 @@ var
   Col: string;
 begin
   for Col in AColumns do
-    SpecObj.AddSelect(Col);
+    SpecObj.Select(Col);
   Result := Self;
 end;
 
@@ -144,7 +160,12 @@ end;
 
 class function Specification.Where<T>(const AExpression: IExpression): TSpecificationBuilder<T>;
 begin
-  Result.Where(AExpression);
+  Result := Result.Where(AExpression);
+end;
+
+class function Specification.Where<T>(const AExpr: TFluentExpression): TSpecificationBuilder<T>;
+begin
+  Result := Result.Where(AExpr);
 end;
 
 class function Specification.OrderBy<T>(const APropertyName: string; AAscending: Boolean): TSpecificationBuilder<T>;

@@ -48,7 +48,8 @@ type
     procedure Log(const Msg: string);
     procedure LogSuccess(const Msg: string);
     procedure LogError(const Msg: string);
-    procedure AssertTrue(Condition: Boolean; const SuccessMsg, FailMsg: string);
+    procedure AssertTrue(Condition: Boolean; const SuccessMsg, FailMsg: string); overload;
+    procedure AssertTrue(Condition: Boolean; const Msg: string); overload;
 
     procedure Setup; virtual;
     procedure TearDown; virtual;
@@ -215,6 +216,11 @@ begin
     LogSuccess(SuccessMsg)
   else
     LogError(FailMsg);
+end;
+
+procedure TBaseTest.AssertTrue(Condition: Boolean; const Msg: string);
+begin
+  AssertTrue(Condition, Msg, Msg);
 end;
 
 end.

@@ -48,6 +48,10 @@ type
     function GetAddress: TAddress;
     procedure SetAddress(const Value: TAddress);
   public
+    constructor Create; overload;
+    constructor Create(const AName: string; AAge: Integer); overload;
+    destructor Destroy; override;
+
     [PK, AutoInc]
     property Id: Integer read FId write FId;
 
@@ -63,8 +67,6 @@ type
 
     [ForeignKey('AddressId', caCascade), NotMapped]  // CASCADE on delete
     property Address: TAddress read GetAddress write SetAddress;
-    
-    destructor Destroy; override;
   end;
 
   [Table('order_items')]
@@ -358,6 +360,18 @@ procedure TUser.SetAddress(const Value: TAddress);
 begin
   // When setting manually, we wrap it in a Lazy that is already created
   FAddress := Lazy<TAddress>.CreateFrom(Value);
+end;
+
+constructor TUser.Create;
+begin
+  inherited Create;
+end;
+
+constructor TUser.Create(const AName: string; AAge: Integer);
+begin
+  Create;
+  FName := AName;
+  FAge := AAge;
 end;
 
 destructor TUser.Destroy;
