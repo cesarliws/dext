@@ -29,6 +29,7 @@ Um framework HTTP leve e poderoso para construir REST APIs e microserviços.
 - **Controllers**: Suporte tradicional baseado em classes para APIs complexas.
 - **Smart Binding**: Serialização e validação automática de JSON para Records/Classes.
 - **Middlewares**: Pipeline de requisição modular e extensível.
+- **Smart JSON**: Suporte nativo para TGUID/UUID, Enums e tipos avançados na serialização JSON.
 - **OpenAPI**: Integração nativa com Swagger e geração automática de documentação.
 
 ### 🗄️ Dext.Entity (ORM)
@@ -38,6 +39,7 @@ Um ORM moderno focado em produtividade e performance.
 - **Migrations**: Controle de versão do esquema do banco de dados via CLI.
 - **Fluent Query API**: Consultas fortemente tipadas e expressivas.
 - **Change Tracking**: Controle automático de mudanças e persistência otimizada.
+- **Tipos Avançados**: Suporte nativo para UUID/GUID, Enums (como string ou int), JSON/JSONB e Arrays.
 - **Multi-Database**: Suporte para SQL Server, PostgreSQL, Firebird, MySQL, Oracle e SQLite.
 
 ### ⚙️ Dext.Core (Infraestrutura)

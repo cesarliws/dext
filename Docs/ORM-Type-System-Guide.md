@@ -90,6 +90,9 @@ begin
 end;
 ```
 
+**JSON Core Support**:
+`TGUID` is natively supported by `TDextJson`. When serializing a GUID property to JSON, it is automatically converted to a correctly formatted string (ex: `"{5F0B...}"`), avoiding RTTI errors common in other Delphi serializers.
+
 ---
 
 ### 2. Enums
@@ -602,5 +605,5 @@ end;
 ---
 
 **Version**: Dext v1.0  
-**Last Updated**: 2025-12-18  
+**Last Updated**: 2025-12-19  
 **Author**: Cesar Romero

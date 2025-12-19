@@ -507,16 +507,16 @@ end;
 ### Immediate (This Week)
 
 1. ✅ Create design document
-2. ⏳ Implement `ITypeConverter` interface
-3. ⏳ Implement `TGuidConverter`
-4. ⏳ Fix PostgreSQL UUID issue
+2. ✅ Implement `ITypeConverter` interface
+3. ✅ Implement `TGuidConverter`
+4. ✅ Fix PostgreSQL UUID issue
 
-### Short Term (Next 2 Weeks)
+### Short Term (In Progress)
 
-1. Implement `TEnumConverter`
-2. Add `[EnumAsString]` attribute
-3. Add comprehensive tests
-4. Update documentation
+1. ⏳ Implement `TEnumConverter`
+2. ⏳ Add `[EnumAsString]` attribute
+3. ⏳ Add comprehensive tests (Partial: GUID tested)
+4. ⏳ Update documentation (Partial: README updated)
 
 ### Medium Term (Next Month)
 
