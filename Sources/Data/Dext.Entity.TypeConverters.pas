@@ -153,6 +153,49 @@ type
   end;
 
   /// <summary>
+  ///   Converter for TDateTime types.
+  /// </summary>
+  TDateTimeConverter = class(TTypeConverterBase)
+  public
+    function CanConvert(ATypeInfo: PTypeInfo): Boolean; override;
+    function ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue; override;
+    function FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue; override;
+    function GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string; override;
+  end;
+
+  /// <summary>
+  ///   Converter for TDate types.
+  /// </summary>
+  TDateConverter = class(TTypeConverterBase)
+  public
+    function CanConvert(ATypeInfo: PTypeInfo): Boolean; override;
+    function ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue; override;
+    function FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue; override;
+    function GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string; override;
+  end;
+
+  /// <summary>
+  ///   Converter for TTime types.
+  /// </summary>
+  TTimeConverter = class(TTypeConverterBase)
+  public
+    function CanConvert(ATypeInfo: PTypeInfo): Boolean; override;
+    function ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue; override;
+    function FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue; override;
+    function GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string; override;
+  end;
+
+  /// <summary>
+  ///   Converter for TBytes types (BLOBs).
+  /// </summary>
+  TBytesConverter = class(TTypeConverterBase)
+  public
+    function CanConvert(ATypeInfo: PTypeInfo): Boolean; override;
+    function ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue; override;
+    function FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
   ///   Registry for type converters.
   /// </summary>
   TTypeConverterRegistry = class
@@ -482,6 +525,10 @@ begin
   
   // Register built-in converters
   RegisterConverter(TGuidConverter.Create);
+  RegisterConverter(TDateTimeConverter.Create);
+  RegisterConverter(TDateConverter.Create);
+  RegisterConverter(TTimeConverter.Create);
+  RegisterConverter(TBytesConverter.Create);
   // Note: Enum, JSON, Array converters are registered dynamically or explicitly
 end;
 
@@ -531,6 +578,101 @@ begin
     if Converter.CanConvert(ATypeInfo) then
       Exit(Converter);
   end;
+end;
+
+{ TDateTimeConverter }
+
+function TDateTimeConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
+begin
+  Result := ATypeInfo = TypeInfo(TDateTime);
+end;
+
+function TDateTimeConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
+begin
+  Result := AValue; // TDateTime is already TValue compatible
+end;
+
+function TDateTimeConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
+begin
+  Result := AValue;
+end;
+
+function TDateTimeConverter.GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string;
+begin
+  case ADialect of
+    ddPostgreSQL: Result := Format('%s::timestamp', [AParamName]);
+    ddSQLServer: Result := Format('CAST(%s AS DATETIME2)', [AParamName]);
+    else Result := AParamName;
+  end;
+end;
+
+{ TDateConverter }
+
+function TDateConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
+begin
+  Result := ATypeInfo = TypeInfo(TDate);
+end;
+
+function TDateConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
+begin
+  Result := AValue;
+end;
+
+function TDateConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
+begin
+  Result := AValue;
+end;
+
+function TDateConverter.GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string;
+begin
+  case ADialect of
+    ddPostgreSQL: Result := Format('%s::date', [AParamName]);
+    ddSQLServer: Result := Format('CAST(%s AS DATE)', [AParamName]);
+    else Result := AParamName;
+  end;
+end;
+
+{ TTimeConverter }
+
+function TTimeConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
+begin
+  Result := ATypeInfo = TypeInfo(TTime);
+end;
+
+function TTimeConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
+begin
+  Result := AValue;
+end;
+
+function TTimeConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
+begin
+  Result := AValue;
+end;
+
+function TTimeConverter.GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string;
+begin
+  case ADialect of
+    ddPostgreSQL: Result := Format('%s::time', [AParamName]);
+    ddSQLServer: Result := Format('CAST(%s AS TIME)', [AParamName]);
+    else Result := AParamName;
+  end;
+end;
+
+{ TBytesConverter }
+
+function TBytesConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
+begin
+  Result := (ATypeInfo <> nil) and (ATypeInfo = TypeInfo(TBytes));
+end;
+
+function TBytesConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
+begin
+  Result := AValue;
+end;
+
+function TBytesConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
+begin
+  Result := AValue;
 end;
 
 end.

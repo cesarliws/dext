@@ -33,7 +33,9 @@ uses
   System.TypInfo,
   System.Generics.Collections,
   System.Variants,
-  System.Classes;
+  System.DateUtils,
+  System.Classes,
+  Dext.Core.DateUtils;
 
 type
   IValueConverter = interface
@@ -86,6 +88,14 @@ type
   end;
 
   TVariantToDateTimeConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  TVariantToDateConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  TVariantToTimeConverter = class(TBaseConverter)
     function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
   end;
 
@@ -144,8 +154,8 @@ begin
   RegisterConverter(TypeInfo(Variant), TypeInfo(Boolean), TVariantToBooleanConverter.Create);
   RegisterConverter(TypeInfo(Variant), TypeInfo(Double), TVariantToFloatConverter.Create);
   RegisterConverter(TypeInfo(Variant), TypeInfo(TDateTime), TVariantToDateTimeConverter.Create);
-  RegisterConverter(TypeInfo(Variant), TypeInfo(TDate), TVariantToDateTimeConverter.Create);
-  RegisterConverter(TypeInfo(Variant), TypeInfo(TTime), TVariantToDateTimeConverter.Create);
+  RegisterConverter(TypeInfo(Variant), TypeInfo(TDate), TVariantToDateConverter.Create);
+  RegisterConverter(TypeInfo(Variant), TypeInfo(TTime), TVariantToTimeConverter.Create);
   RegisterConverter(TypeInfo(Variant), TypeInfo(TGUID), TVariantToGuidConverter.Create);
 
   // Variant -> Kinds (Catch-all for Enums if specific type not found? No, registry needs exact match or kind match)
@@ -360,14 +370,53 @@ end;
 function TVariantToDateTimeConverter.Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue;
 var
   V: Variant;
+  Dt: TDateTime;
 begin
   V := AValue.AsVariant;
   if VarIsNull(V) then Exit(0.0);
   
   if VarIsNumeric(V) then
     Result := VarToDateTime(V)
+  else if TryParseCommonDate(VarToStr(V), Dt) then
+    Result := Dt
   else
-    Result := StrToDateTimeDef(VarToStr(V), 0.0);
+    Result := 0.0;
+end;
+
+{ TVariantToDateConverter }
+
+function TVariantToDateConverter.Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue;
+var
+  V: Variant;
+  Dt: TDateTime;
+begin
+  V := AValue.AsVariant;
+  if VarIsNull(V) then Exit(0.0);
+  
+  if VarIsNumeric(V) then
+    Result := TValue.From<TDate>(DateOf(VarToDateTime(V)))
+  else if TryParseCommonDate(VarToStr(V), Dt) then
+    Result := TValue.From<TDate>(DateOf(Dt))
+  else
+    Result := 0.0;
+end;
+
+{ TVariantToTimeConverter }
+
+function TVariantToTimeConverter.Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue;
+var
+  V: Variant;
+  Dt: TDateTime;
+begin
+  V := AValue.AsVariant;
+  if VarIsNull(V) then Exit(0.0);
+  
+  if VarIsNumeric(V) then
+    Result := TValue.From<TTime>(TimeOf(VarToDateTime(V)))
+  else if TryParseCommonDate(VarToStr(V), Dt) then
+    Result := TValue.From<TTime>(TimeOf(Dt))
+  else
+    Result := 0.0;
 end;
 
 { TVariantToEnumConverter }

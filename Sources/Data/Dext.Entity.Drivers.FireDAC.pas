@@ -34,6 +34,7 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Generics.Collections,
+  System.DateUtils,
   Data.DB,
   FireDAC.Comp.Client,
   FireDAC.Comp.DataSet,
@@ -198,13 +199,35 @@ begin
 end;
 
 function TFireDACReader.GetValue(AColumnIndex: Integer): TValue;
+var
+  Field: TField;
 begin
-  Result := TValue.FromVariant(FQuery.Fields[AColumnIndex].Value);
+  Field := FQuery.Fields[AColumnIndex];
+  case Field.DataType of
+    ftDate: Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
+    ftTime: Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
+    ftDateTime, ftTimeStamp: Result := TValue.From<TDateTime>(Field.AsDateTime);
+    ftBlob, ftOraBlob, ftGraphic: Result := TValue.From<TBytes>(Field.AsBytes);
+    ftString, ftWideString, ftMemo, ftWideMemo: Result := TValue.From<string>(Field.AsString);
+    else
+      Result := TValue.FromVariant(Field.Value);
+  end;
 end;
 
 function TFireDACReader.GetValue(const AColumnName: string): TValue;
+var
+  Field: TField;
 begin
-  Result := TValue.FromVariant(FQuery.FieldByName(AColumnName).Value);
+  Field := FQuery.FieldByName(AColumnName);
+  case Field.DataType of
+    ftDate: Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
+    ftTime: Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
+    ftDateTime, ftTimeStamp: Result := TValue.From<TDateTime>(Field.AsDateTime);
+    ftBlob, ftOraBlob, ftGraphic: Result := TValue.From<TBytes>(Field.AsBytes);
+    ftString, ftWideString, ftMemo, ftWideMemo: Result := TValue.From<string>(Field.AsString);
+    else
+      Result := TValue.FromVariant(Field.Value);
+  end;
 end;
 
 function TFireDACReader.Next: Boolean;
@@ -309,10 +332,46 @@ begin
           Param.DataType := ftInteger;
           Param.AsInteger := ConvertedValue.AsInteger;
         end;
+        tkFloat:
+        begin
+          if ConvertedValue.TypeInfo = TypeInfo(TDateTime) then
+          begin
+            Param.DataType := ftDateTime;
+            Param.AsDateTime := ConvertedValue.AsType<TDateTime>;
+          end
+          else if ConvertedValue.TypeInfo = TypeInfo(TDate) then
+          begin
+            Param.DataType := ftDate;
+            Param.AsDate := ConvertedValue.AsType<TDate>;
+          end
+          else if ConvertedValue.TypeInfo = TypeInfo(TTime) then
+          begin
+            Param.DataType := ftTime;
+            Param.AsTime := ConvertedValue.AsType<TTime>;
+          end
+          else
+          begin
+            Param.DataType := ftFloat;
+            Param.AsFloat := ConvertedValue.AsExtended;
+          end;
+        end;
         tkString, tkUString, tkWString, tkChar, tkWChar:
         begin
-          Param.DataType := ftString;
-          Param.AsString := ConvertedValue.AsString;
+          Param.AsWideString := ConvertedValue.AsString;
+        end;
+        tkDynArray:
+        begin
+          if ConvertedValue.TypeInfo = TypeInfo(TBytes) then
+          begin
+             var Bytes := ConvertedValue.AsType<TBytes>;
+             var RawStr: RawByteString;
+             SetLength(RawStr, Length(Bytes));
+             if Length(Bytes) > 0 then
+               Move(Bytes[0], RawStr[1], Length(Bytes));
+             Param.AsBlob := RawStr;
+          end
+          else
+            Param.Value := ConvertedValue.AsVariant;
         end;
         else
           Param.Value := ConvertedValue.AsVariant;
@@ -328,13 +387,44 @@ begin
       end;
       tkFloat:
       begin
-        Param.DataType := ftFloat;
-        Param.AsFloat := AValue.AsExtended;
+        if AValue.TypeInfo = TypeInfo(TDateTime) then
+        begin
+          Param.DataType := ftDateTime;
+          Param.AsDateTime := AValue.AsType<TDateTime>;
+        end
+        else if AValue.TypeInfo = TypeInfo(TDate) then
+        begin
+          Param.DataType := ftDate;
+          Param.AsDate := AValue.AsType<TDate>;
+        end
+        else if AValue.TypeInfo = TypeInfo(TTime) then
+        begin
+          Param.DataType := ftTime;
+          Param.AsTime := AValue.AsType<TTime>;
+        end
+        else
+        begin
+          Param.DataType := ftFloat;
+          Param.AsFloat := AValue.AsExtended;
+        end;
       end;
       tkString, tkUString, tkWString, tkChar, tkWChar:
       begin
-        Param.DataType := ftString;
-        Param.AsString := AValue.AsString;
+        Param.AsWideString := AValue.AsString;
+      end;
+      tkDynArray:
+      begin
+        if AValue.TypeInfo = TypeInfo(TBytes) then
+        begin
+           var Bytes := AValue.AsType<TBytes>;
+           var RawStr: RawByteString;
+           SetLength(RawStr, Length(Bytes));
+           if Length(Bytes) > 0 then
+             Move(Bytes[0], RawStr[1], Length(Bytes));
+           Param.AsBlob := RawStr;
+        end
+        else
+          Param.Value := AValue.AsVariant;
       end;
       tkEnumeration:
       begin
@@ -487,13 +577,44 @@ begin
         end;
         tkFloat:
         begin
-          Param.DataType := ftFloat;
-          Param.AsFloats[i] := Val.AsExtended;
+          if Val.TypeInfo = TypeInfo(TDateTime) then
+          begin
+            Param.DataType := ftDateTime;
+            Param.AsDateTimes[i] := Val.AsType<TDateTime>;
+          end
+          else if Val.TypeInfo = TypeInfo(TDate) then
+          begin
+            Param.DataType := ftDate;
+            Param.AsDates[i] := Val.AsType<TDate>;
+          end
+          else if Val.TypeInfo = TypeInfo(TTime) then
+          begin
+            Param.DataType := ftTime;
+            Param.AsTimes[i] := Val.AsType<TTime>;
+          end
+          else
+          begin
+            Param.DataType := ftFloat;
+            Param.AsFloats[i] := Val.AsExtended;
+          end;
         end;
         tkString, tkUString, tkWString, tkChar, tkWChar:
         begin
-          Param.DataType := ftString;
-          Param.AsStrings[i] := Val.AsString;
+          Param.AsWideStrings[i] := Val.AsString;
+        end;
+        tkDynArray:
+        begin
+          if Val.TypeInfo = TypeInfo(TBytes) then
+          begin
+            var Bytes := Val.AsType<TBytes>;
+            var RawStr: RawByteString;
+            SetLength(RawStr, Length(Bytes));
+            if Length(Bytes) > 0 then
+              Move(Bytes[0], RawStr[1], Length(Bytes));
+            Param.AsBlobs[i] := RawStr;
+          end
+          else
+            Param.Values[i] := Val.AsVariant;
         end;
         tkEnumeration:
         begin
@@ -529,17 +650,48 @@ begin
                    Param.DataType := ftLargeInt;
                    Param.AsLargeInts[i] := InnerVal.AsInt64;
                  end;
-                 tkFloat:
-                 begin
-                   Param.DataType := ftFloat;
-                   Param.AsFloats[i] := InnerVal.AsExtended;
-                 end;
-                 tkString, tkUString, tkWString:
-                 begin
-                   Param.DataType := ftString;
-                   Param.AsStrings[i] := InnerVal.AsString;
-                 end;
-                 tkEnumeration:
+                  tkFloat:
+                  begin
+                    if InnerVal.TypeInfo = TypeInfo(TDateTime) then
+                    begin
+                      Param.DataType := ftDateTime;
+                      Param.AsDateTimes[i] := InnerVal.AsType<TDateTime>;
+                    end
+                    else if InnerVal.TypeInfo = TypeInfo(TDate) then
+                    begin
+                      Param.DataType := ftDate;
+                      Param.AsDates[i] := InnerVal.AsType<TDate>;
+                    end
+                    else if InnerVal.TypeInfo = TypeInfo(TTime) then
+                    begin
+                      Param.DataType := ftTime;
+                      Param.AsTimes[i] := InnerVal.AsType<TTime>;
+                    end
+                    else
+                    begin
+                      Param.DataType := ftFloat;
+                      Param.AsFloats[i] := InnerVal.AsExtended;
+                    end;
+                  end;
+                  tkString, tkUString, tkWString:
+                  begin
+                    Param.AsWideStrings[i] := InnerVal.AsString;
+                  end;
+                  tkDynArray:
+                  begin
+                    if InnerVal.TypeInfo = TypeInfo(TBytes) then
+                    begin
+                      var Bytes := InnerVal.AsType<TBytes>;
+                      var RawStr: RawByteString;
+                      SetLength(RawStr, Length(Bytes));
+                      if Length(Bytes) > 0 then
+                        Move(Bytes[0], RawStr[1], Length(Bytes));
+                      Param.AsBlobs[i] := RawStr;
+                    end
+                    else
+                      Param.Values[i] := InnerVal.AsVariant;
+                  end;
+                  tkEnumeration:
                    if InnerVal.TypeInfo = TypeInfo(Boolean) then
                    begin
                      Param.DataType := ftBoolean;

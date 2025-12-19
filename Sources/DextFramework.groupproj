@@ -12,9 +12,6 @@
         <Projects Include="Dext.Web.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj">
-            <Dependencies/>
-        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -50,23 +47,14 @@
     <Target Name="Dext_Web_Core:Make">
         <MSBuild Projects="Dext.Web.Core.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Orm_EntityDemo">
-        <MSBuild Projects="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj"/>
-    </Target>
-    <Target Name="Orm_EntityDemo:Clean">
-        <MSBuild Projects="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Orm_EntityDemo:Make">
-        <MSBuild Projects="..\Examples\Orm.EntityDemo\Orm.EntityDemo.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;Orm_EntityDemo"/>
+        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Orm_EntityDemo:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Orm_EntityDemo:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

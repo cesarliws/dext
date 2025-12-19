@@ -425,7 +425,15 @@ begin
   for i := 0 to Reader.GetColumnCount - 1 do
   begin
     ColName := Reader.GetColumnName(i);
-    Val := Reader.GetValue(i);
+    try
+      Val := Reader.GetValue(i);
+    except
+      on E: Exception do
+      begin
+        WriteLn(Format('ERROR getting value for col %s: %s', [ColName, E.Message]));
+        raise;
+      end;
+    end;
     if FProps.TryGetValue(ColName.ToLower, Prop) then
     begin
       try
@@ -960,11 +968,19 @@ begin
     for var Pair in Generator.Params do
       Cmd.AddParam(Pair.Key, Pair.Value);
     
-    Reader := Cmd.ExecuteQuery;
-    while Reader.Next do
-    begin
-      Entity := Hydrate(Reader, Tracking);
-      Result.Add(Entity);
+    try
+      Reader := Cmd.ExecuteQuery;
+      while Reader.Next do
+      begin
+        Entity := Hydrate(Reader, Tracking);
+        Result.Add(Entity);
+      end;
+    except
+      on E: Exception do
+      begin
+        WriteLn('ERROR in TDbSet.List during fetch: ' + E.Message);
+        raise;
+      end;
     end;
 
     if (ASpec <> nil) and (Length(ASpec.GetIncludes) > 0) then

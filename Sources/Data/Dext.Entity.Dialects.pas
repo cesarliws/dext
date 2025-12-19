@@ -464,10 +464,9 @@ begin
     Exit('INTEGER'); // SQLite AutoInc must be INTEGER PRIMARY KEY
 
   case ATypeInfo.Kind of
-    tkInteger, tkInt64: Result := 'INTEGER';
     tkFloat: 
       begin
-        if ATypeInfo = TypeInfo(TDateTime) then Result := 'REAL' // Or TEXT/INTEGER depending on storage pref
+        if ATypeInfo = TypeInfo(TDateTime) then Result := 'REAL'
         else if ATypeInfo = TypeInfo(TDate) then Result := 'REAL'
         else if ATypeInfo = TypeInfo(TTime) then Result := 'REAL'
         else Result := 'REAL';
@@ -475,12 +474,17 @@ begin
     tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'TEXT';
     tkEnumeration:
       begin
-        if ATypeInfo = TypeInfo(Boolean) then Result := 'INTEGER' // 0 or 1
-        else Result := 'INTEGER'; // Store Enums as Ints by default
+        if ATypeInfo = TypeInfo(Boolean) then Result := 'INTEGER'
+        else Result := 'INTEGER';
       end;
-    tkVariant: Result := 'BLOB'; // Fallback
+    tkDynArray:
+      begin
+        if ATypeInfo = TypeInfo(TBytes) then Result := 'BLOB'
+        else Result := 'TEXT';
+      end;
+    tkVariant: Result := 'BLOB';
   else
-    Result := 'TEXT'; // Default fallback
+    Result := 'TEXT';
   end;
 end;
 
@@ -530,13 +534,20 @@ begin
         else if ATypeInfo = TypeInfo(Single) then Result := 'REAL'
         else if ATypeInfo = TypeInfo(Currency) then Result := 'MONEY'
         else if ATypeInfo = TypeInfo(TDateTime) then Result := 'TIMESTAMP'
+        else if ATypeInfo = TypeInfo(TDate) then Result := 'DATE'
+        else if ATypeInfo = TypeInfo(TTime) then Result := 'TIME'
         else Result := 'DOUBLE PRECISION';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'VARCHAR(255)'; // Default length
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'TEXT';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'BOOLEAN'
         else Result := 'INTEGER';
+      end;
+    tkDynArray:
+      begin
+        if ATypeInfo = TypeInfo(TBytes) then Result := 'BYTEA'
+        else Result := 'TEXT';
       end;
     tkRecord:
       begin
@@ -592,17 +603,24 @@ begin
         else if ATypeInfo = TypeInfo(Single) then Result := 'FLOAT'
         else if ATypeInfo = TypeInfo(Currency) then Result := 'DECIMAL(18,4)'
         else if ATypeInfo = TypeInfo(TDateTime) then Result := 'TIMESTAMP'
+        else if ATypeInfo = TypeInfo(TDate) then Result := 'DATE'
+        else if ATypeInfo = TypeInfo(TTime) then Result := 'TIME'
         else Result := 'DOUBLE PRECISION';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'VARCHAR(255)';
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'BLOB SUB_TYPE TEXT';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'BOOLEAN'
         else Result := 'INTEGER';
       end;
+    tkDynArray:
+      begin
+        if ATypeInfo = TypeInfo(TBytes) then Result := 'BLOB'
+        else Result := 'BLOB SUB_TYPE TEXT';
+      end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)' // No native UUID in FB3, FB4 has BINARY(16)
+        if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)'
         else Result := 'VARCHAR(255)';
       end;
   else
@@ -659,13 +677,20 @@ begin
         else if ATypeInfo = TypeInfo(Single) then Result := 'REAL'
         else if ATypeInfo = TypeInfo(Currency) then Result := 'MONEY'
         else if ATypeInfo = TypeInfo(TDateTime) then Result := 'DATETIME2'
+        else if ATypeInfo = TypeInfo(TDate) then Result := 'DATE'
+        else if ATypeInfo = TypeInfo(TTime) then Result := 'TIME'
         else Result := 'FLOAT';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'NVARCHAR(255)';
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'NVARCHAR(MAX)';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'BIT'
         else Result := 'INT';
+      end;
+    tkDynArray:
+      begin
+        if ATypeInfo = TypeInfo(TBytes) then Result := 'VARBINARY(MAX)'
+        else Result := 'NVARCHAR(MAX)';
       end;
     tkRecord:
       begin
@@ -741,13 +766,20 @@ begin
         else if ATypeInfo = TypeInfo(Single) then Result := 'FLOAT'
         else if ATypeInfo = TypeInfo(Currency) then Result := 'DECIMAL(15,2)'
         else if ATypeInfo = TypeInfo(TDateTime) then Result := 'DATETIME'
+        else if ATypeInfo = TypeInfo(TDate) then Result := 'DATE'
+        else if ATypeInfo = TypeInfo(TTime) then Result := 'TIME'
         else Result := 'DOUBLE';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'VARCHAR(255)';
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'LONGTEXT';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'TINYINT(1)'
         else Result := 'INT';
+      end;
+    tkDynArray:
+      begin
+        if ATypeInfo = TypeInfo(TBytes) then Result := 'LONGBLOB'
+        else Result := 'LONGTEXT';
       end;
     tkRecord:
       begin
@@ -813,17 +845,24 @@ begin
         else if ATypeInfo = TypeInfo(Single) then Result := 'BINARY_FLOAT'
         else if ATypeInfo = TypeInfo(Currency) then Result := 'NUMBER(19,4)'
         else if ATypeInfo = TypeInfo(TDateTime) then Result := 'TIMESTAMP'
+        else if ATypeInfo = TypeInfo(TDate) then Result := 'DATE'
+        else if ATypeInfo = TypeInfo(TTime) then Result := 'TIMESTAMP' // Oracle TIME? usually TIMESTAMP or DATE
         else Result := 'BINARY_DOUBLE';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'VARCHAR2(255)';
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'CLOB';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'NUMBER(1)'
         else Result := 'NUMBER(10)';
       end;
+    tkDynArray:
+      begin
+        if ATypeInfo = TypeInfo(TBytes) then Result := 'BLOB'
+        else Result := 'CLOB';
+      end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'VARCHAR2(36)' // Or RAW(16)
+        if ATypeInfo = TypeInfo(TGUID) then Result := 'VARCHAR2(36)'
         else Result := 'VARCHAR2(4000)';
       end;
   else

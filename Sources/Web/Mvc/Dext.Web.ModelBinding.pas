@@ -207,7 +207,8 @@ type
 implementation
 
 uses
-  System.NetEncoding;
+  System.NetEncoding,
+  Dext.Core.DateUtils;
 
 { BindingAttribute }
 
@@ -651,81 +652,10 @@ begin
       begin
         FieldValue := Headers[HeaderKey];
 
-        // ✅ MESMA CONVERSÃO ROBUSTA
+        // ✅ USAR CONVERSÃO ROBUSTA
         try
-          case Field.FieldType.TypeKind of
-            tkInteger:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<Integer>(StrToIntDef(FieldValue, 0)));
-
-            tkInt64:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<Int64>(StrToInt64Def(FieldValue, 0)));
-
-            tkFloat:
-              begin
-                if Field.FieldType.Handle = TypeInfo(TDateTime) then
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.From<TDateTime>(StrToDateTimeDef(FieldValue, 0)))
-                else
-                begin
-                  var FloatValue: Double;
-                  if TryStrToFloat(FieldValue, FloatValue, TFormatSettings.Invariant) then
-                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(FloatValue))
-                  else
-                    Field.SetValue(Result.GetReferenceToRawData, TValue.From<Double>(0));
-                end;
-              end;
-
-            tkString, tkLString, tkWString, tkUString:
-              Field.SetValue(Result.GetReferenceToRawData,
-                TValue.From<string>(FieldValue));
-
-            tkEnumeration:
-              begin
-                if Field.FieldType.Handle = TypeInfo(Boolean) then
-                begin
-                  var BoolValue := SameText(FieldValue, 'true') or
-                                   SameText(FieldValue, '1') or
-                                   SameText(FieldValue, 'yes') or
-                                   SameText(FieldValue, 'on');
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.From<Boolean>(BoolValue));
-                end
-                else
-                begin
-                  Field.SetValue(Result.GetReferenceToRawData,
-                    TValue.FromOrdinal(Field.FieldType.Handle,
-                      StrToIntDef(FieldValue, 0)));
-                end;
-              end;
-
-            tkRecord:
-              begin
-                if Field.FieldType.Handle = TypeInfo(TGUID) then
-                begin
-                  var GuidValue: TGUID;
-                  var GuidStr := FieldValue.Trim;
-
-                  try
-                    if GuidStr.StartsWith('{') and GuidStr.EndsWith('}') then
-                      GuidValue := StringToGUID(GuidStr)
-                    else if GuidStr.Length = 36 then
-                      GuidValue := StringToGUID('{' + GuidStr + '}')
-                    else
-                      GuidValue := StringToGUID(GuidStr);
-
-                    Field.SetValue(Result.GetReferenceToRawData,
-                      TValue.From<TGUID>(GuidValue));
-                  except
-                    on E: EConvertError do
-                      Field.SetValue(Result.GetReferenceToRawData,
-                        TValue.From<TGUID>(TGUID.Empty));
-                  end;
-                end;
-              end;
-          end; // case
-
+          var Val := ConvertStringToType(FieldValue, Field.FieldType.Handle);
+          Field.SetValue(Result.GetReferenceToRawData, Val);
         except
           on E: Exception do
           begin
@@ -995,15 +925,24 @@ begin
     case AType.Kind of
       tkInteger: Result := TValue.From<Integer>(StrToIntDef(AValue, 0));
       tkInt64: Result := TValue.From<Int64>(StrToInt64Def(AValue, 0));
+
       tkFloat:
         begin
-          if AType = TypeInfo(TDateTime) then
-            Result := TValue.From<TDateTime>(StrToDateTimeDef(AValue, 0))
+          var Dt: TDateTime;
+          if (AType = TypeInfo(TDateTime)) or (AType = TypeInfo(TDate)) or (AType = TypeInfo(TTime)) then
+          begin
+            if TryParseCommonDate(AValue, Dt) then
+              Result := TValue.From<TDateTime>(Dt)
+            else
+              Result := TValue.From<TDateTime>(0);
+          end
           else
           begin
             var F: Double;
             if TryStrToFloat(AValue, F, TFormatSettings.Invariant) then
               Result := TValue.From<Double>(F)
+            else if TryParseCommonDate(AValue, Dt) then
+              Result := TValue.From<TDateTime>(Dt)
             else
               Result := TValue.From<Double>(0);
           end;

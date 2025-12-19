@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{42BED2E0-CA2D-4F52-BF35-9F9008B226A5}</ProjectGuid>
         <MainSource>Dext.Core.dpk</MainSource>
@@ -159,6 +159,7 @@
         <DCCReference Include="Core\Dext.Threading.Async.pas"/>
         <DCCReference Include="Core\Dext.Validation.pas"/>
         <DCCReference Include="Core\Dext.MM.pas"/>
+        <DCCReference Include="Core\Base\Dext.Core.DateUtils.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

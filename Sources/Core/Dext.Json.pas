@@ -397,6 +397,7 @@ implementation
 uses
   System.DateUtils,
   System.Variants,
+  Dext.Core.DateUtils,
   Dext.Json.Driver.JsonDataObjects; // Default driver
 
 const
@@ -435,131 +436,6 @@ end;
 function JsonStringToInt(const Value: string): Int64;
 begin
   Result := StrToInt64Def(Value, 0);
-end;
-
-function TryParseISODateTime(const Value: string; out DateTime: TDateTime): Boolean;
-var
-  FormatSettings: TFormatSettings;
-  Year, Month, Day, Hour, Min, Sec, MSec: Word;
-  Parts: TArray<string>;
-  DatePart, TimePart: string;
-begin
-  Result := False;
-  FormatSettings := TFormatSettings.Create;
-  FormatSettings.DateSeparator := '-';
-  FormatSettings.TimeSeparator := ':';
-  FormatSettings.ShortDateFormat := 'yyyy-mm-dd';
-  FormatSettings.LongDateFormat := 'yyyy-mm-dd"T"hh:nn:ss.zzz';
-
-  if Value = '' then
-    Exit;
-
-  try
-    if Length(Value) >= 19 then
-    begin
-      DatePart := Copy(Value, 1, 10);
-      TimePart := Copy(Value, 12, 12);
-
-      Parts := DatePart.Split(['-']);
-      if Length(Parts) = 3 then
-      begin
-        Year := StrToInt(Parts[0]);
-        Month := StrToInt(Parts[1]);
-        Day := StrToInt(Parts[2]);
-
-        if (Length(TimePart) >= 8) and (TimePart[3] = ':') and (TimePart[6] = ':') then
-        begin
-          Hour := StrToInt(Copy(TimePart, 1, 2));
-          Min := StrToInt(Copy(TimePart, 4, 2));
-          Sec := StrToInt(Copy(TimePart, 7, 2));
-
-          if (Length(TimePart) > 8) and (TimePart[9] = '.') then
-            MSec := StrToInt(Copy(TimePart, 10, 3))
-          else
-            MSec := 0;
-
-          DateTime := EncodeDateTime(Year, Month, Day, Hour, Min, Sec, MSec);
-          Result := True;
-          Exit;
-        end;
-      end;
-    end;
-
-    if Length(Value) = 10 then
-    begin
-      Parts := Value.Split(['-']);
-      if Length(Parts) = 3 then
-      begin
-        Year := StrToInt(Parts[0]);
-        Month := StrToInt(Parts[1]);
-        Day := StrToInt(Parts[2]);
-        DateTime := EncodeDate(Year, Month, Day);
-        Result := True;
-        Exit;
-      end;
-    end;
-
-    DateTime := StrToDateTimeDef(Value, 0, FormatSettings);
-    Result := DateTime <> 0;
-
-  except
-    Result := False;
-  end;
-end;
-
-function TryParseCommonDate(const Value: string; out DateTime: TDateTime): Boolean;
-var
-  FormatSettings: TFormatSettings;
-  Parts: TArray<string>;
-  Year, Month, Day: Word;
-begin
-  if TryParseISODateTime(Value, DateTime) then
-    Exit(True);
-
-  FormatSettings := TFormatSettings.Create;
-
-  FormatSettings.DateSeparator := '/';
-  FormatSettings.ShortDateFormat := 'dd/mm/yyyy';
-  DateTime := StrToDateTimeDef(Value, 0, FormatSettings);
-  if DateTime <> 0 then
-    Exit(True);
-
-  FormatSettings.ShortDateFormat := 'mm/dd/yyyy';
-  DateTime := StrToDateTimeDef(Value, 0, FormatSettings);
-  if DateTime <> 0 then
-    Exit(True);
-
-  FormatSettings.ShortDateFormat := 'yyyy/mm/dd';
-  DateTime := StrToDateTimeDef(Value, 0, FormatSettings);
-  if DateTime <> 0 then
-    Exit(True);
-
-  Parts := Value.Split(['/', '-']);
-  if Length(Parts) = 3 then
-  begin
-    try
-      Day := StrToInt(Parts[0]);
-      Month := StrToInt(Parts[1]);
-      Year := StrToInt(Parts[2]);
-      if (Year > 1900) and (Year < 2100) and (Month >= 1) and (Month <= 12) and (Day >= 1) and (Day <= 31) then
-      begin
-        DateTime := EncodeDate(Year, Month, Day);
-        Exit(True);
-      end;
-
-      Month := StrToInt(Parts[0]);
-      Day := StrToInt(Parts[1]);
-      Year := StrToInt(Parts[2]);
-      if (Year > 1900) and (Year < 2100) and (Month >= 1) and (Month <= 12) and (Day >= 1) and (Day <= 31) then
-      begin
-        DateTime := EncodeDate(Year, Month, Day);
-        Exit(True);
-      end;
-    except
-    end;
-  end;
-
-  Result := False;
 end;
 
 { JsonNameAttribute }
@@ -689,7 +565,7 @@ begin
     tkInt64:
       Result := TValue.From<Int64>(Deserialize<Int64>(AJson));
     tkFloat:
-      if AType = TypeInfo(TDateTime) then
+      if (AType = TypeInfo(TDateTime)) or (AType = TypeInfo(TDate)) or (AType = TypeInfo(TTime)) then
         Result := TValue.From<TDateTime>(Deserialize<TDateTime>(AJson))
       else
         Result := TValue.From<Double>(Deserialize<Double>(AJson));
@@ -899,17 +775,58 @@ begin
           
         tkFloat:
           begin
-             if Prop.PropertyType.Handle = TypeInfo(TDateTime) then
-             begin
-               var DtStr := AJson.GetString(ActualPropName);
-               var DtVal: TDateTime;
-               if TryParseCommonDate(DtStr, DtVal) then
-                 PropValue := TValue.From<TDateTime>(DtVal)
-               else
-                 PropValue := TValue.Empty;
-             end
-             else
-               PropValue := TValue.From<Double>(AJson.GetDouble(ActualPropName));
+            var Node := AJson.GetNode(ActualPropName);
+            if (Node <> nil) and (Node.GetNodeType = jntString) then
+            begin
+              var DtStr := Node.AsString;
+              var DtVal: TDateTime;
+              if TryParseCommonDate(DtStr, DtVal) then
+                PropValue := TValue.From<TDateTime>(DtVal)
+              else
+              begin
+                try
+                  PropValue := TValue.From<Double>(Node.AsDouble);
+                except
+                  PropValue := TValue.From<Double>(0);
+                end;
+              end;
+            end
+            else if (Prop.PropertyType.Handle = TypeInfo(TDateTime)) or 
+                    (Prop.PropertyType.Handle = TypeInfo(TDate)) or 
+                    (Prop.PropertyType.Handle = TypeInfo(TTime)) then
+            begin
+              var DtStr := AJson.GetString(ActualPropName);
+              if DtStr = '' then
+                PropValue := TValue.From<Double>(0)
+              else
+              begin
+                var DtVal: TDateTime;
+                if TryParseCommonDate(DtStr, DtVal) then
+                  PropValue := TValue.From<TDateTime>(DtVal)
+                else
+                begin
+                   try
+                     PropValue := TValue.From<Double>(AJson.GetDouble(ActualPropName));
+                   except
+                     PropValue := TValue.From<Double>(0);
+                   end;
+                end;
+              end;
+            end
+            else
+            begin
+              try
+                PropValue := TValue.From<Double>(AJson.GetDouble(ActualPropName));
+              except
+                PropValue := TValue.From<Double>(0);
+              end;
+            end;
+          end;
+                  PropValue := TValue.From<Double>(AJson.GetDouble(ActualPropName));
+              end;
+            end
+            else
+              PropValue := TValue.From<Double>(AJson.GetDouble(ActualPropName));
           end;
           
         tkString, tkLString, tkWString, tkUString:
@@ -1057,18 +974,53 @@ begin
 
         tkFloat:
           begin
-            if Field.FieldType.Handle = TypeInfo(TDateTime) then
+            var Node := AJson.GetNode(ActualFieldName);
+            if (Node <> nil) and (Node.GetNodeType = jntString) then
             begin
-              var DateStr := AJson.GetString(ActualFieldName);
+              var DateStr := Node.AsString;
               var DateValue: TDateTime;
-
               if TryParseCommonDate(DateStr, DateValue) then
                 FieldValue := TValue.From<TDateTime>(DateValue)
               else
-                FieldValue := TValue.Empty;
+              begin
+                // Fallback: try as double, but catch exception
+                try
+                  FieldValue := TValue.From<Double>(Node.AsDouble);
+                except
+                  FieldValue := TValue.From<Double>(0);
+                end;
+              end;
+            end
+            else if (Field.FieldType.Handle = TypeInfo(TDateTime)) or 
+                    (Field.FieldType.Handle = TypeInfo(TDate)) or 
+                    (Field.FieldType.Handle = TypeInfo(TTime)) then
+            begin
+              var DateStr := AJson.GetString(ActualFieldName);
+              if DateStr = '' then
+                FieldValue := TValue.From<Double>(0)
+              else
+              begin
+                var DateValue: TDateTime;
+                if TryParseCommonDate(DateStr, DateValue) then
+                  FieldValue := TValue.From<TDateTime>(DateValue)
+                else
+                begin
+                   try
+                     FieldValue := TValue.From<Double>(AJson.GetDouble(ActualFieldName));
+                   except
+                     FieldValue := TValue.From<Double>(0);
+                   end;
+                end;
+              end;
             end
             else
-              FieldValue := TValue.From<Double>(AJson.GetDouble(ActualFieldName));
+            begin
+              try
+                FieldValue := TValue.From<Double>(AJson.GetDouble(ActualFieldName));
+              except
+                FieldValue := TValue.From<Double>(0);
+              end;
+            end;
           end;
 
         tkString, tkLString, tkWString, tkUString:
@@ -1228,8 +1180,17 @@ begin
 
       tkFloat:
         begin
-          if AType = TypeInfo(TDateTime) then
-            Result := TValue.From<TDateTime>(StrToDateTimeDef(AJson.GetString(ValueField), 0))
+          if (AType = TypeInfo(TDateTime)) or 
+             (AType = TypeInfo(TDate)) or 
+             (AType = TypeInfo(TTime)) then
+          begin
+            var DtStr := AJson.GetString(ValueField);
+            var DtVal: TDateTime;
+            if TryParseCommonDate(DtStr, DtVal) then
+              Result := TValue.From<TDateTime>(DtVal)
+            else
+              Result := TValue.From<TDateTime>(0);
+          end
           else
             Result := TValue.From<Double>(AJson.GetDouble(ValueField));
         end;
@@ -1366,7 +1327,9 @@ begin
 
         tkFloat:
           begin
-            if FieldValue.TypeInfo = TypeInfo(TDateTime) then
+          if (FieldValue.TypeInfo = TypeInfo(TDateTime)) or 
+             (FieldValue.TypeInfo = TypeInfo(TDate)) or 
+             (FieldValue.TypeInfo = TypeInfo(TTime)) then
             begin
               if HasCustomFormat then
                 Result.SetString(FieldName, FormatDateTime(CustomFormat, FieldValue.AsExtended))
@@ -1505,7 +1468,9 @@ begin
 
         tkFloat:
           begin
-            if PropValue.TypeInfo = TypeInfo(TDateTime) then
+            if (PropValue.TypeInfo = TypeInfo(TDateTime)) or 
+               (PropValue.TypeInfo = TypeInfo(TDate)) or 
+               (PropValue.TypeInfo = TypeInfo(TTime)) then
               Result.SetString(PropName, FormatDateTime(FSettings.DateFormat, PropValue.AsExtended))
             else
               Result.SetDouble(PropName, PropValue.AsExtended);
