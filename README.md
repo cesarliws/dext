@@ -43,6 +43,10 @@ A modern ORM focused on productivity and performance.
 - **Change Tracking**: Automatic change tracking and optimized persistence.
 - **Advanced Types**: Native support for UUID/GUID, Enums (as string or int), JSON/JSONB, and Arrays.
 - **Multi-Database**: Support for SQL Server, PostgreSQL, Firebird, MySQL, Oracle, and SQLite.
+- **High-Performance Drivers**:
+  - **Standard FireDAC Driver**: Full-featured with TDataSet compatibility
+  - **FireDAC Phys Driver**: "Bare metal" access bypassing TDataSet for maximum performance
+  - Direct access to FireDAC's physical layer (IFDPhysConnection) for ultra-fast queries
 
 ### ⚙️ Dext.Core (Infrastructure)
 The foundation of the framework, usable in any type of application.
@@ -53,6 +57,11 @@ The foundation of the framework, usable in any type of application.
 - **Collections**: Advanced generic collections with functional extensions.
 - **Specifications**: Business rule encapsulation and composition (DDD).
 - **Expressions**: Expression tree primitives for dynamic logic evaluation.
+- **JSON Serialization**:
+  - **High-Performance UTF-8**: Direct UTF-8 serialization/deserialization without intermediate string conversions
+  - **Zero-Copy Parsing**: Optimized for minimal memory allocations
+  - **Smart Type Support**: Native handling of GUID, Enums, DateTime, and custom types
+  - **Pluggable Drivers**: Support for JsonDataObjects (default) and System.JSON
 
 ---
 
