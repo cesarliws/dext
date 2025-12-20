@@ -15,6 +15,9 @@
         <Projects Include="..\Tests\Entity\TestFireDACPhysDriver.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="..\Examples\Core.TestConfig\Core.TestConfig.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -59,14 +62,23 @@
     <Target Name="TestFireDACPhysDriver:Make">
         <MSBuild Projects="..\Tests\Entity\TestFireDACPhysDriver.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Core_TestConfig">
+        <MSBuild Projects="..\Examples\Core.TestConfig\Core.TestConfig.dproj"/>
+    </Target>
+    <Target Name="Core_TestConfig:Clean">
+        <MSBuild Projects="..\Examples\Core.TestConfig\Core.TestConfig.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Core_TestConfig:Make">
+        <MSBuild Projects="..\Examples\Core.TestConfig\Core.TestConfig.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;TestFireDACPhysDriver"/>
+        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;TestFireDACPhysDriver;Core_TestConfig"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;TestFireDACPhysDriver:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;TestFireDACPhysDriver:Clean;Core_TestConfig:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;TestFireDACPhysDriver:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;TestFireDACPhysDriver:Make;Core_TestConfig:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

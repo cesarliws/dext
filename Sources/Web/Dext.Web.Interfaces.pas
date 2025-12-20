@@ -107,10 +107,12 @@ type
     procedure SetServices(const AValue: IServiceProvider);
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
+    function GetItems: TDictionary<string, TValue>;
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
+    property Items: TDictionary<string, TValue> read GetItems;
   end;
 
   IMiddleware = interface

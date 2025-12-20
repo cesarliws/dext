@@ -29,6 +29,7 @@ Um framework HTTP leve e poderoso para construir REST APIs e microserviços.
 - **Controllers**: Suporte tradicional baseado em classes para APIs complexas.
 - **Smart Binding**: Serialização e validação automática de JSON para Records/Classes.
 - **Middlewares**: Pipeline de requisição modular e extensível.
+- **SSL/HTTPS**: Suporte plugável para OpenSSL e TaurusTLS (OpenSSL 1.1x/3.x).
 - **Smart JSON**: Suporte nativo para TGUID/UUID, Enums e tipos avançados na serialização JSON.
 - **OpenAPI**: Integração nativa com Swagger e geração automática de documentação.
 
@@ -74,6 +75,7 @@ A fundação do framework, utilizável em qualquer tipo de aplicação.
   - [Validação](Docs/model-binding.md) # (Inclui validação)
 - **Segurança & Middleware**
   - [Autenticação JWT](Docs/jwt-authentication.md)
+  - [Configuração HTTPS/SSL](Examples/Web.SslDemo/README.pt-br.md)
   - [CORS](Docs/cors.md)
   - [Rate Limiting](Docs/rate-limiting.md)
 - **Avançado**
@@ -261,6 +263,7 @@ O repositório contém projetos de exemplo práticos:
 - **`Examples/Web.ControllerExample`**: Demonstra implementação de API baseada em Controllers (inclui um cliente web em **Vite**).
 - **`Examples/Web.SwaggerExample`**: Mostra como integrar e customizar a documentação OpenAPI/Swagger.
 - **`Examples/Web.TaskFlowAPI`**: Uma API REST "Mundo Real" completa demonstrando arquitetura em camadas, ORM, Auth e DI.
+- **`Examples/Web.SslDemo`**: Demonstra configuração de SSL/HTTPS usando OpenSSL ou TaurusTLS.
 - **`Examples/Dext.Starter.Admin`**: **(Recomendado)** Um Painel Administrativo Moderno com HTMX, Camada de Serviço e Minimal APIs. [Leia o Guia](Examples/Dext.Starter.Admin/README.md).
 
 ---

@@ -31,6 +31,7 @@ A lightweight and powerful HTTP framework for building REST APIs and microservic
 - **Controllers**: Traditional class-based support for complex APIs.
 - **Smart Binding**: Automatic JSON serialization and validation for Records/Classes.
 - **Middlewares**: Modular and extensible request pipeline.
+- **SSL/HTTPS**: Pluggable support for OpenSSL and TaurusTLS (OpenSSL 1.1x/3.x).
 - **Smart JSON**: Native support for TGUID/UUID, Enums, and advanced types in JSON serialization.
 - **OpenAPI**: Native Swagger integration with auto-generated documentation.
 
@@ -76,6 +77,7 @@ The foundation of the framework, usable in any type of application.
   - [Validation](Docs/model-binding.md) # (Includes validation)
 - **Security & Middleware**
   - [JWT Authentication](Docs/jwt-authentication.md)
+  - [HTTPS/SSL Configuration](Examples/Web.SslDemo/README.md)
   - [CORS](Docs/cors.md)
   - [Rate Limiting](Docs/rate-limiting.md)
 - **Advanced**
@@ -263,6 +265,7 @@ The repository contains practical example projects:
 - **`Examples/Web.ControllerExample`**: Demonstrates Controller-based API implementation (includes a minimal **Vite** frontend client).
 - **`Examples/Web.SwaggerExample`**: Shows how to integrate and customize OpenAPI/Swagger documentation.
 - **`Examples/Web.TaskFlowAPI`**: A complete "Real World" REST API demonstrating layered architecture, ORM, Auth, and DI.
+- **`Examples/Web.SslDemo`**: Demonstrates SSL/HTTPS configuration using OpenSSL or TaurusTLS.
 - **`Examples/Dext.Starter.Admin`**: **(Recommended)** A Modern Admin Panel with HTMX, Service Layer, and Minimal APIs. [Read the Guide](Examples/Dext.Starter.Admin/README.md).
 
 

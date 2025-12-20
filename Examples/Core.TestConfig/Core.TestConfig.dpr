@@ -4,6 +4,7 @@ program Core.TestConfig;
 
 uses
   Dext.MM,
+  Dext.Utils,
   System.SysUtils,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Core,
@@ -48,6 +49,7 @@ begin
 end;
 
 begin
+  SetConsoleCharSet;
   try
     RunTest;
   except

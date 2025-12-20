@@ -69,7 +69,7 @@
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <DCC_DcpOutput>..\Output\$(Platform)\$(Config)</DCC_DcpOutput>
         <DCC_BplOutput>..\Output\$(Platform)\$(Config)</DCC_BplOutput>
-        <DCC_UnitSearchPath>..\Output\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\Output\$(Platform)\$(Config);..\..\Libs\TaurusTLS;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>..\Output\$(Platform)\$(Config)</DCC_DcuOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
@@ -138,7 +138,6 @@
         <DCCReference Include="Web\Dext.Web.Cors.pas"/>
         <DCCReference Include="Web\Dext.Web.StaticFiles.pas"/>
         <DCCReference Include="Web\Dext.Web.Indy.pas"/>
-        <DCCReference Include="Web\Dext.Web.Indy.Server.pas"/>
         <DCCReference Include="Web\Dext.Web.Middleware.Logging.pas"/>
         <DCCReference Include="Web\Caching\Dext.Caching.pas"/>
         <DCCReference Include="Web\Caching\Dext.Caching.Redis.pas"/>
@@ -171,6 +170,11 @@
         <DCCReference Include="Core\Base\Dext.Core.Span.pas"/>
         <DCCReference Include="Core\Json\Dext.Json.Utf8.Serializer.pas"/>
         <DCCReference Include="Core\Json\Dext.Json.Utf8.pas"/>
+        <DCCReference Include="Web\Dext.Web.Indy.Server.pas"/>
+        <DCCReference Include="Web\Dext.Web.MultiTenancy.pas"/>
+        <DCCReference Include="Web\Indy\Dext.Web.Indy.SSL.Interfaces.pas"/>
+        <DCCReference Include="Web\Indy\Dext.Web.Indy.SSL.OpenSSL.pas"/>
+        <DCCReference Include="Web\Indy\Dext.Web.Indy.SSL.Taurus.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

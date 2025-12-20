@@ -24,27 +24,32 @@
 {                                                                           }
 {***************************************************************************}
 unit Dext.Web.Indy.Server;
+{$I ..\Dext.inc}
 
 interface
 
 uses
   System.Classes, System.SysUtils, IdHTTPServer, IdContext, IdCustomHTTPServer,
-  Dext.Web.Interfaces, Dext.DI.Interfaces;
+  Dext.Web.Interfaces, Dext.DI.Interfaces, Dext.Web.Indy.SSL.Interfaces;
 
-  type
+type
   TIndyWebServer = class(TInterfacedObject, IWebHost)
   private
     FHTTPServer: TIdHTTPServer;
     FPipeline: TRequestDelegate;
     FServices: IServiceProvider;
     FPort: Integer;
+    FSSLHandler: IIndySSLHandler;
+    
+    procedure ConfigureSecureServer;
 
     procedure HandleCommandGet(AContext: TIdContext;
       ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
     procedure HandleParseAuthentication(AContext: TIdContext;
       const AAuthType, AAuthData: string; var VUsername, VPassword: string; var Handled: Boolean);
   public
-    constructor Create(APort: Integer; APipeline: TRequestDelegate; const AServices: IServiceProvider);
+    constructor Create(APort: Integer; APipeline: TRequestDelegate; const AServices: IServiceProvider;
+      const ASSLHandler: IIndySSLHandler = nil);
     destructor Destroy; override;
 
     procedure Run;
@@ -73,12 +78,13 @@ end;
 { TIndyWebServer }
 
 constructor TIndyWebServer.Create(APort: Integer; APipeline: TRequestDelegate;
-  const AServices: IServiceProvider);
+  const AServices: IServiceProvider; const ASSLHandler: IIndySSLHandler);
 begin
   inherited Create;
   FPort := APort;
   FPipeline := APipeline;
   FServices := AServices;
+  FSSLHandler := ASSLHandler;
 
   FHTTPServer := TIdHTTPServer.Create(nil);
   FHTTPServer.DefaultPort := FPort;
@@ -88,6 +94,17 @@ begin
   FHTTPServer.ParseParams := True;
   FHTTPServer.KeepAlive := True;
   FHTTPServer.ServerSoftware := 'Dext Web Server/1.0';
+
+  if FSSLHandler <> nil then
+    ConfigureSecureServer;
+end;
+
+procedure TIndyWebServer.ConfigureSecureServer;
+begin
+  if FSSLHandler <> nil then
+  begin
+    FHTTPServer.IOHandler := FSSLHandler.CreateIOHandler(FHTTPServer);
+  end;
 end;
 
 procedure TIndyWebServer.HandleParseAuthentication(AContext: TIdContext;
@@ -135,6 +152,8 @@ begin
   begin
     FHTTPServer.Active := True;
     Writeln(Format('Dext server running on http://localhost:%d', [FPort]));
+    if FSSLHandler <> nil then
+      Writeln('HTTPS Enabled.');
     Writeln('Press Ctrl+C to stop the server...');
 
     GServerStopping := False;
@@ -143,8 +162,6 @@ begin
       while FHTTPServer.Active and (not GServerStopping) do
       begin
         Sleep(100);
-        // Also check if any key pressed to exit?
-        // For now, Ctrl+C is the standard way.
       end;
     finally
       SetConsoleCtrlHandler(@ConsoleCtrlHandler, False);
@@ -162,4 +179,3 @@ begin
 end;
 
 end.
-

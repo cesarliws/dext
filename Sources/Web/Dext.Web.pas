@@ -79,6 +79,8 @@ uses
   Dext.Web.ModelBinding,
   Dext.Web.Routing.Attributes,
   Dext.Web.WebApplication,
+  Dext.Web.Indy.SSL.Interfaces,
+  Dext.Web.Indy.SSL.OpenSSL,
   Dext.DI.Interfaces; // Added this unit
 
 type

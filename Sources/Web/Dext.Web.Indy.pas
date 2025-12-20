@@ -29,6 +29,7 @@ interface
 
 uses
   System.Classes, System.Generics.Collections, System.SysUtils, System.Generics.Defaults,
+  System.Rtti,
   IdCustomHTTPServer, IdContext, IdGlobal, IdURI, IdHeaderList,
   Dext.Web.Interfaces, Dext.DI.Interfaces, Dext.Auth.Identity;
 
@@ -79,9 +80,11 @@ type
     FResponse: IHttpResponse;
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
+    FItems: TDictionary<string, TValue>;
   public
     constructor Create(ARequestInfo: TIdHTTPRequestInfo;
       AResponseInfo: TIdHTTPResponseInfo; const AServices: IServiceProvider);
+    destructor Destroy; override;
     procedure SetRouteParams(const AParams: TDictionary<string, string>);
     function GetRequest: IHttpRequest;
     function GetResponse: IHttpResponse;
@@ -90,6 +93,7 @@ type
     procedure SetServices(const AValue: IServiceProvider);
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
+    function GetItems: TDictionary<string, TValue>;
   end;
 
 implementation
@@ -312,6 +316,13 @@ begin
   FRequest := TIndyHttpRequest.Create(ARequestInfo);
   FResponse := TIndyHttpResponse.Create(AResponseInfo);
   FServices := AServices;
+  FItems := TDictionary<string, TValue>.Create;
+end;
+
+destructor TIndyHttpContext.Destroy;
+begin
+  FItems.Free;
+  inherited;
 end;
 
 function TIndyHttpContext.GetRequest: IHttpRequest;
@@ -347,6 +358,11 @@ end;
 procedure TIndyHttpContext.SetUser(const AValue: IClaimsPrincipal);
 begin
   FUser := AValue;
+end;
+
+function TIndyHttpContext.GetItems: TDictionary<string, TValue>;
+begin
+  Result := FItems;
 end;
 
 procedure TIndyHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);

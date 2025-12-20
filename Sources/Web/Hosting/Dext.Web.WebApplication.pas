@@ -24,6 +24,7 @@
 {                                                                           }
 {***************************************************************************}
 unit Dext.Web.WebApplication;
+{$I ..\..\Dext.inc}
 
 interface
 
@@ -62,11 +63,14 @@ implementation
 uses
   System.SysUtils,
   {$IF Defined(MSWINDOWS)}
- Dext.Utils,
+  Dext.Utils,
   {$ENDIF}
   Dext.DI.Core,
   Dext.Web.Core,
   Dext.Web.Indy.Server,
+  Dext.Web.Indy.SSL.Interfaces,
+  Dext.Web.Indy.SSL.OpenSSL,
+  Dext.Web.Indy.SSL.Taurus,
   Dext.Configuration.Core,
   Dext.Configuration.Json,
   Dext.Configuration.EnvironmentVariables,
@@ -182,6 +186,7 @@ var
   WebHost: IWebHost;
   RequestHandler: TRequestDelegate;
   HostedManager: THostedServiceManager;
+  SSLHandler: IIndySSLHandler;
 begin
   // ? REBUILD ServiceProvider to include all services registered after Create()
   FServiceProvider := nil; // Release old provider
@@ -207,7 +212,25 @@ begin
   RequestHandler := FAppBuilder.Build;
 
   // Create WebHost
-  WebHost := TIndyWebServer.Create(Port, RequestHandler, FServiceProvider);
+  SSLHandler := nil;
+  var ServerSection := FConfiguration.GetSection('Server');
+  if (ServerSection <> nil) and (SameText(ServerSection['UseHttps'], 'true')) then
+  begin
+    var CertFile := ServerSection['SslCert'];
+    var KeyFile := ServerSection['SslKey'];
+    var RootFile := ServerSection['SslRootCert'];
+    
+    if (CertFile <> '') and (KeyFile <> '') then
+    begin
+      var ProviderName := ServerSection['SslProvider'];
+      if SameText(ProviderName, 'Taurus') then
+        SSLHandler := TIndyTaurusSSLHandler.Create(CertFile, KeyFile, RootFile)
+      else
+        SSLHandler := TIndyOpenSSLHandler.Create(CertFile, KeyFile, RootFile);
+    end;
+  end;
+
+  WebHost := TIndyWebServer.Create(Port, RequestHandler, FServiceProvider, SSLHandler);
 
   try
     WebHost.Run;
@@ -225,7 +248,7 @@ begin
     FServiceProvider := nil;
   end;
 
-  end;
+end;
 
 function TDextApplication.UseMiddleware(Middleware: TClass): IWebApplication;
 begin
@@ -245,5 +268,3 @@ begin
 end;
 
 end.
-
-

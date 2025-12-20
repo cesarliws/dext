@@ -56,7 +56,6 @@ contains
   Dext.Web.Cors in 'Web\Dext.Web.Cors.pas',
   Dext.Web.StaticFiles in 'Web\Dext.Web.StaticFiles.pas',
   Dext.Web.Indy in 'Web\Dext.Web.Indy.pas',
-  Dext.Web.Indy.Server in 'Web\Dext.Web.Indy.Server.pas',
   Dext.Web.Middleware.Logging in 'Web\Dext.Web.Middleware.Logging.pas',
   Dext.Caching in 'Web\Caching\Dext.Caching.pas',
   Dext.Caching.Redis in 'Web\Caching\Dext.Caching.Redis.pas',
@@ -88,6 +87,11 @@ contains
   Dext.Web.WebApplication in 'Web\Hosting\Dext.Web.WebApplication.pas',
   Dext.Core.Span in 'Core\Base\Dext.Core.Span.pas',
   Dext.Json.Utf8.Serializer in 'Core\Json\Dext.Json.Utf8.Serializer.pas',
-  Dext.Json.Utf8 in 'Core\Json\Dext.Json.Utf8.pas';
+  Dext.Json.Utf8 in 'Core\Json\Dext.Json.Utf8.pas',
+  Dext.Web.Indy.Server in 'Web\Dext.Web.Indy.Server.pas',
+  Dext.Web.MultiTenancy in 'Web\Dext.Web.MultiTenancy.pas',
+  Dext.Web.Indy.SSL.Interfaces in 'Web\Indy\Dext.Web.Indy.SSL.Interfaces.pas',
+  Dext.Web.Indy.SSL.OpenSSL in 'Web\Indy\Dext.Web.Indy.SSL.OpenSSL.pas',
+  Dext.Web.Indy.SSL.Taurus in 'Web\Indy\Dext.Web.Indy.SSL.Taurus.pas';
 
 end.
