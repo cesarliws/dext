@@ -44,17 +44,17 @@ Modelo não-bloqueante para alta concorrência no Linux.
 
 ### 3. Memory & String Optimization (Zero-Allocation)
 Eliminar o custo de conversão `UTF-8` <-> `UTF-16` (UnicodeString) no core do framework.
-- [ ] **RawUTF8 / Span<byte>**: Tipo de dados base para manipulação de strings sem conversão.
-- [ ] **Zero-Allocation Parsing**: Roteamento e Headers processados varrendo bytes diretamente.
-- [ ] **UTF-8 JSON Parser**: Novo parser JSON otimizado para ler/escrever UTF-8 diretamente, sem alocações intermediárias de strings Delphi.
+- [x] **RawUTF8 / Span<byte>**: Tipo de dados base para manipulação de strings sem conversão.
+- [x] **Zero-Allocation Parsing**: Roteamento e Headers processados varrendo bytes diretamente.
+- [x] **UTF-8 JSON Parser**: Novo parser JSON otimizado para ler/escrever UTF-8 diretamente, sem alocações intermediárias de strings Delphi.
 
 ---
 
 ## 🛠️ Core Infrastructure
 
 ### 1. Memory Optimization
-- [ ] **TSpan<T>**: Estrutura para fatiamento de arrays/memória sem alocação (essencial para o JSON Parser V2).
-- [ ] **Zero-Allocation JSON**: Parser JSON baseado em `TSpan<Byte>` (UTF-8) para evitar transcoding para UTF-16.
+- [x] **TSpan<T>**: Estrutura para fatiamento de arrays/memória sem alocação (essencial para o JSON Parser V2).
+- [x] **Zero-Allocation JSON**: Parser JSON baseado em `TSpan<Byte>` (UTF-8) para evitar transcoding para UTF-16.
 
 ### 2. Telemetry & Observability Foundation
 Base para o suporte a OpenTelemetry nos frameworks superiores.

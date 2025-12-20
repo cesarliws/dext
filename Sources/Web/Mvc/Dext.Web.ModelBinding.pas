@@ -159,7 +159,6 @@ type
 
   TModelBinder = class(TInterfacedObject, IModelBinder)
   private
-    function ReadStreamToString(Stream: TStream): string;
     function ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
   public
     constructor Create;
@@ -990,16 +989,6 @@ begin
   finally
     ContextRtti.Free;
   end;
-end;
-
-function TModelBinder.ReadStreamToString(Stream: TStream): string;
-var
-  Bytes: TBytes;
-begin
-  SetLength(Bytes, Stream.Size);
-  Stream.Position := 0;
-  Stream.Read(Bytes[0], Stream.Size);
-  Result := TEncoding.UTF8.GetString(Bytes);
 end;
 
 function TModelBinder.ConvertStringToType(const AValue: string; AType: PTypeInfo): TValue;
