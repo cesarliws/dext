@@ -51,6 +51,40 @@ type
     property Name: string read FName write FName;
   end;
 
+  // Composite Key: GUID + Integer
+  [Table('test_composite_guid_int')]
+  TCompositeGuidInt = class
+  private
+    FGuidKey: TGUID;
+    FIntKey: Integer;
+    FData: string;
+  public
+    [PK]
+    property GuidKey: TGUID read FGuidKey write FGuidKey;
+    [PK]
+    [Column('int_key')]
+    property IntKey: Integer read FIntKey write FIntKey;
+    [Column('data')]
+    property Data: string read FData write FData;
+  end;
+
+  // Composite Key: Integer + DateTime
+  [Table('test_composite_int_datetime')]
+  TCompositeIntDateTime = class
+  private
+    FId: Integer;
+    FTimestamp: TDateTime;
+    FValue: string;
+  public
+    [PK, AutoInc]
+    property Id: Integer read FId write FId;
+    [PK]
+    [Column('timestamp')]
+    property Timestamp: TDateTime read FTimestamp write FTimestamp;
+    [Column('value')]
+    property Value: string read FValue write FValue;
+  end;
+
   [Table('test_enum_entities')]
   TEnumEntity = class
   private
@@ -94,10 +128,14 @@ type
   TTestDbContext = class(TDbContext)
   private
     function GetGuidEntities: IDbSet<TGuidEntity>;
+    function GetCompositeGuidInt: IDbSet<TCompositeGuidInt>;
+    function GetCompositeIntDateTime: IDbSet<TCompositeIntDateTime>;
     function GetEnumEntities: IDbSet<TEnumEntity>;
     function GetJsonEntities: IDbSet<TJsonEntity>;
   public
     property GuidEntities: IDbSet<TGuidEntity> read GetGuidEntities;
+    property CompositeGuidInt: IDbSet<TCompositeGuidInt> read GetCompositeGuidInt;
+    property CompositeIntDateTime: IDbSet<TCompositeIntDateTime> read GetCompositeIntDateTime;
     property EnumEntities: IDbSet<TEnumEntity> read GetEnumEntities;
     property JsonEntities: IDbSet<TJsonEntity> read GetJsonEntities;
   end;
@@ -120,6 +158,16 @@ end;
 function TTestDbContext.GetGuidEntities: IDbSet<TGuidEntity>;
 begin
   Result := Entities<TGuidEntity>;
+end;
+
+function TTestDbContext.GetCompositeGuidInt: IDbSet<TCompositeGuidInt>;
+begin
+  Result := Entities<TCompositeGuidInt>;
+end;
+
+function TTestDbContext.GetCompositeIntDateTime: IDbSet<TCompositeIntDateTime>;
+begin
+  Result := Entities<TCompositeIntDateTime>;
 end;
 
 function TTestDbContext.GetEnumEntities: IDbSet<TEnumEntity>;
@@ -171,10 +219,9 @@ end;
 
 procedure RegisterConverters;
 begin
-  TTypeConverterRegistry.Instance.RegisterConverter(TGuidConverter.Create);
+  // Note: GUID converter is already auto-registered in TTypeConverterRegistry constructor
+  // We only need to register custom ones
   TTypeConverterRegistry.Instance.RegisterConverter(TEnumConverter.Create(False));
-  
-  // JSON converter must be registered for specific types if not using [JsonColumn] (which is not implemented yet in DbSet logic)
   TTypeConverterRegistry.Instance.RegisterConverterForType(TypeInfo(TJsonMetadata), TJsonConverter.Create(True));
 end;
 
@@ -186,21 +233,62 @@ begin
   Cmd.ExecuteNonQuery;
 end;
 
-procedure TestGuid(Db: TTestDbContext);
+procedure TestGuidFind(Db: TTestDbContext);
+var
+  TestGuid: TGUID;
+  Entity: TGuidEntity;
+  Loaded: TGuidEntity;
+begin
+  WriteLn('► Testing GUID Find...');
+  WriteLn('  Step 1: Delete all');
+  ExecSQL(Db, 'DELETE FROM test_guid_entities');
+  
+  TestGuid := TGuid.NewGuid;
+  Entity := TGuidEntity.Create;
+  Entity.Id := TestGuid;
+  Entity.Name := 'Test GUID Find';
+  
+  WriteLn('  Step 2: Save');
+  Db.GuidEntities.Add(Entity);
+  Db.SaveChanges;
+  
+  WriteLn('  Step 3: Clear context');
+  Db.Clear;
+  
+  WriteLn('  Step 4: Find by GUID');
+  WriteLn('  Looking for: ', GUIDToString(TestGuid));
+  
+  Loaded := Db.GuidEntities.Find(TestGuid);
+  
+  if Loaded = nil then
+    raise Exception.Create('GUID Find returned nil!')
+  else
+  begin
+    WriteLn('  Found GUID:  ', GUIDToString(Loaded.Id));
+    WriteLn('  Found Name:  ', Loaded.Name);
+    
+    if not IsEqualGUID(TestGuid, Loaded.Id) then
+      raise Exception.Create('GUID mismatch in Find!');
+      
+    WriteLn('  ✓ OK');
+  end;
+end;
+
+procedure TestGuidList(Db: TTestDbContext);
 var
   TestGuid: TGUID;
   Entity: TGuidEntity;
   List: IList<TGuidEntity>;
   Loaded: TGuidEntity;
 begin
-  WriteLn('► Testing GUID...');
+  WriteLn('► Testing GUID List...');
   WriteLn('  Step 1: Delete');
   ExecSQL(Db, 'DELETE FROM test_guid_entities');
   
   TestGuid := TGuid.NewGuid;
   Entity := TGuidEntity.Create;
   Entity.Id := TestGuid;
-  Entity.Name := 'Isso eh um teste';
+  Entity.Name := 'Test GUID List';
   
   WriteLn('  Step 2: Save');
   Db.GuidEntities.Add(Entity);
@@ -227,6 +315,84 @@ begin
     end;
     WriteLn('  ✓ OK');
   end;
+end;
+
+procedure TestCompositeGuidInt(Db: TTestDbContext);
+var
+  TestGuid: TGUID;
+  Entity: TCompositeGuidInt;
+  Loaded: TCompositeGuidInt;
+  Keys: TArray<Variant>;
+begin
+  WriteLn('► Testing Composite Key (GUID + Int)...');
+  ExecSQL(Db, 'DELETE FROM test_composite_guid_int');
+  
+  TestGuid := TGuid.NewGuid;
+  Entity := TCompositeGuidInt.Create;
+  Entity.GuidKey := TestGuid;
+  Entity.IntKey := 42;
+  Entity.Data := 'Composite Test';
+  
+  WriteLn('  Saving with GUID: ', GUIDToString(TestGuid), ' and Int: 42');
+  Db.CompositeGuidInt.Add(Entity);
+  Db.SaveChanges;
+  Db.Clear;
+  
+  WriteLn('  Finding by composite key...');
+  SetLength(Keys, 2);
+  Keys[0] := TestGuid;
+  Keys[1] := 42;
+  
+  Loaded := Db.CompositeGuidInt.Find(Keys);
+  
+  if Loaded = nil then
+    raise Exception.Create('Composite GUID+Int Find returned nil!');
+    
+  if not IsEqualGUID(TestGuid, Loaded.GuidKey) then
+    raise Exception.Create('GUID mismatch in composite key!');
+    
+  if Loaded.IntKey <> 42 then
+    raise Exception.Create('Int mismatch in composite key!');
+    
+  WriteLn('  Found Data: ', Loaded.Data);
+  WriteLn('  ✓ OK');
+end;
+
+procedure TestCompositeIntDateTime(Db: TTestDbContext);
+var
+  Entity: TCompositeIntDateTime;
+  Loaded: TCompositeIntDateTime;
+  Keys: TArray<Variant>;
+  TestTime: TDateTime;
+begin
+  WriteLn('► Testing Composite Key (Int + DateTime)...');
+  ExecSQL(Db, 'DELETE FROM test_composite_int_datetime');
+  
+  TestTime := EncodeDate(2025, 12, 20) + EncodeTime(14, 30, 0, 0);
+  Entity := TCompositeIntDateTime.Create;
+  Entity.Timestamp := TestTime;
+  Entity.Value := 'DateTime Composite Test';
+  
+  WriteLn('  Saving with DateTime: ', DateTimeToStr(TestTime));
+  Db.CompositeIntDateTime.Add(Entity);
+  Db.SaveChanges;
+  
+  WriteLn('  Auto-generated ID: ', Entity.Id);
+  
+  Db.Clear;
+  
+  WriteLn('  Finding by composite key...');
+  SetLength(Keys, 2);
+  Keys[0] := Entity.Id;
+  Keys[1] := TestTime;
+  
+  Loaded := Db.CompositeIntDateTime.Find(Keys);
+  
+  if Loaded = nil then
+    raise Exception.Create('Composite Int+DateTime Find returned nil!');
+    
+  WriteLn('  Found Value: ', Loaded.Value);
+  WriteLn('  ✓ OK');
 end;
 
 procedure TestEnum(Db: TTestDbContext);
@@ -285,6 +451,11 @@ var
   Dialect: ISQLDialect;
 begin
   try
+    WriteLn('═══════════════════════════════════════════════════════════');
+    WriteLn('  Dext ORM - Type Converters & Composite Keys Test Suite');
+    WriteLn('═══════════════════════════════════════════════════════════');
+    WriteLn;
+    
     EnsureDatabaseExists;
     
     // Direct configuration without DbConfig.pas
@@ -295,11 +466,8 @@ begin
     FDConn.Params.Values['Database'] := 'dext_test';
     FDConn.Params.Values['User_Name'] := 'postgres';
     FDConn.Params.Values['Password'] := 'root';
-    FDConn.Params.Values['GUIDEndian'] := 'Big'; // Tentar Big ja que Little falhou e manteve inversao byte a byte
     
-    
-    Connection := TFireDACConnection.Create(FDConn, True); // Takes object
-    
+    Connection := TFireDACConnection.Create(FDConn, True);
     Dialect := TPostgreSQLDialect.Create;
 
     RegisterConverters;
@@ -310,29 +478,65 @@ begin
       var C: IInterface := Connection.CreateCommand('DROP TABLE IF EXISTS test_guid_entities');
       (C as IDbCommand).ExecuteNonQuery;
       
+      C := Connection.CreateCommand('DROP TABLE IF EXISTS test_composite_guid_int');
+      (C as IDbCommand).ExecuteNonQuery;
+      
+      C := Connection.CreateCommand('DROP TABLE IF EXISTS test_composite_int_datetime');
+      (C as IDbCommand).ExecuteNonQuery;
+      
       C := Connection.CreateCommand('DROP TABLE IF EXISTS test_enum_entities');
       (C as IDbCommand).ExecuteNonQuery;
       
       C := Connection.CreateCommand('DROP TABLE IF EXISTS test_json_entities');
       (C as IDbCommand).ExecuteNonQuery;
 
-      // Force initialization of DbSets so they are registered in the Context Cache
-      // This is required for EnsureCreated to know which tables to create.
+      // Force initialization of DbSets
       if Db.GuidEntities <> nil then;
+      if Db.CompositeGuidInt <> nil then;
+      if Db.CompositeIntDateTime <> nil then;
       if Db.EnumEntities <> nil then;
       if Db.JsonEntities <> nil then;
       
       Db.EnsureCreated;
-      TestGuid(Db);
+      
+      WriteLn;
+      WriteLn('Running Tests:');
+      WriteLn('─────────────────────────────────────────────────────────');
+      
+      TestGuidList(Db);
+      WriteLn;
+      
+      TestGuidFind(Db);  // ← This is the critical test!
+      WriteLn;
+      
+      TestCompositeGuidInt(Db);
+      WriteLn;
+      
+      TestCompositeIntDateTime(Db);
+      WriteLn;
+      
       TestEnum(Db);
+      WriteLn;
+      
       TestJson(Db);
-      WriteLn('🎉 SUCCESS!');
+      WriteLn;
+      
+      WriteLn('─────────────────────────────────────────────────────────');
+      WriteLn('🎉 ALL TESTS PASSED!');
+      WriteLn('═══════════════════════════════════════════════════════════');
     finally
       Db.Free;
     end;
   except
-    on E: Exception do WriteLn('❌ FAILED: ' + E.Message);
+    on E: Exception do 
+    begin
+      WriteLn;
+      WriteLn('═══════════════════════════════════════════════════════════');
+      WriteLn('❌ TEST FAILED: ' + E.Message);
+      WriteLn('═══════════════════════════════════════════════════════════');
+    end;
   end;
-  WriteLn('Done.');
+  WriteLn;
+  WriteLn('Press ENTER to exit...');
   ReadLn;
 end.

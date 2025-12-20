@@ -77,7 +77,8 @@ contains
   Dext.Threading.Async in 'Core\Dext.Threading.Async.pas',
   Dext.Validation in 'Core\Dext.Validation.pas',
   Dext.MM in 'Core\Dext.MM.pas',
-  Dext.Core.DateUtils in 'Core\Base\Dext.Core.DateUtils.pas';
+  Dext.Core.DateUtils in 'Core\Base\Dext.Core.DateUtils.pas',
+  Dext.Types.UUID in 'Core\Dext.Types.UUID.pas';
 
 end.
 

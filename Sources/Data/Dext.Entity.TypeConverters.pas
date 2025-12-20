@@ -33,6 +33,7 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Generics.Collections,
+  Dext.Types.UUID,
   Dext.Entity.Dialects,
   Dext.Entity.Attributes;
 
@@ -263,15 +264,19 @@ end;
 function TGuidConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
 var
   Guid: TGUID;
+  U: TUUID;
 begin
   Guid := AValue.AsType<TGUID>;
-  Result := GUIDToString(Guid); // Returns '{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}'
+  // Convert to TUUID for proper Big-Endian string representation (no braces)
+  U := TUUID.FromGUID(Guid);
+  Result := U.ToString; // Returns 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx' (lowercase, no braces)
 end;
 
 function TGuidConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
 var
   Guid: TGUID;
   GuidStr: string;
+  U: TUUID;
 begin
   if AValue.IsEmpty then
   begin
@@ -282,7 +287,10 @@ begin
   begin
     GuidStr := AValue.AsString;
     try
-      Guid := StringToGUID(GuidStr);
+      // Use TUUID to parse (handles with/without braces, Big-Endian)
+      U := TUUID.FromString(GuidStr);
+      Guid := U.ToGUID; // Convert to Delphi TGUID (Little-Endian)
+      
       if FSwapEndianness then
         Guid := DoSwap(Guid);
     except
@@ -307,6 +315,7 @@ begin
       Result := AParamName;
   end;
 end;
+
 
 { TEnumConverter }
 
