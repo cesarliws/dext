@@ -37,7 +37,7 @@ for /r "%~dp0..\Examples" %%f in (*.dproj) do (
         :run_test
         if defined EXE_FOUND (
             echo Running: !EXE_PATH!
-            "!EXE_PATH!"
+            "!EXE_PATH!" --no-wait
             
             if !ERRORLEVEL! EQU 0 (
                 echo [PASSED] !PROJECT_NAME!

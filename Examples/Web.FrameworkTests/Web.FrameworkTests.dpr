@@ -47,6 +47,10 @@ begin
       Writeln('❌ Critical Error: ', E.ClassName, ': ', E.Message);
   end;
 
-  WriteLn('Press Enter to exit...');
-  ReadLn;
+  // Only pause if not running in automated mode
+  if not FindCmdLineSwitch('no-wait', True) then
+  begin
+    WriteLn('Press Enter to exit...');
+    ReadLn;
+  end;
 end.

@@ -136,5 +136,7 @@ begin
       Writeln('❌ Critical Error: ', E.ClassName, ': ', E.Message);
   end;
 
-  ReadLn;
+  // Only pause if not running in automated mode
+  if not FindCmdLineSwitch('no-wait', True) then
+    ReadLn;
 end.

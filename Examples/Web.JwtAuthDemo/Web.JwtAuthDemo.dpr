@@ -186,7 +186,10 @@ begin
     WriteLn;
 
     App.Run(8080);
-    ReadLn;
+    
+    // Only pause if not running in automated mode
+    if not FindCmdLineSwitch('no-wait', True) then
+      ReadLn;
 
     JwtHandler.Free;
 
@@ -197,8 +200,13 @@ begin
     on E: Exception do
     begin
       WriteLn('❌ Error: ', E.Message);
-      WriteLn('Press Enter to exit...');
-      ReadLn;
+      
+      // Only pause if not running in automated mode
+      if not FindCmdLineSwitch('no-wait', True) then
+      begin
+        WriteLn('Press Enter to exit...');
+        ReadLn;
+      end;
     end;
   end;
 end.

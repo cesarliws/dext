@@ -84,6 +84,10 @@ begin
     end;
   end;
   
-  WriteLn('Press ENTER to exit...');
-  ReadLn;
+  // Only pause if not running in automated mode
+  if not FindCmdLineSwitch('no-wait', True) then
+  begin
+    WriteLn('Press ENTER to exit...');
+    ReadLn;
+  end;
 end.

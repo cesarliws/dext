@@ -57,7 +57,10 @@ begin
     on E: Exception do
     begin
       Writeln(E.ClassName, ': ', E.Message);
-      ReadLn;
+      
+      // Only pause if not running in automated mode
+      if not FindCmdLineSwitch('no-wait', True) then
+        ReadLn;
     end;
   end;
 end.
