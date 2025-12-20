@@ -41,6 +41,7 @@ type
     FLength: Integer;
     function GetItem(AIndex: Integer): T;
     procedure SetItem(AIndex: Integer; const Value: T);
+    function GetLength: Boolean;
   public
     constructor Create(APtr: Pointer; ALength: Integer); overload;
     constructor Create(var AValue: T); overload;
@@ -59,8 +60,6 @@ type
     property Length: Integer read FLength;
     property Items[Index: Integer]: T read GetItem write SetItem; default;
     property IsEmpty: Boolean read GetLength; // Added helper
-  private
-    function GetLength: Boolean;
   public
     class function Empty: TSpan<T>; static;
     class function From(var AArray: TArray<T>): TSpan<T>; static;
@@ -138,8 +137,7 @@ function TSpan<T>.GetItem(AIndex: Integer): T;
 begin
   if (AIndex < 0) or (AIndex >= FLength) then
     raise ERangeError.Create('Span index out of range');
-  Result := PTypeInfo(@PByte(FPtr)[AIndex * SizeOf(T)])^; // Using simple pointer math
-  // Note: Standard way is Pointers directly
+  Move(PByte(FPtr)[AIndex * SizeOf(T)], Result, SizeOf(T));
 end;
 
 function TSpan<T>.GetLength: Boolean;
@@ -151,7 +149,7 @@ procedure TSpan<T>.SetItem(AIndex: Integer; const Value: T);
 begin
   if (AIndex < 0) or (AIndex >= FLength) then
     raise ERangeError.Create('Span index out of range');
-  PTypeInfo(@PByte(FPtr)[AIndex * SizeOf(T)])^ := Value;
+  Move(Value, PByte(FPtr)[AIndex * SizeOf(T)], SizeOf(T));
 end;
 
 function TSpan<T>.Slice(AStart: Integer): TSpan<T>;

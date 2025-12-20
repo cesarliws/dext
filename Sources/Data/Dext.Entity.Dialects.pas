@@ -547,13 +547,15 @@ begin
     tkDynArray:
       begin
         if ATypeInfo = TypeInfo(TBytes) then Result := 'BYTEA'
-        else Result := 'TEXT';
+        else Result := 'JSONB'; // Arrays as JSONB
       end;
     tkRecord:
       begin
         if ATypeInfo = TypeInfo(TGUID) then Result := 'UUID'
-        else Result := 'TEXT';
+        else Result := 'JSONB'; // Records as JSONB
       end;
+    tkClass:
+      Result := 'JSONB'; // Objects as JSONB
   else
     Result := 'TEXT';
   end;
@@ -779,13 +781,15 @@ begin
     tkDynArray:
       begin
         if ATypeInfo = TypeInfo(TBytes) then Result := 'LONGBLOB'
-        else Result := 'LONGTEXT';
+        else Result := 'JSON';
       end;
     tkRecord:
       begin
         if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)'
-        else Result := 'TEXT';
+        else Result := 'JSON';
       end;
+    tkClass:
+      Result := 'JSON';
   else
     Result := 'TEXT';
   end;

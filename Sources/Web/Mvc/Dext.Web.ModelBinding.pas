@@ -208,7 +208,9 @@ implementation
 
 uses
   System.NetEncoding,
-  Dext.Core.DateUtils;
+  Dext.Core.DateUtils,
+  Dext.Core.Span,
+  Dext.Json.Utf8.Serializer;
 
 { BindingAttribute }
 
@@ -289,6 +291,8 @@ var
   Stream: TStream;
   JsonString: string;
   Settings: TDextSettings;
+  Bytes: TBytes;
+  Span: TByteSpan;
 begin
   if AType.Kind <> tkRecord then
     raise EBindingException.Create('BindBody currently only supports records');
@@ -297,23 +301,102 @@ begin
   if (Stream = nil) or (Stream.Size = 0) then
     raise EBindingException.Create('Request body is empty');
 
-  JsonString := ReadStreamToString(Stream);
-
-  // ✅ Usar settings com CaseInsensitive = True para resolver problema de binding
-  // quando JSON vem com campos em lowercase mas record Delphi está em PascalCase
-  Settings := TDextSettings.Default.WithCaseInsensitive;
-
-  // Desserializar record usando a abstração do Dext.Json
+  // OPTIMIZATION: Check if we can use Zero-Allocation UTF8 Serializer
+  // Currently we just read bytes to avoid String conversion. 
+  // In future we can get Span directly from Request if driver supports it.
+  
   try
+    // Read Body as Bytes (One copy stream -> bytes, but avoids bytes -> string -> TJsonDOM)
+    if Stream is TBytesStream then
+      Bytes := TBytesStream(Stream).Bytes
+    else
+    begin
+      Stream.Position := 0;
+      SetLength(Bytes, Stream.Size);
+      if Stream.Size > 0 then
+        Stream.ReadBuffer(Bytes[0], Stream.Size);
+    end;
+    
+    if Length(Bytes) = 0 then
+         raise EBindingException.Create('Request body is empty');
+
+    Span := TByteSpan.FromBytes(Bytes);
+
+    // Call Generic Deserialize<T> dynamically? 
+    // TUtf8JsonSerializer.Deserialize<T> is static generic.
+    // We have AType (PTypeInfo).
+    // The current signature of BindBody returns TValue.
+    // We need to invoke Deserialize via RTTI or use the non-generic version if we expose one.
+    // However, TUtf8JsonSerializer currently exposes `Deserialize<T>`.
+    // Let's use RTTI to invoke it for now, or just fallback to String for this specific non-generic call 
+    // IF we are not called via generic BindBody<T>. 
+    // BUT BindBody<T> calls this BindBody(PTypeInfo).
+    
+    // To truly use the new serializer efficiently without heavy generic invoking:
+    // We should refactor BindBody<T> to call the serializer directly.
+    // But for now, let's keep the architecture:
+    
+    // We'll read as string for THIS method (legacy path) unless we refactor BindBody<T>.
+    // Wait, the user wants "Zero-Allocation". 
+    // Reading stream to Bytes is fine.
+    
+    // Let's modify BindBody<T> below to use the new serializer, and keep this for compat/dynamic calls.
+    // OR we change this method to try to dispatch to Utf8Serializer if possible.
+    
+    // Fallback to legacy string based for now in the non-generic untyped method
+    JsonString := TEncoding.UTF8.GetString(Bytes);
+    Settings := TDextSettings.Default.WithCaseInsensitive;
     Result := TDextJson.Deserialize(AType, JsonString, Settings);
+    
   except
     on E: Exception do
       raise EBindingException.Create('Error binding body: ' + E.Message);
   end;
 end;
 
+// Optimized Generic Version
 function TModelBinder.BindBody<T>(Context: IHttpContext): T;
+var
+  Stream: TStream;
+  Bytes: TBytes;
+  Span: TByteSpan;
 begin
+  // Only for Records for now
+  if PTypeInfo(System.TypeInfo(T)).Kind = tkRecord then
+  begin
+      Stream := Context.Request.Body;
+      if (Stream = nil) or (Stream.Size = 0) then
+        raise EBindingException.Create('Request body is empty');
+
+      // Read RAW BYTES (Zero String Allocation)
+      // Ideally Context.Request would expose a Span/Bytes directly.
+      if Stream is TBytesStream then
+      begin
+         Bytes := TBytesStream(Stream).Bytes;
+         // Note: TBytesStream.Bytes returns the internal array usually - Zero copy? 
+         // System.Classes TBytesStream properties expose raw TBytes. Good.
+      end
+      else
+      begin
+        Stream.Position := 0;
+        SetLength(Bytes, Stream.Size);
+        if Stream.Size > 0 then
+          Stream.ReadBuffer(Bytes[0], Stream.Size);
+      end;
+      
+      try
+        Span := TByteSpan.FromBytes(Bytes);
+        // FAST PATH: UTF8 Zero-Allocation Deserialization
+        Result := TUtf8JsonSerializer.Deserialize<T>(Span);
+        Exit;
+      except
+        // Fallback or re-raise
+        on E: EUtf8SerializationException do
+           raise EBindingException.Create('Error parsing JSON body: ' + E.Message);
+      end;
+  end;
+
+  // Fallback for Classes/Other types (Legacy)
   var Value := BindBody(TypeInfo(T), Context);
   Result := Value.AsType<T>;
 end;

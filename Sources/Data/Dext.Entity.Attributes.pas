@@ -61,6 +61,17 @@ type
   end;
 
   /// <summary>
+  ///   Marks a property as JSON/JSONB column (PostgreSQL).
+  /// </summary>
+  JsonColumnAttribute = class(TCustomAttribute)
+  private
+    FUseJsonB: Boolean;
+  public
+    constructor Create(AUseJsonB: Boolean = True);
+    property UseJsonB: Boolean read FUseJsonB;
+  end;
+
+  /// <summary>
   ///   Marks a property as a version column for Optimistic Concurrency Control.
   ///   The property must be of an integer type.
   /// </summary>
@@ -136,6 +147,14 @@ end;
 constructor ColumnAttribute.Create(const AName: string);
 begin
   FName := AName;
+end;
+
+{ JsonColumnAttribute }
+
+constructor JsonColumnAttribute.Create(AUseJsonB: Boolean);
+begin
+  inherited Create;
+  FUseJsonB := AUseJsonB;
 end;
 
 { ForeignKeyAttribute }

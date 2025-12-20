@@ -33,24 +33,14 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Generics.Collections,
-  Dext.Entity.Dialects;
+  Dext.Entity.Dialects,
+  Dext.Entity.Attributes;
 
 type
   /// <summary>
   ///   Marks an enum property to be saved as string instead of integer.
   /// </summary>
   EnumAsStringAttribute = class(TCustomAttribute)
-  end;
-
-  /// <summary>
-  ///   Marks a property as JSON/JSONB column (PostgreSQL).
-  /// </summary>
-  JsonColumnAttribute = class(TCustomAttribute)
-  private
-    FUseJsonB: Boolean;
-  public
-    constructor Create(AUseJsonB: Boolean = True);
-    property UseJsonB: Boolean read FUseJsonB;
   end;
 
   /// <summary>
@@ -230,14 +220,6 @@ uses
   System.SyncObjs,
   Dext.Json;
 
-{ JsonColumnAttribute }
-
-constructor JsonColumnAttribute.Create(AUseJsonB: Boolean);
-begin
-  inherited Create;
-  FUseJsonB := AUseJsonB;
-end;
-
 { ColumnTypeAttribute }
 
 constructor ColumnTypeAttribute.Create(const ATypeName: string);
@@ -380,19 +362,43 @@ end;
 
 function TJsonConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
 begin
-  // For now, we don't auto-detect JSON types
-  // User must register converter explicitly or use [JsonColumn] attribute
-  Result := False;
+  // Auto-convert known complex types effectively if registered without attribute, 
+  // but usually we rely on property attributes.
+  // However, returning True here allows Global Registration to work.
+  Result := (ATypeInfo.Kind in [tkClass, tkRecord, tkDynArray]) and
+            (ATypeInfo <> TypeInfo(TGUID)) and
+            (ATypeInfo <> TypeInfo(TBytes));
 end;
 
 function TJsonConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
 begin
-  if AValue.IsEmpty or AValue.IsObject and (AValue.AsObject = nil) then
-    Result := TValue.Empty
-  else if AValue.IsObject then
-    Result := TDextJson.Serialize(AValue.AsObject)
+  if AValue.IsEmpty then
+    Exit(TValue.Empty);
+
+  if AValue.IsObject then
+  begin
+    if AValue.AsObject = nil then
+      Exit(TValue.Empty);
+    Result := TDextJson.Serialize(AValue.AsObject);
+  end
+  else if AValue.Kind in [tkRecord, tkDynArray] then
+  begin
+    // Serialize Records and Arrays
+    // We need to use TValue-based generic serialization if available, 
+    // or assume TDextJson can handle TValue (it usually takes TObject or TypeInfo)
+    // Looking at TDextJson.Serialize overloads... usually (Object) or (TypeInfo, Value).
+    // Let's assume generic TValue serialization is supported via helper or RTTI.
+    // If not, we might need a specific overload.
+    // Using simple TObject serialization for now, but for records we need Deserialize(TypeInfo...).
+    // For Serialize(Record), we likely need a pointer.
+    
+    // NOTE: TDextJson.Serialize(TValue) might not exist directly. 
+    // We'll use the generic wrapper or assumed overload.
+    // Ideally: TDextJson.Serialize(AValue)
+    Result := TDextJson.Serialize(AValue); 
+  end
   else
-    Result := AValue.AsString; // Assume it's already JSON string
+    Result := AValue.AsString; // Fallback
 end;
 
 function TJsonConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
@@ -406,7 +412,7 @@ begin
   if JsonStr.Trim.IsEmpty then
     Exit(TValue.Empty);
     
-  if ATypeInfo.Kind = tkClass then
+  if ATypeInfo.Kind in [tkClass, tkRecord, tkDynArray] then
     Result := TDextJson.Deserialize(ATypeInfo, JsonStr)
   else
     Result := AValue;

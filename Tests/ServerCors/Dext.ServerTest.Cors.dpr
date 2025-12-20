@@ -86,6 +86,7 @@ begin
     TestBindHeaderComprehensive;
     TestBindServicesComprehensive;
     TestBindQueryDateTypes; // ✅ New test for Date/Time binding
+    TestBindBodyZeroAlloc; // ✅ New test for Zero Alloc Body Binding
     Readln;
     Exit;
     TestBindRouteComprehensive;

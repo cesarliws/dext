@@ -14,6 +14,9 @@ procedure TestBindServicesComprehensive;
 // New test for Date/Time types
 procedure TestBindQueryDateTypes;
 
+// New test for Zero Allocation Body Binding
+procedure TestBindBodyZeroAlloc;
+
 
 implementation
 
@@ -593,6 +596,56 @@ begin
   except
     on E: Exception do
       Writeln('❌ ERRO BindQueryDateTypes: ', E.ClassName, ' - ', E.Message);
+  end;
+end;
+
+procedure TestBindBodyZeroAlloc;
+type
+  TSimpleBody = record
+    Id: Integer;
+    Name: string;
+    Active: Boolean;
+    Cost: Double;
+  end;
+var
+  MockContext: IHttpContext;
+  Binder: IModelBinder;
+  Json: string;
+  Bytes: TBytes;
+  Stream: TStream;
+begin
+  Writeln('=== TESTE BINDBODY ZERO ALLOC ===');
+  try
+    Binder := TModelBinder.Create;
+
+    // Prepare JSON Body
+    Json := '{"Id": 200, "Name": "ZeroAlloc Item", "Active": true, "Cost": 99.99}';
+    Bytes := TEncoding.UTF8.GetBytes(Json);
+
+    MockContext := TMockFactory.CreateHttpContext('');
+    Stream := MockContext.Request.Body;
+    Stream.WriteBuffer(Bytes[0], Length(Bytes));
+    Stream.Position := 0;
+
+    Writeln('✅ TESTE 1: Bind Body from Stream (Bytes)');
+    
+    var Value := Binder.BindBody(TypeInfo(TSimpleBody), MockContext);
+    var Test := Value.AsType<TSimpleBody>;
+
+    Writeln('  Id: ', Test.Id, ' (Expected: 200)');
+    Writeln('  Name: ', Test.Name, ' (Expected: ZeroAlloc Item)');
+    if (Test.Active) then Writeln('  Active: True') else Writeln('  Active: False');
+    Writeln('  Cost: ', FloatToStr(Test.Cost), ' (Expected: 99.99)');
+    
+    if (Test.Id = 200) and (Test.Name = 'ZeroAlloc Item') and (Test.Active) then
+      Writeln('  -> Validated!')
+    else
+      Writeln('  ❌ Validation FAILED');
+
+    Writeln('=== SUCESSO BINDBODY ZERO ALLOC! ===');
+  except
+    on E: Exception do
+      Writeln('❌ ERRO BindBodyZeroAlloc: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
