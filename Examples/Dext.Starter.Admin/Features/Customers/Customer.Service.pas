@@ -58,10 +58,8 @@ end;
 
 procedure TCustomerService.Update(const Customer: TCustomer);
 begin
-  // In a real tracked context, properties are updated on the managed entity.
-  // If 'Customer' is already attached/tracked, we just save.
-  // If it's Detached, we might need to Update.
-  // Assuming the caller modified the tracked entity or passed a new one to update.
+  if Customer = nil then Exit;
+  FDb.Entities<TCustomer>.Update(Customer); // This marks it as esModified
   FDb.SaveChanges;
 end;
 

@@ -27,6 +27,8 @@ unit Dext.Entity.Drivers.FireDAC;
 
 interface
 
+{$I Dext.inc}
+
 uses
   System.SysUtils,
   System.Classes,
@@ -42,10 +44,12 @@ uses
   FireDAC.DApt.Intf,
   FireDAC.DatS,
   FireDAC.Phys.Intf,
+  {$IFDEF DEXT_ENABLE_DB_SQLITE}
   FireDAC.Phys.SQLite,
   FireDAC.Phys.SQLiteDef,
   FireDAC.Phys.SQLiteWrapper,
   FireDAC.Phys.SQLiteCli,
+  {$ENDIF}
   FireDAC.Stan.Async,
   FireDAC.Stan.Def,
   FireDAC.Stan.Error,
@@ -503,24 +507,28 @@ var
 begin
   // Create a new Query for the Reader to allow independent iteration
   Q := TFDQuery.Create(nil);
-  Q.Connection := FConnection;
-  Q.SQL.Text := FQuery.SQL.Text;
-  
-  // Copy params
-  for i := 0 to FQuery.Params.Count - 1 do
-  begin
-    Src := FQuery.Params[i];
-    Dest := Q.Params.FindParam(Src.Name);
-    if Dest <> nil then
+  try
+    Q.Connection := FConnection;
+    Q.SQL.Text := FQuery.SQL.Text;
+    
+    // Copy params
+    for i := 0 to FQuery.Params.Count - 1 do
     begin
-      Dest.DataType := Src.DataType;
-      Dest.Value := Src.Value;
+      Src := FQuery.Params[i];
+      Dest := Q.Params.FindParam(Src.Name);
+      if Dest <> nil then
+      begin
+        Dest.DataType := Src.DataType;
+        Dest.Value := Src.Value;
+      end;
     end;
+    
+    Q.Open;
+    Result := TFireDACReader.Create(Q, True); // Reader now owns this new query
+  except
+    Q.Free;
+    raise;
   end;
-  
-  Q.Open;
-  
-  Result := TFireDACReader.Create(Q, True); // Reader owns this new query
 end;
 
 function TFireDACCommand.ExecuteScalar: TValue;

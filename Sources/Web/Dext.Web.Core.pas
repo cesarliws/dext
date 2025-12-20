@@ -261,7 +261,6 @@ begin
     Registration.Parameters[I] := AParams[I];
 
   FMiddlewares.Add(Registration);
-  FMiddlewares.Add(Registration);
   Result := Self;
 end;
 

@@ -43,7 +43,6 @@ var
   LIOHandler: TIdServerIOHandlerSSLOpenSSL;
 {$ENDIF}
 begin
-  Result := nil;
   {$IFDEF DEXT_ENABLE_SSL}
   LIOHandler := TIdServerIOHandlerSSLOpenSSL.Create(AServer);
   LIOHandler.SSLOptions.CertFile := FCertFile;

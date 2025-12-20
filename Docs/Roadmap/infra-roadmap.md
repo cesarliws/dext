@@ -56,7 +56,13 @@ Eliminar o custo de conversão `UTF-8` <-> `UTF-16` (UnicodeString) no core do f
 - [x] **TSpan<T>**: Estrutura para fatiamento de arrays/memória sem alocação (essencial para o JSON Parser V2).
 - [x] **Zero-Allocation JSON**: Parser JSON baseado em `TSpan<Byte>` (UTF-8) para evitar transcoding para UTF-16.
 
-### 2. Telemetry & Observability Foundation
+### 2. JSON Configuration Enhancements
+- [x] **Global Default Settings**: Configuração global de `TDextSettings` via `TDextJson.SetDefaultSettings` para aplicar case-insensitivity e outras opções em toda a aplicação.
+- [ ] **Per-Context Settings**: Permitir configuração de JSON settings por contexto/endpoint via middleware ou atributos, útil para integração com APIs externas (bancos, governo) que possuem padrões diferentes.
+  - *Exemplo*: `[JsonSettings(CaseStyle.SnakeCase)]` em um controller específico.
+  - *Middleware*: `UseJsonSettings(settings)` para aplicar em um grupo de rotas.
+
+### 3. Telemetry & Observability Foundation
 Base para o suporte a OpenTelemetry nos frameworks superiores.
 - [ ] **Activity/Span API**: Abstração para rastreamento distribuído.
 - [ ] **Metrics API**: Contadores, Histogramas e Gauges de alta performance.
@@ -103,3 +109,18 @@ Motor de Mocks construído sobre a engine `Dext.Expressions`.
 - [ ] **Runner Service**: Executável separado para rodar testes (evita crash da IDE).
 - [ ] **IPC Protocol**: Comunicação JSON/WebSocket entre Runner e IDE Plugin.
 - [ ] **AST Instrumentation Coverage**: Code Coverage preciso via injeção de contadores na AST (suporte real a Generics e Anonymous Methods).
+
+---
+
+## 📦 Deployment & Modularization
+
+### 1. Pluggable Database Drivers (Professional/Community Edition Support)
+Evitar dependências obrigatórias de todos os bancos de dados no package principal.
+- [x] **Compiler Directives**: Implementação de `DEXT_ENABLE_DB_*` no `Dext.inc` para isolar unidades físicas do FireDAC.
+- [ ] **Modular Packages**: Separar drivers físicos em packages específicos (ex: `Dext.EF.Driver.PostgreSQL.dpk`).
+- [ ] **Auto-Discovery/Factory**: Sistema para registrar drivers dinamicamente via `initialization`.
+
+### 2. Dext Installer & CLI
+Facilitar o setup do ambiente e seleção de módulos.
+- [ ] **Modularity Web UI**: Gerador de projetos onde o dev seleciona os bancos e middlewares desejados.
+- [ ] **Library Path Manager**: Ferramenta CLI para configurar caminhos do Delphi automaticamente.

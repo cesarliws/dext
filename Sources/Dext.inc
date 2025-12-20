@@ -33,4 +33,18 @@
 {$DEFINE DEXT_ENABLE_SSL}
 // {.$DEFINE DEXT_ENABLE_TAURUS_TLS}
 
+//---------------------------------------------------------------------------
+// Database Drivers
+//---------------------------------------------------------------------------
+
+// Enable/Disable specific database drivers to avoid unnecessary dependencies.
+// Useful for Delphi Professional/Community editions.
+{$DEFINE DEXT_ENABLE_DB_SQLITE}
+// {.$DEFINE DEXT_ENABLE_DB_POSTGRES}
+// {.$DEFINE DEXT_ENABLE_DB_MYSQL}
+// {.$DEFINE DEXT_ENABLE_DB_MSSQL}
+// {.$DEFINE DEXT_ENABLE_DB_ORACLE}
+// {.$DEFINE DEXT_ENABLE_DB_FIREBIRD}
+// {.$DEFINE DEXT_ENABLE_DB_ODBC}
+
 {$ENDIF}

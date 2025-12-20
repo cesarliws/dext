@@ -121,6 +121,10 @@
         <DCCReference Include="FireDACCommonDriver.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
         <DCCReference Include="FireDACSqliteDriver.dcp"/>
+        <DCCReference Include="FireDACPgDriver.dcp"/>
+        <DCCReference Include="FireDACCommonODBC.dcp"/>
+        <DCCReference Include="FireDACMySQLDriver.dcp"/>
+        <DCCReference Include="FireDACMSSQLDriver.dcp"/>
         <DCCReference Include="Data\Dext.Entity.pas"/>
         <DCCReference Include="Data\Dext.Entity.Attributes.pas"/>
         <DCCReference Include="Data\Dext.Entity.Context.pas"/>

@@ -58,7 +58,7 @@
 
                 <a href="#"
                     class="nav-link flex items-center px-4 py-3 text-indigo-100 hover:bg-indigo-800 hover:text-white rounded-lg transition"
-                    hx-get="/customers/" hx-target="#app" hx-swap="innerHTML" hx-push-url="true">
+                    hx-get="/customers" hx-target="#app" hx-swap="innerHTML" hx-push-url="true">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z">
@@ -123,11 +123,14 @@
             </header>
 
             <!-- Dynamic Content Area -->
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6" id="app" hx-get="/dashboard"
-                hx-trigger="load" hx-swap="innerHTML">
+            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6" id="app">
                 <!-- Content will be loaded here -->
                 <div class="flex items-center justify-center h-full">
-                    <div class="animate-pulse text-gray-400">Loading...</div>
+                    <div class="animate-pulse text-gray-400" x-init="
+                        const path = window.location.pathname;
+                        const targetUrl = (path === '/' || path === '/index.html') ? '/dashboard' : path;
+                        htmx.ajax('GET', targetUrl, {target:'#app', swap:'innerHTML'});
+                    ">Loading...</div>
                 </div>
             </main>
         </div>
@@ -233,19 +236,7 @@
             }, 3000);
         }
 
-        // Close modal on backdrop click
-        document.body.addEventListener('click', function (e) {
-            if (e.target.id === 'modal-backdrop') {
-                document.getElementById('modal-container').innerHTML = '';
-            }
-        });
-
-        // Close modal on Escape key
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && document.getElementById('modal-container').innerHTML) {
-                document.getElementById('modal-container').innerHTML = '';
-            }
-        });
+        // Modal management is now strictly via buttons for better UX
     </script>
 
     <!-- Modal Container -->

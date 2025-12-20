@@ -2,6 +2,8 @@ unit Dext.Entity.Drivers.FireDAC.Manager;
 
 interface
 
+{$I Dext.inc}
+
 uses
   Winapi.Windows,
   System.SysUtils,
@@ -18,7 +20,22 @@ uses
   FireDAC.Stan.Async,
   FireDAC.Phys,
   FireDAC.Comp.Client,
-  FireDAC.DApt;
+  FireDAC.DApt,
+  FireDAC.Comp.UI,
+  FireDAC.ConsoleUI.Wait
+  {$IFDEF DEXT_ENABLE_DB_POSTGRES}, FireDAC.Phys.PG {$ENDIF}
+  {$IFDEF DEXT_ENABLE_DB_SQLITE}, FireDAC.Phys.SQLite {$ENDIF}
+  {$IFDEF DEXT_ENABLE_DB_MYSQL}, FireDAC.Phys.MySQL {$ENDIF}
+  {$IFDEF DEXT_ENABLE_DB_MSSQL}, FireDAC.Phys.MSSQL {$ENDIF}
+  {$IFDEF DEXT_ENABLE_DB_ORACLE}, FireDAC.Phys.Oracle {$ENDIF}
+  {$IFDEF DEXT_ENABLE_DB_FIREBIRD}, FireDAC.Phys.FB {$ENDIF}
+  {$IFDEF DEXT_ENABLE_DB_ODBC}, FireDAC.Phys.ODBC {$ENDIF};
+
+type
+  TComponentHelper = class helper for TComponent
+  public
+    procedure SetUniqueName;
+  end;
 
 type
   /// <summary>
@@ -60,9 +77,27 @@ type
     ///   Ensures the FDManager is active.
     /// </summary>
     procedure EnsureActive;
+
+    /// <summary>
+    ///   Global finalization to drop all connections and close manager.
+    /// </summary>
+    class procedure Finalize;
+
+    /// <summary>
+    ///   Apply common resource options for specific databases (e.g. PostgreSQL)
+    /// </summary>
+    procedure ApplyResourceOptions(AConnection: TFDConnection);
   end;
 
 implementation
+
+{ TComponentHelper }
+
+procedure TComponentHelper.SetUniqueName;
+begin
+  if Self.Name = '' then
+    Self.Name := Self.ClassName + '_' + IntToHex(IntPtr(Self), 16);
+end;
 
 { TDextFireDACManager }
 
@@ -73,8 +108,20 @@ end;
 
 class destructor TDextFireDACManager.Destroy;
 begin
-  FInstance.Free;
+  Finalize;
   FCriticalSection.Free;
+end;
+
+class procedure TDextFireDACManager.Finalize;
+begin
+  if FInstance <> nil then
+  begin
+    if FInstance.FManager <> nil then
+    begin
+      FInstance.FManager.Close;
+    end;
+    FreeAndNil(FInstance);
+  end;
 end;
 
 constructor TDextFireDACManager.Create;
@@ -115,45 +162,44 @@ function TDextFireDACManager.RegisterConnectionDef(const ADriverName: string;
 var
   HashKey: string;
   DefName: string;
-  Def: IFDStanConnectionDef;
 begin
   // Create a unique key based on params to avoid duplicating pools for same config
-  HashKey := ADriverName + ';' + AParams.Text;
+  // Use a canonical representation of params
+  AParams.Delimiter := ';';
+  HashKey := ADriverName + ';' + AParams.DelimitedText;
   
   FCriticalSection.Enter;
   try
     // Return existing definition if matches
     if FDefinitions.TryGetValue(HashKey, DefName) then
     begin
-      // Ensure the manager still has it (might have been cleared)
-      if FManager.ConnectionDefs.FindConnectionDef(DefName) <> nil then
+      if FManager.IsConnectionDef(DefName) then
         Exit(DefName);
     end;
       
-    // Create new Definition
+    // Create new Definition name
     DefName := 'DextPool_' + IntToHex(HashKey.GetHashCode, 8);
     
-    // Check if it already exists in the global manager (manual check)
-    Def := FManager.ConnectionDefs.FindConnectionDef(DefName);
-    if Def = nil then
+    // Register in FireDAC using the robust AddConnectionDef method
+    if not FManager.IsConnectionDef(DefName) then
     begin
-      Def := FManager.ConnectionDefs.AddConnectionDef;
-      Def.Name := DefName;
+      FManager.AddConnectionDef(DefName, ADriverName, AParams);
+      
+      // Configure pooling params explicitly if they weren't in AParams
+      var Def := FManager.ConnectionDefs.FindConnectionDef(DefName);
+      if Def <> nil then
+      begin
+        Def.Params.Pooled := True;
+        Def.Params.PoolMaximumItems := APoolMax;
+        Def.Params.PoolCleanupTimeout := 30000; // 30s
+        Def.Params.PoolExpireTimeout := 60000; // 60s
+        
+        // Ensure wait cursor is set to none for server apps
+        Def.Params.MonitorBy := mbNone;
+      end;
     end;
-
-    Def.Params.Clear;
-    Def.Params.Assign(AParams);
     
-    // Explicit Pooling Configuration
-    Def.Params.DriverID := ADriverName;
-    Def.Params.Pooled := True;
-    Def.Params.PoolMaximumItems := APoolMax;
-    Def.Params.PoolCleanupTimeout := 30000; // 30s
-    Def.Params.PoolExpireTimeout := 60000; // 60s
-    
-    Def.Apply; // Register in FireDAC
-    
-    // FireDAC pooling initialization requires the manager to be opened
+    // FireDAC pooling initialization
     EnsureActive;
     
     if not FDefinitions.ContainsKey(HashKey) then
@@ -165,28 +211,37 @@ begin
   end;
 end;
 
+procedure TDextFireDACManager.ApplyResourceOptions(AConnection: TFDConnection);
+begin
+  var DriverID := AConnection.DriverName.ToLower;
+  
+  // PostgreSQL performance optimizations from Foundation
+  if DriverID.Contains('pg') or DriverID.Contains('postgres') then
+  begin
+    AConnection.ResourceOptions.MacroCreate := False;
+    AConnection.ResourceOptions.MacroExpand := False;
+    AConnection.ResourceOptions.EscapeExpand := False;
+    AConnection.ResourceOptions.DirectExecute := True;
+  end;
+end;
+
 function TDextFireDACManager.RegisterConnectionDefFromString(const ADefName,
   AConfig: string): string;
 var
   SL: TStringList;
-  Def: IFDStanConnectionDef;
+  DriverID: string;
 begin
   FCriticalSection.Enter;
   try
     SL := TStringList.Create;
     try
       SL.Text := AConfig;
+      DriverID := SL.Values['DriverID'];
       
-      Def := FManager.ConnectionDefs.FindConnectionDef(ADefName);
-      if Def = nil then
+      if not FManager.IsConnectionDef(ADefName) then
       begin
-        Def := FManager.ConnectionDefs.AddConnectionDef;
-        Def.Name := ADefName;
+        FManager.AddConnectionDef(ADefName, DriverID, SL);
       end;
-      
-      Def.Params.Clear;
-      Def.Params.AddStrings(SL);
-      Def.Apply;
       
       EnsureActive;
       Result := ADefName;

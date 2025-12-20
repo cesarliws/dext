@@ -226,8 +226,19 @@ type
   TDextJson = class
   private
     class var FProvider: IDextJsonProvider;
+    class var FDefaultSettings: TDextSettings;
     class function GetProvider: IDextJsonProvider; static;
   public
+    /// <summary>
+    ///   Sets the default settings to be used for all serialization/deserialization
+    ///   operations that don't explicitly provide settings.
+    /// </summary>
+    class procedure SetDefaultSettings(const ASettings: TDextSettings); static;
+    
+    /// <summary>
+    ///   Gets the current default settings.
+    /// </summary>
+    class function GetDefaultSettings: TDextSettings; static;
     /// <summary>
     ///   Gets or sets the JSON provider (driver) to be used.
     ///   Defaults to JsonDataObjects if not set.
@@ -541,7 +552,7 @@ end;
 
 class function TDextJson.Deserialize<T>(const AJson: string): T;
 begin
-  Result := Deserialize<T>(AJson, TDextSettings.Default);
+  Result := Deserialize<T>(AJson, GetDefaultSettings);
 end;
 
 class function TDextJson.Deserialize<T>(const AJson: string; const ASettings: TDextSettings): T;
@@ -579,7 +590,7 @@ begin
     tkRecord:
       Result := DeserializeRecord(AType, AJson);
     tkClass:
-      Result := Deserialize(AType, AJson, TDextSettings.Default);
+      Result := Deserialize(AType, AJson, GetDefaultSettings);
     else
       raise EDextJsonException.CreateFmt('Unsupported type for deserialization: %s', [AType.NameFld.ToString]);
   end;
@@ -615,7 +626,7 @@ var
   Serializer: TDextSerializer;
   JsonNode: IDextJsonNode;
 begin
-  Serializer := TDextSerializer.Create(TDextSettings.Default);
+  Serializer := TDextSerializer.Create(GetDefaultSettings);
   try
     JsonNode := TDextJson.Provider.Parse(AJson);
     if JsonNode.GetNodeType = jntObject then
@@ -629,7 +640,7 @@ end;
 
 class function TDextJson.Serialize<T>(const AValue: T): string;
 begin
-  Result := Serialize<T>(AValue, TDextSettings.Default);
+  Result := Serialize<T>(AValue, GetDefaultSettings);
 end;
 
 class function TDextJson.Serialize<T>(const AValue: T; const ASettings: TDextSettings): string;
@@ -1618,6 +1629,20 @@ begin
   if FProvider = nil then
     FProvider := TJsonDataObjectsProvider.Create;
   Result := FProvider;
+end;
+
+class procedure TDextJson.SetDefaultSettings(const ASettings: TDextSettings);
+begin
+  FDefaultSettings := ASettings;
+end;
+
+class function TDextJson.GetDefaultSettings: TDextSettings;
+begin
+  // If not explicitly set, return the default
+  if (FDefaultSettings.DateFormat = '') and not FDefaultSettings.CaseInsensitive then
+    Result := TDextSettings.Default
+  else
+    Result := FDefaultSettings;
 end;
 
 function TDextSerializer.IsArrayType(AType: PTypeInfo): Boolean;

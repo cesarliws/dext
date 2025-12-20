@@ -12,10 +12,7 @@
         <Projects Include="Dext.Web.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\Tests\Entity\TestFireDACPhysDriver.dproj">
-            <Dependencies/>
-        </Projects>
-        <Projects Include="..\Examples\Core.TestConfig\Core.TestConfig.dproj">
+        <Projects Include="..\Examples\Dext.Starter.Admin\Dext.Starter.Admin.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -53,32 +50,23 @@
     <Target Name="Dext_Web_Core:Make">
         <MSBuild Projects="Dext.Web.Core.dproj" Targets="Make"/>
     </Target>
-    <Target Name="TestFireDACPhysDriver">
-        <MSBuild Projects="..\Tests\Entity\TestFireDACPhysDriver.dproj"/>
+    <Target Name="Dext_Starter_Admin">
+        <MSBuild Projects="..\Examples\Dext.Starter.Admin\Dext.Starter.Admin.dproj"/>
     </Target>
-    <Target Name="TestFireDACPhysDriver:Clean">
-        <MSBuild Projects="..\Tests\Entity\TestFireDACPhysDriver.dproj" Targets="Clean"/>
+    <Target Name="Dext_Starter_Admin:Clean">
+        <MSBuild Projects="..\Examples\Dext.Starter.Admin\Dext.Starter.Admin.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="TestFireDACPhysDriver:Make">
-        <MSBuild Projects="..\Tests\Entity\TestFireDACPhysDriver.dproj" Targets="Make"/>
-    </Target>
-    <Target Name="Core_TestConfig">
-        <MSBuild Projects="..\Examples\Core.TestConfig\Core.TestConfig.dproj"/>
-    </Target>
-    <Target Name="Core_TestConfig:Clean">
-        <MSBuild Projects="..\Examples\Core.TestConfig\Core.TestConfig.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Core_TestConfig:Make">
-        <MSBuild Projects="..\Examples\Core.TestConfig\Core.TestConfig.dproj" Targets="Make"/>
+    <Target Name="Dext_Starter_Admin:Make">
+        <MSBuild Projects="..\Examples\Dext.Starter.Admin\Dext.Starter.Admin.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;TestFireDACPhysDriver;Core_TestConfig"/>
+        <CallTarget Targets="Dext_Core;Dext_EF_Core;Dext_Web_Core;Dext_Starter_Admin"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;TestFireDACPhysDriver:Clean;Core_TestConfig:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Dext_Starter_Admin:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;TestFireDACPhysDriver:Make;Core_TestConfig:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Dext_Starter_Admin:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

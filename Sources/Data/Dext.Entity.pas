@@ -308,10 +308,13 @@ begin
                  Options.PoolMax
                );
                
-               FDConn.ConnectionDefName := DefName;
-             finally
-               Params.Free;
-             end;
+                FDConn.ConnectionDefName := DefName;
+                
+                // Apply performance and resource options
+                TDextFireDACManager.Instance.ApplyResourceOptions(FDConn);
+              finally
+                Params.Free;
+              end;
           end
           else
           begin
@@ -323,9 +326,16 @@ begin
               
             for var Pair in Options.Params do
                FDConn.Params.Values[Pair.Key] := Pair.Value;
+
+            // Apply performance and resource options
+            TDextFireDACManager.Instance.ApplyResourceOptions(FDConn);
           end;
           
           try
+            // Ensure unique name for components created in threads (request scoped)
+            // to avoid global name conflicts in FireDAC manager
+            FDConn.SetUniqueName;
+            
             FDConn.Open; 
           except
              FDConn.Free;

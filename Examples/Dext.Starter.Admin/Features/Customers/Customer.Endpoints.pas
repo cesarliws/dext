@@ -32,11 +32,13 @@ uses
 
 // Helper Functions
 function GenerateCustomerRow(C: TCustomer): string;
+var
+  FS: TFormatSettings;
 begin
-  // Uses HTML_CUSTOMER_ROW from AppResponseConsts
-  // Format: Id, Id, Name, Email, TotalSpent, IdEditButton, IdDeleteButton
+  FS := TFormatSettings.Create;
+  FS.DecimalSeparator := '.';
   Result := Format(HTML_CUSTOMER_ROW,
-    [C.Id, C.Id, C.Name, C.Email, C.TotalSpent, C.Id, C.Id]);
+    [C.Id, C.Id, C.Name, C.Email, FormatFloat('0.00', C.TotalSpent, FS), C.Id, C.Id]);
 end;
 
 function GenerateCustomerForm(C: TCustomer): string;
@@ -62,7 +64,7 @@ begin
   begin
     Title := 'New Customer';
     Method := 'hx-post';
-    Url := '/customers/';
+    Url := '/customers';
     HxTarget := '#customers-table-body';
     HxSwap := 'beforeend';
     Name := '';
@@ -80,8 +82,8 @@ end;
 
 class procedure TCustomerEndpoints.Map(App: TDextAppBuilder);
 begin
-  // GET /customers/ - List all customers
-  App.MapGet<ICustomerService, IHttpContext, IResult>('/customers/',
+  // GET /customers - List all customers
+  App.MapGet<ICustomerService, IHttpContext, IResult>('/customers',
     function(Service: ICustomerService; Context: IHttpContext): IResult
     var
       Customers: IList<TCustomer>;
@@ -126,8 +128,8 @@ begin
       Result := Results.NotFound;
     end);
 
-  // POST /customers/ - Add new customer
-  App.MapPost<ICustomerService, TCustomerDto, IHttpContext, IResult>('/customers/',
+  // POST /customers - Add new customer
+  App.MapPost<ICustomerService, TCustomerDto, IHttpContext, IResult>('/customers',
     function(Service: ICustomerService; Dto: TCustomerDto; Context: IHttpContext): IResult
     var
       C: TCustomer;

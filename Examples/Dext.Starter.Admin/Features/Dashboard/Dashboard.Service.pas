@@ -44,15 +44,15 @@ end;
 
 function TDashboardService.GetStats: TDashboardStats;
 var
-  Orders: IList<TOrder>;
-  O: TOrder;
+  Customers: IList<TCustomer>;
+  C: TCustomer;
 begin
-  Result.TotalCustomers := FDb.Entities<TCustomer>.List.Count;
+  Customers := FDb.Entities<TCustomer>.List;
+  Result.TotalCustomers := Customers.Count;
   
-  Orders := FDb.Entities<TOrder>.List;
   Result.TotalSales := 0;
-  for O in Orders do
-    Result.TotalSales := Result.TotalSales + O.Total;
+  for C in Customers do
+    Result.TotalSales := Result.TotalSales + C.TotalSpent;
 end;
 
 function TDashboardService.GetChartDataJson: string;

@@ -5,6 +5,7 @@ interface
 uses
   System.SysUtils,
   Dext,
+  Dext.Json,
   Dext.Web,
   Dext.Entity,
   // Features
@@ -93,7 +94,7 @@ begin
       'Password=postgres;';
     
     // Enable Pooling for high concurrency
-    //Options.WithPooling(False, 50);
+    Options.WithPooling(True, 50);
   end
   else // Default to SQLite
   begin
@@ -104,6 +105,7 @@ begin
     Options.Params.AddOrSetValue('LockingMode', 'Normal');
     Options.Params.AddOrSetValue('JournalMode', 'WAL'); // Critical for concurrent reads/writes
     Options.Params.AddOrSetValue('Synchronous', 'Normal');
+    Options.Params.AddOrSetValue('SharedCache', 'False'); // Prevent shared cache issues in threads
     
     // Enable Pooling (Requires WAL mode)
     Options.WithPooling(True, 20);
@@ -149,7 +151,10 @@ procedure TAppStartup.Configure(const App: IWebApplication);
 begin
   var WebApp := App.GetBuilder;
 
-  // 0. Configure Views Path (using Admin.Utils to get correct path)
+  // 0. Configure JSON settings globally (case-insensitive for better API compatibility)
+  TDextJson.SetDefaultSettings(TDextSettings.Default.WithCaseInsensitive);
+
+  // 1. Configure Views Path (using Admin.Utils to get correct path)
   Results.SetViewsPath(GetFilePath('wwwroot\views'));
   
   // 1. Serve Static Files (from wwwroot)

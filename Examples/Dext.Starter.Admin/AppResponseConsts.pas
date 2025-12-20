@@ -9,7 +9,7 @@ const
     '  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">%d</td>' +
     '  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">%s</td>' +
     '  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">%s</td>' +
-    '  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">%m</td>' +
+    '  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">%s</td>' +
     '  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">' +
     '    <div class="flex items-center justify-end space-x-2">' +
     '      <button hx-get="/customers/%d/form" hx-target="#modal-container" ' +
@@ -55,8 +55,8 @@ const
     '               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">' +
     '      </div>' +
     '      <div>' +
-    '        <label for="totalspent" class="block text-sm font-medium text-gray-700">Total Spent</label>' +
-    '        <input type="number" name="totalspent" id="totalspent" value="%s" step="0.01" ' +
+    '        <label for="TotalSpent" class="block text-sm font-medium text-gray-700">Total Spent</label>' +
+    '        <input type="number" name="TotalSpent" id="TotalSpent" value="%s" step="0.01" ' +
     '               class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">' +
     '      </div>' +
     '      <div class="flex justify-end space-x-3 pt-4">' +
@@ -106,7 +106,7 @@ const
     '</div>' +
     '<div class="bg-white rounded-lg shadow p-6">' +
     '  <h3 class="text-sm font-medium text-gray-500">Total Revenue</h3>' +
-    '  <p class="text-2xl font-bold text-gray-900 mt-2">%m</p>' +
+    '  <p class="text-2xl font-bold text-gray-900 mt-2">%s</p>' +
     '</div>';
     
   JSON_DASHBOARD_CHART = '{' +

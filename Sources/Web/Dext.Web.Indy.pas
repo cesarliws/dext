@@ -78,6 +78,7 @@ type
   private
     FRequest: IHttpRequest;
     FResponse: IHttpResponse;
+    FScope: IServiceScope; // Hold the scope for the request lifetime
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
     FItems: TDictionary<string, TValue>;
@@ -315,13 +316,23 @@ begin
   inherited Create;
   FRequest := TIndyHttpRequest.Create(ARequestInfo);
   FResponse := TIndyHttpResponse.Create(AResponseInfo);
-  FServices := AServices;
+  
+  // Create a new scope for THIS request. 
+  // All Scoped services (like DbContext) resolved from this provider 
+  // will be isolated to this request and destroyed when this context is released.
+  FScope := AServices.CreateScope;
+  FServices := FScope.ServiceProvider;
+  
   FItems := TDictionary<string, TValue>.Create;
 end;
 
 destructor TIndyHttpContext.Destroy;
 begin
   FItems.Free;
+  FRequest := nil;
+  FResponse := nil;
+  FServices := nil;
+  FScope := nil; // This will trigger the disposal of all Scoped services for this request
   inherited;
 end;
 

@@ -46,10 +46,14 @@ begin
   // Dashboard stats - Injected IDashboardService
   App.MapGet<IDashboardService, IResult>('/dashboard/stats',
     function(Service: IDashboardService): IResult
+    var
+      Stats: TDashboardStats;
+      FS: TFormatSettings;
     begin
-      var Stats := Service.GetStats;
+      Stats := Service.GetStats;
+      FS := TFormatSettings.Create('pt-BR'); // For R$ format
       
-      var Html := Format(HTML_DASHBOARD_STATS, [Stats.TotalCustomers, Stats.TotalSales]);
+      var Html := Format(HTML_DASHBOARD_STATS, [Stats.TotalCustomers, FloatToStrF(Stats.TotalSales, ffCurrency, 15, 2, FS)]);
       Result := Results.Html(Html);
     end);
 
