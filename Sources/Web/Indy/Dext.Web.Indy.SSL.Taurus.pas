@@ -42,18 +42,18 @@ var
   LIOHandler: TTaurusTLSServerIOHandler;
 {$ENDIF}
 begin
-  Result := nil;
   {$IFDEF DEXT_ENABLE_TAURUS_TLS}
   LIOHandler := TTaurusTLSServerIOHandler.Create(AServer);
-  LIOHandler.SSLOptions.CertFile := FCertFile;
-  LIOHandler.SSLOptions.KeyFile := FKeyFile;
+  LIOHandler.DefaultCert.PublicKey := FCertFile;
+  LIOHandler.DefaultCert.PrivateKey := FKeyFile;
   if FRootFile <> '' then
-    LIOHandler.SSLOptions.RootCertFile := FRootFile;
+    LIOHandler.DefaultCert.RootKey := FRootFile;
 
   // Additional Taurus specific configurations if needed
-  
+
   Result := LIOHandler;
   {$ELSE}
+  Result := nil;
   Writeln('WARNING: Taurus TLS requested but DEXT_ENABLE_TAURUS_TLS is not defined.');
   {$ENDIF}
 end;
