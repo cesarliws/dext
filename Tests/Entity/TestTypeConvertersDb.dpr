@@ -258,7 +258,7 @@ begin
   WriteLn('  Step 4: Find by GUID');
   WriteLn('  Looking for: ', GUIDToString(TestGuid));
   
-  Loaded := Db.GuidEntities.Find(TestGuid);
+  Loaded := Db.GuidEntities.Find(GUIDToString(TestGuid));
   
   if Loaded = nil then
     raise Exception.Create('GUID Find returned nil!')
@@ -340,7 +340,7 @@ begin
   
   WriteLn('  Finding by composite key...');
   SetLength(Keys, 2);
-  Keys[0] := TestGuid;
+  Keys[0] := GUIDToString(TestGuid);
   Keys[1] := 42;
   
   Loaded := Db.CompositeGuidInt.Find(Keys);

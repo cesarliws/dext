@@ -7,6 +7,7 @@ uses
   System.Classes,
   System.Generics.Collections,
   System.SysUtils,
+  System.Rtti,
   System.TypInfo,
   Dext.DI.Interfaces,
   Dext.Web.Indy,
@@ -73,9 +74,11 @@ type
     FResponse: IHttpResponse;
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
+    FItems: TDictionary<string, TValue>;
   public
     constructor Create(ARequest: IHttpRequest; AResponse: IHttpResponse;
       AServices: IServiceProvider = nil);
+    destructor Destroy; override;
 
     // IHttpContext
     function GetRequest: IHttpRequest;
@@ -88,6 +91,8 @@ type
 
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
+
+    function GetItems: TDictionary<string, TValue>;
 
     procedure SetRouteParams(const AParams: TDictionary<string, string>);
   end;
@@ -312,6 +317,13 @@ begin
   FRequest := ARequest;
   FResponse := AResponse;
   FServices := AServices;
+  FItems := TDictionary<string, TValue>.Create;
+end;
+
+destructor TMockHttpContext.Destroy;
+begin
+  FItems.Free;
+  inherited;
 end;
 
 function TMockHttpContext.GetRequest: IHttpRequest;
@@ -375,6 +387,11 @@ end;
 procedure TMockHttpContext.SetServices(const AValue: IServiceProvider);
 begin
   FServices := AValue;
+end;
+
+function TMockHttpContext.GetItems: TDictionary<string, TValue>;
+begin
+  Result := FItems;
 end;
 
 //procedure TMockHttpContext.SetRouteParams(const AParams: TDictionary<string, string>);
