@@ -10,11 +10,12 @@ Este documento foca nas funcionalidades de alto nível do framework web (API, MV
 
 ### 0. HTTP Abstractions (Refactoring for Performance) 🔥
 Blindagem das interfaces para suportar alta performance (Zero-Copy) no futuro.
-- [ ] **Lazy Headers/Query**: `GetHeader(Name)` ao invés de retornar `TDictionary` completo.
+- [x] **Lazy Headers**: `GetHeader(Name)` otimizado com acesso direto (sem alocação de dicionário).
+- [ ] **Lazy Query**: Refatorar `GetQuery` para evitar parsing completo da QueryString quando apenas um parâmetro é solicitado.
 - [x] **Items Bag**: Adicionar `Items: TDictionary<string, TValue>` em `IHttpContext` para comunicação entre Middlewares.
 - [x] **Response Compression**: Suporte a GZip e Brotli (`Accept-Encoding`).
-- [ ] **Stream Writing**: Adicionar `Response.Write(TStream)` para suportar envio eficiente de arquivos.
-- [ ] **Body Abstraction**: Abstrair o acesso ao Body para suportar `Span<Byte>` futuramente.
+- [x] **Stream Writing**: Adicionado `Response.Write(TStream)` para suportar envio eficiente de arquivos.
+- [ ] **Body Abstraction**: Abstrair o acesso ao Body para suportar `Span<Byte>` futuramente (Atual: `TStream`).
 
 ### 1. Web API Improvements (Prioridade Alta) 🔥
 Melhorias na experiência de construção de APIs robustas e profissionais.

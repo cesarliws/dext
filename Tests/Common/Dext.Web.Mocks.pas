@@ -67,6 +67,7 @@ type
     procedure SetContentLength(const AValue: Int64);
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
+    procedure Write(const AStream: TStream); overload;
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
     procedure AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions); overload;
@@ -319,6 +320,11 @@ end;
 procedure TMockHttpResponse.Write(const ABuffer: TBytes);
 begin
   FContentText := TEncoding.UTF8.GetString(ABuffer);
+end;
+
+procedure TMockHttpResponse.Write(const AStream: TStream);
+begin
+  // Mock implementation
 end;
 
 procedure TMockHttpResponse.Json(const AJson: string);

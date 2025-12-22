@@ -29,6 +29,7 @@ interface
 
 uses
   System.SysUtils,
+  System.Classes,
   System.Rtti,
   System.DateUtils,
   System.Generics.Collections,
@@ -155,6 +156,7 @@ type
     procedure SetContentLength(const AValue: Int64);
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
+    procedure Write(const AStream: TStream); overload;
     procedure Json(const AJson: string);
     procedure AddHeader(const AName, AValue: string);
     procedure AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions); overload;
@@ -603,9 +605,29 @@ end;
 
 procedure TResponseCaptureWrapper.Write(const ABuffer: TBytes);
 begin
-  // For binary data, we can't easily cache it in a string buffer
-  // Just pass through to original response
+  if Length(ABuffer) > 0 then
+    FBodyBuffer.Append(TEncoding.UTF8.GetString(ABuffer));
   FOriginal.Write(ABuffer);
+end;
+
+procedure TResponseCaptureWrapper.Write(const AStream: TStream);
+var
+  SS: TStringStream;
+begin
+  // Capture body
+  if AStream.Size > 0 then
+  begin
+    var Pos := AStream.Position;
+    SS := TStringStream.Create('', TEncoding.UTF8);
+    try
+      SS.CopyFrom(AStream, 0);
+      FBodyBuffer.Append(SS.DataString);
+    finally
+      SS.Free;
+    end;
+    AStream.Position := Pos; // Reset for original
+  end;
+  FOriginal.Write(AStream);
 end;
 
 procedure TResponseCaptureWrapper.Json(const AJson: string);

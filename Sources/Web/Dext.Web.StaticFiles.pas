@@ -178,7 +178,6 @@ end;
 procedure TStaticFileMiddleware.ServeFile(AContext: IHttpContext; const AFilePath: string);
 var
   FileStream: TFileStream;
-  Bytes: TBytes;
 begin
   try
     FileStream := TFileStream.Create(AFilePath, fmOpenRead or fmShareDenyWrite);
@@ -186,11 +185,8 @@ begin
       AContext.Response.SetContentType(GetContentType(AFilePath));
       AContext.Response.SetContentLength(FileStream.Size);
       
-      SetLength(Bytes, FileStream.Size);
-      if FileStream.Size > 0 then
-        FileStream.ReadBuffer(Bytes[0], FileStream.Size);
-        
-      AContext.Response.Write(Bytes);
+      // ✅ Use efficient Stream writing
+      AContext.Response.Write(FileStream);
     finally
       FileStream.Free;
     end;
