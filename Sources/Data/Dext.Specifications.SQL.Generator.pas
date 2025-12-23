@@ -1028,7 +1028,18 @@ begin
         
         if not FirstWhere then SBWhere.Append(' AND ');
         FirstWhere := False;
-        SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ParamName);
+        
+        // Apply ::uuid cast for PostgreSQL if value is GUID/UUID or GUID-like string
+        SQLCastStr := ':' + ParamName;
+        if (GetDialectEnum = ddPostgreSQL) and
+           ((Val.TypeInfo = TypeInfo(TGUID)) or 
+            (Val.TypeInfo = TypeInfo(TUUID)) or
+            ((Val.Kind in [tkString, tkUString, tkWString]) and
+             ((Length(Val.AsString) = 36) or (Length(Val.AsString) = 38)) and
+             (Val.AsString.IndexOf('-') > 0))) then
+          SQLCastStr := ':' + ParamName + '::uuid';
+        
+        SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = ').Append(SQLCastStr);
       end
       else
       begin
@@ -1116,7 +1127,18 @@ begin
       
       if not FirstWhere then SBWhere.Append(' AND ');
       FirstWhere := False;
-      SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ParamName);
+      
+      // Apply ::uuid cast for PostgreSQL if value is GUID/UUID or GUID-like string
+      var SQLCastStr := ':' + ParamName;
+      if (GetDialectEnum = ddPostgreSQL) and
+         ((Val.TypeInfo = TypeInfo(TGUID)) or 
+          (Val.TypeInfo = TypeInfo(TUUID)) or
+          ((Val.Kind in [tkString, tkUString, tkWString]) and
+           ((Length(Val.AsString) = 36) or (Length(Val.AsString) = 38)) and
+           (Val.AsString.IndexOf('-') > 0))) then
+        SQLCastStr := ':' + ParamName + '::uuid';
+      
+      SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = ').Append(SQLCastStr);
     end;
     
     if SBWhere.Length = 0 then
