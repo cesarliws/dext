@@ -752,4 +752,10 @@ begin
   Result := AValue;
 end;
 
+initialization
+  // Auto-register essential type converters for common types
+  // TGUID and TUUID converters are critical for PostgreSQL compatibility
+  TTypeConverterRegistry.Instance.RegisterConverterForType(TypeInfo(TGUID), TGuidConverter.Create);
+  TTypeConverterRegistry.Instance.RegisterConverterForType(TypeInfo(TUUID), TUuidConverter.Create);
+
 end.
