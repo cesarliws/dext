@@ -7,9 +7,9 @@
 >
 > 📌 **Check out the [V1.0 Beta Roadmap & Plan](Docs/Releases/v1-beta-roadmap.md)** for a detailed list of features, pending tasks, and future plans.
 
-**Dext** is a complete ecosystem for modern Delphi development, combining a high-performance web framework (inspired by ASP.NET Core) with a robust ORM and advanced infrastructure tooling.
+**Dext** is a complete ecosystem for modern Delphi development. It brings the productivity and architectural patterns of frameworks like **ASP.NET Core** and **Spring Boot** to the native performance of Object Pascal.
 
-The goal of Dext is to bring modern development paradigms—such as Dependency Injection, Asynchronous Programming, Fluent APIs, and Code-First—to the Delphi environment while maintaining native performance.
+The goal is not merely to build APIs, but to provide a solid foundation (DI, Configuration, Logging, ORM) enabling you to build robust and testable enterprise applications.
 
 ## 🎯 Philosophy and Goals
 
@@ -17,13 +17,23 @@ The goal of Dext is to bring modern development paradigms—such as Dependency I
 *   **Native Performance**: After functional stabilization of v1, the focus will shift entirely to **performance optimization**, aiming to compete with high-speed frameworks.
 *   **Innovation**: While inspired by .NET, Dext is not limited to it, seeking to implement solutions that specifically make sense for the Delphi language.
 
----
-
 ## 📄 License
 
 This project is licensed under the **Apache License 2.0** (the same used by .NET Core). This allows free use in commercial and open-source projects, with the security of a permissive and modern license.
 
----
+## 🧠 Design & Philosophy
+
+Dext's development is guided by two engineering principles that define every architectural decision made in the project:
+
+> **"Simplicity is Complicated."** — *Rob Pike*
+
+Hiding the complexity of HTTP servers, memory management, and concurrency requires sophisticated internal engineering. We embrace this internal complexity to ensure that your public API is **clean, intuitive, and noise-free**.
+
+* **In practice:** You write `App.MapGet`, and the framework quietly resolves routing, JSON serialization, and error handling.
+
+> **"Make what is right easy and what is wrong difficult."** — *Steve Smith*
+
+A good framework should guide the developer into the "Pit of Success". Dext was designed so that best practices—such as Dependency Injection, interface segregation, and using DTOs—are the natural default, not a burdensome extra configuration.
 
 ## 🚀 Main Modules
 

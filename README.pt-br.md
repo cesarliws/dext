@@ -7,7 +7,9 @@
 >
 > 📌 **Confira o [Roadmap & Plano V1.0 Beta](Docs/Releases/v1-beta-roadmap.pt-br.md)** para a lista detalhada de funcionalidades, tarefas pendentes e planos futuros.
 
-**Dext** é um ecossistema completo para desenvolvimento moderno em Delphi, combinando um framework web de alta performance (inspirado em ASP.NET Core) com um ORM robusto e ferramentas de infraestrutura avançadas.
+**Dext** é um ecossistema completo para desenvolvimento moderno em Delphi. Ele traz a produtividade e os padrões arquiteturais de frameworks como **ASP.NET Core** e **Spring Boot** para a performance nativa do Object Pascal.
+
+O objetivo não é apenas criar APIs, mas fornecer uma fundação sólida (DI, Configuration, Logging, ORM) para que você construa aplicações enterprise robustas e testáveis.
 
 ## 🎯 Filosofia e Objetivos
 
@@ -15,13 +17,22 @@
 *   **Performance Nativa**: Após a estabilização funcional da v1, o foco total será em **otimização de performance**, visando competir com frameworks de alta velocidade.
 *   **Inovação**: Embora inspirado no .NET, o Dext não se limita a ele, buscando implementar soluções que façam sentido especificamente para a linguagem Delphi.
 
----
-
 ## 📄 Licença
 
 Este projeto é licenciado sob a **Apache License 2.0** (a mesma utilizada pelo .NET Core). Isso permite o uso livre em projetos comerciais e open-source, com a segurança de uma licença permissiva e moderna.
 
----
+## 🧠 Design & Filosofia
+
+O desenvolvimento do Dext é guiado por dois princípios de engenharia que definem cada decisão de arquitetura tomada no projeto:
+
+> **"Simplicity is Complicated."** — *Rob Pike*
+
+Esconder a complexidade de servidores HTTP, gerenciamento de memória e concorrência exige uma engenharia interna sofisticada. Nós abraçamos essa complexidade interna para garantir que a sua API pública seja **limpa, intuitiva e livre de ruído**.
+* **Na prática:** Você escreve `App.MapGet`, e o framework resolve roteamento, serialização JSON e tratamento de erros silenciosamente.
+
+> **"Make what is right easy and what is wrong difficult."** — *Steve "Ardalis" Smith*
+
+Um bom framework deve guiar o desenvolvedor para o "Caminho Feliz" (*Pit of Success*). O Dext foi desenhado para que as boas práticas — como Injeção de Dependência, segregação de interfaces e uso de DTOs — sejam o padrão natural, e não uma configuração extra trabalhosa.
 
 ## 🚀 Módulos Principais
 
