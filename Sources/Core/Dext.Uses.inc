@@ -12,6 +12,7 @@
   Dext.Core.Span,
   Dext.Core.ValueConverters,
   Dext.DI.Comparers,
+  Dext.DI.Attributes,
   Dext.DI.Core,
   Dext.DI.Extensions,
   Dext.DI.Interfaces,

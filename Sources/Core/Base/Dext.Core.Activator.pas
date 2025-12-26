@@ -31,7 +31,8 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
-  Dext.DI.Interfaces;
+  Dext.DI.Interfaces,
+  Dext.DI.Attributes;
 
 type
   TActivator = class
@@ -150,6 +151,7 @@ var
   BestMethod: TRttiMethod;
   BestArgs: TArray<TValue>;
   MaxParams: Integer;
+  HasServiceConstructorAttr: Boolean;
 begin
   Context := TRttiContext.Create;
   try
@@ -160,6 +162,72 @@ begin
     BestMethod := nil;
     MaxParams := -1;
 
+    // First pass: Look for [ServiceConstructor] attribute
+    for Method in TypeObj.GetMethods do
+    begin
+      if Method.IsConstructor then
+      begin
+        HasServiceConstructorAttr := False;
+        for var Attr in Method.GetAttributes do
+        begin
+          if Attr is ServiceConstructorAttribute then
+          begin
+            HasServiceConstructorAttr := True;
+            Break;
+          end;
+        end;
+        
+        if HasServiceConstructorAttr then
+        begin
+          // Try to resolve this constructor
+          Params := Method.GetParameters;
+          SetLength(Args, Length(Params));
+          Matched := True;
+
+          for I := 0 to High(Params) do
+          begin
+            // Resolve from DI
+            ParamType := Params[I].ParamType;
+            ResolvedService := TValue.Empty;
+
+            if ParamType.TypeKind = tkInterface then
+            begin
+               var Guid := TRttiInterfaceType(ParamType).GUID;
+               ServiceType := TServiceType.FromInterface(Guid);
+               var Intf := AProvider.GetServiceAsInterface(ServiceType);
+               if Intf <> nil then
+                 TValue.Make(@Intf, ParamType.Handle, ResolvedService);
+            end
+            else if ParamType.TypeKind = tkClass then
+            begin
+               var Cls := TRttiInstanceType(ParamType).MetaclassType;
+               ServiceType := TServiceType.FromClass(Cls);
+               var Obj := AProvider.GetService(ServiceType);
+               if Obj <> nil then
+                 ResolvedService := TValue.From(Obj);
+            end;
+
+            if not ResolvedService.IsEmpty then
+              Args[I] := ResolvedService
+            else
+            begin
+              // Dependency not found -> Match failed
+              Matched := False;
+              Break;
+            end;
+          end;
+
+          if Matched then
+          begin
+            // Use this constructor (marked with [ServiceConstructor])
+            Result := Method.Invoke(AClass, Args).AsObject;
+            Exit;
+          end;
+        end;
+      end;
+    end;
+
+    // Second pass: Greedy strategy (no [ServiceConstructor] found or it failed)
     for Method in TypeObj.GetMethods do
     begin
       if Method.IsConstructor then

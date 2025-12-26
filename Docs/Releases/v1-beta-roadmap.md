@@ -82,7 +82,7 @@ For technical details and granular status of each module, check:
 | **Configuration** (`IConfiguration`) | ✅ Ready | JSON file provider |
 | **Binary JSON Parser** | ✅ Ready | High-performance binary JSON parser |
 | **AutoMapper** (`TMapper`) | ✅ Ready | DTO ↔ Entity mapping with RTTI, custom member mapping and collections |
-| **Custom Constructors (DI)** | 🟡 In Progress | `[ServiceConstructor]` attribute to specify which constructor to use |
+| **Custom Constructors (DI)** | ✅ Ready | `[ServiceConstructor]` attribute to specify which constructor to use in DI |
 | **TypeInfo Cache** | 🟡 In Progress | RTTI metadata cache for performance optimization |
 
 ### 🔄 Hosting & Lifecycle

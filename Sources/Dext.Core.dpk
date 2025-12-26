@@ -85,7 +85,8 @@ contains
   Dext.Core.Span in 'Core\Base\Dext.Core.Span.pas',
   Dext.Json.Utf8 in 'Core\Json\Dext.Json.Utf8.pas',
   Dext.Json.Utf8.Serializer in 'Core\Json\Dext.Json.Utf8.Serializer.pas',
-  Dext.Mapper in 'Core\Dext.Mapper.pas';
+  Dext.Mapper in 'Core\Dext.Mapper.pas',
+  Dext.DI.Attributes in 'Core\DI\Dext.DI.Attributes.pas';
 
 end.
 

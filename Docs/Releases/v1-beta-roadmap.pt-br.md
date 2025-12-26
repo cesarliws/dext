@@ -82,7 +82,7 @@ Para detalhes técnicos e status granular de cada módulo, consulte:
 | **Configuration** (`IConfiguration`) | ✅ Pronto | JSON file provider |
 | **Binary JSON Parser** | ✅ Pronto | Parser JSON binário de alta performance |
 | **AutoMapper** (`TMapper`) | ✅ Pronto | Mapeamento DTO ↔ Entity com RTTI, custom member mapping e collections |
-| **Custom Constructors (DI)** | 🟡 Em Progresso | Attribute `[ServiceConstructor]` para especificar qual constructor usar |
+| **Custom Constructors (DI)** | ✅ Pronto | Attribute `[ServiceConstructor]` para especificar qual constructor usar no DI |
 | **TypeInfo Cache** | 🟡 Em Progresso | Cache de RTTI metadata para otimização de performance |
 
 ### 🔄 Hosting & Lifecycle

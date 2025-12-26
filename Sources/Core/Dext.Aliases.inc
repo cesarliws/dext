@@ -1,8 +1,11 @@
+// Auto-generated Aliases
+
+  ServiceConstructorAttribute = Dext.DI.Attributes.ServiceConstructorAttribute;
+
   // Dext.Mapper
   TMapper = Dext.Mapper.TMapper;
   TMemberMapping = Dext.Mapper.TMemberMapping;
 
-// Auto-generated Aliases
 
   // Dext.Collections
   TCollections = Dext.Collections.TCollections;
@@ -57,6 +60,10 @@
   // Dext.DI.Core
   TServiceDescriptor = Dext.DI.Core.TServiceDescriptor;
   // IsInterfaceService = Dext.DI.Core.IsInterfaceService;
+  TDextServiceScope = Dext.DI.Core.TDextServiceScope;
+  TDextServiceProvider = Dext.DI.Core.TDextServiceProvider;
+  TDextServiceCollection = Dext.DI.Core.TDextServiceCollection;
+  TServiceCollection = Dext.DI.Core.TDextServiceCollection;
 
   // Dext.DI.Extensions
   TServiceCollectionExtensions = Dext.DI.Extensions.TServiceCollectionExtensions;
