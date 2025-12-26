@@ -165,12 +165,12 @@ begin
   WriteLn;
 end;
 
-procedure TestPatchPartialUpdate;
+procedure TestRecordToModelPartialUpdate;
 var
-  Request: TUserDTORec;
+  UserDTO: TUserDTORec;
   User: TUser;
 begin
-  WriteLn('=== Test 4: Patch Partial Update ===');
+  WriteLn('=== Test 4: Record To Model Partial Update ===');
 
   User := TUser.Create;
   try
@@ -181,10 +181,10 @@ begin
     User.Age := 20;
 
     // Request with ONLY name changed
-    FillChar(Request, SizeOf(Request), 0);
-    Request.LastName := 'Updated LastName';
+    FillChar(UserDTO, SizeOf(UserDTO), 0);
+    UserDTO.LastName := 'Updated LastName';
 
-    TMapper.Patch<TUserDTORec, TUser>(Request, User);
+    TMapper.Map<TUserDTORec, TUser>(UserDTO, User, True);
 
     Assert.AreEqual('Updated LastName', User.LastName);
 
@@ -192,18 +192,53 @@ begin
     Assert.AreEqual('user@test.com', User.Email); // Should not change
     Assert.AreEqual(20, User.Age); // Should not change
 
-    WriteLn('✓ Patch Partial Update OK');
+    WriteLn('✓ Record To Model Partial Update OK');
   finally
     User.Free;
   end;
+  WriteLn;
 end;
 
-procedure TestPatchPersonRequestToModel;
+procedure TestModelToRecordPartialUpdate;
+var
+  UserDTO: TUserDTORec;
+  User: TUser;
+begin
+  WriteLn('=== Test 5: Model To Record Partial Update ===');
+
+  User := TUser.Create;
+  try
+    FillChar(UserDTO, SizeOf(UserDTO), 0);
+    UserDTO.Id := 1;
+    UserDTO.FirstName := 'User';
+    UserDTO.LastName := 'Test';
+    UserDTO.Email := 'user@test.com';
+    UserDTO.Age := 20;
+
+    // Request with ONLY name changed
+    User.LastName := 'Updated LastName';
+
+    TMapper.Map<TUser, TUserDTORec>(User, UserDTO, True);
+
+    Assert.AreEqual('Updated LastName', UserDTO.LastName);
+
+    Assert.AreEqual('User', UserDTO.FirstName); // Should not change
+    Assert.AreEqual('user@test.com', UserDTO.Email); // Should not change
+    Assert.AreEqual(20, UserDTO.Age); // Should not change
+
+    WriteLn('✓ Model To Record Partial Update OK');
+  finally
+    User.Free;
+  end;
+  WriteLn;
+end;
+
+procedure TestRecordToModelFullUpdate;
 var
   Request: TUserDTORec;
   User: TUser;
 begin
-  WriteLn('=== Test 5: Patch Person Request To Model ===');
+  WriteLn('=== Test 6: Record To Model Full Update ===');
 
   Request.FirstName := 'User';
   Request.LastName := 'Test';
@@ -213,7 +248,7 @@ begin
 
   User := TUser.Create;
   try
-    TMapper.Patch<TUserDTORec, TUser>(Request, User);
+    TMapper.Map<TUserDTORec, TUser>(Request, User);
 
     Assert.AreEqual(Request.FirstName, User.FirstName);
     Assert.AreEqual(Request.LastName, User.LastName);
@@ -221,11 +256,119 @@ begin
     Assert.AreEqual(Request.PasswordHash, User.PasswordHash);
     Assert.AreEqual(Request.Age, User.Age);
 
-    WriteLn('✓ Patch Person Request To Model OK');
+    WriteLn('✓ Record To Model Full Update OK');
   finally
     User.Free;
   end;
+  WriteLn;
+end;
 
+procedure TestModelToRecordFullUpdate;
+var
+  DTO: TUserDTORec;
+  User: TUser;
+begin
+  WriteLn('=== Test 7: Model To Record FullUpdate ===');
+
+  User := TUser.Create;
+  try
+    User.FirstName := 'User';
+    User.LastName := 'Test';
+    User.Email := 'user@test.com';
+    User.PasswordHash := '123';
+    User.Age := 20;
+
+    TMapper.Map<TUser, TUserDTORec>(User, DTO);
+
+    Assert.AreEqual(User.FirstName, DTO.FirstName);
+    Assert.AreEqual(User.LastName, DTO.LastName);
+    Assert.AreEqual(User.Email, DTO.Email);
+    Assert.AreEqual(User.PasswordHash, DTO.PasswordHash);
+    Assert.AreEqual(User.Age, DTO.Age);
+
+    WriteLn('✓ Model To Record Full Update OK');
+  finally
+    User.Free;
+  end;
+  WriteLn;
+end;
+
+procedure TestListRecordToModelMapping;
+var
+  Users: TList<TUser>;
+  DTOs: TList<TUserDTORec>;
+  User: TUser;
+  DTO: TUserDTORec;
+begin
+  WriteLn('=== Test 8: List Record To Model Mapping ===');
+
+  DTOs := TList<TUserDTORec>.Create;
+  try
+    // Create 3 users
+    for var I := 1 to 3 do
+    begin
+      FillChar(DTO, SizeOf(DTO), 0);
+      DTO.Id := I;
+      DTO.FirstName := 'User' + I.ToString;
+      DTO.LastName := 'Test';
+      DTO.Email := 'user' + I.ToString + '@test.com';
+      DTO.Age := 20 + I;
+      DTOs.Add(DTO);
+    end;
+
+    Users := TMapper.MapList<TUserDTORec, TUser>(DTOs);
+    try
+      WriteLn('Mapped ', Users.Count, ' users:');
+      for User in Users do
+        WriteLn('  - ', User.FirstName, ' (', User.Email, ')');
+      WriteLn('✓ List Record To Model Mapping OK');
+    finally
+      for User in Users do
+        User.Free;
+      Users.Free;
+    end;
+  finally
+  end;
+  WriteLn;
+end;
+
+procedure TestListModelToRecordMapping;
+var
+  Users: TList<TUser>;
+  DTOs: TList<TUserDTORec>;
+  User: TUser;
+  DTO: TUserDTORec;
+begin
+  WriteLn('=== Test 9: List Model To Record Mapping ===');
+
+  Users := TList<TUser>.Create;
+  try
+    // Create 3 users
+    for var I := 1 to 3 do
+    begin
+      User := TUser.Create;
+      User.Id := I;
+      User.FirstName := 'User' + I.ToString;
+      User.LastName := 'Test';
+      User.Email := 'user' + I.ToString + '@test.com';
+      User.Age := 20 + I;
+      Users.Add(User);
+    end;
+
+    DTOs := TMapper.MapList<TUser, TUserDTORec>(Users);
+    try
+      WriteLn('Mapped ', DTOs.Count, ' users:');
+      for DTO in DTOs do
+        WriteLn('  - ', DTO.FirstName, ' (', DTO.Email, ')');
+      WriteLn('✓ List Model To Record Mapping OK');
+    finally
+    end;
+  finally
+    for User in Users do
+      User.Free;
+    Users.Free;
+  end;
+  WriteLn;
 end;
 
 begin
@@ -237,8 +380,12 @@ begin
     TestBasicMapping;
     TestCustomMapping;
     TestListMapping;
-    TestPatchPartialUpdate;
-    TestPatchPersonRequestToModel;
+    TestRecordToModelPartialUpdate;
+    TestModelToRecordPartialUpdate;
+    TestRecordToModelFullUpdate;
+    TestModelToRecordFullUpdate;
+    TestListRecordToModelMapping;
+    TestListModelToRecordMapping;
     
     WriteLn('=====================');
     WriteLn('All tests passed!');

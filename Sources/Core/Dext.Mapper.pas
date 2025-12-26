@@ -58,27 +58,34 @@ type
   end;
 
   /// <summary>
-  ///   Configuration for mapping between two types.
+  ///   Base class for type mapping configuration.
   /// </summary>
-  TTypeMapConfig<TSource: class; TDest: class> = class
-  private
+  TTypeMapConfigBase = class
+  protected
     FMemberMappings: TObjectDictionary<string, TMemberMapping>;
   public
-    constructor Create;
+    constructor Create; virtual;
     destructor Destroy; override;
-    
+    property MemberMappings: TObjectDictionary<string, TMemberMapping> read FMemberMappings;
+  end;
+
+  /// <summary>
+  ///   Configuration for mapping between two types.
+  /// </summary>
+  TTypeMapConfig<TSource: class; TDest: class> = class(TTypeMapConfigBase)
+  public
+    constructor Create; override;
+
     /// <summary>
     ///   Configure custom mapping for a destination member.
     /// </summary>
-    function ForMember(const DestMemberName: string; 
+    function ForMember(const DestMemberName: string;
       MapFunc: TMemberMapFunc<TSource, TDest>): TTypeMapConfig<TSource, TDest>;
-    
+
     /// <summary>
     ///   Ignore a destination member during mapping.
     /// </summary>
     function Ignore(const DestMemberName: string): TTypeMapConfig<TSource, TDest>;
-    
-    property MemberMappings: TObjectDictionary<string, TMemberMapping> read FMemberMappings;
   end;
 
   /// <summary>
@@ -95,27 +102,21 @@ type
     ///   Create a mapping configuration between two types.
     /// </summary>
     class function CreateMap<TSource: class; TDest: class>: TTypeMapConfig<TSource, TDest>;
-    
+
     /// <summary>
     ///   Map a source object to a new destination object.
     /// </summary>
-    class function Map<TSource: class; TDest: class>(const Source: TSource): TDest; overload;
+    class function Map<TSource; TDest>(const Source: TSource; AOnlyNonDefault: Boolean = False): TDest; overload;
 
     /// <summary>
     ///   Map a source object to an existing destination object.
     /// </summary>
-    class procedure Map<TSource: class; TDest: class>(const Source: TSource; var Dest: TDest); overload;
-    
+    class procedure Map<TSource; TDest>(const Source: TSource; var Dest: TDest; AOnlyNonDefault: Boolean = False); overload;
+
     /// <summary>
     ///   Map a list of source objects to a list of destination objects.
     /// </summary>
-    class function MapList<TSource: class; TDest: class>(const SourceList: TEnumerable<TSource>): TList<TDest>;
-
-    /// <summary>
-    ///   Copies values from Source to Destination properties/fields only if the source value is not default.
-    ///   Source (S) can be a record or class. Destination (D) must be a class.
-    /// </summary>
-    class procedure Patch<S: record; D: class>(const ASource: S; var ADestination: D);
+    class function MapList<TSource; TDest>(const SourceList: TEnumerable<TSource>; AOnlyNonDefault: Boolean = False): TList<TDest>;
   end;
 
 implementation
@@ -125,17 +126,24 @@ uses
 
 { TMemberMapping }
 
-{ TTypeMapConfig<TSource, TDest> }
+{ TTypeMapConfigBase }
 
-constructor TTypeMapConfig<TSource, TDest>.Create;
+constructor TTypeMapConfigBase.Create;
 begin
   FMemberMappings := TObjectDictionary<string, TMemberMapping>.Create([doOwnsValues]);
 end;
 
-destructor TTypeMapConfig<TSource, TDest>.Destroy;
+destructor TTypeMapConfigBase.Destroy;
 begin
   FMemberMappings.Free;
   inherited;
+end;
+
+{ TTypeMapConfig<TSource, TDest> }
+
+constructor TTypeMapConfig<TSource, TDest>.Create;
+begin
+  inherited Create;
 end;
 
 function TTypeMapConfig<TSource, TDest>.ForMember(const DestMemberName: string;
@@ -194,7 +202,7 @@ var
   Config: TTypeMapConfig<TSource, TDest>;
 begin
   Key := GetConfigKey(TypeInfo(TSource), TypeInfo(TDest));
-  
+
   if FConfigurations.ContainsKey(Key) then
     Result := TTypeMapConfig<TSource, TDest>(FConfigurations[Key])
   else
@@ -205,69 +213,126 @@ begin
   end;
 end;
 
-class function TMapper.Map<TSource, TDest>(const Source: TSource): TDest;
+class function TMapper.Map<TSource, TDest>(const Source: TSource; AOnlyNonDefault: Boolean): TDest;
 var
-  Dest: TDest;
+  Ctx: TRttiContext;
+  RttiType: TRttiType;
+  Value: TValue;
 begin
-  Dest := TActivator.CreateInstance<TDest>;
-  Map<TSource, TDest>(Source, Dest);
-  Result := Dest;
+  Ctx := TRttiContext.Create;
+  try
+    RttiType := Ctx.GetType(TypeInfo(TDest));
+    if RttiType.IsInstance then
+    begin
+      Value := TRttiInstanceType(RttiType).MetaclassType.Create;
+      Value.ExtractRawData(@Result);
+    end
+    else
+      Result := Default(TDest);
+  finally
+    Ctx.Free;
+  end;
+  Map<TSource, TDest>(Source, Result, AOnlyNonDefault);
 end;
 
-class procedure TMapper.Map<TSource, TDest>(const Source: TSource; var Dest: TDest);
+class procedure TMapper.Map<TSource, TDest>(const Source: TSource; var Dest: TDest; AOnlyNonDefault: Boolean);
 var
   Ctx: TRttiContext;
   SourceType, DestType: TRttiType;
   SourceProp, DestProp: TRttiProperty;
+  SourceField, DestField: TRttiField;
   ConfigKey: string;
-  Config: TTypeMapConfig<TSource, TDest>;
+  Config: TTypeMapConfigBase;
   Mapping: TMemberMapping;
   Value: TValue;
-  HasConfig: Boolean;
+  HasConfig, IsDefault: Boolean;
+  SrcPtr, DstPtr: Pointer;
 begin
   Config := nil;
-  if Source = nil then
-    Exit;
-    
+
   Ctx := TRttiContext.Create;
   try
     SourceType := Ctx.GetType(TypeInfo(TSource));
     DestType := Ctx.GetType(TypeInfo(TDest));
-    
+
+    // Handle Source Pointer
+    if SourceType.IsInstance then
+    begin
+      SrcPtr := PPointer(@Source)^;
+      if SrcPtr = nil then Exit;
+    end
+    else
+      SrcPtr := @Source;
+
+    // Handle Destination Pointer
+    if DestType.IsInstance then
+    begin
+      DstPtr := PPointer(@Dest)^;
+      if DstPtr = nil then Exit;
+    end
+    else
+      DstPtr := @Dest;
+
     // Check if there's a custom configuration
     ConfigKey := GetConfigKey(TypeInfo(TSource), TypeInfo(TDest));
     var ConfigObj: TObject;
     HasConfig := FConfigurations.TryGetValue(ConfigKey, ConfigObj);
-    if HasConfig then
-      Config := ConfigObj as TTypeMapConfig<TSource, TDest>;
-    
+    if HasConfig and (ConfigObj is TTypeMapConfigBase) then
+      Config := ConfigObj as TTypeMapConfigBase;
+
     // Map each destination property
     for DestProp in DestType.GetProperties do
     begin
       if not DestProp.IsWritable then
         Continue;
-        
+
       // Check if property is ignored
       if HasConfig and (Config <> nil) and Config.MemberMappings.TryGetValue(DestProp.Name, Mapping) then
       begin
         if Mapping.Ignore then
           Continue;
-          
+
         // Use custom mapping function
         if Assigned(Mapping.MapFunc) then
         begin
-          Value := Mapping.MapFunc(Source);
-          DestProp.SetValue(Pointer(Dest), Value);
+          if SourceType.IsInstance then
+            Value := Mapping.MapFunc(TObject(SrcPtr))
+          else
+            raise Exception.Create('Custom mapping not supported for records yet');
+
+          DestProp.SetValue(DstPtr, Value);
           Continue;
         end;
       end;
-      
+
       // Default: map by property name
+      Value := TValue.Empty;
       SourceProp := SourceType.GetProperty(DestProp.Name);
       if (SourceProp <> nil) and SourceProp.IsReadable then
+        Value := SourceProp.GetValue(SrcPtr)
+      else
       begin
-        Value := SourceProp.GetValue(Pointer(Source));
-        
+        SourceField := SourceType.GetField(DestProp.Name);
+        if SourceField <> nil then
+          Value := SourceField.GetValue(SrcPtr);
+      end;
+
+      if not Value.IsEmpty then
+      begin
+        if AOnlyNonDefault then
+        begin
+          IsDefault := False;
+          case Value.Kind of
+            tkInteger, tkInt64: IsDefault := Value.AsOrdinal = 0;
+            tkFloat: IsDefault := Value.AsExtended = 0;
+            tkUString, tkString, tkWString, tkLString: IsDefault := Value.AsString = '';
+            tkEnumeration:
+              if Value.TypeInfo <> TypeInfo(Boolean) then
+                IsDefault := Value.AsOrdinal = 0;
+          end;
+          if IsDefault then Continue;
+        end;
+
         // Handle type conversion if needed
         if Value.TypeInfo <> DestProp.PropertyType.Handle then
         begin
@@ -279,8 +344,46 @@ begin
             Continue;
           end;
         end;
-        
-        DestProp.SetValue(Pointer(Dest), Value);
+
+        DestProp.SetValue(DstPtr, Value);
+      end;
+    end;
+
+    // Also try to match Destination Fields if they are not exposed via properties
+    for DestField in DestType.GetFields do
+    begin
+      var PropName := DestField.Name;
+      if PropName.StartsWith('FF', True) then
+        PropName := PropName.Substring(1);
+
+      if DestType.GetProperty(PropName) <> nil then
+        Continue;
+
+      Value := TValue.Empty;
+      SourceProp := SourceType.GetProperty(PropName);
+      if (SourceProp <> nil) and SourceProp.IsReadable then
+        Value := SourceProp.GetValue(SrcPtr)
+      else
+      begin
+        SourceField := SourceType.GetField(PropName);
+        if SourceField <> nil then
+          Value := SourceField.GetValue(SrcPtr);
+      end;
+
+      if not Value.IsEmpty then
+      begin
+        if AOnlyNonDefault then
+        begin
+          IsDefault := False;
+          case Value.Kind of
+            tkInteger, tkInt64: IsDefault := Value.AsOrdinal = 0;
+            tkFloat: IsDefault := Value.AsExtended = 0;
+            tkUString, tkString, tkWString, tkLString: IsDefault := Value.AsString = '';
+          end;
+          if IsDefault then Continue;
+        end;
+
+        DestField.SetValue(DstPtr, Value);
       end;
     end;
   finally
@@ -288,113 +391,17 @@ begin
   end;
 end;
 
-class function TMapper.MapList<TSource, TDest>(const SourceList: TEnumerable<TSource>): TList<TDest>;
+class function TMapper.MapList<TSource, TDest>(const SourceList: TEnumerable<TSource>; AOnlyNonDefault: Boolean): TList<TDest>;
 var
   Item: TSource;
 begin
   Result := TList<TDest>.Create;
   try
     for Item in SourceList do
-      Result.Add(Map<TSource, TDest>(Item));
+      Result.Add(Map<TSource, TDest>(Item, AOnlyNonDefault));
   except
     Result.Free;
     raise;
-  end;
-end;
-
-class procedure TMapper.Patch<S, D>(const ASource: S; var ADestination: D);
-var
-  Context: TRttiContext;
-  SrcType, DstType: TRttiType;
-  SrcProp, DstProp: TRttiProperty;
-  SrcField, DstField: TRttiField;
-  SrcValue: TValue;
-  IsDefault: Boolean;
-begin
-  if not Assigned(ADestination) then
-    Exit;
-
-  Context := TRttiContext.Create;
-  try
-    SrcType := Context.GetType(TypeInfo(S));
-    DstType := Context.GetType(ADestination.ClassType);
-
-    // Iterate through Destination Properties
-    for DstProp in DstType.GetProperties do
-    begin
-      if not DstProp.IsWritable then
-        Continue;
-
-      // Find match in Source Properties
-      SrcProp := SrcType.GetProperty(DstProp.Name);
-      if Assigned(SrcProp) then
-      begin
-        SrcValue := SrcProp.GetValue(@ASource);
-      end
-      else
-      begin
-        // If not a property, try Source Fields
-        SrcField := SrcType.GetField(DstProp.Name);
-        if Assigned(SrcField) then
-          SrcValue := SrcField.GetValue(@ASource)
-        else
-          Continue;
-      end;
-
-      // Check for default values (0, '', 0.0, etc.)
-      IsDefault := False;
-      case SrcValue.Kind of
-        tkInteger, tkInt64: IsDefault := SrcValue.AsOrdinal = 0;
-        tkFloat: IsDefault := SrcValue.AsExtended = 0;
-        tkUString, tkString, tkWString, tkLString: IsDefault := SrcValue.AsString = '';
-        tkEnumeration:
-          if SrcValue.TypeInfo = TypeInfo(Boolean) then
-            IsDefault := False // Boolean defaults are usually meaningful (False), so we don't treat them as "empty" for patch unless specific logic required
-          else
-            IsDefault := SrcValue.AsOrdinal = 0;
-      end;
-
-      if not IsDefault then
-        DstProp.SetValue(Pointer(ADestination), SrcValue);
-    end;
-
-    // Also try to match Destination Fields if they are not exposed via properties (less common for entities)
-    for DstField in DstType.GetFields do
-    begin
-      // Skip if already handled by property (many properties wrap fields with same name starting with F)
-      var PropName := DstField.Name;
-      if PropName.StartsWith('F', True) then
-        PropName := PropName.Substring(1);
-
-      if DstType.GetProperty(PropName) <> nil then
-        Continue;
-
-      SrcProp := SrcType.GetProperty(PropName);
-      if Assigned(SrcProp) then
-        SrcValue := SrcProp.GetValue(@ASource)
-      else
-      begin
-        SrcField := SrcType.GetField(PropName);
-        if Assigned(SrcField) then
-          SrcValue := SrcField.GetValue(@ASource)
-        else
-          Continue;
-      end;
-
-      // Repeat default check
-      IsDefault := False;
-      case SrcValue.Kind of
-        tkInteger, tkInt64: IsDefault := SrcValue.AsOrdinal = 0;
-        tkFloat: IsDefault := SrcValue.AsExtended = 0;
-        tkUString, tkString, tkWString, tkLString: IsDefault := SrcValue.AsString = '';
-      end;
-
-      if not IsDefault then
-        DstField.SetValue(Pointer(ADestination), SrcValue);
-    end;
-
-  finally
-    Context.Free;
   end;
 end;
 
