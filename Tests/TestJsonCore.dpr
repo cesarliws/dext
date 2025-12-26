@@ -3,6 +3,7 @@ program TestJsonCore;
 {$APPTYPE CONSOLE}
 
 uses
+  Dext.MM,
   System.SysUtils,
   System.Generics.Collections,
   Dext.Json;

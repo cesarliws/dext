@@ -1,5 +1,5 @@
 # MinimalEndpoints API Test Script
-$baseUrl = "http://localhost:8080"
+$baseUrl = "http://localhost:5000"
 
 Write-Host "[TEST] MinimalEndpoints API Test Suite" -ForegroundColor Cyan
 Write-Host "======================================" -ForegroundColor Cyan

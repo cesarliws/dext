@@ -355,6 +355,8 @@ begin
     Host.Run;
     Readln;
     Host.Stop;
+    
+    Host := nil; // Explicitly release reference to allow cleanup
 
     WriteLn;
     WriteLn('Server stopped successfully');
@@ -363,6 +365,9 @@ begin
     on E: Exception do
     begin
       WriteLn('Error: ', E.Message);
+      WriteLn('Exception Class: ', E.ClassName);
+      if E.StackTrace <> '' then
+        WriteLn('Stack Trace: ', E.StackTrace);
       WriteLn('Press Enter to exit...');
       Readln;
     end;

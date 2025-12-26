@@ -224,6 +224,7 @@ type
     function GetConfiguration: IConfiguration;
     function BuildServices: IServiceProvider; // ? Automation
     procedure Run(Port: Integer); overload;
+    procedure SetDefaultPort(Port: Integer);
 
     property Services: TDextServices read GetServices;
     property Builder: TDextAppBuilder read GetBuilder;

@@ -3,6 +3,7 @@
 {$APPTYPE CONSOLE}
 
 uses
+  Dext.MM,
   System.Rtti,
   System.SysUtils,
   System.Generics.Collections,

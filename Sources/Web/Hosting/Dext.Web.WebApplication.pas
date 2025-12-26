@@ -35,7 +35,7 @@ uses
   Dext.Configuration.Interfaces;
 
 type
-  TDextApplication = class(TInterfacedObject, IWebApplication)
+  TDextApplication = class(TInterfacedObject, IWebApplication, IWebHost)
   private
     FServices: IServiceCollection;
     FServiceProvider: IServiceProvider;
@@ -60,6 +60,7 @@ type
     procedure Run; overload;
     procedure Run(Port: Integer); overload;
     procedure Stop;
+    procedure SetDefaultPort(Port: Integer);
 
     property DefaultPort: Integer read FDefaultPort write FDefaultPort;
   end;
@@ -228,10 +229,8 @@ var
   StateControl: IAppStateControl;
 begin
   FDefaultPort := Port;
-  // ? REBUILD ServiceProvider to include all services registered after Create()
-  FServiceProvider := nil; // Release old provider
-  FServiceProvider := FServices.BuildServiceProvider;
-  FAppBuilder.SetServiceProvider(FServiceProvider);
+  // ServiceProvider already created in Create() with access to FServices
+  // No need to rebuild - singletons are preserved
   
   // Get Lifetime & State Service
   var LifetimeIntf := FServiceProvider.GetServiceAsInterface(TServiceType.FromInterface(IHostApplicationLifetime));
@@ -266,13 +265,12 @@ begin
       var Migrator := TMigrator.Create(DbContextIntf as IDbContext);
       try
         Migrator.Migrate;
-        Writeln('✅ Database is up to date.');
       finally
         Migrator.Free;
       end;
     end
     else
-      Writeln('⚠️ IDbContext not found in DI container. Skipping auto-migration.');
+      ;
   end;
   
   // Update State: Migrating -> Seeding
@@ -383,6 +381,11 @@ procedure TDextApplication.Stop;
 begin
   // Implementation of Stop if needed by IWebHost
   // In Indy implementation, we might need a way to stop the loop
+end;
+
+procedure TDextApplication.SetDefaultPort(Port: Integer);
+begin
+  FDefaultPort := Port;
 end;
 
 end.

@@ -127,7 +127,8 @@ class function TServiceCollectionLoggingExtensions.AddLogging(const AServices: I
 var
   LBuilderIntf: ILoggingBuilder;
   LBuilderObj: TLoggingBuilder;
-  LProviders: TList<ILoggerProvider>;
+  LProvidersList: TList<ILoggerProvider>;
+  LProvidersArray: TArray<ILoggerProvider>;
   LMinLevel: TLogLevel;
 begin
   LBuilderObj := TLoggingBuilder.Create(AServices);
@@ -136,7 +137,9 @@ begin
   if Assigned(AConfigure) then
     AConfigure(LBuilderIntf);
     
-  LProviders := LBuilderObj.ExtractProviders;
+  LProvidersList := LBuilderObj.ExtractProviders;
+  LProvidersArray := LProvidersList.ToArray; // Copy to array
+  LProvidersList.Free; // Free list immediately - array holds references
   LMinLevel := LBuilderObj.GetMinLevel;
   
   // Register TLoggerFactory (Class) - Holds the configuration and providers
@@ -149,10 +152,8 @@ begin
       Factory := TLoggerFactory.Create;
       Factory.SetMinimumLevel(LMinLevel);
       
-      for P in LProviders do
+      for P in LProvidersArray do // Use array instead of list
         Factory.AddProvider(P);
-        
-      LProviders.Free; 
       
       Result := Factory;
     end);

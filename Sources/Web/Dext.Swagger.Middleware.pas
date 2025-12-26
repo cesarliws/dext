@@ -45,7 +45,7 @@ type
     FJsonPath: string;
     FGenerator: TOpenAPIGenerator;
     FCachedJson: string;
-    FAppBuilderUnsafe: Pointer; // Weak reference to avoid circular reference
+    // Removed FAppBuilder to break circular reference - routes cached in constructor
     
     function GetSwaggerUIHtml: string;
     function ShouldHandleRequest(const APath: string): Boolean;
@@ -79,19 +79,23 @@ uses
 { TSwaggerMiddleware }
 
 constructor TSwaggerMiddleware.Create(AAppBuilder: IApplicationBuilder; const AOptions: TOpenAPIOptions; const ASwaggerPath: string; const AJsonPath: string);
+var
+  Endpoints: TArray<TEndpointMetadata>;
 begin
   inherited Create;
-  FAppBuilderUnsafe := Pointer(AAppBuilder); // Store as weak reference
   FOptions := AOptions;
   FSwaggerPath := ASwaggerPath;
   FJsonPath := AJsonPath;
   FGenerator := TOpenAPIGenerator.Create(AOptions);
-  FCachedJson := '';
+  
+  // Cache routes and generate JSON immediately to avoid holding AppBuilder reference
+  Endpoints := AAppBuilder.GetRoutes;
+  FCachedJson := FGenerator.GenerateJson(Endpoints);
+  // AAppBuilder reference released here (not stored)
 end;
 
 destructor TSwaggerMiddleware.Destroy;
 begin
-  WriteLn('🗑️ TSwaggerMiddleware.Destroying...');
   FGenerator.Free;
   inherited;
 end;
@@ -150,16 +154,8 @@ begin
 end;
 
 procedure TSwaggerMiddleware.HandleSwaggerJson(AContext: IHttpContext);
-var
-  Endpoints: TArray<TEndpointMetadata>;
 begin
-  // Generate JSON if not cached
-  if FCachedJson = '' then
-  begin
-    Endpoints := IApplicationBuilder(FAppBuilderUnsafe).GetRoutes;
-    FCachedJson := FGenerator.GenerateJson(Endpoints);
-  end;
-  
+  // JSON already cached in constructor
   AContext.Response.StatusCode := 200;
   AContext.Response.SetContentType('application/json; charset=utf-8');
   AContext.Response.AddHeader('Access-Control-Allow-Origin', '*');

@@ -2,22 +2,58 @@
 setlocal enabledelayedexpansion
 
 echo ==========================================
-echo Running Dext Tests
+echo Building and Running Dext Tests
 echo ==========================================
 echo.
+
+REM Setup Delphi environment
+call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
 
 set FAILED_TESTS=
 set SUCCESS_COUNT=0
 set FAIL_COUNT=0
 set SKIPPED_COUNT=0
+set BUILD_FAIL_COUNT=0
 
-REM Find all test/demo executables
-for /r "%~dp0..\Examples" %%f in (*.dproj) do (
+echo ==========================================
+echo Step 1: Building All Tests
+echo ==========================================
+echo.
+
+REM Build all test projects
+for /r "%~dp0..\Tests" %%f in (*.dproj) do (
+    set "PROJECT_NAME=%%~nf"
+    set "PROJECT_FILE=%%f"
+    
+    REM Check if it's a test project (contains "Test" in name)
+    echo !PROJECT_NAME! | findstr /i "test" >nul
+    if !ERRORLEVEL! EQU 0 (
+        echo Building: !PROJECT_NAME!
+        msbuild "!PROJECT_FILE!" /t:Rebuild /p:Config=Debug /p:Platform=Win32 /v:minimal /nologo
+        
+        if !ERRORLEVEL! NEQ 0 (
+            echo [BUILD FAILED] !PROJECT_NAME!
+            set /a BUILD_FAIL_COUNT+=1
+        ) else (
+            echo [BUILD OK] !PROJECT_NAME!
+        )
+        echo.
+    )
+)
+
+echo.
+echo ==========================================
+echo Step 2: Running All Tests
+echo ==========================================
+echo.
+
+REM Run all test executables
+for /r "%~dp0..\Tests" %%f in (*.dproj) do (
     set "PROJECT_NAME=%%~nf"
     set "PROJECT_DIR=%%~dpf"
     
-    REM Check if it's a test/demo project (contains "Test" or "Demo" in name)
-    echo !PROJECT_NAME! | findstr /i "test demo" >nul
+    REM Check if it's a test project (contains "Test" in name)
+    echo !PROJECT_NAME! | findstr /i "test" >nul
     if !ERRORLEVEL! EQU 0 (
         echo.
         echo ==========================================
@@ -26,7 +62,7 @@ for /r "%~dp0..\Examples" %%f in (*.dproj) do (
         
         REM Try to find the executable in common output locations
         set "EXE_FOUND="
-        for %%d in ("!PROJECT_DIR!..\Output" "!PROJECT_DIR!Win32\Release" "!PROJECT_DIR!Win32\Debug" "!PROJECT_DIR!Release" "!PROJECT_DIR!Debug") do (
+        for %%d in ("%~dp0..\Tests\Output" "!PROJECT_DIR!Output" "!PROJECT_DIR!..\..\Output" "!PROJECT_DIR!Win32\Debug" "!PROJECT_DIR!Win32\Release" "!PROJECT_DIR!Debug" "!PROJECT_DIR!Release") do (
             if exist "%%~d\!PROJECT_NAME!.exe" (
                 set "EXE_PATH=%%~d\!PROJECT_NAME!.exe"
                 set "EXE_FOUND=1"
@@ -58,6 +94,7 @@ echo.
 echo ==========================================
 echo Test Summary
 echo ==========================================
+echo Build Failures: %BUILD_FAIL_COUNT%
 echo Passed:  %SUCCESS_COUNT%
 echo Failed:  %FAIL_COUNT%
 echo Skipped: %SKIPPED_COUNT%
@@ -72,15 +109,23 @@ if not "%FAILED_TESTS%"=="" (
     echo ==========================================
     exit /b 1
 ) else (
-    echo.
-    echo ==========================================
-    if %SUCCESS_COUNT% GTR 0 (
-        echo ALL TESTS PASSED!
+    if %BUILD_FAIL_COUNT% GTR 0 (
+        echo.
+        echo ==========================================
+        echo SOME TESTS FAILED TO BUILD
+        echo ==========================================
+        exit /b 1
     ) else (
-        echo NO TESTS FOUND TO RUN
+        echo.
+        echo ==========================================
+        if %SUCCESS_COUNT% GTR 0 (
+            echo ALL TESTS PASSED!
+        ) else (
+            echo NO TESTS FOUND TO RUN
+        )
+        echo ==========================================
+        exit /b 0
     )
-    echo ==========================================
-    exit /b 0
 )
 
 Pause

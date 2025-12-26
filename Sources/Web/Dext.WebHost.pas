@@ -75,6 +75,9 @@ end;
 
 destructor TWebHostBuilder.Destroy;
 begin
+  // Release closures to break reference cycles
+  FAppConfig := nil;
+  FServicesConfig := nil;
   inherited;
 end;
 
@@ -131,7 +134,6 @@ end;
 
 function TWebHostBuilder.Build: IWebHost;
 var
-  AppBuilder: IApplicationBuilder;
   Host: IWebApplication;
   Port: Integer;
   PortStr: string;
@@ -162,13 +164,17 @@ begin
   // And it exposes AppBuilder via a property or method usually.
   
   // In Dext.Web.WebApplication:
-  // TDextApplication = class(TInterfacedObject, IWebApplication, IApplicationBuilder, ...)
+  // TDextApplication = class(TInterfacedObject, IWebApplication, ...)
   
-  AppBuilder := Host as IApplicationBuilder;
-
-  // 2. Apply Pipeline Configuration
+  // 2. Apply Pipeline Configuration (call GetApplicationBuilder inline to avoid holding reference)
   if Assigned(FAppConfig) then
-    FAppConfig(AppBuilder);
+  begin
+    FAppConfig(Host.GetApplicationBuilder);
+    FAppConfig := nil; // Release closure immediately to break reference cycle
+  end;
+  
+  // Also release services config if not already done
+  FServicesConfig := nil;
 
   // 3. Determine Port from URLs (Naive implementation - takes first URL's port)
   if Length(FUrls) > 0 then
@@ -185,7 +191,7 @@ begin
         PortStr := PortStr.Substring(0, Length(PortStr) - 1);
       
       if TryStrToInt(PortStr, Port) then
-        (Host as TDextApplication).DefaultPort := Port;
+        Host.SetDefaultPort(Port);
     end;
   end;
 
