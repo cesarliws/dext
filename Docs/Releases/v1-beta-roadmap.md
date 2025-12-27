@@ -39,6 +39,8 @@ For technical details and granular status of each module, check:
 | **Validation** | ✅ Ready | Validation library with Attributes (`[Required]`, `[Email]`) |
 | **Options Pattern** | ✅ Ready | Configuration binding to classes (`IOptions<T>`) |
 | **Zero Alloc HTTP Context** | ✅ Ready | HTTP Server/Context with zero allocations and on-demand consumption |
+| **Database as API** | ✅ Ready | Zero-code REST endpoints from entities (`TDataApiHandler<T>.Map`) with filtering, pagination, security policies |
+| **RegisterForDisposal** | ✅ Ready | Host-lifetime object management via `IApplicationBuilder.RegisterForDisposal` |
 
 ### 🛠️ Dext.Web Middlewares (Built-in)
 | Middleware | Class | Function |
@@ -192,4 +194,3 @@ Features moved to v1.1 or v2.0:
 - **Distributed Caching** (Redis implementation - In Progress).
 - **SQL Statement Caching**: Cache generated SQL strings for specifications to skip generation overhead (Compiled Queries).
 - **SNI / Virtual Hosts**: Support for multiple domains and certificates on the same IP (Taurus TLS).
-- **Database as API**: "Low-Code/No-Code" feature to expose the database as an API with configurable mapping and security (Instant APIs).

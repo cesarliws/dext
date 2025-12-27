@@ -48,6 +48,7 @@ Um framework HTTP leve e poderoso para construir REST APIs e microserviços.
 - **Response Compression**: Middleware integrado de compressão GZip.
 - **Cookies**: Suporte completo a leitura e escrita com `TCookieOptions`.
 - **OpenAPI**: Integração nativa com Swagger e geração automática de documentação.
+- **Database as API**: REST endpoints zero-code a partir de entities com `TDataApiHandler<T>.Map` - inclui filtros, paginação e security policies.
 
 ### 🗄️ Dext.Entity (ORM)
 Um ORM moderno focado em produtividade e performance.
@@ -105,6 +106,7 @@ A fundação do framework, utilizável em qualquer tipo de aplicação.
   - [CORS](Docs/cors.md)
   - [Rate Limiting](Docs/rate-limiting.md)
 - **Avançado**
+  - [Database as API](Docs/database-as-api.md)
   - [Background Services](Docs/background-services.md)
   - [Action Filters](Docs/action-filters.md)
   - [Swagger / OpenAPI](Docs/swagger.md)
@@ -294,6 +296,7 @@ O repositório contém projetos de exemplo práticos:
 - **`Examples/Web.TaskFlowAPI`**: Uma API REST "Mundo Real" completa demonstrando arquitetura em camadas, ORM, Auth e DI.
 - **`Examples/Web.SslDemo`**: Demonstra configuração de SSL/HTTPS usando OpenSSL ou TaurusTLS.
 - **`Examples/Dext.Starter.Admin`**: **(Recomendado)** Um Painel Administrativo Moderno com HTMX, Camada de Serviço e Minimal APIs. [Leia o Guia](Examples/Dext.Starter.Admin/README.md).
+- **`Examples/06_DatabaseAsApi`**: Demonstra a feature Database as API - REST endpoints zero-code a partir de entities.
 
 ---
 

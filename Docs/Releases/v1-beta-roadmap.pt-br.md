@@ -39,6 +39,8 @@ Para detalhes técnicos e status granular de cada módulo, consulte:
 | **Validation** | ✅ Pronto | Library de validação com Atributos (`[Required]`, `[Email]`) |
 | **Options Pattern** | ✅ Pronto | Binding de configuração para classes (`IOptions<T>`) |
 | **Zero Alloc HTTP Context** | ✅ Pronto | HTTP Server/Context com zero allocations e consumo sob demanda |
+| **Database as API** | ✅ Pronto | REST endpoints zero-code a partir de entities (`TDataApiHandler<T>.Map`) com filtros, paginação, security policies |
+| **RegisterForDisposal** | ✅ Pronto | Gerenciamento de lifecycle de objetos via `IApplicationBuilder.RegisterForDisposal` |
 
 ### 🛠️ Dext.Web Middlewares (Built-in)
 | Middleware | Classe | Função |
@@ -192,6 +194,5 @@ Funcionalidades movidas para v1.1 ou v2.0:
 - **Distributed Caching** (Redis implementation - Em Progresso).
 - **Cache de Instruções SQL**: Cache de strings SQL geradas para specifications para pular overhead de geração (Compiled Queries).
 - **SNI / Virtual Hosts**: Suporte a múltiplos domínios e certificados no mesmo IP (Taurus TLS).
-- **Database as API**: Funcionalidade "Low-Code/No-Code" para expor o banco como API com mapping e segurança configuráveis (Instant APIs).
 
 

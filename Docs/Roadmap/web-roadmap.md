@@ -91,6 +91,32 @@ var Json := TDextJson.Serialize(Person);
 - [ ] **GraphQL Support**: Endpoint `/graphql` nativo com suporte a Queries, Mutations e Subscriptions.
 - [ ] **gRPC Support**: Implementação de serviços gRPC de alta performance (Protobuf).
 
+### 1.1. Database as API ✅ **CONCLUÍDO**
+Zero-code REST endpoints a partir de entity classes.
+
+- [x] **TDataApiHandler<T>**: Classe genérica para expor entities como REST API
+- [x] **CRUD Endpoints**: GET (list), GET/{id}, POST, PUT/{id}, DELETE/{id}
+- [x] **Query String Filtering**: Filtros automáticos baseados nas propriedades da entity
+- [x] **Pagination**: Suporte a `limit` e `offset` via query string
+- [x] **Security Policies**: `RequireAuth`, `RequireRole`, `RequireReadRole`, `RequireWriteRole`
+- [x] **JSON Body Parsing**: Deserialização automática do body para POST/PUT
+- [x] **Endpoint Configuration**: `ReadOnly`, `WriteOnly`, `AllowedMethods`
+- [x] **RegisterForDisposal**: Lifecycle management via `IApplicationBuilder.RegisterForDisposal`
+
+**Exemplo de Uso**:
+```pascal
+// Uma linha = API REST completa
+TDataApiHandler<TCustomer>.Map(App, '/api/customers', DbContext);
+
+// Com security policies
+TDataApiHandler<TCustomer>.Map(App, '/api/customers', DbContext,
+  TDataApiOptions<TCustomer>.Create
+    .RequireAuth
+    .RequireReadRole('viewer')
+    .RequireWriteRole('admin')
+);
+```
+
 ### 2. MVC & Views Engine
 Expansão do suporte para aplicações Web completas (Server-Side Rendering).
 - [ ] **Views Engine**: Sistema de templates para renderização de HTML no servidor.
