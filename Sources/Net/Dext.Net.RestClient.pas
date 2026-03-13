@@ -154,6 +154,38 @@ uses
   end;
 
   /// <summary>
+  ///   Specialised async builder returned by the REST client's untyped HTTP operations.
+  ///   Wraps TAsyncBuilder&lt;IRestResponse&gt; and adds ToList&lt;T&gt; for JSON-array endpoints.
+  /// </summary>
+  TRestAsyncBuilder = record
+  private
+    FInner: TAsyncBuilder<IRestResponse>;
+  public
+    constructor Create(const AInner: TAsyncBuilder<IRestResponse>);
+
+    /// <summary>
+    ///   Deserialises the JSON-array response body into IList&lt;T&gt;.
+    ///   Usage: RestClient('...').Get('/items').ToList&lt;TItem&gt;.Await
+    /// </summary>
+    function ToList<T: class>: TAsyncBuilder<IList<T>>;
+
+    // ---- Forward the full TAsyncBuilder<IRestResponse> surface ----
+    function ThenBy<U>(const AFunc: TFunc<IRestResponse, U>): TAsyncBuilder<U>; overload;
+    function ThenBy(const AProc: TProc<IRestResponse>): TRestAsyncBuilder; overload;
+    function OnComplete(const AProc: TProc<IRestResponse>): TRestAsyncBuilder;
+    function OnCompleteAsync(const AProc: TProc<IRestResponse>): TRestAsyncBuilder;
+    function OnException(const AProc: TProc<Exception>): TRestAsyncBuilder;
+    function OnExceptionAsync(const AProc: TProc<Exception>): TRestAsyncBuilder;
+    function WithCancellation(const AToken: ICancellationToken): TRestAsyncBuilder;
+    function Start: IAsyncTask;
+    function Await: IRestResponse;
+
+    /// <summary>Implicit conversion – keeps existing code that stores the result
+    ///   as TAsyncBuilder&lt;IRestResponse&gt; working without changes.</summary>
+    class operator Implicit(const ABuilder: TRestAsyncBuilder): TAsyncBuilder<IRestResponse>;
+  end;
+
+  /// <summary>
   ///   Fluent REST Client - Record Pattern to support Generics.
   /// </summary>
   TRestClient = record
@@ -163,7 +195,7 @@ uses
     class destructor Destroy;
   public
     class function Create(const ABaseUrl: string = ''): TRestClient; static;
-    
+
     // Fluent Configuration
     function BaseUrl(const AValue: string): TRestClient;
     function Timeout(AValue: Integer): TRestClient;
@@ -176,8 +208,9 @@ uses
     function ContentType(AValue: TDextContentType): TRestClient;
 
     // HTTP Operations
-    function Get(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
+    function Get(const AEndpoint: string = ''): TRestAsyncBuilder; overload;
     function Get<T: class>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
+    function GetList<T: class>(const AEndpoint: string = ''): TAsyncBuilder<IList<T>>;
     
     function Post(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
     function Post(const AEndpoint: string; const ABody: TStream): TAsyncBuilder<IRestResponse>; overload;
@@ -476,6 +509,73 @@ begin
   );
 end;
 
+{ TRestAsyncBuilder }
+
+constructor TRestAsyncBuilder.Create(const AInner: TAsyncBuilder<IRestResponse>);
+begin
+  FInner := AInner;
+end;
+
+function TRestAsyncBuilder.ToList<T>: TAsyncBuilder<IList<T>>;
+begin
+  Result := FInner.ThenBy<IList<T>>(
+    function(LRes: IRestResponse): IList<T>
+    begin
+      Result := TDextJson.Deserialize<IList<T>>(LRes.ContentString);
+    end
+  );
+end;
+
+function TRestAsyncBuilder.ThenBy<U>(const AFunc: TFunc<IRestResponse, U>): TAsyncBuilder<U>;
+begin
+  Result := FInner.ThenBy<U>(AFunc);
+end;
+
+function TRestAsyncBuilder.ThenBy(const AProc: TProc<IRestResponse>): TRestAsyncBuilder;
+begin
+  Result := TRestAsyncBuilder.Create(FInner.ThenBy(AProc));
+end;
+
+function TRestAsyncBuilder.OnComplete(const AProc: TProc<IRestResponse>): TRestAsyncBuilder;
+begin
+  Result := TRestAsyncBuilder.Create(FInner.OnComplete(AProc));
+end;
+
+function TRestAsyncBuilder.OnCompleteAsync(const AProc: TProc<IRestResponse>): TRestAsyncBuilder;
+begin
+  Result := TRestAsyncBuilder.Create(FInner.OnCompleteAsync(AProc));
+end;
+
+function TRestAsyncBuilder.OnException(const AProc: TProc<Exception>): TRestAsyncBuilder;
+begin
+  Result := TRestAsyncBuilder.Create(FInner.OnException(AProc));
+end;
+
+function TRestAsyncBuilder.OnExceptionAsync(const AProc: TProc<Exception>): TRestAsyncBuilder;
+begin
+  Result := TRestAsyncBuilder.Create(FInner.OnExceptionAsync(AProc));
+end;
+
+function TRestAsyncBuilder.WithCancellation(const AToken: ICancellationToken): TRestAsyncBuilder;
+begin
+  Result := TRestAsyncBuilder.Create(FInner.WithCancellation(AToken));
+end;
+
+function TRestAsyncBuilder.Start: IAsyncTask;
+begin
+  Result := FInner.Start;
+end;
+
+function TRestAsyncBuilder.Await: IRestResponse;
+begin
+  Result := FInner.Await;
+end;
+
+class operator TRestAsyncBuilder.Implicit(const ABuilder: TRestAsyncBuilder): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ABuilder.FInner;
+end;
+
 { TRestClient }
 
 class destructor TRestClient.Destroy;
@@ -550,9 +650,14 @@ begin
   Result := Self;
 end;
 
-function TRestClient.Get(const AEndpoint: string): TAsyncBuilder<IRestResponse>;
+function TRestClient.Get(const AEndpoint: string): TRestAsyncBuilder;
 begin
-  Result := ExecuteAsync(hmGET, AEndpoint);
+  Result := TRestAsyncBuilder.Create(ExecuteAsync(hmGET, AEndpoint));
+end;
+
+function TRestClient.GetList<T>(const AEndpoint: string): TAsyncBuilder<IList<T>>;
+begin
+  Result := Get(AEndpoint).ToList<T>;
 end;
 
 function TRestClient.Get<T>(const AEndpoint: string): TAsyncBuilder<T>;
