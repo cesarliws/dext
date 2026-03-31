@@ -104,6 +104,7 @@ type
     procedure SetSQL(const ASQL: string);
     procedure AddParam(const AName: string; const AValue: TValue); overload;
     procedure AddParam(const AName: string; const AValue: TValue; ADataType: TFieldType); overload;
+    procedure BindSequentialParams(const AValues: TArray<TValue>);
     procedure SetParamType(const AName: string; AType: TParamType);
     function GetParamValue(const AName: string): TValue;
     procedure ClearParams;
@@ -158,6 +159,24 @@ implementation
 
 uses
   FireDAC.ConsoleUI.Wait;
+
+function FireDACResolveParamsCollection(AParams: TFDParams; const AName: string): TFDParam;
+var
+  Idx: Integer;
+  S: string;
+begin
+  Result := AParams.FindParam(AName);
+  if Result <> nil then
+    Exit;
+  { Legacy FromSql used AddParam('p0'..'pN') while SQL used :UserId (PostgreSQL/FireDAC). }
+  if (Length(AName) >= 2) and ((AName[1] = 'p') or (AName[1] = 'P')) then
+  begin
+    S := Copy(AName, 2, MaxInt);
+    if TryStrToInt(S, Idx) and (Idx >= 0) and (Idx < AParams.Count) then
+      Exit(AParams[Idx]);
+  end;
+  raise EDatabaseError.CreateFmt('Parameter ''%s'' not found', [AName]);
+end;
 
 function FireDACFieldToTValue(const Field: TField): TValue;
 begin
@@ -345,21 +364,51 @@ procedure TFireDACCommand.AddParam(const AName: string; const AValue: TValue);
 var
   Param: TFDParam;
 begin
-  try
-    Param := FQuery.ParamByName(AName);
-    SetParamValue(Param, AValue);
-  except
-    on E: Exception do
-      raise;
-  end;
+  Param := FireDACResolveParamsCollection(FQuery.Params, AName);
+  SetParamValue(Param, AValue);
 end;
 
 procedure TFireDACCommand.AddParam(const AName: string; const AValue: TValue; ADataType: TFieldType);
 var
   Param: TFDParam;
 begin
-  Param := FQuery.ParamByName(AName);
+  Param := FireDACResolveParamsCollection(FQuery.Params, AName);
   SetParamValueWithType(Param, AValue, ADataType);
+end;
+
+procedure TFireDACCommand.BindSequentialParams(const AValues: TArray<TValue>);
+var
+  I: Integer;
+  Names: string;
+begin
+  if (Length(AValues) > 0) and (FQuery.Params.Count = 0) and (Pos(':', FQuery.SQL.Text) > 0) then
+  begin
+    try
+      FQuery.Prepare;
+    except
+      on E: Exception do
+        raise EDatabaseError.CreateFmt(
+          'Could not parse SQL parameters (Prepare failed: %s). Check connection and :placeholders.',
+          [E.Message]);
+    end;
+  end;
+
+  if Length(AValues) <> FQuery.Params.Count then
+  begin
+    Names := '';
+    for I := 0 to FQuery.Params.Count - 1 do
+    begin
+      if I > 0 then
+        Names := Names + ', ';
+      Names := Names + FQuery.Params[I].Name;
+    end;
+    raise EDatabaseError.Create(Format(
+      'BindSequentialParams: %d value(s) provided but SQL has %d parameter(s) in order [%s]. ' +
+      'FromSql passes an array by position; use one value per :placeholder in the SQL text.',
+      [Length(AValues), FQuery.Params.Count, Names]));
+  end;
+  for I := 0 to High(AValues) do
+    SetParamValue(FQuery.Params[I], AValues[I]);
 end;
 
 procedure TFireDACCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);

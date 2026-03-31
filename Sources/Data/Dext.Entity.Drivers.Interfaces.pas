@@ -95,6 +95,11 @@ type
     ///   specifies a different type than what would be inferred from TValue.
     /// </summary>
     procedure AddParam(const AName: string; const AValue: TValue; ADataType: TFieldType); overload;
+    /// <summary>
+    ///   Binds values to parameters in SQL order (first :placeholder = index 0). Use with raw SQL
+    ///   that uses named markers (:UserId); the array is positional, not keyed by name.
+    /// </summary>
+    procedure BindSequentialParams(const AValues: TArray<TValue>);
     procedure SetParamType(const AName: string; AType: TParamType);
     function GetParamValue(const AName: string): TValue;
     procedure ClearParams;

@@ -411,13 +411,11 @@ end;
 function TSqlQueryIterator<T>.MoveNextCore: Boolean;
 var
   Cmd: IDbCommand;
-  i: Integer;
 begin
   if not FInitialized then
   begin
     Cmd := FDbSet.FContext.Connection.CreateCommand(FSql);
-    for i := 0 to Length(FParams) - 1 do
-      Cmd.AddParam('p' + IntToStr(i), FParams[i]);
+    Cmd.BindSequentialParams(FParams);
       
     FReader := Cmd.ExecuteQuery;
     FInitialized := True;

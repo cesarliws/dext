@@ -110,6 +110,7 @@ type
     procedure SetSQL(const ASQL: string);
     procedure AddParam(const AName: string; const AValue: TValue); overload;
     procedure AddParam(const AName: string; const AValue: TValue; ADataType: TFieldType); overload;
+    procedure BindSequentialParams(const AValues: TArray<TValue>);
     procedure SetParamType(const AName: string; AType: TParamType);
     function GetParamValue(const AName: string): TValue;
     procedure ClearParams;
@@ -165,6 +166,23 @@ type
   end;
 
 implementation
+
+function PhysFDResolveParamsCollection(AParams: TFDParams; const AName: string): TFDParam;
+var
+  Idx: Integer;
+  S: string;
+begin
+  Result := AParams.FindParam(AName);
+  if Result <> nil then
+    Exit;
+  if (Length(AName) >= 2) and ((AName[1] = 'p') or (AName[1] = 'P')) then
+  begin
+    S := Copy(AName, 2, MaxInt);
+    if TryStrToInt(S, Idx) and (Idx >= 0) and (Idx < AParams.Count) then
+      Exit(AParams[Idx]);
+  end;
+  raise EDatabaseError.CreateFmt('Parameter ''%s'' not found', [AName]);
+end;
 
 { TFireDACPhysTransaction }
 
@@ -348,16 +366,7 @@ procedure TFireDACPhysCommand.AddParam(const AName: string; const AValue: TValue
 var
   Param: TFDParam;
 begin
-  Param := FCommand.Params.FindParam(AName);
-  if Param = nil then
-  begin
-    // If param not found (maybe Prepare didn't find it or manual addition needed)
-    // Phys usually relies on Prepare parsing.
-    // If not found, ignore or error?
-    // Let's assume Prepare worked.
-    Exit; 
-  end;
-  
+  Param := PhysFDResolveParamsCollection(FCommand.Params, AName);
   SetParamValue(Param, AValue);
 end;
 
@@ -365,11 +374,31 @@ procedure TFireDACPhysCommand.AddParam(const AName: string; const AValue: TValue
 var
   Param: TFDParam;
 begin
-  Param := FCommand.Params.FindParam(AName);
-  if Param = nil then
-    Exit;
-  
+  Param := PhysFDResolveParamsCollection(FCommand.Params, AName);
   SetParamValueWithType(Param, AValue, ADataType);
+end;
+
+procedure TFireDACPhysCommand.BindSequentialParams(const AValues: TArray<TValue>);
+var
+  I: Integer;
+  Names: string;
+begin
+  if Length(AValues) <> FCommand.Params.Count then
+  begin
+    Names := '';
+    for I := 0 to FCommand.Params.Count - 1 do
+    begin
+      if I > 0 then
+        Names := Names + ', ';
+      Names := Names + FCommand.Params[I].Name;
+    end;
+    raise EDatabaseError.Create(Format(
+      'BindSequentialParams: %d value(s) provided but SQL has %d parameter(s) in order [%s]. ' +
+      'FromSql passes an array by position; use one value per :placeholder in the SQL text.',
+      [Length(AValues), FCommand.Params.Count, Names]));
+  end;
+  for I := 0 to High(AValues) do
+    SetParamValue(FCommand.Params[I], AValues[I]);
 end;
 
 procedure TFireDACPhysCommand.SetParamValueWithType(Param: TFDParam; const AValue: TValue; ADataType: TFieldType);

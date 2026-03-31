@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -157,6 +157,8 @@ type
     ///  Creates a LINQ query based on a raw SQL query.
     ///  If the SQL is a stored procedure, you cannot compose over it (Where, OrderBy won't work).
     ///  If the SQL is a SELECT statement, depending on the provider, you might be able to compose.
+    ///  Parameter array is positional: first value binds the first :placeholder in the SQL (e.g. PostgreSQL
+    ///  :UserId, :TenantId), matching FireDAC parameter order.
     /// </summary>
     function FromSql(const ASql: string; const AParams: array of TValue): TFluentQuery<T>; overload;
     function FromSql(const ASql: string): TFluentQuery<T>; overload;
