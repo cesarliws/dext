@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -83,7 +83,7 @@ type
     FContentType: string;
     FStatusCode: Integer;
   public
-    constructor Create(const AContent: string; const AContentType: string = 'text/plain'; AStatusCode: Integer = 200);
+    constructor Create(const AContent: string; const AContentType: string = 'text/plain; charset=utf-8'; AStatusCode: Integer = 200);
     procedure Execute(AContext: IHttpContext); override;
   end;
 
@@ -161,22 +161,32 @@ type
 
     class function Json(const AJson: string; AStatusCode: Integer = 200): IResult; overload;
     class function Json<T>(const AValue: T; AStatusCode: Integer = 200): IResult; overload;
+    /// <summary>
+    ///   Plain text response with Content-Type text/plain; charset=utf-8.
+    /// </summary>
     class function Text(const AContent: string; AStatusCode: Integer = 200): IResult;
-    class function Html(const AHtml: string; AStatusCode: Integer = 200): IResult; // Added
-    class function Content(const AContent: string; const AContentType: string; AStatusCode: Integer = 200): IResult; // Added
-    class function Stream(const AStream: TStream; const AContentType: string; AStatusCode: Integer = 200): IResult; // Added
+    /// <summary>
+    ///   HTML document or fragment with Content-Type text/html; charset=utf-8.
+    /// </summary>
+    class function Html(const AHtml: string; AStatusCode: Integer = 200): IResult;
+    /// <summary>
+    ///   Raw string body with the given Content-Type. Include charset in AContentType for text
+    ///   (e.g. text/xml; charset=utf-8) so browsers and Indy encode Unicode correctly.
+    /// </summary>
+    class function Content(const AContent: string; const AContentType: string; AStatusCode: Integer = 200): IResult;
+    /// <summary>
+    ///   Sends AStream as the body. Caller owns the stream until Execute runs; TStreamResult frees it.
+    /// </summary>
+    class function Stream(const AStream: TStream; const AContentType: string; AStatusCode: Integer = 200): IResult;
     
     /// <summary>
-    ///   Returns an HTML result by reading the content from a view file.
-    ///   The path is relative to ViewsPath (configured via SetViewsPath).
-    ///   Example: Results.HtmlFromFile('login.html') reads from 'wwwroot\views\login.html'
+    ///   Returns HTML read from disk as UTF-8 (BOM allowed) with Content-Type text/html; charset=utf-8.
+    ///   Path is resolved via GetFullViewPath (SetViewsPath / SetAppPath).
     /// </summary>
     class function HtmlFromFile(const ARelativePath: string; AStatusCode: Integer = 200): IResult;
     
     /// <summary>
-    ///   Reads the content of a view file and returns it as a string.
-    ///   Useful when you need to modify the HTML before returning it.
-    ///   Example: var Html := Results.ReadViewFile('settings.html');
+    ///   Reads a view file as UTF-8 and returns its text, or a small HTML error snippet if missing.
     /// </summary>
     class function ReadViewFile(const ARelativePath: string): string;
 
@@ -193,6 +203,15 @@ type
   end;
 
 implementation
+
+function ResultsHtmlEscape(const S: string): string;
+begin
+  Result := S;
+  Result := StringReplace(Result, '&', '&amp;', [rfReplaceAll]);
+  Result := StringReplace(Result, '<', '&lt;', [rfReplaceAll]);
+  Result := StringReplace(Result, '>', '&gt;', [rfReplaceAll]);
+  Result := StringReplace(Result, '"', '&quot;', [rfReplaceAll]);
+end;
 
 { TOutputFormatterContext }
 
@@ -481,12 +500,12 @@ end;
 
 class function Results.Text(const AContent: string; AStatusCode: Integer): IResult;
 begin
-  Result := TContentResult.Create(AContent, 'text/plain', AStatusCode);
+  Result := TContentResult.Create(AContent, 'text/plain; charset=utf-8', AStatusCode);
 end;
 
 class function Results.Html(const AHtml: string; AStatusCode: Integer = 200): IResult;
 begin
-  Result := TContentResult.Create(AHtml, 'text/html', AStatusCode);
+  Result := TContentResult.Create(AHtml, 'text/html; charset=utf-8', AStatusCode);
 end;
 
 class function Results.Content(const AContent: string; const AContentType: string; AStatusCode: Integer = 200): IResult;
@@ -588,13 +607,14 @@ begin
   
   if TFile.Exists(FullPath) then
   begin
-    Content := TFile.ReadAllText(FullPath);
-    Result := TContentResult.Create(Content, 'text/html', AStatusCode);
+    Content := TFile.ReadAllText(FullPath, TEncoding.UTF8);
+    Result := TContentResult.Create(Content, 'text/html; charset=utf-8', AStatusCode);
   end
   else
     Result := TContentResult.Create(
-      Format('<html><body><h1>View Not Found</h1><p>%s</p></body></html>', [FullPath]), 
-      'text/html', 404);
+      Format('<html><head><meta charset="utf-8"/></head><body><h1>View Not Found</h1><p>%s</p></body></html>',
+        [ResultsHtmlEscape(FullPath)]),
+      'text/html; charset=utf-8', 404);
 end;
 
 class function Results.ReadViewFile(const ARelativePath: string): string;
@@ -604,9 +624,10 @@ begin
   FullPath := GetFullViewPath(ARelativePath);
   
   if TFile.Exists(FullPath) then
-    Result := TFile.ReadAllText(FullPath)
+    Result := TFile.ReadAllText(FullPath, TEncoding.UTF8)
   else
-    Result := Format('<html><body><h1>View Not Found</h1><p>%s</p></body></html>', [FullPath]);
+    Result := Format('<html><head><meta charset="utf-8"/></head><body><h1>View Not Found</h1><p>%s</p></body></html>',
+      [ResultsHtmlEscape(FullPath)]);
 end;
 
 end.

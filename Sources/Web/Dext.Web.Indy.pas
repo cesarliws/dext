@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -589,11 +589,20 @@ begin
 end;
 
 procedure TIndyHttpResponse.Write(const AContent: string);
+var
+  CTLower: string;
 begin
   FResponseInfo.ContentText := AContent;
-  // Only set default content type if not already set
   if FResponseInfo.ContentType = '' then
-    FResponseInfo.ContentType := 'text/plain; charset=utf-8';
+    FResponseInfo.ContentType := 'text/plain; charset=utf-8'
+  else
+  begin
+    CTLower := LowerCase(FResponseInfo.ContentType);
+    // Indy encodes ContentText using the response charset; without charset, legacy
+    // defaults break Unicode (Arabic, emoji). Match WebBroker/DCS UTF-8 behavior.
+    if (Pos('charset=', CTLower) = 0) and (Length(CTLower) >= 5) and (Copy(CTLower, 1, 5) = 'text/') then
+      FResponseInfo.ContentType := FResponseInfo.ContentType + '; charset=utf-8';
+  end;
 end;
 
 procedure TIndyHttpResponse.Write(const ABuffer: TBytes);

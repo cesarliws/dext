@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -87,13 +87,13 @@ constructor TContentTypeProvider.Create;
 begin
   FMimeTypes := TCollections.CreateDictionary<string, string>;
   // Common Web Types
-  FMimeTypes.Add('.html', 'text/html');
-  FMimeTypes.Add('.htm', 'text/html');
-  FMimeTypes.Add('.css', 'text/css');
-  FMimeTypes.Add('.js', 'application/javascript');
-  FMimeTypes.Add('.json', 'application/json');
-  FMimeTypes.Add('.xml', 'text/xml');
-  FMimeTypes.Add('.txt', 'text/plain');
+  FMimeTypes.Add('.html', 'text/html; charset=utf-8');
+  FMimeTypes.Add('.htm', 'text/html; charset=utf-8');
+  FMimeTypes.Add('.css', 'text/css; charset=utf-8');
+  FMimeTypes.Add('.js', 'application/javascript; charset=utf-8');
+  FMimeTypes.Add('.json', 'application/json; charset=utf-8');
+  FMimeTypes.Add('.xml', 'text/xml; charset=utf-8');
+  FMimeTypes.Add('.txt', 'text/plain; charset=utf-8');
   
   // Images
   FMimeTypes.Add('.png', 'image/png');
