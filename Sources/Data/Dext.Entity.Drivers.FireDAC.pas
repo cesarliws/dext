@@ -159,6 +159,51 @@ implementation
 uses
   FireDAC.ConsoleUI.Wait;
 
+function FireDACFieldToTValue(const Field: TField): TValue;
+begin
+  if (Field = nil) or Field.IsNull then
+    Exit(TValue.Empty);
+  case Field.DataType of
+    ftDate:
+      Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
+    ftTime:
+      Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
+    ftDateTime, ftTimeStamp{$IFDEF DEXT_DELPHI102_UP}, ftTimeStampOffset{$ENDIF}:
+      Result := TValue.From<TDateTime>(Field.AsDateTime);
+    ftBlob, ftOraBlob, ftGraphic, ftBytes, ftVarBytes:
+      Result := TValue.From<TBytes>(Field.AsBytes);
+    ftString, ftWideString, ftMemo, ftWideMemo, ftFixedChar, ftWideFixedChar:
+      Result := TValue.From<string>(Field.AsString);
+    ftGuid:
+      Result := TValue.From<TGUID>(Field.AsGuid);
+    ftBoolean:
+      Result := TValue.From<Boolean>(Field.AsBoolean);
+    ftSmallint, ftInteger, ftWord, ftAutoInc:
+      Result := TValue.From<Integer>(Field.AsInteger);
+    ftLongWord:
+      Result := TValue.From<Cardinal>(Field.AsLongWord);
+    ftLargeint:
+      Result := TValue.From<Int64>(Field.AsLargeInt);
+    ftByte:
+      Result := TValue.From<Byte>(Byte(Field.AsInteger));
+    ftShortint:
+      Result := TValue.From<ShortInt>(ShortInt(Field.AsInteger));
+    ftFloat, ftSingle, ftExtended:
+      Result := TValue.From<Double>(Field.AsFloat);
+    ftCurrency:
+      Result := TValue.From<Currency>(Field.AsCurrency);
+    ftBCD, ftFMTBcd:
+      Result := TValue.From<Double>(Field.AsFloat);
+  else
+    try
+      Result := TValue.FromVariant(Field.Value);
+    except
+      on EVariantTypeCastError do
+        Result := TValue.From<string>(Field.AsString);
+    end;
+  end;
+end;
+
 { TFireDACTransaction }
 
 constructor TFireDACTransaction.Create(AConnection: TFDConnection);
@@ -250,41 +295,13 @@ begin
 end;
 
 function TFireDACReader.GetValue(AColumnIndex: Integer): TValue;
-var
-  Field: TField;
 begin
-  Field := FQuery.Fields[AColumnIndex];
-  case Field.DataType of
-    ftDate: Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
-    ftTime: Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
-    ftDateTime, ftTimeStamp: Result := TValue.From<TDateTime>(Field.AsDateTime);
-    ftBlob, ftOraBlob, ftGraphic: Result := TValue.From<TBytes>(Field.AsBytes);
-    ftString, ftWideString, ftMemo, ftWideMemo: Result := TValue.From<string>(Field.AsString);
-    ftGuid:
-      // Return TGUID directly - TypeConverters handle byte-order conversion
-      Result := TValue.From<TGUID>(Field.AsGuid);
-    else
-      Result := TValue.FromVariant(Field.Value);
-  end;
+  Result := FireDACFieldToTValue(FQuery.Fields[AColumnIndex]);
 end;
 
 function TFireDACReader.GetValue(const AColumnName: string): TValue;
-var
-  Field: TField;
 begin
-  Field := FQuery.FieldByName(AColumnName);
-  case Field.DataType of
-    ftDate: Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
-    ftTime: Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
-    ftDateTime, ftTimeStamp: Result := TValue.From<TDateTime>(Field.AsDateTime);
-    ftBlob, ftOraBlob, ftGraphic: Result := TValue.From<TBytes>(Field.AsBytes);
-    ftString, ftWideString, ftMemo, ftWideMemo: Result := TValue.From<string>(Field.AsString);
-    ftGuid:
-      // Return TGUID directly - TypeConverters handle byte-order conversion
-      Result := TValue.From<TGUID>(Field.AsGuid);
-    else
-      Result := TValue.FromVariant(Field.Value);
-  end;
+  Result := FireDACFieldToTValue(FQuery.FieldByName(AColumnName));
 end;
 
 function TFireDACReader.Next: Boolean;
@@ -779,13 +796,7 @@ begin
   FQuery.Open;
   try
     if not FQuery.Eof then
-    begin
-      var Field := FQuery.Fields[0];
-      if Field.DataType = ftGuid then
-        Result := TValue.From<TGUID>(Field.AsGuid)
-      else
-        Result := TValue.FromVariant(Field.Value);
-    end
+      Result := FireDACFieldToTValue(FQuery.Fields[0])
     else
       Result := TValue.Empty;
   finally

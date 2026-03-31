@@ -64,6 +64,12 @@ uses
 // TValue.ToString does not work correctly for TGUID (returns type name, not value)
 function TValueToKeyString(const AValue: TValue): string;
 
+// Forward declarations: generic TDbSet<T> methods may only reference symbols
+// declared in the interface (E2506 if these were implementation-only).
+function DbSetHydratePropertyTypeLabel(const APropType: TRttiType): string;
+function DbSetHydrateTValueKindStr(const AVal: TValue): string;
+function DbSetHydrateIncomingTValueLabel(const AVal: TValue): string;
+
 type
   TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet)
   private
@@ -292,6 +298,48 @@ begin
   // Normalize GUIDs to lowercase matches for consistency
   if Result.StartsWith('{') and (Length(Result) = 38) then
     Result := LowerCase(Result);
+end;
+
+function DbSetHydratePropertyTypeLabel(const APropType: TRttiType): string;
+begin
+  if APropType = nil then
+    Exit('(nil)');
+  Result := APropType.QualifiedName;
+  if Result = '' then
+    Result := APropType.Name;
+end;
+
+function DbSetHydrateTValueKindStr(const AVal: TValue): string;
+begin
+  case AVal.Kind of
+    tkUnknown: Result := 'tkUnknown';
+    tkInteger: Result := 'tkInteger';
+    tkInt64: Result := 'tkInt64';
+    tkEnumeration: Result := 'tkEnumeration';
+    tkFloat: Result := 'tkFloat';
+    tkString: Result := 'tkString';
+    tkLString: Result := 'tkLString';
+    tkWString: Result := 'tkWString';
+    tkUString: Result := 'tkUString';
+    tkClass: Result := 'tkClass';
+    tkInterface: Result := 'tkInterface';
+    tkDynArray: Result := 'tkDynArray';
+    tkArray: Result := 'tkArray';
+    tkRecord: Result := 'tkRecord';
+    tkVariant: Result := 'tkVariant';
+  else
+    Result := Format('KindOrdinal=%d', [Ord(AVal.Kind)]);
+  end;
+end;
+
+function DbSetHydrateIncomingTValueLabel(const AVal: TValue): string;
+begin
+  if AVal.IsEmpty then
+    Exit('empty');
+  if AVal.TypeInfo <> nil then
+    Exit(Format('%s [kind=%s]', [string(AVal.TypeInfo.Name), DbSetHydrateTValueKindStr(AVal)]))
+  else
+    Exit(Format('[kind=%s]', [DbSetHydrateTValueKindStr(AVal)]));
 end;
 
 function TValueToVariant(const AValue: TValue): Variant;
@@ -841,7 +889,16 @@ begin
           TReflection.SetValue(Pointer(Target), Prop, Val);
       except
         on E: Exception do
-          raise Exception.CreateFmt('Error hydrating %s.%s: %s', [Target.ClassName, Prop.Name, E.Message]);
+          raise Exception.CreateFmt(
+            'Hydration failed: entity=%s | column="%s" | property="%s" | PropertyType=%s | TypeKind=%s | incomingTValue=%s | %s: %s',
+            [Target.ClassName,
+             ColName,
+             Prop.Name,
+             DbSetHydratePropertyTypeLabel(Prop.PropertyType),
+             GetEnumName(TypeInfo(TTypeKind), Ord(Prop.PropertyType.TypeKind)),
+             DbSetHydrateIncomingTValueLabel(Val),
+             E.ClassName,
+             E.Message]);
       end;
     end
     else
