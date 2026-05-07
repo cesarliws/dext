@@ -106,7 +106,7 @@ begin
     end);
 
   // GET /customers/form
-  App.MapGet<IHttpContext, IResult>('/customers/form',
+  App.MapGetResult<IHttpContext, IResult>('/customers/form',
     function(Context: IHttpContext): IResult
     begin
       Result := Results.Html(GenerateCustomerForm(nil));
