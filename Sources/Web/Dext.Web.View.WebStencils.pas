@@ -307,8 +307,15 @@ begin
   begin
     Value := FViewData.GetValue(APropName);
     if Value.IsEmpty then
+      Obj := FViewData.GetData('Model')
+    else
     begin
-      Obj := FViewData.GetData('Model');
+      // Scalar registered via WithValue: emit directly (nexo1 customization)
+      if TReflection.TryUnwrapProp(Value, Unwrapped) then
+        Value := Unwrapped;
+      AValue := Value.ToString;
+      AHandled := True;
+      Exit;
     end;
   end;
 
