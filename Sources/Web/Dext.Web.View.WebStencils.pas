@@ -319,6 +319,23 @@ begin
     end;
   end;
 
+  // 2b. Scalar via @varName: RTL passes AObjectName=<var>, APropName='' for a
+  //     bare @identifier (no dot). Resolve from ViewData.Values -- completes
+  //     e6dfb75a9, which only covered the ''/'Model' object path. nexo1 custom.
+  if (not AHandled) and (Obj = nil) and (APropName = '') and (AObjectName <> '')
+    and not SameText(AObjectName, 'Model') then
+  begin
+    Value := FViewData.GetValue(AObjectName);
+    if not Value.IsEmpty then
+    begin
+      if TReflection.TryUnwrapProp(Value, Unwrapped) then
+        Value := Unwrapped;
+      AValue := Value.ToString;
+      AHandled := True;
+      Exit;
+    end;
+  end;
+
   // 3. If we have the object, resolve and unwrap SmartProps
   if Obj <> nil then
   begin
