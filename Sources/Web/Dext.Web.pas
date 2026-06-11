@@ -101,9 +101,9 @@ uses
   Dext.Web.Controllers,
   Dext.Web.ControllerScanner,
   Dext.Web.HandlerInvoker,
-//{$WARN UNIT_DEPRECATED OFF}
-//  Dext.Web.ModelBinding.Extensions,
-//{$WARN UNIT_DEPRECATED ON}
+{$WARN UNIT_DEPRECATED OFF}
+  Dext.Web.ModelBinding.Extensions,
+{$WARN UNIT_DEPRECATED ON}
   Dext.Web.ModelBinding,
   Dext.Web.Routing.Attributes,
   Dext.Hosting.ApplicationLifetime
@@ -457,9 +457,9 @@ type
   TBindingSourceProvider = Dext.Web.ModelBinding.TBindingSourceProvider;
 
   // Dext.Web.ModelBinding.Extensions
-//  IApplicationBuilderWithModelBinding = Dext.Web.ModelBinding.Extensions.IApplicationBuilderWithModelBinding;
-//  TApplicationBuilderWithModelBinding = Dext.Web.ModelBinding.Extensions.TApplicationBuilderWithModelBinding;
-//  TApplicationBuilderModelBindingExtensions = Dext.Web.ModelBinding.Extensions.TApplicationBuilderModelBindingExtensions;
+  IApplicationBuilderWithModelBinding = Dext.Web.ModelBinding.Extensions.IApplicationBuilderWithModelBinding;
+  TApplicationBuilderWithModelBinding = Dext.Web.ModelBinding.Extensions.TApplicationBuilderWithModelBinding;
+  TApplicationBuilderModelBindingExtensions = Dext.Web.ModelBinding.Extensions.TApplicationBuilderModelBindingExtensions;
 
   // Dext.Web.MultiTenancy
   ITenantResolutionStrategy = Dext.Web.MultiTenancy.ITenantResolutionStrategy;
