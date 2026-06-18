@@ -338,7 +338,7 @@ O Dext é composto por módulos flexíveis e minimalistas. Você retém total co
 * **Core Technologies:** Injeção de dependência de classe Enterprise (Singleton, Transient, Scoped), cache de Reflexão otimizado, suporte avançado a eventos e IOptions.
 * **Coleções Nativas Limpas:** Extinção de *memory leaks* utilizando interfaces (`IList`, `IDictionary`). O Dext resolve o clássico *Generic Bloat* com Binary Code Folding, reduzindo significativamente binários enormes.
 * **Data Access (ORM):** Gerenciamento robusto via *Unit of Work*, controle automático de transações (DAO support), e suporte multi-banco.
-* **Web Frameworks:** Servidor HTTP incrustado, *Minimal APIs*, *Controllers*, gerador REST *DataAPI*, middlewares modulares, *WebSockets* (Hubs), CORS nativo, *Suporte HTMX nativo* e renderização extremamente ágil.
+* **Web Frameworks:** Servidor HTTP incrustado, *Minimal APIs*, *Controllers*, gerador REST *DataAPI*, middlewares modulares, *WebSockets* (Hubs), CORS nativo, *Suporte HTMX nativo*, **HTTP/2 Framing** (HPACK + Streams Multiplexados) e renderização extremamente ágil.
 * **Inteligência Artificial e Agentes:** Servidor **MCP (Model Context Protocol)** nativo para integração perfeita com assistentes de IA (como o Claude), expondo sua regra de negócio Delphi como ferramentas de IA via sessões HTTP Streamable.
 * **Testing & Qualidade:** Framework TestContext acoplado, *Mock Objects* automatizados (`TAutoMocker`), cobertura de testes e relatórios.
 
@@ -371,6 +371,7 @@ Para compilação manual, configuração de variáveis de ambiente/paths, person
 * **Delphi:** 10.3 Rio ou superior (Suporte completo a 10.4, 11 e 12 Athens).
 * **Versões Legadas:** Pode ser compilado no 10.1 Berlin com limitações.
 * **Dependências:** Nenhuma dependência externa obrigatória (usa componentes nativos).
+  * **Camada HTTP:** Utiliza componentes Indy (já incluídos no Delphi) para a camada de transporte HTTP — sujeito a substituição futura / otimizações adicionais.
 
 **[Matriz de Compatibilidade Detalhada](Docs/Delphi_Compatibility_Matrix.md)**
 

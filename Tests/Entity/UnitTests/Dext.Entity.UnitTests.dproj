@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{9736A181-3D26-4EC1-A966-DAACF43D73C4}</ProjectGuid>
         <MainSource>Dext.Entity.UnitTests.dpr</MainSource>
@@ -125,6 +125,7 @@
         <DCCReference Include="Dext.Entity.FormatSettings.Tests.pas"/>
         <DCCReference Include="Dext.Entity.SoftDelete.Tests.pas"/>
         <DCCReference Include="Dext.Entity.Validation.Tests.pas"/>
+        <DCCReference Include="Dext.Entity.DynamicQueryFilter.Tests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

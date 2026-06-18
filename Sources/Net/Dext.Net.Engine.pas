@@ -192,33 +192,35 @@ end;
 
 function TDextIndyHttpEngine.Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
 var
+  Header: TDextNetHeader;
+  HeadersList: TList<TDextNetHeader>;
+  i: Integer;
+  Line: string;
+  Pos: Integer;
   ResponseStream: TMemoryStream;
-  LSSL: TIdSSLIOHandlerSocketOpenSSL;
-  I: Integer;
-  LHeadersList: TList<TDextNetHeader>;
-  LHeader: TDextNetHeader;
+  SSLIOHandler: TIdSSLIOHandlerSocketOpenSSL;
 begin
   FIdHttp.Request.CustomHeaders.Clear;
-  for I := 0 to High(AHeaders) do
+  for i := 0 to High(AHeaders) do
   begin
-    if SameText(AHeaders[I].Name, 'User-Agent') then
-      FIdHttp.Request.UserAgent := AHeaders[I].Value
-    else if SameText(AHeaders[I].Name, 'Content-Type') then
-      FIdHttp.Request.ContentType := AHeaders[I].Value
-    else if SameText(AHeaders[I].Name, 'Accept') then
-      FIdHttp.Request.Accept := AHeaders[I].Value
+    if SameText(AHeaders[i].Name, 'User-Agent') then
+      FIdHttp.Request.UserAgent := AHeaders[i].Value
+    else if SameText(AHeaders[i].Name, 'Content-Type') then
+      FIdHttp.Request.ContentType := AHeaders[i].Value
+    else if SameText(AHeaders[i].Name, 'Accept') then
+      FIdHttp.Request.Accept := AHeaders[i].Value
     else
-      FIdHttp.Request.CustomHeaders.Values[AHeaders[I].Name] := AHeaders[I].Value;
+      FIdHttp.Request.CustomHeaders.Values[AHeaders[i].Name] := AHeaders[i].Value;
   end;
 
   if AUrl.StartsWith('https', True) then
   begin
     if not Assigned(FIdHttp.IOHandler) then
     begin
-      LSSL := TIdSSLIOHandlerSocketOpenSSL.Create(FIdHttp);
-      LSSL.SSLOptions.Method := sslvTLSv1_2;
-      LSSL.SSLOptions.Mode := sslmClient;
-      FIdHttp.IOHandler := LSSL;
+      SSLIOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(FIdHttp);
+      SSLIOHandler.SSLOptions.Method := sslvTLSv1_2;
+      SSLIOHandler.SSLOptions.Mode := sslmClient;
+      FIdHttp.IOHandler := SSLIOHandler;
     end;
   end;
 
@@ -243,26 +245,26 @@ begin
       end;
     end;
 
-    LHeadersList := TList<TDextNetHeader>.Create;
+    HeadersList := TList<TDextNetHeader>.Create;
     try
-      for I := 0 to FIdHttp.Response.RawHeaders.Count - 1 do
+      for i := 0 to FIdHttp.Response.RawHeaders.Count - 1 do
       begin
-        var LLine := FIdHttp.Response.RawHeaders[I];
-        var LIdx := LLine.IndexOf(':');
-        if LIdx > 0 then
-          LHeadersList.Add(TDextNetHeader.Create(
-            LLine.Substring(0, LIdx).Trim,
-            LLine.Substring(LIdx + 1).Trim
+        Line := FIdHttp.Response.RawHeaders[i];
+        Pos := Line.IndexOf(':');
+        if Pos > 0 then
+          HeadersList.Add(TDextNetHeader.Create(
+            Line.Substring(0, Pos).Trim,
+            Line.Substring(Pos + 1).Trim
           ));
       end;
       Result := TDextHttpResponseImpl.Create(
         FIdHttp.ResponseCode,
         FIdHttp.ResponseText,
         ResponseStream,
-        LHeadersList.ToArray
+        HeadersList.ToArray
       );
     finally
-      LHeadersList.Free;
+      HeadersList.Free;
       ResponseStream.Free;
     end;
   except
@@ -324,7 +326,7 @@ begin
   try
     for i := 0 to High(AHeaders) do
       NetHeadersList.Add(TNetHeader.Create(AHeaders[i].Name, AHeaders[i].Value));
-      
+
     Response := FClient.Execute(AMethod, TURI.Create(AUrl), ABody, nil, NetHeadersList.ToArray) as IHTTPResponse;
     Result := TDextHttpResponseImpl.Create(
       Response.StatusCode,

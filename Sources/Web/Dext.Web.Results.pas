@@ -854,6 +854,7 @@ procedure TFileResult.Execute(AContext: IHttpContext);
 var
   Mime: string;
   Ext: string;
+  Stream: TFileStream;
 begin
   if not TFile.Exists(FPath) then
   begin
@@ -880,7 +881,7 @@ begin
   if FDownloadName <> '' then
     AContext.Response.AddHeader('Content-Disposition', 'attachment; filename="' + FDownloadName + '"');
 
-  var Stream := TFileStream.Create(FPath, fmOpenRead or fmShareDenyWrite);
+  Stream := TFileStream.Create(FPath, fmOpenRead or fmShareDenyWrite);
   try
     AContext.Response.Write(Stream);
   finally

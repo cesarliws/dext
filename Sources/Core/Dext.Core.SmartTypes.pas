@@ -1085,13 +1085,15 @@ begin
 end;
 
 function Prop<T>.IsNull: BooleanExpression;
+var
+  Meta: TTypeMetadata;
 begin
   if IsQueryMode then
     Result := BooleanExpression.FromQuery(
       TUnaryExpression.Create(GetColumnName, uoIsNull))
   else if TReflection.GetMetadata(TypeInfo(T)).IsNullable then
   begin
-    var Meta := TReflection.GetMetadata(TypeInfo(T));
+    Meta := TReflection.GetMetadata(TypeInfo(T));
     if Meta.HasValueField <> nil then
       Result := BooleanExpression.FromRuntime(not Meta.HasValueField.GetValue(@FValue).AsBoolean)
     else
@@ -1102,13 +1104,15 @@ begin
 end;
 
 function Prop<T>.IsNotNull: BooleanExpression;
+var
+  Meta: TTypeMetadata;
 begin
   if IsQueryMode then
     Result := BooleanExpression.FromQuery(
       TUnaryExpression.Create(GetColumnName, uoIsNotNull))
   else if TReflection.GetMetadata(TypeInfo(T)).IsNullable then
   begin
-    var Meta := TReflection.GetMetadata(TypeInfo(T));
+    Meta := TReflection.GetMetadata(TypeInfo(T));
     if Meta.HasValueField <> nil then
       Result := BooleanExpression.FromRuntime(Meta.HasValueField.GetValue(@FValue).AsBoolean)
     else

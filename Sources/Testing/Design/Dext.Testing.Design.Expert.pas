@@ -319,17 +319,19 @@ begin
 end;
 
 procedure TDextModuleNotifier.ModuleRenamed(const NewName: string);
+var
+  i: Integer;
+  Info: TModuleNotifierInfo;
 begin
   if Assigned(FAttachedNotifiers) then
   begin
-    var I: Integer;
-    for I := 0 to FAttachedNotifiers.Count - 1 do
+    for i := 0 to FAttachedNotifiers.Count - 1 do
     begin
-      if SameText(FAttachedNotifiers[I].FileName, FFileName) then
+      if SameText(FAttachedNotifiers[i].FileName, FFileName) then
       begin
-        var LInfo := FAttachedNotifiers[I];
-        LInfo.FileName := NewName;
-        FAttachedNotifiers[I] := LInfo;
+        Info := FAttachedNotifiers[i];
+        Info.FileName := NewName;
+        FAttachedNotifiers[I] := Info;
         Break;
       end;
     end;

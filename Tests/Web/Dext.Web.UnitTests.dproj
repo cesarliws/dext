@@ -4,7 +4,7 @@
         <ProjectVersion>20.4</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Dext.Web.UnitTests</ProjectName>
         <TargetedPlatforms>1</TargetedPlatforms>
@@ -206,6 +206,10 @@
         <DCCReference Include="Dext.Logging.Sinks.APM.Tests.pas"/>
         <DCCReference Include="Dext.WebSocket.Tests.pas"/>
         <DCCReference Include="..\Common\Dext.Web.Mocks.pas"/>
+        <DCCReference Include="Test_Dext.Http2.Connection.pas"/>
+        <DCCReference Include="Test_Dext.Http2.Framing.pas"/>
+        <DCCReference Include="Test_Dext.Http2.Hpack.pas"/>
+        <DCCReference Include="Test_Dext.Http2.Stream.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

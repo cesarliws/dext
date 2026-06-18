@@ -76,6 +76,11 @@ Clients.Group('RoomName').Invoke('Method', [Args]);
 Clients.Caller.Invoke('Method', [Args]);
 ```
 
+## Chapter Content
+
+- [Server-Side Hubs (SignalR)](hubs-signalr.md)
+- [Delphi Hub Client](delphi-client.md)
+
 ---
 
 [← Database as API](../06-database-as-api/README.md) | [Next: Testing →](../08-testing/README.md)

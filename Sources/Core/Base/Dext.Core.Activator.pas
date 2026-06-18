@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -853,6 +853,8 @@ var
   CtorArgs: TArray<TValue>;
   J: Integer;
   BaseIntf: IInterface;
+  ElemSuffix: string;
+  N: string;
 begin
   if AType = nil then
     Exit(TValue.Empty);
@@ -902,12 +904,12 @@ begin
         // e.g. 'TList<Dext.Collections.TFoo>', so use EndsWith on the element name.
         if ImplRtti = nil then
         begin
-          var ElemSuffix := ElementTypeName + '>';
+          ElemSuffix := ElementTypeName + '>';
           for TmpType in Context.GetTypes do
           begin
             if TmpType.IsInstance then
             begin
-              var N := TmpType.Name;
+              N := TmpType.Name;
               if (N.StartsWith('TList<') or N.StartsWith('TSmartList<')) and
                  N.EndsWith(ElemSuffix) then
               begin

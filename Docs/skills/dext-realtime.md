@@ -141,3 +141,66 @@ Groups.Add(Context.ConnectionId, 'group-name');    // Add to group
 Groups.Remove(Context.ConnectionId, 'group-name'); // Remove from group
 ```
 
+## Delphi Hub Client (Desktop/VCL/FMX)
+
+For Delphi client applications, use `TDextHubConnectionBuilder` to configure a full-duplex client.
+
+### Core Client Imports
+
+```pascal
+uses
+  Dext.Web.Hubs.Client,
+  Dext.Web.Hubs.Client.Types;
+```
+
+### Config and Connect
+
+```pascal
+var
+  LConn: IDextHubConnection;
+begin
+  LConn := TDextHubConnectionBuilder.New
+    .WithUrl('http://localhost:8080/hubs/notifications')
+    .WithTransport(ctWebSocket) // ctWebSocket or ctServerSentEvents
+    .WithHeader('Authorization', 'Bearer token')
+    .WithQueryParam('deviceId', 'XYZ')
+    .WithUIThreadMarshaling(True) // Marshals callbacks to the Main UI Thread
+    .Build;
+
+  // Listen to connection status
+  LConn.OnConnected(procedure(const ConnId: string) begin ... end);
+  LConn.OnDisconnected(procedure(const Err: Exception) begin ... end);
+
+  // Listen to server events
+  LConn.On('ReceiveNotification', procedure(const Msg: string)
+    begin
+      // Safe to update UI directly since WithUIThreadMarshaling is True
+      ShowMessage(Msg);
+    end);
+
+  LConn.Start;
+end;
+```
+
+### Send & Invoke (Client to Server)
+
+```pascal
+// Fire-and-forget:
+LConn.Send('SendGlobal', ['Hello from Delphi Client!']);
+
+// Invoke expecting typed return value:
+TConnectionHelper.Invoke<string>(
+  LConn,
+  'CalculateHash',
+  ['input_string'],
+  procedure(const Result: string; const Error: Exception)
+  begin
+    if Error <> nil then
+      ShowMessage('Error: ' + Error.Message)
+    else
+      ShowMessage('Result: ' + Result);
+  end
+);
+```
+
+

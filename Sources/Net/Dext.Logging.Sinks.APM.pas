@@ -181,6 +181,7 @@ var
   Payload: string;
   Client: TRestClient;
   LvlStr: string;
+  Stream: TStringStream;
 begin
   if Length(Batch) = 0 then Exit;
 
@@ -216,7 +217,7 @@ begin
   if FApiKey <> '' then
     Client.Header('X-Seq-ApiKey', FApiKey);
   Client.Header('Content-Type', 'application/vnd.serilog.clef');
-  var Stream := TStringStream.Create(Payload, TEncoding.UTF8);
+  Stream := TStringStream.Create(Payload, TEncoding.UTF8);
   try
     try
       Client.Post('/api/events/raw', Stream).Await;

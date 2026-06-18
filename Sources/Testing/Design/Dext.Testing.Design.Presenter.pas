@@ -517,6 +517,13 @@ begin
       Idx: Integer;
       SI: Winapi.Windows.TStartupInfo;
       PI: Winapi.Windows.TProcessInformation;
+      PlatformVal: string;
+      Config: string;
+      ModuleServices: IOTAModuleServices;
+      Group: IOTAProjectGroup;
+      Proj: IOTAProject;
+      Configs: IOTAProjectOptionsConfigurations;
+      I: Integer;
     begin
       TThread.Queue(nil, TThreadProcedure(AOnStart));
 
@@ -526,39 +533,36 @@ begin
         Exit;
       end;
 
-      var LPlatform := 'Win32';
-      var LConfig := 'Debug';
-      var LModuleServices: IOTAModuleServices;
-      var LGroup: IOTAProjectGroup;
-      var LProj: IOTAProject := nil;
-      if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+      PlatformVal := 'Win32';
+      Config := 'Debug';
+      Proj := nil;
+      if Supports(BorlandIDEServices, IOTAModuleServices, ModuleServices) then
       begin
-        LGroup := LModuleServices.MainProjectGroup;
-        if Assigned(LGroup) then
+        Group := ModuleServices.MainProjectGroup;
+        if Assigned(Group) then
         begin
-          for var I := 0 to LGroup.ProjectCount - 1 do
+          for I := 0 to Group.ProjectCount - 1 do
           begin
-            if SameText(LGroup.Projects[I].FileName, AProjFile) then
+            if SameText(Group.Projects[I].FileName, AProjFile) then
             begin
-              LProj := LGroup.Projects[I];
+              Proj := Group.Projects[I];
               Break;
             end;
           end;
         end;
       end;
-      if Assigned(LProj) then
+      if Assigned(Proj) then
       begin
-        var LConfigs: IOTAProjectOptionsConfigurations;
-        if Supports(LProj.ProjectOptions, IOTAProjectOptionsConfigurations, LConfigs) then
+        if Supports(Proj.ProjectOptions, IOTAProjectOptionsConfigurations, Configs) then
         begin
-          LPlatform := LConfigs.ActivePlatformName;
-          if Assigned(LConfigs.ActiveConfiguration) then
-            LConfig := LConfigs.ActiveConfiguration.Name;
+          PlatformVal := Configs.ActivePlatformName;
+          if Assigned(Configs.ActiveConfiguration) then
+            Config := Configs.ActiveConfiguration.Name;
         end;
       end;
 
-      GetProjectTargetInfo(AProjFile, IsPackage, Output, LPlatform, LConfig);
-      ExeFile := ResolveExePath(AProjFile, Output, LPlatform, LConfig);
+      GetProjectTargetInfo(AProjFile, IsPackage, Output, PlatformVal, Config);
+      ExeFile := ResolveExePath(AProjFile, Output, PlatformVal, Config);
 
       if not FileExists(ExeFile) then
       begin
@@ -861,14 +865,15 @@ var
   LDetails: TTestDetailInfo;
   LLocText: string;
   LIdx: Integer;
+  Loc: TTestLocation;
 begin
   LLocText := 'Location: Unknown';
   for LIdx := 0 to FModel.TestLocations.Count - 1 do
   begin
-    var LLoc := FModel.TestLocations[LIdx];
-    if SameText(LLoc.ClassName + '.' + LLoc.MethodName, ATestName) or SameText(LLoc.MethodName, ATestName) then
+    Loc := FModel.TestLocations[LIdx];
+    if SameText(Loc.ClassName + '.' + Loc.MethodName, ATestName) or SameText(Loc.MethodName, ATestName) then
     begin
-      LLocText := Format('Location: %s (Line %d)', [ExtractFileName(LLoc.FileName), LLoc.Line]);
+      LLocText := Format('Location: %s (Line %d)', [ExtractFileName(Loc.FileName), Loc.Line]);
       Break;
     end;
   end;

@@ -147,6 +147,9 @@ function THandlerInvoker.Validate(const AValue: TValue): Boolean;
 var
   ValidationResult: TValidationResult;
   I: Integer;
+  Meta: TTypeMetadata;
+  ValidatorIntf: IInterface;
+  Validator: IValidator;
 begin
   Result := True;
   
@@ -164,8 +167,8 @@ begin
   if (AValue.Kind <> tkRecord) and (AValue.Kind <> tkClass) then Exit(True);
   if (AValue.Kind = tkClass) and (AValue.AsObject = nil) then Exit(True);
 
-  var Meta := TReflection.GetMetadata(AValue.TypeInfo);
-  var ValidatorIntf: IInterface := nil;
+  Meta := TReflection.GetMetadata(AValue.TypeInfo);
+  ValidatorIntf := nil;
   if (Meta.ValidatorInterfaceType <> nil) and (FContext.Services <> nil) then
   begin
     try
@@ -175,7 +178,6 @@ begin
     end;
   end;
 
-  var Validator: IValidator;
   if (ValidatorIntf <> nil) and Supports(ValidatorIntf, IValidator, Validator) then
     ValidationResult := Validator.ValidateInstance(AValue)
   else
@@ -493,7 +495,7 @@ var
   ResIntf: IResult;
   I: Integer;
 begin
-  // ? VERIFICA«√O DE SEGURAN«A APRIMORADA
+  // ? VERIFICA√á√ÉO DE SEGURAN√áA APRIMORADA
   if not Assigned(AMethod) then
   begin
     FContext.Response.Status(500).Json('{"error": "Internal server error: Method reference lost"}');
@@ -524,11 +526,11 @@ begin
     // LIDAR COM PROCEDURES (SEM RETORNO)
     if ResultValue.IsEmpty then
     begin
-      // N„o faz nada - o controller j· setou a resposta via Ctx.Response
+      // N√£o faz nada - o controller j√° setou a resposta via Ctx.Response
     end
     else
     begin
-      // VERIFICAR SE RETORNOU IResult (APENAS SE N√O ESTIVER VAZIO)
+      // VERIFICAR SE RETORNOU IResult (APENAS SE N√ÉO ESTIVER VAZIO)
       if ResultValue.TryAsType<IResult>(ResIntf) then
       begin
         ResIntf.Execute(FContext);

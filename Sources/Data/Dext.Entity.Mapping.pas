@@ -631,6 +631,20 @@ var
   Meta: TTypeMetadata;
   LTypeName: string;
 
+  InnerTypeInfo: PTypeInfo;
+  IsInnerNullable: Boolean;
+  InnerCleanName: string;
+  PropMeta: TTypeMetadata;
+  InnerMeta2: TTypeMetadata;
+  BaseOffset: Integer;
+  BackingInnerType: PTypeInfo;
+  IsBackingInnerNullable: Boolean;
+  BackingCleanName: string;
+  InnerMeta: TTypeMetadata;
+  BackingInnerCheckType: PTypeInfo;
+  IsBackingInnerCheckNullable: Boolean;
+  BackingInnerCheckClean: string;
+
   function CleanTypeName(const AName: string): string;
   var
     LTMark: Integer;
@@ -710,11 +724,11 @@ begin
         if not PropMap.IsLazy then
         begin
           // S22 Composition support: Prop<Nullable<T>>
-          var InnerTypeInfo := Metadata.InnerType;
-          var IsInnerNullable := False;
+          InnerTypeInfo := Metadata.InnerType;
+          IsInnerNullable := False;
           if InnerTypeInfo <> nil then
           begin
-            var InnerCleanName := CleanTypeName(string(InnerTypeInfo.Name));
+            InnerCleanName := CleanTypeName(string(InnerTypeInfo.Name));
             IsInnerNullable := InnerCleanName.Contains('Nullable');
           end;
           
@@ -838,17 +852,17 @@ begin
       if (not PropMap.IsLazy) and (PropMap.FieldValueOffset > 0) and
          TReflection.IsSmartProp(Prop.PropertyType.Handle) then
       begin
-        var PropMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
+        PropMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
         if PropMeta.IsSmartProp and (PropMeta.InnerType <> nil) then
         begin
-          var InnerCleanName := CleanTypeName(string(PropMeta.InnerType.Name));
+          InnerCleanName := CleanTypeName(string(PropMeta.InnerType.Name));
           if InnerCleanName.Contains('Nullable') then
           begin
             // This is Prop<Nullable<T>> - decompose composition offsets
-            var InnerMeta2 := TReflection.GetMetadata(PropMeta.InnerType);
+            InnerMeta2 := TReflection.GetMetadata(PropMeta.InnerType);
             if (PropMeta.ValueField <> nil) and InnerMeta2.IsNullable then
             begin
-              var BaseOffset := PropMap.FieldValueOffset; // raw offset of the Prop<Nullable<T>> field
+              BaseOffset := PropMap.FieldValueOffset; // raw offset of the Prop<Nullable<T>> field
               if InnerMeta2.HasValueField <> nil then
               begin
                 if InnerMeta2.HasValueField.FieldType.Handle = TypeInfo(Boolean) then
@@ -913,17 +927,17 @@ begin
                   if not PropMap.IsLazy then
                   begin
                     // S22 Composition support: Prop<Nullable<T>> backing field
-                    var BackingInnerType := Meta.InnerType;
-                    var IsBackingInnerNullable := False;
+                    BackingInnerType := Meta.InnerType;
+                    IsBackingInnerNullable := False;
                     if BackingInnerType <> nil then
                     begin
-                      var BackingCleanName := CleanTypeName(string(BackingInnerType.Name));
+                      BackingCleanName := CleanTypeName(string(BackingInnerType.Name));
                       IsBackingInnerNullable := BackingCleanName.Contains('Nullable');
                     end;
                     
                     if IsBackingInnerNullable then
                     begin
-                      var InnerMeta := TReflection.GetMetadata(Meta.InnerType);
+                      InnerMeta := TReflection.GetMetadata(Meta.InnerType);
                       if Meta.ValueField <> nil then
                       begin
                         if InnerMeta.HasValueField <> nil then
@@ -953,11 +967,11 @@ begin
                     end;
                   end;
                   
-                  var BackingInnerCheckType := Meta.InnerType;
-                  var IsBackingInnerCheckNullable := False;
+                  BackingInnerCheckType := Meta.InnerType;
+                  IsBackingInnerCheckNullable := False;
                   if BackingInnerCheckType <> nil then
                   begin
-                    var BackingInnerCheckClean := CleanTypeName(string(BackingInnerCheckType.Name));
+                    BackingInnerCheckClean := CleanTypeName(string(BackingInnerCheckType.Name));
                     IsBackingInnerCheckNullable := BackingInnerCheckClean.Contains('Nullable');
                   end;
                   

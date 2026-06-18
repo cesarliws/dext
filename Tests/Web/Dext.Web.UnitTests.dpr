@@ -22,7 +22,11 @@ uses
   Dext.Web.Htmx.Tests in 'Dext.Web.Htmx.Tests.pas',
   Dext.Logging.Sinks.APM.Tests in 'Dext.Logging.Sinks.APM.Tests.pas',
   Dext.WebSocket.Tests in 'Dext.WebSocket.Tests.pas',
-  Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas';
+  Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas',
+  Test_Dext.Http2.Connection in 'Test_Dext.Http2.Connection.pas',
+  Test_Dext.Http2.Framing in 'Test_Dext.Http2.Framing.pas',
+  Test_Dext.Http2.Hpack in 'Test_Dext.Http2.Hpack.pas',
+  Test_Dext.Http2.Stream in 'Test_Dext.Http2.Stream.pas';
 
 begin
   SetConsoleCharSet();
@@ -46,7 +50,26 @@ begin
         TDataApiSerializationTests,
         THtmxResponseTests,
         TAPMSinksTests,
-        TWebSocketTests
+        TWebSocketTests,
+        // HTTP/2 and HPACK Tests
+        THpackStaticTableTests,
+        THpackDynTableTests,
+        THpackHuffmanTests,
+        THpackDecoderTests,
+        THpackEncoderTests,
+        TFrameReadTests,
+        TFrameSettingsTests,
+        TFramePingTests,
+        TFrameControlTests,
+        TFrameDataHeadersTests,
+        TStreamStateTests,
+        TStreamAccumulationTests,
+        TStreamFlowControlTests,
+        TStreamMapTests,
+        TConnectionPrefaceTests,
+        TConnectionSettingsTests,
+        TConnectionPingTests,
+        TConnectionRequestTests
       ]));
   except
     on E: Exception do

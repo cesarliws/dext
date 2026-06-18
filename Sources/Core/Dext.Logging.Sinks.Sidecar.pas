@@ -436,20 +436,20 @@ end;
 procedure TSidecarMetricsExporter.Execute;
 var
   Cpu: Double;
-  WS, Priv: Int64;
-  Threads, DbConn: Integer;
-  Payload: TJSONObject;
-  SystemObj: TJSONObject;
-  MetricsStr: string;
-  MetricsArr, ImportedArr: TJSONArray;
-  I: Integer;
+  i: Integer;
   Item: TJSONValue;
+  MetricsArr, ImportedArr: TJSONArray;
+  MetricsStr: string;
+  Payload: TJSONObject;
   Stream: TStringStream;
+  SystemObj: TJSONObject;
+  Threads, DbConn: Integer;
+  WS, Priv: Int64;
 begin
   while not Terminated do
   begin
     // Gather metrics every 5 seconds
-    for var i2 := 0 to 49 do
+    for i := 0 to 49 do
     begin
       if Terminated then Break;
       Sleep(100);
@@ -486,9 +486,9 @@ begin
           ImportedArr := TJSONObject.ParseJSONValue(MetricsStr) as TJSONArray;
           if ImportedArr <> nil then
           try
-            for I := 0 to ImportedArr.Count - 1 do
+            for i := 0 to ImportedArr.Count - 1 do
             begin
-              Item := ImportedArr.Items[I];
+              Item := ImportedArr.Items[i];
               MetricsArr.AddElement(Item.Clone as TJSONValue);
             end;
           finally

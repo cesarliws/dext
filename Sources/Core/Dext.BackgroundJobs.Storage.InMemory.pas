@@ -107,6 +107,7 @@ var
   List: TList<TJobInfo>;
   I: Integer;
   LNow: TDateTime;
+  Job: TJobInfo;
 begin
   Result := False;
   LNow := Now;
@@ -114,7 +115,7 @@ begin
   try
     for I := 0 to List.Count - 1 do
     begin
-      var Job := List[I];
+      Job := List[I];
       WriteLn(Format('  [InMemory Debug] Job: ID=%s, Queue=%s (exp=%s), State=%d (exp=%d), EnqueueAt=%f, LNow=%f',
         [Job.Id, Job.Queue, AQueue, Ord(Job.State), Ord(jsEnqueued), Job.EnqueueAt, LNow]));
       if (Job.Queue = AQueue) and (Job.State = jsEnqueued) and (Job.EnqueueAt <= LNow + (1.0 / 86400.0)) then
@@ -135,12 +136,13 @@ procedure TInMemoryJobStorage.UpdateJobState(const AJobId: string; const AState:
 var
   List: TList<TJobInfo>;
   I: Integer;
+  Job: TJobInfo;
 begin
   List := FJobs.LockList;
   try
     for I := 0 to List.Count - 1 do
     begin
-      var Job := List[I];
+      Job := List[I];
       if Job.Id = AJobId then
       begin
         Job.State := AState;
@@ -162,12 +164,13 @@ procedure TInMemoryJobStorage.RecordHeartbeat(const AJobId: string);
 var
   List: TList<TJobInfo>;
   I: Integer;
+  Job: TJobInfo;
 begin
   List := FJobs.LockList;
   try
     for I := 0 to List.Count - 1 do
     begin
-      var Job := List[I];
+      Job := List[I];
       if Job.Id = AJobId then
       begin
         Job.LastHeartbeat := Now;

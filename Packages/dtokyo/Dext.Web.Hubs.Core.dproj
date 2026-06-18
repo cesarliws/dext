@@ -159,6 +159,8 @@
         <DCCReference Include="..\..\Sources\Hubs\Dext.Web.Hubs.Types.pas"/>
         <DCCReference Include="..\..\Sources\Hubs\Transports\Dext.Web.Hubs.Transport.SSE.pas"/>
         <DCCReference Include="..\..\Sources\Hubs\Transports\Dext.Web.Hubs.Transport.WebSocket.pas"/>
+        <DCCReference Include="..\..\Sources\Hubs\Dext.Web.Hubs.Client.Types.pas"/>
+        <DCCReference Include="..\..\Sources\Hubs\Dext.Web.Hubs.Client.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -205,6 +207,12 @@
                 </DeployFile>
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
                     <Platform Name="OSX32">
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="..\..\Output\37.0\Win32\Debug\Dext.Web.Hubs.Core370.bpl" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win32">
+                        <RemoteName>Dext.Web.Hubs.Core.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

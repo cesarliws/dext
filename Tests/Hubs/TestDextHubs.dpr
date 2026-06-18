@@ -18,7 +18,8 @@ uses
   Dext.Web.Hubs.Connections,
   Dext.Web.Hubs.Clients,
   Dext.Web.Hubs.Context,
-  Dext.Web.Hubs.Protocol.Json;
+  Dext.Web.Hubs.Protocol.Json,
+  Dext.Web.Hubs.Client.Tests;
 
 var
   TestsPassed: Integer = 0;
@@ -214,7 +215,7 @@ begin
   
   Check(Response.ConnectionId = 'test-connection-id', 'ConnectionId');
   Check(Response.NegotiateVersion = 1, 'NegotiateVersion');
-  Check(Length(Response.AvailableTransports) = 2, 'AvailableTransports count');
+  Check(Length(Response.AvailableTransports) = 3, 'AvailableTransports count');
   
   Json := Response.ToJson;
   Check(Pos('"connectionId":"test-connection-id"', Json) > 0, 'ToJson connectionId');
@@ -603,6 +604,9 @@ begin
     TestGroupManagerEdgeCases;
     TestProtocolMultipleArguments;
     TestProtocolWithInvocationId;
+    
+    // Delphi Hub Client Tests
+    RunClientTests(TestsPassed, TestsFailed);
     
     WriteLn;
     WriteLn('=========================================');

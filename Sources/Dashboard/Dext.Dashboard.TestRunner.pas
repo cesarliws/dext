@@ -110,6 +110,7 @@ var
   ResultsFile: string;
   CoverageExe: string;
   CoverageParams: string;
+  Config: TDextGlobalConfig;
 begin
   ExePath := FindExecutable(AProjectPath);
 
@@ -128,7 +129,7 @@ begin
   begin
      // Locate DelphiCodeCoverage.exe
      // Note: Direct uses of CLI Config unit is safe inside dashboard package
-     var Config := TDextGlobalConfig.Create;
+     Config := TDextGlobalConfig.Create;
      try
        Config.Load;
        CoverageExe := TCodeCoverageTool.FindPath(Config);

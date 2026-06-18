@@ -41,8 +41,12 @@ ID | Title | Status | Goal
 **S37** | [HTTP Client Engine Abstraction & Indy Fallback](S37-Http-Engine-Indy-Fallback.md) | ✅ Completed | Abstraction of HTTP Engine and TIdHTTP fallback for older Delphi IDEs.
 **S39** | [Native High-Performance Server Engine](S39-Native-Server-Engine.md) | ✅ Finalized | Zero-dependency native server engines: `http.sys` (Windows), IOCP sockets (Windows), `epoll` (Linux).
 **S40** | [WebSocket Transport & SignalR Hub Integration](S40-WebSocket-SignalR.md) | ✅ Finalized | RFC 6455 WebSocket protocol and full-duplex transport for `Dext.Web.Hubs`.
-**S41** | [HTTP/2 Framing & gRPC Transport](S41-Http2-Framing.md) | 📝 Draft | HPACK compression, HTTP/2 stream multiplexing — foundation for gRPC (S02).
-**S42** | [Delphi Hub Client (SignalR-compatible)](S42-Delphi-Hub-Client.md) | 📝 Draft | Native Delphi client connection library for Dext Hubs.
+**S41** | [HTTP/2 Framing & gRPC Transport](S41-Http2-Framing.md) | ✅ Finalized | HPACK compression, HTTP/2 stream multiplexing — foundation for gRPC (S02).
+**S42** | [Delphi Hub Client (SignalR-compatible)](S42-Delphi-Hub-Client.md) | ✅ Finalized | Native Delphi client connection library for Dext Hubs.
+**S43** | [Net-Advanced (MessagePack, Permessage-Deflate & Native TLS)](S43-Net-Advanced.md) | 📝 Draft | Advanced networking optimizations: MessagePack for SignalR, Permessage-Deflate, and Native TLS.
+**S44** | [HTTP/3 & QUIC Transport Engine](S44-Http3-Quic.md) | 📝 Draft | Native UDP-based QUIC transport and HTTP/3 protocol mapping.
+**S45** | [Advanced Kernel I/O (io_uring & kqueue)](S45-Kernel-Io.md) | 📝 Draft | High-performance OS I/O drivers: io_uring for Linux and kqueue for macOS/BSD.
+
 ---
 
 ## 🔍 Project Status & Roadmap

@@ -402,3 +402,51 @@ When binding to `0.0.0.0` or empty interfaces under `http.sys`, Dext registers `
   ```
 
 
+## HTTP/2 Camada de Transporte (S41)
+
+Units: `Dext.Http2.Connection`, `Dext.Http2.Framing`, `Dext.Http2.Hpack`, `Dext.Http2.Stream`
+
+O Dext implementa nativamente a especificação HTTP/2 (RFC 9113) e compressão de headers HPACK (RFC 7541). Esta implementação fornece a base de transporte para o protocolo gRPC (S02) e permite a demultiplexação de canais de controle/dados de streams concorrentes de alta performance.
+
+### Recursos do HTTP/2
+
+- **Multiplexação por Stream**: Suporta até `MAX_CONCURRENT_STREAMS` (padrão: 100) streams ativos por conexão TCP.
+- **Controle de Fluxo**: Controle de janela independente por stream e a nível de conexão global.
+- **HPACK**: Tabela estática e dinâmica de headers em ring-buffer com evicção FIFO automática. Suporte completo a decodificação Huffman do cliente.
+- **gRPC Unary & Streaming**: Empacotamento de mensagens gRPC em frames `DATA` com cabeçalho de prefixação de tamanho (5 bytes) e finalização com trailers (`grpc-status`/`grpc-message`).
+
+### Exemplo de Bootstrap HTTP/2 Direto
+
+Para utilizar o `TDextHttp2Connection` diretamente na escuta de sockets de baixo nível:
+
+```pascal
+uses
+  Dext.Http2.Hpack,
+  Dext.Http2.Connection;
+
+var
+  Conn: TDextHttp2Connection;
+begin
+  Conn := TDextHttp2Connection.Create(THttp2ConnectionOptions.Default);
+  try
+    Conn.OnOutput := procedure(AData: PByte; ALen: Integer)
+      begin
+        // Envia bytes brutos para o socket
+      end;
+      
+    Conn.OnRequest := procedure(AConn: TObject; AStreamId: Cardinal;
+      const AHeaders: TNameValuePairs; const ABody: TBytes)
+      begin
+        // Fired when the request is fully received on StreamId
+      end;
+      
+    // Alimenta a conexão conforme recebe dados no socket TCP
+    Conn.Feed(Buffer, BytesReceived);
+  finally
+    Conn.Free;
+  end;
+end;
+```
+
+
+

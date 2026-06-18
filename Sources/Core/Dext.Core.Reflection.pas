@@ -361,6 +361,10 @@ var
   AddM: TRttiMethod;
   Intf: TRttiInterfaceType;
   OuterName: string;
+  CleanName: string;
+  CleanedInner: string;
+  CleanedTempName: string;
+  CleanedTempQual: string;
 
   function CleanTypeName(const AName: string): string;
   var
@@ -407,7 +411,7 @@ begin
   NormalizedName := TReflection.NormalizeFieldName(TypeName);
   if (RttiType.TypeKind = tkRecord) then
   begin
-    var CleanName := CleanTypeName(TypeName);
+    CleanName := CleanTypeName(TypeName);
     OuterName := CleanName;
     LTMark := CleanName.IndexOf('<');
     if LTMark > 0 then
@@ -462,7 +466,7 @@ begin
        if (LTMark > 0) and TypeName.EndsWith('>') then
        begin
          LInnerName := TypeName.Substring(LTMark + 1, TypeName.Length - LTMark - 2).Trim;
-         var CleanedInner := CleanTypeName(LInnerName).Replace(' ', '');
+         CleanedInner := CleanTypeName(LInnerName).Replace(' ', '');
           
          // First attempt exact find using LInnerName (which might have unit name namespaces)
          LInnerRtti := TReflection.FContext.FindType(LInnerName);
@@ -474,8 +478,8 @@ begin
          begin
            for TempType in TReflection.FContext.GetTypes do
            begin
-             var CleanedTempName := CleanTypeName(TempType.Name).Replace(' ', '');
-             var CleanedTempQual := CleanTypeName(TempType.QualifiedName).Replace(' ', '');
+             CleanedTempName := CleanTypeName(TempType.Name).Replace(' ', '');
+             CleanedTempQual := CleanTypeName(TempType.QualifiedName).Replace(' ', '');
              if SameText(CleanedTempName, CleanedInner) or
                 SameText(CleanedTempQual, CleanedInner) then
              begin

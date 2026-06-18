@@ -553,6 +553,9 @@ end;
 { TTestSession }
 
 constructor TTestSession.Create(APageControl: TPageControl; const AName: string);
+var
+  PPI: Integer;
+  FilterPanel: TPanel;
 begin
   inherited Create;
   TestLocations := TList<TTestLocation>.Create;
@@ -561,20 +564,20 @@ begin
   TabSheet.PageControl := APageControl;
   TabSheet.Caption := AName;
 
-  var LPPI := 96;
+  PPI := 96;
   if APageControl.Owner is TFormDextTestRunner then
-    LPPI := TFormDextTestRunner(APageControl.Owner).CurrentPPI;
+    PPI := TFormDextTestRunner(APageControl.Owner).CurrentPPI;
 
-  var LFilterPanel := TPanel.Create(TabSheet);
-  LFilterPanel.Parent := TabSheet;
-  LFilterPanel.Align := alTop;
-  LFilterPanel.Height := MulDiv(28, LPPI, 96);
-  LFilterPanel.BevelOuter := bvNone;
+  FilterPanel := TPanel.Create(TabSheet);
+  FilterPanel.Parent := TabSheet;
+  FilterPanel.Align := alTop;
+  FilterPanel.Height := MulDiv(28, PPI, 96);
+  FilterPanel.BevelOuter := bvNone;
 
   ClearFilterButton := TSpeedButton.Create(TabSheet);
-  ClearFilterButton.Parent := LFilterPanel;
+  ClearFilterButton.Parent := FilterPanel;
   ClearFilterButton.Align := alRight;
-  ClearFilterButton.Width := MulDiv(22, LPPI, 96);
+  ClearFilterButton.Width := MulDiv(22, PPI, 96);
   ClearFilterButton.Caption := 'X';
   ClearFilterButton.Flat := True;
   ClearFilterButton.Hint := 'Clear filter';
@@ -584,7 +587,7 @@ begin
     ClearFilterButton.OnClick := TFormDextTestRunner(APageControl.Owner).ClearFilterButtonClick;
 
   FilterEdit := TEdit.Create(TabSheet);
-  FilterEdit.Parent := LFilterPanel;
+  FilterEdit.Parent := FilterPanel;
   FilterEdit.Align := alClient;
   FilterEdit.AlignWithMargins := True;
   FilterEdit.Margins.Left := 0;
@@ -606,6 +609,9 @@ begin
 end;
 
 constructor TTestSession.CreateFromExisting(ATabSheet: TTabSheet; ATreeView: TTreeView; ALocations: TList<TTestLocation>; const AProjFile: string);
+var
+  PPI: Integer;
+  FilterPanel: TPanel;
 begin
   inherited Create;
   TabSheet := ATabSheet;
@@ -613,20 +619,20 @@ begin
   TestLocations := ALocations;
   ActiveProjectFile := AProjFile;
 
-  var LPPI := 96;
+  PPI := 96;
   if ATabSheet.Owner is TFormDextTestRunner then
-    LPPI := TFormDextTestRunner(ATabSheet.Owner).CurrentPPI;
+    PPI := TFormDextTestRunner(ATabSheet.Owner).CurrentPPI;
 
-  var LFilterPanel := TPanel.Create(ATabSheet);
-  LFilterPanel.Parent := ATabSheet;
-  LFilterPanel.Align := alTop;
-  LFilterPanel.Height := MulDiv(28, LPPI, 96);
-  LFilterPanel.BevelOuter := bvNone;
+  FilterPanel := TPanel.Create(ATabSheet);
+  FilterPanel.Parent := ATabSheet;
+  FilterPanel.Align := alTop;
+  FilterPanel.Height := MulDiv(28, PPI, 96);
+  FilterPanel.BevelOuter := bvNone;
 
   ClearFilterButton := TSpeedButton.Create(ATabSheet);
-  ClearFilterButton.Parent := LFilterPanel;
+  ClearFilterButton.Parent := FilterPanel;
   ClearFilterButton.Align := alRight;
-  ClearFilterButton.Width := MulDiv(22, LPPI, 96);
+  ClearFilterButton.Width := MulDiv(22, PPI, 96);
   ClearFilterButton.Caption := 'X';
   ClearFilterButton.Flat := True;
   ClearFilterButton.Hint := 'Clear filter';
@@ -636,7 +642,7 @@ begin
     ClearFilterButton.OnClick := TFormDextTestRunner(ATabSheet.Owner).ClearFilterButtonClick;
 
   FilterEdit := TEdit.Create(ATabSheet);
-  FilterEdit.Parent := LFilterPanel;
+  FilterEdit.Parent := FilterPanel;
   FilterEdit.Align := alClient;
   FilterEdit.AlignWithMargins := True;
   FilterEdit.Margins.Left := 0;
@@ -662,6 +668,7 @@ procedure TFormDextTestRunner.RebuildStatusImages;
 var
   BgColor: TColor;
   Bitmap: TBitmap;
+  i: Integer;
   ImageList: TImageList;
   OldImages: TCustomImageList;
 
@@ -728,9 +735,9 @@ begin
 
   if Assigned(FSessions) then
   begin
-    for var I := 0 to FSessions.Count - 1 do
-      if Assigned(FSessions[I].TreeView) then
-        FSessions[I].TreeView.Images := ImageList;
+    for i := 0 to FSessions.Count - 1 do
+      if Assigned(FSessions[i].TreeView) then
+        FSessions[i].TreeView.Images := ImageList;
   end;
 
   if Assigned(OldImages) then
@@ -757,6 +764,16 @@ end;
 constructor TFormDextTestRunner.Create(AOwner: TComponent);
 var
   ThemingServices: IOTAIDEThemingServices;
+  RunAllMenu: TPopupMenu;
+  RunAllItem1, RunAllItem2, RunAllItem3: TMenuItem;
+  PopupMenu: TPopupMenu;
+  MenuItem: TMenuItem;
+  DisabledMsgLabel: TLabel;
+  EnableButton: TButton;
+  LayoutMode: Integer;
+  GroupingMode: Integer;
+  IniFile: string;
+  Ini: TMemIniFile;
 begin
   FormDextTestRunner := Self;
   FRunningProcessHandle := 0;
@@ -782,24 +799,24 @@ begin
   RunAllButton.Hint := 'Run all tests in the selected project (Click dropdown arrow for more options)';
   RunAllButton.ShowHint := True;
 
-  var LRunAllMenu := TPopupMenu.Create(Self);
-  var LRunAllItem1 := TMenuItem.Create(LRunAllMenu);
-  LRunAllItem1.Caption := 'Run Selected Project';
-  LRunAllItem1.OnClick := RunAllButtonClick;
-  LRunAllMenu.Items.Add(LRunAllItem1);
+  RunAllMenu := TPopupMenu.Create(Self);
+  RunAllItem1 := TMenuItem.Create(RunAllMenu);
+  RunAllItem1.Caption := 'Run Selected Project';
+  RunAllItem1.OnClick := RunAllButtonClick;
+  RunAllMenu.Items.Add(RunAllItem1);
 
-  var LRunAllItem2 := TMenuItem.Create(LRunAllMenu);
-  LRunAllItem2.Caption := 'Run All Test Projects';
-  LRunAllItem2.OnClick := RunAllProjectsClick;
-  LRunAllMenu.Items.Add(LRunAllItem2);
+  RunAllItem2 := TMenuItem.Create(RunAllMenu);
+  RunAllItem2.Caption := 'Run All Test Projects';
+  RunAllItem2.OnClick := RunAllProjectsClick;
+  RunAllMenu.Items.Add(RunAllItem2);
 
-  var LRunAllItem3 := TMenuItem.Create(LRunAllMenu);
-  LRunAllItem3.Caption := 'Run Failed Tests';
-  LRunAllItem3.OnClick := RunFailedTestsClick;
-  LRunAllMenu.Items.Add(LRunAllItem3);
+  RunAllItem3 := TMenuItem.Create(RunAllMenu);
+  RunAllItem3.Caption := 'Run Failed Tests';
+  RunAllItem3.OnClick := RunFailedTestsClick;
+  RunAllMenu.Items.Add(RunAllItem3);
 
   RunAllButton.Style := bsSplitButton;
-  RunAllButton.DropDownMenu := LRunAllMenu;
+  RunAllButton.DropDownMenu := RunAllMenu;
 
   RunSelectedButton.Caption := #$25B6 + ' Selected';
   RunSelectedButton.Hint := 'Run checked tests only';
@@ -823,37 +840,37 @@ begin
   TestsTreeView.OnChange := TestsTreeViewChange;
 
   // Build context menu for TreeView
-  var LPopupMenu := TPopupMenu.Create(Self);
-  var LItem := TMenuItem.Create(LPopupMenu);
-  LItem.Caption := #$25B6 + ' Run';
-  LItem.OnClick := RunSelectedButtonClick;
-  LPopupMenu.Items.Add(LItem);
+  PopupMenu := TPopupMenu.Create(Self);
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := #$25B6 + ' Run';
+  MenuItem.OnClick := RunSelectedButtonClick;
+  PopupMenu.Items.Add(MenuItem);
 
-  LItem := TMenuItem.Create(LPopupMenu);
-  LItem.Caption := 'Debug';
-  LItem.OnClick := DebugSelectedClick;
-  LPopupMenu.Items.Add(LItem);
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Debug';
+  MenuItem.OnClick := DebugSelectedClick;
+  PopupMenu.Items.Add(MenuItem);
 
-  LItem := TMenuItem.Create(LPopupMenu);
-  LItem.Caption := '-';
-  LPopupMenu.Items.Add(LItem);
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := '-';
+  PopupMenu.Items.Add(MenuItem);
 
-  LItem := TMenuItem.Create(LPopupMenu);
-  LItem.Caption := 'Expand All';
-  LItem.OnClick := ExpandAllMenuItemClick;
-  LPopupMenu.Items.Add(LItem);
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Expand All';
+  MenuItem.OnClick := ExpandAllMenuItemClick;
+  PopupMenu.Items.Add(MenuItem);
 
-  LItem := TMenuItem.Create(LPopupMenu);
-  LItem.Caption := 'Collapse All';
-  LItem.OnClick := CollapseAllMenuItemClick;
-  LPopupMenu.Items.Add(LItem);
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Collapse All';
+  MenuItem.OnClick := CollapseAllMenuItemClick;
+  PopupMenu.Items.Add(MenuItem);
 
-  LItem := TMenuItem.Create(LPopupMenu);
-  LItem.Caption := 'Go to Source';
-  LItem.OnClick := TestsTreeViewDblClick;
-  LPopupMenu.Items.Add(LItem);
+  MenuItem := TMenuItem.Create(PopupMenu);
+  MenuItem.Caption := 'Go to Source';
+  MenuItem.OnClick := TestsTreeViewDblClick;
+  PopupMenu.Items.Add(MenuItem);
 
-  TestsTreeView.PopupMenu := LPopupMenu;
+  TestsTreeView.PopupMenu := PopupMenu;
 
   FTestLocations := TList<TTestLocation>.Create;
   FSessions := TObjectList<TTestSession>.Create(True);
@@ -960,22 +977,22 @@ begin
   FDisabledContainer.BevelOuter := bvNone;
   FDisabledContainer.ParentBackground := True;
 
-  var FLblDisabledMsg := TLabel.Create(Self);
-  FLblDisabledMsg.Parent := FDisabledContainer;
-  FLblDisabledMsg.Align := alTop;
-  FLblDisabledMsg.Alignment := taCenter;
-  FLblDisabledMsg.Caption := 'Dext Test Explorer is currently disabled.' + #13#10 + 'Enable it to load projects and run tests.';
-  FLblDisabledMsg.Font.Size := 10;
-  FLblDisabledMsg.Height := 40;
+  DisabledMsgLabel := TLabel.Create(Self);
+  DisabledMsgLabel.Parent := FDisabledContainer;
+  DisabledMsgLabel.Align := alTop;
+  DisabledMsgLabel.Alignment := taCenter;
+  DisabledMsgLabel.Caption := 'Dext Test Explorer is currently disabled.' + #13#10 + 'Enable it to load projects and run tests.';
+  DisabledMsgLabel.Font.Size := 10;
+  DisabledMsgLabel.Height := 40;
 
-  var FBtnEnable := TButton.Create(Self);
-  FBtnEnable.Parent := FDisabledContainer;
-  FBtnEnable.Left := (FDisabledContainer.Width - 120) div 2;
-  FBtnEnable.Top := 50;
-  FBtnEnable.Width := 120;
-  FBtnEnable.Height := 30;
-  FBtnEnable.Caption := 'Enable';
-  FBtnEnable.OnClick := EnableBtnClick;
+  EnableButton := TButton.Create(Self);
+  EnableButton.Parent := FDisabledContainer;
+  EnableButton.Left := (FDisabledContainer.Width - 120) div 2;
+  EnableButton.Top := 50;
+  EnableButton.Width := 120;
+  EnableButton.Height := 30;
+  EnableButton.Caption := 'Enable';
+  EnableButton.OnClick := EnableBtnClick;
   EnableDisableTestExplorerMenuItem.OnClick := ToggleEnabledClick;
   EnableDisableTestExplorerMenuItem.Visible := True;
 
@@ -996,37 +1013,37 @@ begin
   FPendingSaveFiles.Duplicates := dupIgnore;
 
   // Load layout and configs from ini file
-  var LLayoutMode := Ord(telCompact);
-  var LGroupingMode := Ord(tgmCodeStructure);
-  var LIniFile := TPath.Combine(TPath.GetHomePath, 'DextTestExplorer.ini');
+  LayoutMode := Ord(telCompact);
+  GroupingMode := Ord(tgmCodeStructure);
+  IniFile := TPath.Combine(TPath.GetHomePath, 'DextTestExplorer.ini');
   try
-    var LIni := TMemIniFile.Create(LIniFile);
+    Ini := TMemIniFile.Create(IniFile);
     try
-      FEnabled := LIni.ReadBool('General', 'Enabled', True);
-      LLayoutMode := LIni.ReadInteger('Layout', 'Mode', Ord(telCompact));
-      LGroupingMode := LIni.ReadInteger('Grouping', 'Mode', Ord(tgmCodeStructure));
-      CustomParamsEdit.Text := LIni.ReadString('General', 'CustomParams', '');
-      RunOnSaveCheckBox.Checked := LIni.ReadBool('General', 'RunOnSave', False);
-      RunOnIdleCheckBox.Checked := LIni.ReadBool('General', 'RunOnIdle', False);
+      FEnabled := Ini.ReadBool('General', 'Enabled', True);
+      LayoutMode := Ini.ReadInteger('Layout', 'Mode', Ord(telCompact));
+      GroupingMode := Ini.ReadInteger('Grouping', 'Mode', Ord(tgmCodeStructure));
+      CustomParamsEdit.Text := Ini.ReadString('General', 'CustomParams', '');
+      RunOnSaveCheckBox.Checked := Ini.ReadBool('General', 'RunOnSave', False);
+      RunOnIdleCheckBox.Checked := Ini.ReadBool('General', 'RunOnIdle', False);
     finally
-      LIni.Free;
+      Ini.Free;
     end;
   except
     FEnabled := True;
   end;
 
   SetEnabledState(FEnabled);
-  ApplyLayout(TTestExplorerLayout(LLayoutMode));
-  FGroupingMode := TTestGroupingMode(LGroupingMode);
+  ApplyLayout(TTestExplorerLayout(LayoutMode));
+  FGroupingMode := TTestGroupingMode(GroupingMode);
   FIdleTimer.Enabled := RunOnIdleCheckBox.Checked;
 
   // Sync menu Checked states based on loaded configurations
-  TabbedLayoutMenuItem.Checked := TTestExplorerLayout(LLayoutMode) = telCompact;
-  SplitBottomLayoutMenuItem.Checked := TTestExplorerLayout(LLayoutMode) = telSplitBottom;
-  SplitRightLayoutMenuItem.Checked := TTestExplorerLayout(LLayoutMode) = telSplitRight;
+  TabbedLayoutMenuItem.Checked := TTestExplorerLayout(LayoutMode) = telCompact;
+  SplitBottomLayoutMenuItem.Checked := TTestExplorerLayout(LayoutMode) = telSplitBottom;
+  SplitRightLayoutMenuItem.Checked := TTestExplorerLayout(LayoutMode) = telSplitRight;
 
-  GroupByClassMenuItem.Checked := TTestGroupingMode(LGroupingMode) = tgmCodeStructure;
-  GroupByTestStatusMenuItem.Checked := TTestGroupingMode(LGroupingMode) = tgmStatus;
+  GroupByClassMenuItem.Checked := TTestGroupingMode(GroupingMode) = tgmCodeStructure;
+  GroupByTestStatusMenuItem.Checked := TTestGroupingMode(GroupingMode) = tgmStatus;
 
   Self.KeyPreview := True;
   Self.OnKeyDown := FormKeyDown;
@@ -1050,6 +1067,7 @@ end;
 destructor TFormDextTestRunner.Destroy;
 var
   LThemingServices: IOTAIDEThemingServices;
+  I: Integer;
 begin
   if (FActiveProjectNotifierIndex <> -1) and Assigned(FActiveProjectForNotifier) then
   begin
@@ -1092,7 +1110,7 @@ begin
 
   if Assigned(ProjectsComboBox) then
   begin
-    for var I := 0 to ProjectsComboBox.Items.Count - 1 do
+    for I := 0 to ProjectsComboBox.Items.Count - 1 do
       ProjectsComboBox.Items.Objects[I].Free;
   end;
 
@@ -1104,6 +1122,8 @@ end;
 procedure TFormDextTestRunner.ApplyDpiScaling;
 var
   LPPI: Integer;
+  Idx: Integer;
+  Session: TTestSession;
 begin
   LPPI := Self.CurrentPPI;
   if LPPI = 0 then
@@ -1128,13 +1148,13 @@ begin
 
   if Assigned(FSessions) then
   begin
-    for var I := 0 to FSessions.Count - 1 do
+    for Idx := 0 to FSessions.Count - 1 do
     begin
-      var LSession := FSessions[I];
-      if Assigned(LSession.FilterEdit) and Assigned(LSession.FilterEdit.Parent) then
-        TPanel(LSession.FilterEdit.Parent).Height := MulDiv(28, LPPI, 96);
-      if Assigned(LSession.ClearFilterButton) then
-        LSession.ClearFilterButton.Width := MulDiv(22, LPPI, 96);
+      Session := FSessions[Idx];
+      if Assigned(Session.FilterEdit) and Assigned(Session.FilterEdit.Parent) then
+        TPanel(Session.FilterEdit.Parent).Height := MulDiv(28, LPPI, 96);
+      if Assigned(Session.ClearFilterButton) then
+        Session.ClearFilterButton.Width := MulDiv(22, LPPI, 96);
     end;
   end;
 end;
@@ -1181,6 +1201,9 @@ var
   ModifiedTimes: TArray<TDateTime>;
   Project: IOTAProject;
   LStopwatch: TStopwatch;
+  Cache: TFileScanCache;
+  FileTime: TDateTime;
+  Tests: TList<TTestLocation>;
 begin
   if not FEnabled then Exit;
   LStopwatch := TStopwatch.StartNew;
@@ -1224,11 +1247,11 @@ begin
     begin
       if SameText(ExtractFileExt(FileName), '.pas') and FileExists(FileName) then
       begin
-        var LCache: TFileScanCache := nil;
-        var LTime := TFile.GetLastWriteTime(FileName);
-        if CacheDict.TryGetValue(FileName, LCache) then
+        Cache := nil;
+        FileTime := TFile.GetLastWriteTime(FileName);
+        if CacheDict.TryGetValue(FileName, Cache) then
         begin
-          if LCache.Timestamp <> LTime then
+          if Cache.Timestamp <> FileTime then
             FilesToScan.Add(FileName);
         end
         else
@@ -1254,9 +1277,9 @@ begin
 
       for i := 0 to Length(FilesToScanArray) - 1 do
       begin
-        var LTests: TList<TTestLocation> := nil;
-        if TTestASTScanner.ScanFile(FilesToScanArray[i], LTests) then
-          LScannedLists[i] := LTests
+        Tests := nil;
+        if TTestASTScanner.ScanFile(FilesToScanArray[i], Tests) then
+          LScannedLists[i] := Tests
         else
           LScannedLists[i] := nil;
       end;
@@ -1264,11 +1287,12 @@ begin
 
       TThread.Queue(nil, TThreadProcedure(procedure
         var
-          i: Integer;
           FileName: string;
-          LUiStopwatch: TStopwatch;
+          i: Integer;
+          TestLoc: TTestLocation;
+          UiStopwatch: TStopwatch;
         begin
-          LUiStopwatch := TStopwatch.StartNew;
+          UiStopwatch := TStopwatch.StartNew;
           if Generation <> FScanGeneration then
           begin
             for i := 0 to Length(LScannedLists) - 1 do
@@ -1280,10 +1304,10 @@ begin
           for i := 0 to Length(FilesToScanArray) - 1 do
           begin
             FileName := FilesToScanArray[i];
-            var LTests := LScannedLists[i];
-            if LTests = nil then
-              LTests := TList<TTestLocation>.Create;
-            CacheDict.AddOrSetValue(FileName, TFileScanCache.Create(ModifiedTimes[i], LTests));
+            Tests := LScannedLists[i];
+            if Tests = nil then
+              Tests := TList<TTestLocation>.Create;
+            CacheDict.AddOrSetValue(FileName, TFileScanCache.Create(ModifiedTimes[i], Tests));
           end;
 
           TestsTreeView.Items.BeginUpdate;
@@ -1293,11 +1317,11 @@ begin
 
             for FileName in Files do
             begin
-              var LCache: TFileScanCache := nil;
-              if CacheDict.TryGetValue(FileName, LCache) then
+              Cache := nil;
+              if CacheDict.TryGetValue(FileName, Cache) then
               begin
-                for var LTest in LCache.Tests do
-                  FTestLocations.Add(LTest);
+                for TestLoc in Cache.Tests do
+                  FTestLocations.Add(TestLoc);
               end;
             end;
 
@@ -1309,7 +1333,7 @@ begin
             begin
               ExpandTestsTreeView;
             end));
-          LogPerformance(Format('RefreshActiveProjectTestsList: ui rebuild %.2f ms, total %.2f ms', [LUiStopwatch.Elapsed.TotalMilliseconds, LStopwatch.Elapsed.TotalMilliseconds]));
+          LogPerformance(Format('RefreshActiveProjectTestsList: ui rebuild %.2f ms, total %.2f ms', [UiStopwatch.Elapsed.TotalMilliseconds, LStopwatch.Elapsed.TotalMilliseconds]));
         end));
     end));
 end;
@@ -1318,6 +1342,8 @@ procedure TFormDextTestRunner.ApplyIDETheme;
 var
   ThemingServices: IOTAIDEThemingServices;
   BgColor, FgColor: TColor;
+  Idx: Integer;
+  Session: TTestSession;
 begin
   if Supports(BorlandIDEServices, IOTAIDEThemingServices, ThemingServices) then
   begin
@@ -1338,15 +1364,15 @@ begin
       // 2. Loop through all sessions to update all TreeViews
       if Assigned(FSessions) then
       begin
-        for var LIdx := 0 to FSessions.Count - 1 do
+        for Idx := 0 to FSessions.Count - 1 do
         begin
-          var LSession := FSessions[LIdx];
-          if Assigned(LSession.TreeView) then
+          Session := FSessions[Idx];
+          if Assigned(Session.TreeView) then
           begin
-            LSession.TreeView.Color := BgColor;
-            LSession.TreeView.Font.Color := FgColor;
-            LSession.TreeView.Font.Size := 9;
-            LSession.TreeView.Invalidate;
+            Session.TreeView.Color := BgColor;
+            Session.TreeView.Font.Color := FgColor;
+            Session.TreeView.Font.Size := 9;
+            Session.TreeView.Invalidate;
           end;
         end;
       end;
@@ -1413,18 +1439,20 @@ begin
 end;
 
 procedure TFormDextTestRunner.SetEnabledState(AValue: Boolean);
+var
+  Handler: TNotifyEvent;
 begin
   FEnabled := AValue;
   FDisabledPanel.Visible := not AValue;
 
   if Assigned(EnabledCheckBox) then
   begin
-    var LHandler := EnabledCheckBox.OnClick;
+    Handler := EnabledCheckBox.OnClick;
     EnabledCheckBox.OnClick := nil;
     try
       EnabledCheckBox.Checked := AValue;
     finally
-      EnabledCheckBox.OnClick := LHandler;
+      EnabledCheckBox.OnClick := Handler;
     end;
   end;
 
@@ -1492,32 +1520,32 @@ end;
 
 procedure TFormDextTestRunner.RunFailedTestsClick(Sender: TObject);
 var
-  LFailedTests: TList<string>;
-  LKey: string;
-  LInfo: TTestDetailInfo;
+  FailedTests: TList<string>;
+  Key: string;
+  Info: TTestDetailInfo;
 begin
-  LFailedTests := TList<string>.Create;
+  FailedTests := TList<string>.Create;
   try
-    for LKey in FTestDetails.Keys do
+    for Key in FTestDetails.Keys do
     begin
-      LInfo := FTestDetails[LKey];
-      if SameText(LInfo.Status, 'Failed') or SameText(LInfo.Status, 'Error') then
+      Info := FTestDetails[Key];
+      if SameText(Info.Status, 'Failed') or SameText(Info.Status, 'Error') then
       begin
-        LFailedTests.Add(LKey);
+        FailedTests.Add(Key);
       end;
     end;
 
-    if LFailedTests.Count > 0 then
+    if FailedTests.Count > 0 then
     begin
-      LogMsg(Format('Running %d failed tests...', [LFailedTests.Count]));
-      RunImpactedTests(LFailedTests.ToArray);
+      LogMsg(Format('Running %d failed tests...', [FailedTests.Count]));
+      RunImpactedTests(FailedTests.ToArray);
     end
     else
     begin
       LogMsg('No failed tests to run.');
     end;
   finally
-    LFailedTests.Free;
+    FailedTests.Free;
   end;
 end;
 
@@ -1589,6 +1617,8 @@ var
   TestDetailInfo: TTestDetailInfo;
   TestInfo: Dext.Testing.Integration.TTestInfo;
   XUnitReporter: TXUnitReporter;
+  Key: string;
+  Parts: TArray<string>;
 begin
   SuiteName := ExtractFileName(ChangeFileExt(FActiveProjectFile, ''));
   if SuiteName = '' then SuiteName := 'DextTests';
@@ -1598,15 +1628,15 @@ begin
     JUnitReporter := TJUnitReporter.Create;
     try
       JUnitReporter.BeginSuite(SuiteName);
-      for var LKey in FTestDetails.Keys do
+      for Key in FTestDetails.Keys do
       begin
-        TestDetailInfo := FTestDetails[LKey];
+        TestDetailInfo := FTestDetails[Key];
         FillChar(TestInfo, SizeOf(TestInfo), 0);
-        var LParts := TestDetailInfo.TestName.Split(['.']);
-        if Length(LParts) >= 2 then
+        Parts := TestDetailInfo.TestName.Split(['.']);
+        if Length(Parts) >= 2 then
         begin
-          TestInfo.FixtureName := LParts[0];
-          TestInfo.TestName := LParts[1];
+          TestInfo.FixtureName := Parts[0];
+          TestInfo.TestName := Parts[1];
         end
         else
         begin
@@ -1635,15 +1665,15 @@ begin
     XUnitReporter := TXUnitReporter.Create;
     try
       XUnitReporter.BeginSuite(SuiteName);
-      for var LKey in FTestDetails.Keys do
+      for Key in FTestDetails.Keys do
       begin
-        TestDetailInfo := FTestDetails[LKey];
+        TestDetailInfo := FTestDetails[Key];
         FillChar(TestInfo, SizeOf(TestInfo), 0);
-        var LParts := TestDetailInfo.TestName.Split(['.']);
-        if Length(LParts) >= 2 then
+        Parts := TestDetailInfo.TestName.Split(['.']);
+        if Length(Parts) >= 2 then
         begin
-          TestInfo.FixtureName := LParts[0];
-          TestInfo.TestName := LParts[1];
+          TestInfo.FixtureName := Parts[0];
+          TestInfo.TestName := Parts[1];
         end
         else
         begin
@@ -1672,15 +1702,15 @@ begin
     JsonReporter := TJsonReporter.Create;
     try
       JsonReporter.BeginSuite(SuiteName);
-      for var LKey in FTestDetails.Keys do
+      for Key in FTestDetails.Keys do
       begin
-        TestDetailInfo := FTestDetails[LKey];
+        TestDetailInfo := FTestDetails[Key];
         FillChar(TestInfo, SizeOf(TestInfo), 0);
-        var LParts := TestDetailInfo.TestName.Split(['.']);
-        if Length(LParts) >= 2 then
+        Parts := TestDetailInfo.TestName.Split(['.']);
+        if Length(Parts) >= 2 then
         begin
-          TestInfo.FixtureName := LParts[0];
-          TestInfo.TestName := LParts[1];
+          TestInfo.FixtureName := Parts[0];
+          TestInfo.TestName := Parts[1];
         end
         else
         begin
@@ -1708,15 +1738,15 @@ begin
   begin
     SonarReporter := TSonarQubeReporter.Create;
     try
-      for var LKey in FTestDetails.Keys do
+      for Key in FTestDetails.Keys do
       begin
-        TestDetailInfo := FTestDetails[LKey];
+        TestDetailInfo := FTestDetails[Key];
         FillChar(TestInfo, SizeOf(TestInfo), 0);
-        var LParts := TestDetailInfo.TestName.Split(['.']);
-        if Length(LParts) >= 2 then
+        Parts := TestDetailInfo.TestName.Split(['.']);
+        if Length(Parts) >= 2 then
         begin
-          TestInfo.FixtureName := LParts[0];
-          TestInfo.TestName := LParts[1];
+          TestInfo.FixtureName := Parts[0];
+          TestInfo.TestName := Parts[1];
         end
         else
         begin
@@ -1745,15 +1775,15 @@ begin
     try
       HTMLReporter.SetTitle(SuiteName);
       HTMLReporter.BeginSuite(SuiteName);
-      for var LKey in FTestDetails.Keys do
+      for Key in FTestDetails.Keys do
       begin
-        TestDetailInfo := FTestDetails[LKey];
+        TestDetailInfo := FTestDetails[Key];
         FillChar(TestInfo, SizeOf(TestInfo), 0);
-        var LParts := TestDetailInfo.TestName.Split(['.']);
-        if Length(LParts) >= 2 then
+        Parts := TestDetailInfo.TestName.Split(['.']);
+        if Length(Parts) >= 2 then
         begin
-          TestInfo.FixtureName := LParts[0];
-          TestInfo.TestName := LParts[1];
+          TestInfo.FixtureName := Parts[0];
+          TestInfo.TestName := Parts[1];
         end
         else
         begin
@@ -1790,15 +1820,17 @@ begin
 end;
 
 procedure TFormDextTestRunner.ConfigChangeHandler(Sender: TObject);
+var
+  Ini: TMemIniFile;
 begin
-  var LIni := TMemIniFile.Create(TPath.Combine(TPath.GetHomePath, 'DextTestExplorer.ini'));
+  Ini := TMemIniFile.Create(TPath.Combine(TPath.GetHomePath, 'DextTestExplorer.ini'));
   try
-    LIni.WriteString('General', 'CustomParams', CustomParamsEdit.Text);
-    LIni.WriteBool('General', 'RunOnSave', RunOnSaveCheckBox.Checked);
-    LIni.WriteBool('General', 'RunOnIdle', RunOnIdleCheckBox.Checked);
-    LIni.UpdateFile;
+    Ini.WriteString('General', 'CustomParams', CustomParamsEdit.Text);
+    Ini.WriteBool('General', 'RunOnSave', RunOnSaveCheckBox.Checked);
+    Ini.WriteBool('General', 'RunOnIdle', RunOnIdleCheckBox.Checked);
+    Ini.UpdateFile;
   finally
-    LIni.Free;
+    Ini.Free;
   end;
 
   if Assigned(FIdleTimer) then
@@ -1955,6 +1987,7 @@ var
   LOutput: string;
   LPrevSelectedFile: string;
   LFoundIndex: Integer;
+  ProjInfo: TDextProjectInfo;
 begin
   LPrevSelectedFile := FActiveProjectFile;
 
@@ -1994,8 +2027,8 @@ begin
   begin
     for I := 0 to ProjectsComboBox.Items.Count - 1 do
     begin
-      var LInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
-      if Assigned(LInfo) and SameText(LInfo.FileName, LPrevSelectedFile) then
+      ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
+      if Assigned(ProjInfo) and SameText(ProjInfo.FileName, LPrevSelectedFile) then
       begin
         LFoundIndex := I;
         Break;
@@ -2069,7 +2102,7 @@ end;
 
 function TFormDextTestRunner.FindNodeByPath(const APath: string): TTreeNode;
 var
-  i: Integer;
+  i, J: Integer;
   Node: TTreeNode;
   Split: TArray<string>;
 
@@ -2124,7 +2157,6 @@ begin
         Node := TestsTreeView.Items[i];
         if (Node.Parent = nil) and SameText(GetNodeClassName(Node.Text), Split[0]) then
         begin
-          var J: Integer;
           for J := 0 to Node.Count - 1 do
           begin
             if SameText(Node.Item[J].Text, Split[1]) then
@@ -2168,6 +2200,10 @@ var
     Passed, Failed, Ignored: Integer;
     TestLocation: TTestLocation;
     TestName, Status, Msg, StackTrace: string;
+    Checked: TArray<string>;
+    SelectedCount: Integer;
+    Fixture: string;
+    TempDur: Double;
   begin
     if ItemJson.TryGetValue<string>('event', Event) and SameText(Event, 'RunComplete') then
     begin
@@ -2274,11 +2310,11 @@ var
       end;
 
       // Update summary counts
-      var LChecked := GetCheckedTests;
-      var LSelectedCount := Length(LChecked);
-      if LSelectedCount = 0 then
-        LSelectedCount := FTestLocations.Count;
-      SummarySelectedLabel.Caption := 'Selected: ' + LSelectedCount.ToString;
+      Checked := GetCheckedTests;
+      SelectedCount := Length(Checked);
+      if SelectedCount = 0 then
+        SelectedCount := FTestLocations.Count;
+      SummarySelectedLabel.Caption := 'Selected: ' + SelectedCount.ToString;
       SummaryTotalLabel.Caption := 'Total: ' + FTestLocations.Count.ToString;
       SummarySuccessLabel.Caption := 'Passed: 0';
       SummaryFailedLabel.Caption := 'Failed: 0';
@@ -2319,15 +2355,15 @@ var
       else if SameText(Status, 'Error') then Status := 'Error'
       else if SameText(Status, 'Skipped') then Status := 'Skipped';
 
-      var LFixture: string := '';
-      if ItemJson.TryGetValue<string>('fixturename', LFixture) and (LFixture <> '') then
+      Fixture := '';
+      if ItemJson.TryGetValue<string>('fixturename', Fixture) and (Fixture <> '') then
       begin
-        TestName := LFixture + '.' + TestName;
+        TestName := Fixture + '.' + TestName;
       end;
 
-      var LTempDur: Double := 0;
-      if ItemJson.TryGetValue<Double>('duration', LTempDur) then
-        DurationMs := LTempDur;
+      TempDur := 0;
+      if ItemJson.TryGetValue<Double>('duration', TempDur) then
+        DurationMs := TempDur;
 
       ItemJson.TryGetValue<string>('exceptionmessage', Msg);
       ItemJson.TryGetValue<string>('status', StackTrace);
@@ -2810,26 +2846,34 @@ var
   LCmdLine: string;
   SI: TStartupInfo;
   PI: TProcessInformation;
+  PlatformVal: string;
+  Config: string;
+  Proj: IOTAProject;
+  Configs: IOTAProjectOptionsConfigurations;
+  Checked: TArray<string>;
+  JSON: string;
+  Idx: Integer;
+  CustomParams: string;
+  ProcessHandle: THandle;
 begin
   LIsPackage := False;
   LOutput := '';
-  var LPlatform := 'Win32';
-  var LConfig := 'Debug';
-  var LProj := GetProjectByFileName(FActiveProjectFile);
-  if Assigned(LProj) then
+  PlatformVal := 'Win32';
+  Config := 'Debug';
+  Proj := GetProjectByFileName(FActiveProjectFile);
+  if Assigned(Proj) then
   begin
-    LOutput := LProj.ProjectOptions.Values['OutputDir'];
-    var LConfigs: IOTAProjectOptionsConfigurations;
-    if Supports(LProj.ProjectOptions, IOTAProjectOptionsConfigurations, LConfigs) then
+    LOutput := Proj.ProjectOptions.Values['OutputDir'];
+    if Supports(Proj.ProjectOptions, IOTAProjectOptionsConfigurations, Configs) then
     begin
-      LPlatform := LConfigs.ActivePlatformName;
-      if Assigned(LConfigs.ActiveConfiguration) then
-        LConfig := LConfigs.ActiveConfiguration.Name;
+      PlatformVal := Configs.ActivePlatformName;
+      if Assigned(Configs.ActiveConfiguration) then
+        Config := Configs.ActiveConfiguration.Name;
     end;
   end;
   if LOutput = '' then
-    GetProjectTargetInfo(FActiveProjectFile, LIsPackage, LOutput, LPlatform, LConfig);
-  LExeFile := ResolveExePath(FActiveProjectFile, LOutput, LPlatform, LConfig);
+    GetProjectTargetInfo(FActiveProjectFile, LIsPackage, LOutput, PlatformVal, Config);
+  LExeFile := ResolveExePath(FActiveProjectFile, LOutput, PlatformVal, Config);
 
   if not FileExists(LExeFile) then
   begin
@@ -2845,17 +2889,17 @@ begin
     FServer.SelectedTestsJSON := '["' + ATestFilter + '"]'
   else
   begin
-    var LChecked := GetCheckedTests;
-    if Length(LChecked) > 0 then
+    Checked := GetCheckedTests;
+    if Length(Checked) > 0 then
     begin
-      var LJSON: string := '[';
-      for var LIdx := 0 to Length(LChecked) - 1 do
+      JSON := '[';
+      for Idx := 0 to Length(Checked) - 1 do
       begin
-        if LIdx > 0 then LJSON := LJSON + ',';
-        LJSON := LJSON + '"' + LChecked[LIdx] + '"';
+        if Idx > 0 then JSON := JSON + ',';
+        JSON := JSON + '"' + Checked[Idx] + '"';
       end;
-      LJSON := LJSON + ']';
-      FServer.SelectedTestsJSON := LJSON;
+      JSON := JSON + ']';
+      FServer.SelectedTestsJSON := JSON;
     end
     else
       FServer.SelectedTestsJSON := '[]';
@@ -2874,9 +2918,9 @@ begin
   DetailsMemo.Update;
 
   LParams := Format('--port %d -no-wait', [FServer.Port]);
-  var LCustomParams := CustomParamsEdit.Text;
-  if LCustomParams <> '' then
-    LParams := LParams + ' ' + LCustomParams;
+  CustomParams := CustomParamsEdit.Text;
+  if CustomParams <> '' then
+    LParams := LParams + ' ' + CustomParams;
 
   if ATestFilter <> '' then
   begin
@@ -2903,10 +2947,10 @@ begin
     FRunningProcessHandle := PI.hProcess;
     CloseHandle(PI.hThread);
 
-    var LProcessHandle := PI.hProcess;
+    ProcessHandle := PI.hProcess;
     TThread.CreateAnonymousThread(procedure
       begin
-        WaitForSingleObject(LProcessHandle, 120000); // 120s timeout max
+        WaitForSingleObject(ProcessHandle, 120000); // 120s timeout max
         TThread.Queue(nil, TThreadProcedure(procedure
           begin
             if Assigned(FormDextTestRunner) then
@@ -3135,6 +3179,11 @@ var
   LParams: string;
   SI: TStartupInfo;
   PI: TProcessInformation;
+  SaveServices: IOTAModuleServices;
+  ProjInfo: TDextProjectInfo;
+  PlatformVal: string;
+  Config: string;
+  Configs: IOTAProjectOptionsConfigurations;
 begin
   FRunningTests := True;
   ClearTestStatus;
@@ -3155,19 +3204,18 @@ begin
   LogMsg('=== Running All Test Projects ===');
 
   // Save all modified IDE files once before the loop.
-  var LSaveServices: IOTAModuleServices;
-  if Supports(BorlandIDEServices, IOTAModuleServices, LSaveServices) then
+  if Supports(BorlandIDEServices, IOTAModuleServices, SaveServices) then
   begin
     LogMsg('Saving all modified files...');
-    LSaveServices.SaveAll;
+    SaveServices.SaveAll;
   end;
 
   for I := 0 to ProjectsComboBox.Items.Count - 1 do
   begin
-    var LProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
-    if Assigned(LProjInfo) then
+    ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
+    if Assigned(ProjInfo) then
     begin
-      LProj := GetProjectByFileName(LProjInfo.FileName);
+      LProj := GetProjectByFileName(ProjInfo.FileName);
       if Assigned(LProj) then
       begin
         LProjFile := LProj.FileName;
@@ -3182,22 +3230,21 @@ begin
 
         LIsPackage := False;
         LOutput := '';
-        var LPlatform := 'Win32';
-        var LConfig := 'Debug';
+        PlatformVal := 'Win32';
+        Config := 'Debug';
         if Assigned(LProj) then
         begin
           LOutput := LProj.ProjectOptions.Values['OutputDir'];
-          var LConfigs: IOTAProjectOptionsConfigurations;
-          if Supports(LProj.ProjectOptions, IOTAProjectOptionsConfigurations, LConfigs) then
+          if Supports(LProj.ProjectOptions, IOTAProjectOptionsConfigurations, Configs) then
           begin
-            LPlatform := LConfigs.ActivePlatformName;
-            if Assigned(LConfigs.ActiveConfiguration) then
-              LConfig := LConfigs.ActiveConfiguration.Name;
+            PlatformVal := Configs.ActivePlatformName;
+            if Assigned(Configs.ActiveConfiguration) then
+              Config := Configs.ActiveConfiguration.Name;
           end;
         end;
         if LOutput = '' then
           GetProjectTargetInfo(LProjFile, LIsPackage, LOutput);
-        LExeFile := ResolveExePath(LProjFile, LOutput, LPlatform, LConfig);
+        LExeFile := ResolveExePath(LProjFile, LOutput, PlatformVal, Config);
 
         if FileExists(LExeFile) then
         begin
@@ -3460,6 +3507,7 @@ var
   LNode: TTreeNode;
   LBtnRect: TRect;
   LHitInfo: THitTests;
+  I: Integer;
 begin
   if Button = mbLeft then
   begin
@@ -3473,6 +3521,8 @@ begin
           var
             I: Integer;
             LState: Boolean;
+            ParentNode: TTreeNode;
+            AnyChecked: Boolean;
           begin
             if not Assigned(LNode) or not Assigned(TestsTreeView) then Exit;
             LState := LNode.Checked;
@@ -3488,17 +3538,17 @@ begin
             end
             else
             begin
-              var LParent := LNode.Parent;
-              var LAnyChecked := False;
-              for I := 0 to LParent.Count - 1 do
+              ParentNode := LNode.Parent;
+              AnyChecked := False;
+              for I := 0 to ParentNode.Count - 1 do
               begin
-                if LParent.Item[I].Checked then
+                if ParentNode.Item[I].Checked then
                 begin
-                  LAnyChecked := True;
+                  AnyChecked := True;
                   Break;
                 end;
               end;
-              LParent.Checked := LAnyChecked;
+              ParentNode.Checked := AnyChecked;
             end;
             UpdateSummaryCounts;
             TestsTreeView.Invalidate;
@@ -3514,7 +3564,7 @@ begin
           
           TestsTreeView.Items.BeginUpdate;
           try
-            for var I := 0 to TestsTreeView.Items.Count - 1 do
+            for I := 0 to TestsTreeView.Items.Count - 1 do
               TestsTreeView.Items[I].Checked := False;
             LNode.Checked := True;
             if LNode.Parent <> nil then
@@ -3549,6 +3599,8 @@ begin
           var
             I: Integer;
             LState: Boolean;
+            ParentNode: TTreeNode;
+            AnyChecked: Boolean;
           begin
             if not Assigned(LNode) or not Assigned(TestsTreeView) then Exit;
             LState := LNode.Checked;
@@ -3564,17 +3616,17 @@ begin
             end
             else
             begin
-              var LParent := LNode.Parent;
-              var LAnyChecked := False;
-              for I := 0 to LParent.Count - 1 do
+              ParentNode := LNode.Parent;
+              AnyChecked := False;
+              for I := 0 to ParentNode.Count - 1 do
               begin
-                if LParent.Item[I].Checked then
+                if ParentNode.Item[I].Checked then
                 begin
-                  LAnyChecked := True;
+                  AnyChecked := True;
                   Break;
                 end;
               end;
-              LParent.Checked := LAnyChecked;
+              ParentNode.Checked := AnyChecked;
             end;
             UpdateSummaryCounts;
             TestsTreeView.Invalidate;
@@ -4163,6 +4215,9 @@ var
   LModuleServices: IOTAModuleServices;
   LGroup: IOTAProjectGroup;
   LProjInfo: TDextProjectInfo;
+  SaveServices: IOTAModuleServices;
+  I: Integer;
+  Act: TContainedAction;
 begin
   LNode := TestsTreeView.Selected;
   if not Assigned(LNode) then Exit;
@@ -4199,11 +4254,10 @@ begin
   LogMsg('Compiling project (Debug): ' + ExtractFileName(FActiveProjectFile));
 
   // Save all modified IDE files before compiling.
-  var LSaveServices: IOTAModuleServices;
-  if Supports(BorlandIDEServices, IOTAModuleServices, LSaveServices) then
+  if Supports(BorlandIDEServices, IOTAModuleServices, SaveServices) then
   begin
     LogMsg('Saving all modified files...');
-    LSaveServices.SaveAll;
+    SaveServices.SaveAll;
   end;
 
   LIsPackage := False;
@@ -4234,13 +4288,13 @@ begin
   begin
     if LNTAServices.ActionList <> nil then
     begin
-      for var I := 0 to LNTAServices.ActionList.ActionCount - 1 do
+      for I := 0 to LNTAServices.ActionList.ActionCount - 1 do
       begin
-        var LAct := LNTAServices.ActionList.Actions[I];
-        if SameText(LAct.Name, 'actRun') or SameText(LAct.Name, 'actRunRun') or
-           SameText(LAct.Name, 'actRunProgram') or (LAct.ShortCut = ShortCut(VK_F9, [])) then
+        Act := LNTAServices.ActionList.Actions[I];
+        if SameText(Act.Name, 'actRun') or SameText(Act.Name, 'actRunRun') or
+           SameText(Act.Name, 'actRunProgram') or (Act.ShortCut = ShortCut(VK_F9, [])) then
         begin
-          LFoundAction := LAct;
+          LFoundAction := Act;
           Break;
         end;
       end;
@@ -4269,6 +4323,9 @@ end;
 procedure TFormDextTestRunner.SetActiveSession(ASession: TTestSession);
 var
   LThemingServices: IOTAIDEThemingServices;
+  ActiveIndex: Integer;
+  I: Integer;
+  ProjInfo: TDextProjectInfo;
 begin
   if ASession = nil then Exit;
   FActiveSession := ASession;
@@ -4279,17 +4336,17 @@ begin
 
   if ProjectsComboBox.Items.Count > 0 then
   begin
-    var LIndex := -1;
-    for var I := 0 to ProjectsComboBox.Items.Count - 1 do
+    ActiveIndex := -1;
+    for I := 0 to ProjectsComboBox.Items.Count - 1 do
     begin
-      var LProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
-      if Assigned(LProjInfo) and (LProjInfo.FileName = FActiveProjectFile) then
+      ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
+      if Assigned(ProjInfo) and (ProjInfo.FileName = FActiveProjectFile) then
       begin
-        LIndex := I;
+        ActiveIndex := I;
         Break;
       end;
     end;
-    ProjectsComboBox.ItemIndex := LIndex;
+    ProjectsComboBox.ItemIndex := ActiveIndex;
   end;
 
   if Supports(BorlandIDEServices, IOTAIDEThemingServices, LThemingServices) then
@@ -4303,10 +4360,12 @@ begin
 end;
 
 procedure TFormDextTestRunner.SessionsPageControlChange(Sender: TObject);
+var
+  I: Integer;
 begin
   if SessionsPageControl.ActivePage = nil then Exit;
 
-  for var I := 0 to FSessions.Count - 1 do
+  for I := 0 to FSessions.Count - 1 do
   begin
     if FSessions[I].TabSheet = SessionsPageControl.ActivePage then
     begin
@@ -4343,16 +4402,19 @@ begin
 end;
 
 procedure TFormDextTestRunner.CloseSession(ASession: TTestSession);
+var
+  ActiveIndex: Integer;
+  NextIndex: Integer;
 begin
   if FSessions.Count <= 1 then Exit;
 
-  var LActiveIndex := FSessions.IndexOf(ASession);
+  ActiveIndex := FSessions.IndexOf(ASession);
 
   if FActiveSession = ASession then
   begin
-    var LNextIndex := LActiveIndex - 1;
-    if LNextIndex < 0 then LNextIndex := 1;
-    SetActiveSession(FSessions[LNextIndex]);
+    NextIndex := ActiveIndex - 1;
+    if NextIndex < 0 then NextIndex := 1;
+    SetActiveSession(FSessions[NextIndex]);
     SessionsPageControl.ActivePage := FActiveSession.TabSheet;
   end;
 
@@ -4365,6 +4427,8 @@ var
   LPageControl: TPageControl;
   LTabIndex: Integer;
   LPos: TPoint;
+  Menu: TPopupMenu;
+  Item: TMenuItem;
 begin
   LPageControl := Sender as TPageControl;
   LPos := MousePos;
@@ -4375,14 +4439,14 @@ begin
     LPageControl.ActivePage := LPageControl.Pages[LTabIndex];
     SessionsPageControlChange(LPageControl);
 
-    var LMenu := TPopupMenu.Create(Self);
-    var LItem := TMenuItem.Create(LMenu);
-    LItem.Caption := 'Close Session';
-    LItem.OnClick := CloseActiveSessionClick;
-    LMenu.Items.Add(LItem);
+    Menu := TPopupMenu.Create(Self);
+    Item := TMenuItem.Create(Menu);
+    Item.Caption := 'Close Session';
+    Item.OnClick := CloseActiveSessionClick;
+    Menu.Items.Add(Item);
 
     LPos := LPageControl.ClientToScreen(LPos);
-    LMenu.Popup(LPos.X, LPos.Y);
+    Menu.Popup(LPos.X, LPos.Y);
     Handled := True;
   end;
 end;
@@ -4489,61 +4553,63 @@ end;
 
 function TFormDextTestRunner.CompileProjectDirect(const AProjFile: string): Boolean;
 var
-  LDccExe: string;
-  LContent: string;
-  LSearchPath, LDefines, LNamespaces, LDcuOutput, LExeOutput: string;
-  LWorkDir: string;
-  LProductVer: string;
-  LBDS: string;
-  LCommonDir: string;
-  LCmdLine: string;
-  LOutput: string;
-  LProjName: string;
-  LDprFile: string;
+  DccExe: string;
+  Content: string;
+  SearchPath, Defines, Namespaces, DcuOutput, ExeOutput: string;
+  WorkDir: string;
+  ProductVer: string;
+  BDS: string;
+  CommonDir: string;
+  CmdLine: string;
+  Output: string;
+  ProjName: string;
+  DprFile: string;
+
   function ResolvePaths(const APaths: string): string;
   var
-    LParts: TArray<string>;
-    I: Integer;
-    LResolved: string;
+    Parts: TArray<string>;
+    i: Integer;
+    Resolved: string;
+    Part: string;
   begin
-    LParts := APaths.Split([';']);
-    for I := 0 to Length(LParts) - 1 do
+    Parts := APaths.Split([';']);
+    for i := 0 to Length(Parts) - 1 do
     begin
-      var LPart := LParts[I].Trim;
-      if LPart = '' then Continue;
-      if not TPath.IsPathRooted(LPart) then
-        LPart := TPath.Combine(LWorkDir, LPart);
-      LPart := TPath.GetFullPath(LPart);
-      if LResolved <> '' then LResolved := LResolved + ';';
-      LResolved := LResolved + LPart;
+      Part := Parts[i].Trim;
+      if Part = '' then Continue;
+      if not TPath.IsPathRooted(Part) then
+        Part := TPath.Combine(WorkDir, Part);
+      Part := TPath.GetFullPath(Part);
+      if Resolved <> '' then Resolved := Resolved + ';';
+      Resolved := Resolved + Part;
     end;
-    Result := LResolved;
+    Result := Resolved;
   end;
 begin
   Result := False;
   if not FileExists(AProjFile) then Exit;
 
-  LWorkDir := ExtractFilePath(AProjFile);
-  LProjName := TPath.GetFileNameWithoutExtension(AProjFile);
-  LDprFile := TPath.Combine(LWorkDir, LProjName + '.dpr');
-  if not FileExists(LDprFile) then
-    LDprFile := TPath.Combine(LWorkDir, LProjName + '.dpk');
+  WorkDir := ExtractFilePath(AProjFile);
+  ProjName := TPath.GetFileNameWithoutExtension(AProjFile);
+  DprFile := TPath.Combine(WorkDir, ProjName + '.dpr');
+  if not FileExists(DprFile) then
+    DprFile := TPath.Combine(WorkDir, ProjName + '.dpk');
 
-  if not FileExists(LDprFile) then
+  if not FileExists(DprFile) then
   begin
-    LogMsg('Error: DPR/DPK file not found: ' + LDprFile);
+    LogMsg('Error: DPR/DPK file not found: ' + DprFile);
     Exit;
   end;
 
-  LDccExe := ExtractFilePath(ParamStr(0)) + 'dcc32.exe';
-  if not FileExists(LDccExe) then
+  DccExe := ExtractFilePath(ParamStr(0)) + 'dcc32.exe';
+  if not FileExists(DccExe) then
   begin
-    LogMsg('Error: Compiler not found: ' + LDccExe);
+    LogMsg('Error: Compiler not found: ' + DccExe);
     Exit;
   end;
 
   try
-    LContent := TFile.ReadAllText(AProjFile);
+    Content := TFile.ReadAllText(AProjFile);
   except
     on E: Exception do
     begin
@@ -4552,75 +4618,75 @@ begin
     end;
   end;
 
-  LSearchPath := ExtractTagValue(LContent, 'DCC_UnitSearchPath');
-  LDefines := ExtractTagValue(LContent, 'DCC_Define');
-  LNamespaces := ExtractTagValue(LContent, 'DCC_Namespace');
-  LDcuOutput := ExtractTagValue(LContent, 'DCC_DcuOutput');
-  LExeOutput := ExtractTagValue(LContent, 'DCC_ExeOutput');
+  SearchPath := ExtractTagValue(Content, 'DCC_UnitSearchPath');
+  Defines := ExtractTagValue(Content, 'DCC_Define');
+  Namespaces := ExtractTagValue(Content, 'DCC_Namespace');
+  DcuOutput := ExtractTagValue(Content, 'DCC_DcuOutput');
+  ExeOutput := ExtractTagValue(Content, 'DCC_ExeOutput');
 
-  LProductVer := GetDelphiProductVersion;
-  LBDS := ExcludeTrailingPathDelimiter(ExtractFileDir(ExtractFileDir(ParamStr(0))));
-  LCommonDir := 'C:\Users\Public\Documents\Embarcadero\Studio\' + LProductVer;
+  ProductVer := GetDelphiProductVersion;
+  BDS := ExcludeTrailingPathDelimiter(ExtractFileDir(ExtractFileDir(ParamStr(0))));
+  CommonDir := 'C:\Users\Public\Documents\Embarcadero\Studio\' + ProductVer;
 
-  LSearchPath := LSearchPath.Replace('$(ProductVersion)', LProductVer)
+  SearchPath := SearchPath.Replace('$(ProductVersion)', ProductVer)
                            .Replace('$(Platform)', 'Win32')
                            .Replace('$(Config)', 'Debug')
-                           .Replace('$(BDS)', LBDS)
-                           .Replace('$(BDSCOMMONDIR)', LCommonDir)
+                           .Replace('$(BDS)', BDS)
+                           .Replace('$(BDSCOMMONDIR)', CommonDir)
                            .Replace('$(DCC_UnitSearchPath)', '');
 
-  LDefines := LDefines.Replace('$(DCC_Define)', '').Trim;
-  if LDefines.EndsWith(';') then
-    LDefines := LDefines.Substring(0, LDefines.Length - 1).Trim;
+  Defines := Defines.Replace('$(DCC_Define)', '').Trim;
+  if Defines.EndsWith(';') then
+    Defines := Defines.Substring(0, Defines.Length - 1).Trim;
 
-  LNamespaces := LNamespaces.Replace('$(DCC_Namespace)', '').Trim;
-  if LNamespaces.EndsWith(';') then
-    LNamespaces := LNamespaces.Substring(0, LNamespaces.Length - 1).Trim;
+  Namespaces := Namespaces.Replace('$(DCC_Namespace)', '').Trim;
+  if Namespaces.EndsWith(';') then
+    Namespaces := Namespaces.Substring(0, Namespaces.Length - 1).Trim;
 
-  LDcuOutput := LDcuOutput.Replace('$(ProductVersion)', LProductVer)
+  DcuOutput := DcuOutput.Replace('$(ProductVersion)', ProductVer)
                           .Replace('$(Platform)', 'Win32')
                           .Replace('$(Config)', 'Debug');
-  LExeOutput := LExeOutput.Replace('$(ProductVersion)', LProductVer)
+  ExeOutput := ExeOutput.Replace('$(ProductVersion)', ProductVer)
                           .Replace('$(Platform)', 'Win32')
                           .Replace('$(Config)', 'Debug');
 
-  LSearchPath := ResolvePaths(LSearchPath);
-  if LDcuOutput <> '' then
+  SearchPath := ResolvePaths(SearchPath);
+  if DcuOutput <> '' then
   begin
-    if not TPath.IsPathRooted(LDcuOutput) then
-      LDcuOutput := TPath.Combine(LWorkDir, LDcuOutput);
-    LDcuOutput := TPath.GetFullPath(LDcuOutput);
-    ForceDirectories(LDcuOutput);
+    if not TPath.IsPathRooted(DcuOutput) then
+      DcuOutput := TPath.Combine(WorkDir, DcuOutput);
+    DcuOutput := TPath.GetFullPath(DcuOutput);
+    ForceDirectories(DcuOutput);
   end;
-  if LExeOutput <> '' then
+  if ExeOutput <> '' then
   begin
-    if not TPath.IsPathRooted(LExeOutput) then
-      LExeOutput := TPath.Combine(LWorkDir, LExeOutput);
-    LExeOutput := TPath.GetFullPath(LExeOutput);
-    ForceDirectories(LExeOutput);
+    if not TPath.IsPathRooted(ExeOutput) then
+      ExeOutput := TPath.Combine(WorkDir, ExeOutput);
+    ExeOutput := TPath.GetFullPath(ExeOutput);
+    ForceDirectories(ExeOutput);
   end;
 
-  if LSearchPath <> '' then LSearchPath := LSearchPath + ';';
-  LSearchPath := LSearchPath + LWorkDir;
+  if SearchPath <> '' then SearchPath := SearchPath + ';';
+  SearchPath := SearchPath + WorkDir;
 
-  LCmdLine := Format('"%s" -Q -M -U"%s"', [LDccExe, LSearchPath]);
-  if LDefines <> '' then LCmdLine := LCmdLine + ' -D' + LDefines;
-  if LNamespaces <> '' then LCmdLine := LCmdLine + ' -NS' + LNamespaces;
-  if LDcuOutput <> '' then LCmdLine := LCmdLine + ' -N0"' + LDcuOutput + '"';
-  if LExeOutput <> '' then LCmdLine := LCmdLine + ' -E"' + LExeOutput + '"';
-  LCmdLine := LCmdLine + ' "' + LDprFile + '"';
+  CmdLine := Format('"%s" -Q -M -U"%s"', [DccExe, SearchPath]);
+  if Defines <> '' then CmdLine := CmdLine + ' -D' + Defines;
+  if Namespaces <> '' then CmdLine := CmdLine + ' -NS' + Namespaces;
+  if DcuOutput <> '' then CmdLine := CmdLine + ' -N0"' + DcuOutput + '"';
+  if ExeOutput <> '' then CmdLine := CmdLine + ' -E"' + ExeOutput + '"';
+  CmdLine := CmdLine + ' "' + DprFile + '"';
 
-  LogMsg('DCC Command: ' + LCmdLine);
+  LogMsg('DCC Command: ' + CmdLine);
 
-  if ExecuteAndCapture(LCmdLine, LWorkDir, LOutput) then
+  if ExecuteAndCapture(CmdLine, WorkDir, Output) then
   begin
-    LogMsg(LOutput);
+    LogMsg(Output);
     LogMsg('Direct compilation successful.');
     Result := True;
   end
   else
   begin
-    LogMsg(LOutput);
+    LogMsg(Output);
     LogMsg('Direct compilation failed.');
   end;
 end;
@@ -4722,6 +4788,7 @@ var
   LMethodNode: TTreeNode;
   LFile: string;
   I: Integer;
+  ParentNode: TTreeNode;
 begin
   if not Assigned(FSaveTimer) then Exit;
   FSaveTimer.Enabled := False;
@@ -4748,10 +4815,10 @@ begin
 
               if Assigned(LNode) then
               begin
-                var LParent := LNode.Parent;
+                ParentNode := LNode.Parent;
                 LNode.Free;
-                if Assigned(LParent) and (LParent.Count = 0) then
-                  LParent.Free;
+                if Assigned(ParentNode) and (ParentNode.Count = 0) then
+                  ParentNode.Free;
               end;
               FTestLocations.Delete(LIdx);
             end;
@@ -4850,12 +4917,24 @@ end;
 
 class procedure TTelemetryTracker.AnalyzeHistory(const AProjectFile: string; AMemo: TMemo);
 var
+  AvgDuration: Double;
   Directory, FileName: string;
   DurationMs: Integer;
   DurList: TList<Integer>;
+  HasHeader: Boolean;
   i: Integer;
+  IntPair: TPair<string, TList<Integer>>;
+  IsFlaky: Boolean;
+  IsRegression: Boolean;
   JsonArray: TJSONArray;
   JsonObj: TJSONObject;
+  LastDuration: Integer;
+  LastStatus: string;
+  NameKey: string;
+  Pair: TPair<string, TList<string>>;
+  StatList: TList<string>;
+  StatusesList: TList<string>;
+  Sum: Integer;
   TestDurations: TDictionary<string, TList<Integer>>;
   TestName, LStatus: string;
   TestStatuses: TDictionary<string, TList<string>>;
@@ -4896,71 +4975,71 @@ begin
               end;
               DurList.Add(DurationMs);
 
-              var LStatList: TList<string> := nil;
-              if not TestStatuses.TryGetValue(TestName, LStatList) then
+              StatList := nil;
+              if not TestStatuses.TryGetValue(TestName, StatList) then
               begin
-                LStatList := TList<string>.Create;
-                TestStatuses.Add(TestName, LStatList);
+                StatList := TList<string>.Create;
+                TestStatuses.Add(TestName, StatList);
               end;
-              LStatList.Add(LStatus);
+              StatList.Add(LStatus);
             end;
           end;
         end;
 
         // 2. Perform regression and flakiness analysis
-        var LHasHeader := False;
-        for var LPair in TestStatuses do
+        HasHeader := False;
+        for Pair in TestStatuses do
         begin
-          var LNameKey := LPair.Key;
-          var LStatusesList := LPair.Value;
-          DurList := TestDurations[LNameKey];
+          NameKey := Pair.Key;
+          StatusesList := Pair.Value;
+          DurList := TestDurations[NameKey];
 
-          var LIsFlaky := False;
-          if LStatusesList.Count >= 2 then
+          IsFlaky := False;
+          if StatusesList.Count >= 2 then
           begin
-            var LLastStatus := LStatusesList[0];
-            for i := 1 to LStatusesList.Count - 1 do
+            LastStatus := StatusesList[0];
+            for i := 1 to StatusesList.Count - 1 do
             begin
-              if LStatusesList[i] <> LLastStatus then
+              if StatusesList[i] <> LastStatus then
               begin
-                LIsFlaky := True;
+                IsFlaky := True;
                 Break;
               end;
             end;
           end;
 
-          var LIsRegression := False;
-          var LAvgDuration := 0.0;
-          var LLastDuration := 0;
+          IsRegression := False;
+          AvgDuration := 0.0;
+          LastDuration := 0;
           if DurList.Count >= 3 then
           begin
-            LLastDuration := DurList[DurList.Count - 1];
-            var LSum := 0;
+            LastDuration := DurList[DurList.Count - 1];
+            Sum := 0;
             for i := 0 to DurList.Count - 2 do
-              Inc(LSum, DurList[i]);
-            LAvgDuration := LSum / (DurList.Count - 1);
+              Inc(Sum, DurList[i]);
+            AvgDuration := Sum / (DurList.Count - 1);
 
-            if (LAvgDuration > 10) and (LLastDuration > LAvgDuration * 1.5) then
-              LIsRegression := True;
+            if (AvgDuration > 10) and (LastDuration > AvgDuration * 1.5) then
+              IsRegression := True;
           end;
 
-          if LIsFlaky or LIsRegression then
+          if IsFlaky or IsRegression then
           begin
-            if not LHasHeader then
+            if not HasHeader then
             begin
               AMemo.Lines.Add('');
               AMemo.Lines.Add('[ANALYTICS] --- TEST ANALYTICS ENGINE REPORT ---');
-              LHasHeader := True;
+              HasHeader := True;
             end;
 
-            if LIsFlaky then
-              AMemo.Lines.Add('   [FLAKY] TEST DETECTED: ' + LNameKey + ' (status changes between Pass and Fail)');
-            if LIsRegression then
-              AMemo.Lines.Add(Format('   [PERF REGRESSION] %s (Last: %dms, Avg: %.1fms)', [LNameKey, LLastDuration, LAvgDuration]));
+            if IsFlaky then
+              AMemo.Lines.Add('   [FLAKY] TEST DETECTED: ' + NameKey + ' (status changes between Pass and Fail)');
+            if IsRegression then
+              AMemo.Lines.Add(Format('   [PERF REGRESSION] %s (Last: %dms, Avg: %.1fms)', [NameKey, LastDuration, AvgDuration]));
           end;
         end;
 
-        if LHasHeader then
+        if HasHeader then
           AMemo.Lines.Add('========================================');
       finally
         JsonArray.Free;
@@ -4969,9 +5048,9 @@ begin
       // ignore errors during analysis
     end;
   finally
-    for var LPair in TestDurations do LPair.Value.Free;
+    for IntPair in TestDurations do Pair.Value.Free;
     TestDurations.Free;
-    for var LPair in TestStatuses do LPair.Value.Free;
+    for Pair in TestStatuses do Pair.Value.Free;
     TestStatuses.Free;
   end;
 end;

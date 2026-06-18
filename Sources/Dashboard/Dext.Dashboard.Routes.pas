@@ -1,4 +1,4 @@
-﻿unit Dext.Dashboard.Routes;
+unit Dext.Dashboard.Routes;
 
 interface
 
@@ -112,11 +112,13 @@ begin
 end;
 
 procedure TDashboardSaveTimer.Execute;
+var
+  Elapsed: Integer;
 begin
   while not Terminated do
   begin
     // Wait in small chunks so Terminate is checked quickly
-    var Elapsed := 0;
+    Elapsed := 0;
     while not Terminated and (Elapsed < FIntervalMs) do
     begin
       Sleep(500);
@@ -636,6 +638,14 @@ begin
       ProjObj, TestsObj: IDextJsonArray;
       TestObj: IDextJsonObject;
       ResJson: IDextJsonObject;
+      BaseDirs: TStringList;
+      Name: string;
+      SeenPaths: TStringList;
+      Dir: string;
+      TestsDir: string;
+      FoundFiles: TArray<string>;
+      TestProjPath: string;
+      ProjName: string;
     begin
       SR := TStreamReader.Create(Ctx.Request.Body);
       try
@@ -655,7 +665,7 @@ begin
             TestsObj := TDextJson.Provider.CreateArray;
 
             // Collect base dirs from the received project paths to auto-discover siblings Tests/
-            var BaseDirs := TStringList.Create;
+            BaseDirs := TStringList.Create;
             BaseDirs.Duplicates := dupIgnore;
             BaseDirs.Sorted := True;
 
@@ -668,7 +678,7 @@ begin
                 BaseDirs.Add(TPath.GetDirectoryName(Path));
 
                 // If the project name itself contains 'Test', treat it as a test project
-                var Name := TPath.GetFileNameWithoutExtension(Path);
+                Name := TPath.GetFileNameWithoutExtension(Path);
                 if Name.Contains('Test') then
                 begin
                   TestObj := TDextJson.Provider.CreateObject;
@@ -681,20 +691,20 @@ begin
 
             // Auto-discover test projects: look for a Tests/ directory sibling to the group base dirs
             try
-              var SeenPaths := TStringList.Create;
+              SeenPaths := TStringList.Create;
               SeenPaths.Duplicates := dupIgnore;
               SeenPaths.Sorted := True;
               try
-                for var Dir in BaseDirs do
+                for Dir in BaseDirs do
                 begin
-                  var TestsDir := TPath.Combine(TPath.GetDirectoryName(Dir), 'Tests');
+                  TestsDir := TPath.Combine(TPath.GetDirectoryName(Dir), 'Tests');
                   if TDirectory.Exists(TestsDir) then
                   begin
                     // Search recursively for *.dproj files containing 'Test' in name
-                    var FoundFiles := TDirectory.GetFiles(TestsDir, '*.dproj', TSearchOption.soAllDirectories);
-                    for var TestProjPath in FoundFiles do
+                    FoundFiles := TDirectory.GetFiles(TestsDir, '*.dproj', TSearchOption.soAllDirectories);
+                    for TestProjPath in FoundFiles do
                     begin
-                      var ProjName := TPath.GetFileNameWithoutExtension(TestProjPath);
+                      ProjName := TPath.GetFileNameWithoutExtension(TestProjPath);
                       if ProjName.Contains('Test') and (SeenPaths.IndexOf(TestProjPath) < 0) then
                       begin
                         SeenPaths.Add(TestProjPath);
@@ -751,6 +761,7 @@ begin
       RunnerResult: IDextJsonObject;
       CombinedResult: IDextJsonArray;
       SuccessCount, FailCount: Integer;
+      UseCoverage: Boolean;
     begin
       SR := TStreamReader.Create(Ctx.Request.Body);
       try
@@ -788,7 +799,7 @@ begin
             SuccessCount := 0;
             FailCount := 0;
             
-            var UseCoverage := False;
+            UseCoverage := False;
             if Json.Contains('coverage') then
               UseCoverage := Json.GetBoolean('coverage');
 

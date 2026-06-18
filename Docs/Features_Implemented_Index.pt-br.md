@@ -252,6 +252,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 ### 3.7 Real-time & Caching
 - **SSE (Server-Sent Events)** — Streaming unidirecional de eventos como fallback.
 - **WebSockets e Hubs SignalR** — Suporte completo ao transporte nativo WebSocket RFC 6455 com mascaramento cliente-servidor, tratamento de handshake e integração total com `Dext.Web.Hubs` para mensagens bidirecionais em tempo real, despacho para grupos e keepalives via ping/pong. Realiza o upgrade nativo de conexões HTTP via modo opaco (`HTTP_SEND_RESPONSE_FLAG_OPAQUE`) no HTTP.sys.
+- **Cliente Hub Delphi (SignalR-compatible)** — Biblioteca cliente nativa em Delphi (`Dext.Web.Hubs.Client`) de alta performance, com suporte a transportes WebSocket e SSE, protocolos de negociação/handshake automáticos, heartbeat via ping e dispatches thread-safe com marshaling opcional para a thread principal (UI).
 - **Caching** — In-Memory. (Cliente Redis nativo de alta performance planejado e em desenvolvimento ativo, atualmente ~80% completo). **Health Checks** detalhados (com plano de expansão no roadmap).
 
 ### 3.8 API Documentation & Scaffolding
@@ -712,4 +713,26 @@ O framework inclui uma suíte de observabilidade premium, de alta performance e 
 - **IStreamableSessionManager** — Gerenciador de canais SSE com limpeza de sessões expiradas (Garbage Collector a cada 60s expulsando sessões inativas após 30 minutos).
 - **HTMX Fragment Swap** — Endpoints que expõem fragmentos HTML dinâmicos (como `/sidecar/fragments/metrics`) permitindo atualização visual direta no DOM em tempo real via HTMX sem escrever código JavaScript.
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jun 05, 2026).*
+---
+
+## 🌐 20. Protocolo de Rede HTTP/2 & HPACK Framing (S41) (`Sources\Web`, `Examples\02-Web\Web.Http2Framing`)
+
+O framework inclui suporte nativo à especificação **HTTP/2 (RFC 9113)** e ao algoritmo de compressão de cabeçalhos **HPACK (RFC 7541)**, permitindo multiplexação de streams e comunicação de alta eficiência em conexões persistentes, servindo de base para implementações de alto desempenho como gRPC e Delphi Hub Client.
+
+### 20.1 Engine de Framing HTTP/2
+- **Multiplexação Completa** — Suporte a múltiplos streams lógicos independentes e concorrentes sobre uma única conexão TCP, eliminando o bloqueio de cabeça de fila (Head-of-Line blocking) no nível da aplicação.
+- **Tipos de Frames RFC 9113** — Implementação e decodificação rigorosa de frames `HEADERS`, `DATA`, `SETTINGS`, `RST_STREAM`, `PING`, `GOAWAY` e `WINDOW_UPDATE`.
+- **Controle de Fluxo por Stream & Conexão** — Gerenciamento dinâmico de janelas de transmissão de dados (`WINDOW_UPDATE`) para evitar saturação de buffer do receptor e otimizar throughput de rede.
+- **State Machine de Conexões** — Máquina de estados completa para gerenciar o handshake inicial (`SETTINGS`), controle de encerramento amigável (`GOAWAY`), detecção de conexões ativas (`PING`) e fechamento prematuro de streams (`RST_STREAM`).
+
+### 20.2 Compressão de Cabeçalhos HPACK
+- **Tabela Estática** — Implementação completa da tabela estática de 61 entradas padrão da especificação RFC 7541 para mapeamento de cabeçalhos comuns.
+- **Tabela Dinâmica** — Gerenciamento dinâmico de cabeçalhos adicionais com controle de tamanho máximo de buffer (padrão de 4096 bytes) e desalocação FIFO de entradas antigas conforme novos índices são inseridos.
+- **Codificação Huffman** — Codificador e decodificador Huffman baseado em tabelas estáticas de árvores de bits para compressão eficiente de strings de texto enviadas nos nomes e valores dos cabeçalhos.
+- **Representações de Campo** — Suporte completo para campos indexados, campos literais indexados (com ou sem atualização de tabela dinâmica) e literais nunca indexados.
+
+### 20.3 Integração gRPC Unary Transport
+- **Suporte gRPC** — Exemplo prático de transporte gRPC Unary demonstrando o processamento de corpos de mensagem binários no padrão *Length-Prefixed Message* (1 byte de flag de compressão + 4 bytes big-endian de tamanho do corpo + dados protobuf).
+- **Tratamento de Headers e Trailers** — Emissão correta de cabeçalhos de resposta gRPC e envio final de trailers HTTP/2 (`grpc-status`, `grpc-message`) em um frame `HEADERS` com flag `END_STREAM`.
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jun 18, 2026).*

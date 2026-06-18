@@ -674,6 +674,8 @@ var
   PropName: string;
   RttiType: TRttiType;
   Val: TValue;
+  ExistingPropVal: TValue;
+  ExistingObj: TObject;
 begin
   if AJson = nil then
     Exit(TValue.Empty);
@@ -771,8 +773,8 @@ begin
               begin
                 // Check if the property already holds an instance (e.g. created in constructor).
                 // If so, populate it in-place instead of creating a new one.
-                var ExistingPropVal := Prop.GetValue(Instance);
-                var ExistingObj: TObject := nil;
+                ExistingPropVal := Prop.GetValue(Instance);
+                ExistingObj := nil;
                 if not ExistingPropVal.IsEmpty then
                 begin
                   if Prop.PropertyType.TypeKind = tkClass then

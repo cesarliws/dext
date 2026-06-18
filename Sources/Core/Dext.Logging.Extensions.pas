@@ -269,6 +269,7 @@ var
   CapturedMinLevel: TLogLevel;
   CapturedTelemetryEnabled: Boolean;
   CapturedProviders: TArray<ILoggerProvider>;
+  CapturedSinks: TArray<ILogSink>;
 begin
   LBuilderObj := TLoggingBuilder.Create(AServices);
   LBuilderIntf := LBuilderObj; // Mantém a referência viva
@@ -290,7 +291,7 @@ begin
 
   if LBuilderObj.IsAsync then
   begin
-    var CapturedSinks := LBuilderObj.ExtractSinks.ToArray;
+    CapturedSinks := LBuilderObj.ExtractSinks.ToArray;
     // Register Async Factory
     AServices.AddSingleton(
       TServiceType.FromInterface(ILoggerFactory),

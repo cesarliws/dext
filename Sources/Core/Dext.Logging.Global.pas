@@ -124,6 +124,8 @@ var
   SidecarUrl: string;
   Options: IOptions<TSidecarOptions>;
   Enabled: Boolean;
+  Client: THTTPClient;
+  Res: IHTTPResponse;
 begin
   if FFactory <> nil then Exit; // Already initialized
 
@@ -153,15 +155,15 @@ begin
   begin
     // Auto-detect if sidecar is running
     try
-      var LClient := THTTPClient.Create;
+      Client := THTTPClient.Create;
       try
-        LClient.ConnectionTimeout := 150;
-        LClient.ResponseTimeout := 150;
-        var LRes := LClient.Get('http://localhost:' + Port.ToString + '/');
-        if LRes.StatusCode = 200 then
+        Client.ConnectionTimeout := 150;
+        Client.ResponseTimeout := 150;
+        Res := Client.Get('http://localhost:' + Port.ToString + '/');
+        if Res.StatusCode = 200 then
           Enabled := True;
       finally
-        LClient.Free;
+        Client.Free;
       end;
     except
       // Failed to connect, keep Enabled := False

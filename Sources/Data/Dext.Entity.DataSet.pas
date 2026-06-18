@@ -1777,6 +1777,7 @@ var
   Pair: TPair<string, Variant>;
   PreviewList: IList<IDictionary<string, Variant>>;
   Row: TDictionary<string, Variant>;
+  NestedField: TDataSetField;
 begin
   FIsCursorOpen := True;
   FIsDesignTimePreview := False;
@@ -1877,7 +1878,7 @@ begin
     if (FieldDefs[i].DataType = ftDataSet) and (FindField(FieldDefs[i].Name) = nil) then
     begin
       LDef := FieldDefs[i];
-      var NestedField := TDataSetField.Create(Self);
+      NestedField := TDataSetField.Create(Self);
       NestedField.FieldName := LDef.Name;
       NestedField.DataSet := Self;
     end;

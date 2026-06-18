@@ -1,9 +1,9 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{572A2F5A-FF40-44A6-B417-9F14A0B0C1B0}</ProjectGuid>
         <MainSource>TestDextHubs.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <ProjectName Condition="'$(ProjectName)'==''">TestDextHubs</ProjectName>
         <TargetedPlatforms>32897</TargetedPlatforms>
         <AppType>Console</AppType>

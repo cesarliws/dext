@@ -46,7 +46,7 @@ Status | Task | Spec | Description
 🟡 | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Code-first Protobuf services and TEntityDataSet/TEntitygRpcProvider integration.
 ✅ | **Native Server Engine** | [S39](Specs/S39-Native-Server-Engine.md) | 100% Pascal High-performance server engine (http.sys, epoll sockets).
 ✅ | **WebSocket & SignalR** | [S40](Specs/S40-WebSocket-SignalR.md) | RFC 6455 protocol codec and SignalR-compatible Hub transport integration.
-🔴 | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | HTTP/2 HPACK compression, frame codec, and stream multiplexing for gRPC.
+✅ | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | HTTP/2 HPACK compression, frame codec, and stream multiplexing for gRPC.
 🟡 | **OAuth2 & OIDC** | [S06](Specs/S06-Security-Identity.md) | Native support for JWT, Google, and Microsoft Login.
 ✅ | **Live Tracing (Core)** | [S03](Specs/S03-Live-Observability.md) | Real-time instrumentation infrastructure (TDiagnosticSource).
 🟡 | **Observability Dashboard**| - | Built-in web UI for real-time log and SQL visualization.
@@ -55,7 +55,7 @@ Status | Task | Spec | Description
 🟡 | **SOA via Interfaces** | [S14](Specs/S14-SOA-Interfaces.md) | Transparent Code-First gRPC mapping for Delphi Interfaces.
 ✅ | **APM & Telemetry Sinks** | [S35](Specs/S35-APM-Log-Sinks.md) | Asynchronous batch-oriented telemetry sinks targeting Seq and OpenTelemetry (OTLP) collectors.
 ✅ | **Indy HTTP Fallback** | [S37](Specs/S37-Http-Engine-Indy-Fallback.md) | Abstract HTTP Client layer to support Indy fallback on older Delphi versions.
-⏳ | **Delphi Hub Client** | [S42](Specs/S42-Delphi-Hub-Client.md) | Native Delphi client connection library for Dext Hubs (WebSocket/SSE).
+✅ | **Delphi Hub Client** | [S42](Specs/S42-Delphi-Hub-Client.md) | Native Delphi client connection library for Dext Hubs (WebSocket/SSE).
 
 ## 🔮 Future / Post-V1
 - [ ] **OData Support**: Full OData query support.
@@ -103,7 +103,7 @@ Status | Tarefa | Spec | Descrição
 🟡 | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Motor nativo IOCP/EPOLL para comunicação binária.
 ✅ | **Motor de Servidor Nativo** | [S39](Specs/S39-Native-Server-Engine.md) | Motor de servidor de alta performance 100% Pascal (http.sys, epoll sockets).
 ✅ | **WebSocket & SignalR** | [S40](Specs/S40-WebSocket-SignalR.md) | Codec do protocolo RFC 6455 e integração do transporte de Hub compatível com SignalR.
-🔴 | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | Compressão HPACK HTTP/2, codec de frames e multiplexação de streams para gRPC.
+✅ | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | Compressão HPACK HTTP/2, codec de frames e multiplexação de streams para gRPC.
 🟡 | **OAuth2 & OIDC** | [S06](Specs/S06-Security-Identity.md) | Suporte nativo a JWT, Google/Microsoft Login.
 ✅ | **Live Tracing (Core)** | [S03](Specs/S03-Live-Observability.md) | Infraestrutura de instrumentação em tempo real.
 🟡 | **Dashboard Log Live** | - | Interface web para visualização de logs e SQL em tempo real.
@@ -112,7 +112,7 @@ Status | Tarefa | Spec | Descrição
 🟡 | **SOA via Interfaces** | [S14](Specs/S14-SOA-Interfaces.md) | SOA e RPC via gRPC Code-First transparente para interfaces Delphi.
 ✅ | **APM & Telemetry Sinks** | [S35](Specs/S35-APM-Log-Sinks.md) | Envio assíncrono em lotes de telemetria e logs para Seq e coletores OpenTelemetry (OTLP).
 ✅ | **Indy HTTP Fallback** | [S37](Specs/S37-Http-Engine-Indy-Fallback.md) | Abstração do cliente HTTP para suporte a fallback com Indy em versões antigas.
-⏳ | **Cliente Hub Delphi** | [S42](Specs/S42-Delphi-Hub-Client.md) | Biblioteca cliente nativa em Delphi para conexão com Dext Hubs (WebSocket/SSE).
+✅ | **Cliente Hub Delphi** | [S42](Specs/S42-Delphi-Hub-Client.md) | Biblioteca cliente nativa em Delphi para conexão com Dext Hubs (WebSocket/SSE).
 
 ## 🔮 Futuro / Pós-V1
 - [ ] **Suporte a OData**: Suporte completo a queries OData.

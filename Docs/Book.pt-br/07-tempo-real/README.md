@@ -57,6 +57,11 @@ await connection.start();
 await connection.invoke('EnviarMensagem', 'João', 'Olá!');
 ```
 
+## Conteúdo do Capítulo
+
+- [Mapeamento e Hubs no Servidor](hubs-signalr.md)
+- [Cliente Delphi Hub (Delphi Client)](delphi-client.md)
+
 ---
 
 [← Database as API](../06-database-as-api/README.md) | [Próximo: Testes →](../08-testes/README.md)

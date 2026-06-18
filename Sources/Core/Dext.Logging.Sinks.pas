@@ -158,6 +158,7 @@ var
   LDate: TDateTime;
   LSize: Int64;
   I: Integer;
+  FileStream: TFileStream;
 begin
   if not TFile.Exists(FFileName) then Exit;
 
@@ -187,11 +188,11 @@ begin
   begin
     try
       // Simple way to get size
-      var LFileStream := TFileStream.Create(FFileName, fmOpenRead or fmShareDenyNone);
+      FileStream := TFileStream.Create(FFileName, fmOpenRead or fmShareDenyNone);
       try
-        LSize := LFileStream.Size;
+        LSize := FileStream.Size;
       finally
-        LFileStream.Free;
+        FileStream.Free;
       end;
     except
       LSize := 0;

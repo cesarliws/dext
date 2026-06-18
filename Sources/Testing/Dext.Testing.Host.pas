@@ -243,6 +243,18 @@ var
   {$IFNDEF MSWINDOWS}
   i: Integer;
   {$ENDIF}
+  Client: THTTPClient;
+  Resp: IHTTPResponse;
+  JSONStr: string;
+  Start: Integer;
+  EndPos: Integer;
+  TestsList: TStringList;
+  Inner: string;
+  Parts: TArray<string>;
+  Part: string;
+  Cleaned: string;
+  SelectedArr: TArray<string>;
+  Idx: Integer;
 
 begin
   ParentProcess := GetParentProcessName;
@@ -319,47 +331,46 @@ begin
       begin
         TTestRunner.RegisterListener(TDextTestExplorerListener.Create(LPort));
         
-        var LClient := THTTPClient.Create;
+        Client := THTTPClient.Create;
         try
           try
-            var LResp := LClient.Get('http://localhost:' + LPort.ToString + '/tests');
-            if LResp.StatusCode = 200 then
+            Resp := Client.Get('http://localhost:' + LPort.ToString + '/tests');
+            if Resp.StatusCode = 200 then
             begin
-              var LJSONStr := LResp.ContentAsString(TEncoding.UTF8).Trim;
-              if LJSONStr.StartsWith('{') then
+              JSONStr := Resp.ContentAsString(TEncoding.UTF8).Trim;
+              if JSONStr.StartsWith('{') then
               begin
-                var LStart := LJSONStr.IndexOf('[');
-                var LEnd := LJSONStr.LastIndexOf(']');
-                if (LStart >= 0) and (LEnd > LStart) then
-                  LJSONStr := LJSONStr.Substring(LStart, LEnd - LStart + 1);
+                Start := JSONStr.IndexOf('[');
+                EndPos := JSONStr.LastIndexOf(']');
+                if (Start >= 0) and (EndPos > Start) then
+                  JSONStr := JSONStr.Substring(Start, EndPos - Start + 1);
               end;
-              if LJSONStr.StartsWith('[') and LJSONStr.EndsWith(']') then
+              if JSONStr.StartsWith('[') and JSONStr.EndsWith(']') then
               begin
-                var LTestsList := TStringList.Create;
+                TestsList := TStringList.Create;
                 try
-                  var LInner := LJSONStr.Substring(1, LJSONStr.Length - 2).Trim;
-                  if LInner <> '' then
+                  Inner := JSONStr.Substring(1, JSONStr.Length - 2).Trim;
+                  if Inner <> '' then
                   begin
-                    var LParts := LInner.Split([',']);
-                    for var LPart in LParts do
+                    Parts := Inner.Split([',']);
+                    for Part in Parts do
                     begin
-                      var LCleaned := LPart.Trim;
-                      if LCleaned.StartsWith('"') and LCleaned.EndsWith('"') then
-                        LCleaned := LCleaned.Substring(1, LCleaned.Length - 2);
-                      if LCleaned <> '' then
-                        LTestsList.Add(LCleaned);
+                      Cleaned := Part.Trim;
+                      if Cleaned.StartsWith('"') and Cleaned.EndsWith('"') then
+                        Cleaned := Cleaned.Substring(1, Cleaned.Length - 2);
+                      if Cleaned <> '' then
+                        TestsList.Add(Cleaned);
                     end;
                   end;
-                  if LTestsList.Count > 0 then
+                  if TestsList.Count > 0 then
                   begin
-                    var LSelectedArr: TArray<string>;
-                    SetLength(LSelectedArr, LTestsList.Count);
-                    for var LIdx := 0 to LTestsList.Count - 1 do
-                      LSelectedArr[LIdx] := LTestsList[LIdx];
-                    TTestRunner.SetSelectedTests(LSelectedArr);
+                    SetLength(SelectedArr, TestsList.Count);
+                    for Idx := 0 to TestsList.Count - 1 do
+                      SelectedArr[Idx] := TestsList[Idx];
+                    TTestRunner.SetSelectedTests(SelectedArr);
                   end;
                 finally
-                  LTestsList.Free;
+                  TestsList.Free;
                 end;
               end;
             end;
@@ -368,7 +379,7 @@ begin
               SafeWriteLn('TTestHost.Execute: Failed to fetch selected tests: ' + E.Message);
           end;
         finally
-          LClient.Free;
+          Client.Free;
         end;
       end;
       Config.Run;
