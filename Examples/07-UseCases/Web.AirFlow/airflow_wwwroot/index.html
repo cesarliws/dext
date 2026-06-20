@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dext Air Flow - Real-Time Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(22, 30, 49, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --accent-primary: #00f0ff;
+            --accent-green: #39ff14;
+            --accent-warning: #ffb700;
+            --accent-danger: #ff0055;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-image: radial-gradient(circle at 50% 50%, #111a2e 0%, #0b0f19 100%);
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 30px;
+            background: rgba(11, 15, 25, 0.8);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-badge {
+            background: linear-gradient(135deg, var(--accent-primary), #0072ff);
+            color: #000;
+            font-weight: 800;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+        }
+
+        h1 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-green);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.4; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Dashboard Workspace */
+        .workspace {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 70px);
+            overflow: hidden;
+        }
+
+        /* Left Side: Map Visualizer */
+        .map-container {
+            flex: 1;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .region-tabs {
+            display: flex;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background: var(--accent-primary);
+            color: #000;
+            box-shadow: 0 4px 12px rgba(0, 240, 255, 0.2);
+        }
+
+        .tab-btn:hover:not(.active) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .map-canvas-wrapper {
+            flex: 1;
+            background: rgba(10, 15, 28, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+        }
+
+        /* SVG Grid lines */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .radar-sweep {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(from 0deg, rgba(0, 240, 255, 0.08) 0deg, transparent 90deg, transparent 360deg);
+            pointer-events: none;
+            transform-origin: center;
+            animation: radar 8s linear infinite;
+        }
+
+        @keyframes radar {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Right Side: List and Alerts */
+        .sidebar {
+            width: 420px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(15px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-section {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .section-header {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-primary);
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .list-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
+
+        .list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .list-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .vehicle-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .vehicle-card:hover {
+            background: rgba(255, 255, 255, 0.04);
+            border-color: rgba(0, 240, 255, 0.2);
+        }
+
+        .vehicle-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .vehicle-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .vehicle-meta {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 10px;
+        }
+
+        .vehicle-status-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        .status-active { background: rgba(57, 255, 20, 0.1); color: var(--accent-green); border: 1px solid rgba(57, 255, 20, 0.2); }
+        .status-warning { background: rgba(255, 183, 0, 0.1); color: var(--accent-warning); border: 1px solid rgba(255, 183, 0, 0.2); }
+        .status-stopped { background: rgba(255, 0, 85, 0.1); color: var(--accent-danger); border: 1px solid rgba(255, 0, 85, 0.2); }
+
+        .battery-bar {
+            width: 60px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 5px;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: var(--accent-green);
+        }
+
+        /* Alert Section */
+        .alerts-section {
+            height: 250px;
+        }
+
+        .alert-list {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding-right: 4px;
+        }
+
+        .alert-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .alert-list::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .alert-item {
+            background: rgba(255, 0, 85, 0.03);
+            border: 1px solid rgba(255, 0, 85, 0.15);
+            border-left: 3px solid var(--accent-danger);
+            border-radius: 6px;
+            padding: 10px;
+            font-size: 0.8rem;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(50px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .alert-time {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        /* Trigger Incident Form */
+        .trigger-section {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .trigger-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .input-field {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .input-field:focus {
+            border-color: var(--accent-primary);
+        }
+
+        .trigger-btn {
+            background: var(--accent-danger);
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .trigger-btn:hover {
+            background: #ff2e72;
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+        }
+
+        /* Visual map dots */
+        .map-dot {
+            position: absolute;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.2s linear;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .map-dot::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--color);
+        }
+
+        .map-dot::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--color);
+            animation: ring 1.5s infinite ease-out;
+            opacity: 0;
+        }
+
+        .map-dot.selected {
+            box-shadow: 0 0 0 2px var(--bg-color), 0 0 0 4px var(--accent-primary);
+        }
+
+        .map-dot.selected::after {
+            animation-duration: 0.5s;
+            border-color: var(--accent-primary);
+        }
+
+        .vehicle-card {
+            cursor: pointer;
+        }
+
+        .vehicle-card.selected {
+            border-color: var(--accent-primary);
+            background: rgba(0, 240, 255, 0.05);
+        }
+
+        @keyframes ring {
+            0% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(2.5); opacity: 0; }
+        }
+
+        .map-dot:hover::after {
+            animation-duration: 0.8s;
+        }
+
+        .map-dot-label {
+            position: absolute;
+            top: 18px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+            background: rgba(11, 15, 25, 0.8);
+            border: 1px solid var(--border-color);
+            padding: 2px 6px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .map-dot:hover .map-dot-label {
+            opacity: 1;
+        }
+
+        /* Simulator controls in header */
+        .simulator-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 4px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .sim-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            transition: all 0.2s ease;
+        }
+
+        .sim-btn.active-start {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--accent-green);
+            box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+        }
+
+        .sim-btn.active-stop {
+            background: rgba(255, 0, 85, 0.15);
+            color: var(--accent-danger);
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.2);
+            border: 1px solid rgba(255, 0, 85, 0.3);
+        }
+
+        .sim-btn:hover:not(.active-start):not(.active-stop) {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Telemetry HUD Panel */
+        .hud-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 280px;
+            background: rgba(11, 15, 25, 0.85);
+            backdrop-filter: blur(15px);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--accent-primary);
+            border-radius: 8px;
+            padding: 14px;
+            z-index: 5;
+            display: none;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hud-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .hud-title {
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: var(--accent-primary);
+            letter-spacing: 1px;
+        }
+
+        .hud-close-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .hud-close-btn:hover {
+            color: var(--accent-danger);
+        }
+
+        .hud-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            margin-bottom: 6px;
+            align-items: center;
+        }
+
+        .hud-label {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .hud-value {
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+        }
+
+        .hud-action-btn {
+            background: rgba(0, 240, 255, 0.1);
+            border: 1px solid rgba(0, 240, 255, 0.3);
+            color: var(--accent-primary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .hud-action-btn:hover {
+            background: var(--accent-primary);
+            color: #000;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+        }
+
+        /* Transition Animations for Selected Drone Change */
+        .hud-pulse {
+            animation: hudPulse 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+        }
+
+        @keyframes hudPulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 240, 255, 0);
+                border-left-color: #fff;
+                transform: scale(1);
+            }
+            15% {
+                box-shadow: 0 0 35px rgba(0, 240, 255, 0.9);
+                border-left-color: #fff;
+                transform: scale(1.025);
+            }
+            100% {
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+                border-left-color: var(--accent-primary);
+                transform: scale(1);
+            }
+        }
+
+        .hud-value-flash {
+            animation: textHighlight 0.6s ease-out;
+        }
+
+        @keyframes textHighlight {
+            0% { color: var(--accent-primary); text-shadow: 0 0 8px var(--accent-primary); }
+            100% { color: var(--text-main); text-shadow: none; }
+        }
+
+        .map-dot.just-selected::after {
+            animation: selectRing 0.8s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+            border-color: var(--accent-primary);
+            opacity: 1;
+        }
+
+        @keyframes selectRing {
+            0% { transform: scale(1); opacity: 1; border-width: 3px; }
+            100% { transform: scale(4.5); opacity: 0; border-width: 1px; }
+        }
+
+        /* Pulsing warning/stopped indicators on map */
+        .map-dot.pulse-warning::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 2px solid var(--accent-warning);
+            animation: ring 1.2s infinite ease-out;
+            opacity: 1;
+        }
+
+        .map-dot.pulse-stopped::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 3px solid var(--accent-danger);
+            animation: ring 0.8s infinite ease-in-out;
+            opacity: 1;
+        }
+
+        /* Action buttons styles */
+        .hud-action-btn.RTL {
+            border-color: rgba(255, 183, 0, 0.4);
+            color: var(--accent-warning);
+        }
+        .hud-action-btn.RTL:hover {
+            background: var(--accent-warning);
+            color: #000;
+            box-shadow: 0 0 10px rgba(255, 183, 0, 0.4);
+        }
+        .hud-action-btn.LAND {
+            border-color: rgba(255, 0, 85, 0.4);
+            color: var(--accent-danger);
+        }
+        .hud-action-btn.LAND:hover {
+            background: var(--accent-danger);
+            color: #fff;
+            box-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo-section">
+            <span class="logo-badge">DEXT</span>
+            <h1>Air Flow &bull; Operator Dashboard</h1>
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="simulator-controls">
+                <span style="font-size: 0.75rem; font-weight: 800; color: var(--text-muted); margin-left: 8px; margin-right: 4px; letter-spacing: 0.5px;">SIMULATION:</span>
+                <button id="btn-sim-start" class="sim-btn" onclick="toggleSimulator(true)">START</button>
+                <button id="btn-sim-stop" class="sim-btn" onclick="toggleSimulator(false)">STOP</button>
+            </div>
+            <div class="server-status">
+                <span class="status-dot"></span>
+                <span id="connection-status">Connecting to SSE Hub...</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="workspace">
+        <div class="map-container">
+            <div class="map-header">
+                <div style="display:flex; flex-direction:column; gap:4px;">
+                    <h2 style="font-size:1.1rem; font-weight:600;">Tactical Air Map</h2>
+                    <p style="font-size:0.8rem; color:var(--text-muted);">Real-time geographic position telemetry</p>
+                </div>
+                <div class="region-tabs">
+                    <button class="tab-btn active" onclick="switchRegion('All')">ALL</button>
+                    <button class="tab-btn" onclick="switchRegion('North')">NORTH</button>
+                    <button class="tab-btn" onclick="switchRegion('South')">SOUTH</button>
+                    <button class="tab-btn" onclick="switchRegion('East')">EAST</button>
+                    <button class="tab-btn" onclick="switchRegion('West')">WEST</button>
+                </div>
+            </div>
+
+            <div class="map-canvas-wrapper" id="map-canvas">
+                <div class="grid-overlay"></div>
+                <div class="radar-sweep"></div>
+                <canvas id="breadcrumbs-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1;"></canvas>
+                
+                <!-- Telemetry HUD Card -->
+                <div id="hud-card" class="hud-panel">
+                    <div class="hud-header">
+                        <span class="hud-title">UNIT TELEMETRY</span>
+                        <button class="hud-close-btn" onclick="closeHUD()">&times;</button>
+                    </div>
+                    <div class="hud-body">
+                        <div class="hud-row"><span class="hud-label">ID:</span> <span id="hud-val-id" class="hud-value">-</span></div>
+                        <div class="hud-row"><span class="hud-label">NAME:</span> <span id="hud-val-name" class="hud-value">-</span></div>
+                        <div class="hud-row"><span class="hud-label">REGION:</span> <span id="hud-val-region" class="hud-value">-</span></div>
+                        <div class="hud-row"><span class="hud-label">LATITUDE:</span> <span id="hud-val-lat" class="hud-value">-</span></div>
+                        <div class="hud-row"><span class="hud-label">LONGITUDE:</span> <span id="hud-val-lng" class="hud-value">-</span></div>
+                        <div class="hud-row"><span class="hud-label">BATTERY:</span> 
+                            <span class="hud-value">
+                                <span id="hud-val-bat">-</span>%
+                                <span class="battery-bar" style="width: 80px; margin-left: 8px;">
+                                    <span id="hud-bat-fill" class="battery-fill"></span>
+                                </span>
+                            </span>
+                        </div>
+                        <div class="hud-row"><span class="hud-label">STATUS:</span> <span id="hud-val-status" class="hud-value">-</span></div>
+                        <div class="hud-row" style="flex-direction: column; align-items: stretch; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                            <span class="hud-label" style="margin-bottom: 6px; font-size: 0.7rem; letter-spacing: 0.5px;">BATTERY TILE PROFILE</span>
+                            <canvas id="hud-sparkline" width="248" height="40" style="background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 4px;"></canvas>
+                        </div>
+                    </div>
+                    <div class="hud-actions" style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="hud-action-btn" onclick="sendAlertToManualForm()" style="flex: 1; min-width: 70px;">TEST ALERT</button>
+                        <button class="hud-action-btn RTL" onclick="sendCommand('rtl')" style="flex: 1; min-width: 70px;">RTL</button>
+                        <button class="hud-action-btn LAND" onclick="sendCommand('land')" style="flex: 1; min-width: 70px;">LAND</button>
+                    </div>
+                </div>
+
+                <!-- Drones will be drawn here dynamically -->
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="sidebar-section" style="flex: 1;">
+                <div class="section-header">
+                    <span>Active Telemetries</span>
+                    <span style="font-size:0.8rem; color:var(--text-muted);" id="active-count">0</span>
+                </div>
+                <div class="list-container" id="vehicle-list">
+                    <!-- Dynamic List of vehicles -->
+                </div>
+            </div>
+
+            <div class="sidebar-section alerts-section">
+                <div class="section-header">
+                    <span style="color: var(--accent-danger);">Incident Warnings</span>
+                </div>
+                <div class="alert-list" id="alert-list">
+                    <!-- Dynamic alerts -->
+                </div>
+            </div>
+
+            <div class="sidebar-section trigger-section">
+                <div class="section-header">
+                    <span>Trigger Manual Incident</span>
+                </div>
+                <form class="trigger-form" onsubmit="triggerAlert(event)">
+                    <input type="text" id="alert-vehicle-id" class="input-field" placeholder="Vehicle ID (e.g. V01)" required>
+                    <input type="text" id="alert-msg" class="input-field" placeholder="Incident Message" required>
+                    <button type="submit" class="trigger-btn">SEND</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dext SignalR/SSE Client SDK -->
+    <script src="/dext-hubs.js"></script>
+    <script>
+        let currentRegion = 'All';
+        let vehicles = {};
+        let hubConnection = null;
+        let selectedVehicleId = null;
+        let updateScheduled = false;
+
+        const breadcrumbs = {}; // mapping vehicleId -> Array of {x, y}
+        const batteryHistories = {}; // mapping vehicleId -> Array of battery levels
+
+        function requestUpdate() {
+            if (!updateScheduled) {
+                updateScheduled = true;
+                requestAnimationFrame(() => {
+                    updateMapAndList();
+                    updateScheduled = false;
+                });
+            }
+        }
+
+        // Initialize Hub Connection
+        async function initHub() {
+            const statusEl = document.getElementById('connection-status');
+            
+            // DextHubConnection works out-of-the-box pointing to the SSE endpoint
+            hubConnection = new DextHubConnection('/hubs/airflow', { transport: 'serverSentEvents' });
+
+            hubConnection.on('OnVehicleUpdate', (dataStr) => {
+                const vehicle = JSON.parse(dataStr);
+                vehicles[vehicle.id] = vehicle;
+                
+                // Track battery history
+                if (!batteryHistories[vehicle.id]) {
+                    batteryHistories[vehicle.id] = [];
+                }
+                batteryHistories[vehicle.id].push(vehicle.battery);
+                if (batteryHistories[vehicle.id].length > 20) {
+                    batteryHistories[vehicle.id].shift();
+                }
+
+                requestUpdate();
+                
+                // Update HUD if this vehicle is currently selected
+                if (selectedVehicleId === vehicle.id) {
+                    updateHUD(vehicle);
+                }
+            });
+
+            hubConnection.on('OnSystemAlert', (dataStr) => {
+                const alert = JSON.parse(dataStr);
+                addAlert(alert);
+            });
+
+            hubConnection.on('OnRegionJoined', (region) => {
+                console.log('Successfully joined region:', region);
+            });
+
+            hubConnection.on('OnRegionLeft', (region) => {
+                console.log('Successfully left region:', region);
+            });
+
+            hubConnection.on('disconnected', () => {
+                statusEl.textContent = 'Disconnected. Retrying...';
+                document.querySelector('.status-dot').style.backgroundColor = 'var(--accent-danger)';
+                document.querySelector('.status-dot').style.boxShadow = '0 0 10px var(--accent-danger)';
+            });
+
+            try {
+                await hubConnection.start();
+                statusEl.textContent = `Connected (SSE) - Region: ${currentRegion}`;
+                document.querySelector('.status-dot').style.backgroundColor = 'var(--accent-green)';
+                document.querySelector('.status-dot').style.boxShadow = '0 0 10px var(--accent-green)';
+                
+                // Join the current region group (including 'All')
+                await hubConnection.invoke('JoinRegion', currentRegion);
+            } catch (err) {
+                console.error('Connection failed: ', err);
+                statusEl.textContent = 'Connection failed';
+            }
+        }
+
+        // Switch Operator Region (SignalR Groups filter)
+        async function switchRegion(region) {
+            if (region === currentRegion) return;
+
+            // Update UI buttons
+            const btns = document.querySelectorAll('.tab-btn');
+            btns.forEach(btn => {
+                if (btn.textContent === region) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+
+            const oldRegion = currentRegion;
+            currentRegion = region;
+            document.getElementById('connection-status').textContent = `Switching to: ${currentRegion}...`;
+
+            // Clear old vehicles
+            vehicles = {};
+            document.getElementById('map-canvas').querySelectorAll('.map-dot').forEach(el => el.remove());
+            document.getElementById('vehicle-list').innerHTML = '';
+            
+            // Clear selection if switching regions
+            closeHUD();
+
+            if (hubConnection && hubConnection.state === 'Connected') {
+                await hubConnection.invoke('LeaveRegion', oldRegion);
+                await hubConnection.invoke('JoinRegion', currentRegion);
+                document.getElementById('connection-status').textContent = `Connected (SSE) - Region: ${currentRegion}`;
+            }
+        }
+
+        function updateMapAndList() {
+            const canvas = document.getElementById('map-canvas');
+            const list = document.getElementById('vehicle-list');
+            const activeCount = document.getElementById('active-count');
+            
+            let count = 0;
+            
+            // Keep track of existing cards to update or create, avoiding full redraw
+            const currentCards = Array.from(list.children);
+            const updatedIds = new Set();
+
+            // Map dimensions
+            const rect = canvas.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+
+            // Center of map simulation coords
+            const centerLat = -23.5505;
+            const centerLng = -46.6333;
+            const zoom = 2500; // Adjusted zoom for wider route coordinates
+
+            for (const id in vehicles) {
+                const v = vehicles[id];
+                count++;
+                updatedIds.add(v.id);
+
+                // 1. Draw/Update Dot on Canvas
+                let dot = document.getElementById(`dot-${v.id}`);
+                if (!dot) {
+                    dot = document.createElement('div');
+                    dot.id = `dot-${v.id}`;
+                    dot.className = 'map-dot';
+                    dot.innerHTML = `<span class="map-dot-label">${v.name}</span>`;
+                    dot.onclick = (e) => {
+                        e.stopPropagation();
+                        selectVehicle(v.id);
+                    };
+                    canvas.appendChild(dot);
+                }
+
+                // Apply selected styling
+                if (selectedVehicleId === v.id) {
+                    dot.classList.add('selected');
+                } else {
+                    dot.classList.remove('selected');
+                }
+
+                // Color based on status
+                let color = 'var(--accent-green)';
+                if (v.status === 'Warning') color = 'var(--accent-warning)';
+                else if (v.status === 'Stopped') color = 'var(--accent-danger)';
+
+                dot.style.setProperty('--color', color);
+
+                // Project lat/lng to canvas pixels
+                const x = width / 2 + (v.longitude - centerLng) * zoom;
+                const y = height / 2 - (v.latitude - centerLat) * zoom;
+
+                dot.style.left = `${Math.max(15, Math.min(width - 15, x))}px`;
+                dot.style.top = `${Math.max(15, Math.min(height - 15, y))}px`;
+
+                // Add to breadcrumbs history
+                if (!breadcrumbs[v.id]) {
+                    breadcrumbs[v.id] = [];
+                }
+                breadcrumbs[v.id].push({ x, y });
+                if (breadcrumbs[v.id].length > 15) {
+                    breadcrumbs[v.id].shift();
+                }
+
+                // Add warning/stopped pulsing indicator classes
+                if (v.status === 'Warning') {
+                    dot.classList.add('pulse-warning');
+                    dot.classList.remove('pulse-stopped');
+                } else if (v.status === 'Stopped') {
+                    dot.classList.add('pulse-stopped');
+                    dot.classList.remove('pulse-warning');
+                } else {
+                    dot.classList.remove('pulse-warning', 'pulse-stopped');
+                }
+
+                // 2. Add or update Sidebar List card
+                let card = document.getElementById(`card-${v.id}`);
+                let isNew = false;
+                if (!card) {
+                    card = document.createElement('div');
+                    card.id = `card-${v.id}`;
+                    card.onclick = () => selectVehicle(v.id);
+                    isNew = true;
+                }
+                
+                card.className = `vehicle-card ${selectedVehicleId === v.id ? 'selected' : ''}`;
+                
+                let batteryColor = 'var(--accent-green)';
+                if (v.battery < 30) batteryColor = 'var(--accent-danger)';
+                else if (v.battery < 60) batteryColor = 'var(--accent-warning)';
+
+                card.innerHTML = `
+                    <div class="vehicle-info">
+                        <span class="vehicle-name">${v.name} (${v.region})</span>
+                        <div class="vehicle-meta">
+                            <span>Lat: ${v.latitude.toFixed(4)}</span>
+                            <span>Lng: ${v.longitude.toFixed(4)}</span>
+                            <span>Bat: ${v.battery}%
+                                <span class="battery-bar">
+                                    <span class="battery-fill" style="width: ${v.battery}%; background: ${batteryColor}"></span>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                    <span class="vehicle-status-badge status-${v.status.toLowerCase()}">${v.status}</span>
+                `;
+                
+                if (isNew) {
+                    list.appendChild(card);
+                }
+            }
+
+            // Remove any card of vehicles that are no longer in the list
+            currentCards.forEach(c => {
+                const vid = c.id.replace('card-', '');
+                if (!updatedIds.has(vid)) {
+                    c.remove();
+                }
+            });
+
+            activeCount.textContent = count;
+            drawBreadcrumbs();
+        }
+
+        function triggerHUDFlash() {
+            const values = document.querySelectorAll('.hud-body .hud-value');
+            values.forEach(val => {
+                val.classList.remove('hud-value-flash');
+                void val.offsetWidth; // force reflow
+                val.classList.add('hud-value-flash');
+            });
+        }
+
+        // Vehicle Selection Logic
+        function selectVehicle(id) {
+            const previousId = selectedVehicleId;
+            selectedVehicleId = id;
+            const vehicle = vehicles[id];
+            if (vehicle) {
+                updateHUD(vehicle);
+                const hudCard = document.getElementById('hud-card');
+                
+                // If the HUD card is already open and we switch to a different vehicle
+                if (hudCard.style.display === 'block' && previousId && previousId !== id) {
+                    hudCard.classList.remove('hud-pulse');
+                    void hudCard.offsetWidth; // trigger reflow
+                    hudCard.classList.add('hud-pulse');
+                    triggerHUDFlash();
+                } else {
+                    hudCard.style.display = 'block';
+                }
+                
+                // Highlight corresponding dot and card instantly
+                document.querySelectorAll('.map-dot').forEach(el => {
+                    if (el.id === `dot-${id}`) {
+                        el.classList.add('selected');
+                        el.classList.remove('just-selected');
+                        void el.offsetWidth; // trigger reflow
+                        el.classList.add('just-selected');
+                    } else {
+                        el.classList.remove('selected');
+                        el.classList.remove('just-selected');
+                    }
+                });
+                
+                document.querySelectorAll('.vehicle-card').forEach(el => {
+                    if (el.id === `card-${id}`) {
+                        el.classList.add('selected');
+                        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    else el.classList.remove('selected');
+                });
+            }
+        }
+
+        function updateHUD(v) {
+            document.getElementById('hud-val-id').textContent = v.id;
+            document.getElementById('hud-val-name').textContent = v.name;
+            document.getElementById('hud-val-region').textContent = v.region;
+            document.getElementById('hud-val-lat').textContent = v.latitude.toFixed(6);
+            document.getElementById('hud-val-lng').textContent = v.longitude.toFixed(6);
+            document.getElementById('hud-val-bat').textContent = v.battery;
+            document.getElementById('hud-val-status').textContent = v.status;
+            
+            const fill = document.getElementById('hud-bat-fill');
+            fill.style.width = `${v.battery}%`;
+            
+            let batteryColor = 'var(--accent-green)';
+            if (v.battery < 30) batteryColor = 'var(--accent-danger)';
+            else if (v.battery < 60) batteryColor = 'var(--accent-warning)';
+            fill.style.background = batteryColor;
+
+            // Draw sparkline battery chart
+            drawBatterySparkline(batteryHistories[v.id] || []);
+        }
+
+        function drawBatterySparkline(history) {
+            const canvas = document.getElementById('hud-sparkline');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            ctx.clearRect(0, 0, width, height);
+            
+            if (!history || history.length < 2) {
+                ctx.fillStyle = 'rgba(156, 163, 175, 0.6)';
+                ctx.font = '9px "Outfit"';
+                ctx.textAlign = 'center';
+                ctx.fillText('Awaiting history telemetry...', width / 2, height / 2 + 3);
+                return;
+            }
+            
+            const maxVal = 100;
+            const minVal = 0;
+            const range = maxVal - minVal;
+            
+            ctx.beginPath();
+            for (let i = 0; i < history.length; i++) {
+                const x = (i / (history.length - 1)) * (width - 10) + 5;
+                const y = height - ((history[i] - minVal) / range) * (height - 10) - 5;
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            const latest = history[history.length - 1];
+            let color = '#39ff14'; // accent green
+            if (latest < 30) {
+                color = '#ff0055'; // accent danger
+            } else if (latest < 60) {
+                color = '#ffb700'; // accent warning
+            }
+            
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1.5;
+            ctx.shadowBlur = 3;
+            ctx.shadowColor = color;
+            ctx.stroke();
+            ctx.shadowBlur = 0; // reset
+            
+            // Draw filled area under line
+            ctx.lineTo((history.length - 1) / (history.length - 1) * (width - 10) + 5, height);
+            ctx.lineTo(5, height);
+            ctx.closePath();
+            
+            const fillStyle = ctx.createLinearGradient(0, 0, 0, height);
+            if (latest < 30) {
+                fillStyle.addColorStop(0, 'rgba(255, 0, 85, 0.15)');
+                fillStyle.addColorStop(1, 'rgba(255, 0, 85, 0)');
+            } else if (latest < 60) {
+                fillStyle.addColorStop(0, 'rgba(255, 183, 0, 0.15)');
+                fillStyle.addColorStop(1, 'rgba(255, 183, 0, 0)');
+            } else {
+                fillStyle.addColorStop(0, 'rgba(57, 255, 20, 0.15)');
+                fillStyle.addColorStop(1, 'rgba(57, 255, 20, 0)');
+            }
+            ctx.fillStyle = fillStyle;
+            ctx.fill();
+        }
+
+        function drawBreadcrumbs() {
+            const canvas = document.getElementById('breadcrumbs-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (const id in breadcrumbs) {
+                if (!vehicles[id]) continue;
+                const points = breadcrumbs[id];
+                if (points.length < 2) continue;
+                
+                const status = vehicles[id].status;
+                let rgb = '0, 240, 255'; // active: cyan
+                if (status === 'Warning') rgb = '255, 183, 0'; // warning: yellow
+                else if (status === 'Stopped') rgb = '255, 0, 85'; // stopped: red
+                
+                for (let i = 1; i < points.length; i++) {
+                    const p1 = points[i-1];
+                    const p2 = points[i];
+                    const opacity = (i / points.length) * 0.4;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.strokeStyle = `rgba(${rgb}, ${opacity})`;
+                    ctx.lineWidth = 1 + (i / points.length) * 2;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                }
+            }
+        }
+
+        function resizeBreadcrumbsCanvas() {
+            const canvas = document.getElementById('breadcrumbs-canvas');
+            if (canvas) {
+                const rect = canvas.parentElement.getBoundingClientRect();
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
+        }
+
+        async function sendCommand(action) {
+            if (!selectedVehicleId) return;
+            const endpoint = `/api/vehicles/${selectedVehicleId}/${action}`;
+            try {
+                const response = await fetch(endpoint, { method: 'POST' });
+                if (response.ok) {
+                    console.log(`Successfully sent ${action.toUpperCase()} command to vehicle ${selectedVehicleId}`);
+                    // Flash HUD button visually as feedback
+                    const btn = document.querySelector(`.hud-action-btn.${action.toUpperCase()}`);
+                    if (btn) {
+                        const origText = btn.textContent;
+                        btn.textContent = 'EXECUTED';
+                        btn.style.background = 'rgba(57, 255, 20, 0.2)';
+                        btn.style.borderColor = 'var(--accent-green)';
+                        btn.style.color = 'var(--accent-green)';
+                        setTimeout(() => {
+                            btn.textContent = origText;
+                            btn.style.background = '';
+                            btn.style.borderColor = '';
+                            btn.style.color = '';
+                        }, 1200);
+                    }
+                } else {
+                    console.error(`Failed to send command ${action}: ${response.status}`);
+                    alert(`Failed to send command: ${response.status}`);
+                }
+            } catch (err) {
+                console.error(`Error executing command ${action}:`, err);
+                alert(`Error executing command: ${err.message}`);
+            }
+        }
+
+        function closeHUD() {
+            selectedVehicleId = null;
+            document.getElementById('hud-card').style.display = 'none';
+            document.querySelectorAll('.map-dot.selected').forEach(el => el.classList.remove('selected'));
+            document.querySelectorAll('.vehicle-card.selected').forEach(el => el.classList.remove('selected'));
+        }
+
+        function sendAlertToManualForm() {
+            if (selectedVehicleId) {
+                document.getElementById('alert-vehicle-id').value = selectedVehicleId;
+                document.getElementById('alert-msg').focus();
+            }
+        }
+
+        // Simulator State Management
+        async function fetchSimulatorStatus() {
+            try {
+                const response = await fetch('/api/simulator/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    updateSimulatorButtons(data.active);
+                }
+            } catch (err) {
+                console.error('Failed to fetch simulator status:', err);
+            }
+        }
+
+        async function toggleSimulator(start) {
+            const endpoint = start ? '/api/simulator/start' : '/api/simulator/stop';
+            try {
+                const response = await fetch(endpoint, { method: 'POST' });
+                if (response.ok) {
+                    const data = await response.json();
+                    updateSimulatorButtons(data.active);
+                }
+            } catch (err) {
+                console.error('Failed to toggle simulator:', err);
+            }
+        }
+
+        function updateSimulatorButtons(active) {
+            const startBtn = document.getElementById('btn-sim-start');
+            const stopBtn = document.getElementById('btn-sim-stop');
+            if (active) {
+                startBtn.className = 'sim-btn active-start';
+                stopBtn.className = 'sim-btn';
+            } else {
+                startBtn.className = 'sim-btn';
+                stopBtn.className = 'sim-btn active-stop';
+            }
+        }
+
+        function addAlert(alert) {
+            const list = document.getElementById('alert-list');
+            const item = document.createElement('div');
+            item.className = 'alert-item';
+            item.innerHTML = `
+                <div class="alert-header">
+                    <span>Vehicle alert: ${alert.vehicleId}</span>
+                    <span class="alert-time">${alert.timestamp.split(' ')[1]}</span>
+                </div>
+                <div>${alert.message}</div>
+            `;
+            list.insertBefore(item, list.firstChild);
+
+            // Keep only last 5 alerts
+            while (list.children.length > 5) {
+                list.removeChild(list.lastChild);
+            }
+        }
+
+        async function triggerAlert(event) {
+            event.preventDefault();
+            const idInput = document.getElementById('alert-vehicle-id');
+            const msgInput = document.getElementById('alert-msg');
+            
+            try {
+                const response = await fetch(`/api/alerts?vehicleId=${encodeURIComponent(idInput.value)}&message=${encodeURIComponent(msgInput.value)}`, {
+                    method: 'POST'
+                });
+                if (response.ok) {
+                    idInput.value = '';
+                    msgInput.value = '';
+                    // Temporary visual feedback
+                    const btn = document.querySelector('.trigger-btn');
+                    const origText = btn.textContent;
+                    btn.textContent = 'SENT!';
+                    btn.style.background = 'var(--accent-green)';
+                    setTimeout(() => {
+                        btn.textContent = origText;
+                        btn.style.background = '';
+                    }, 1000);
+                } else {
+                    const text = await response.text();
+                    console.error('Trigger alert failed:', response.status, text);
+                    alert('Error triggering alert (' + response.status + '): ' + text);
+                }
+            } catch (err) {
+                console.error('Failed to trigger alert:', err);
+                alert('Network error triggering alert: ' + err.message);
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initHub();
+            fetchSimulatorStatus();
+            resizeBreadcrumbsCanvas();
+            // Recalculate dots on window resize
+            window.addEventListener('resize', () => {
+                resizeBreadcrumbsCanvas();
+                updateMapAndList();
+            });
+        });
+    </script>
+</body>
+</html>

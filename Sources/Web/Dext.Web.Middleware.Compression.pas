@@ -39,6 +39,7 @@ type
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
+    procedure Flush;
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
@@ -97,6 +98,7 @@ begin
   Json(Dext.Json.TDextJson.Serialize(AValue));
 end;
 procedure TBufferedResponse.SetContentLength(const AValue: Int64); begin FInner.SetContentLength(AValue); end;
+procedure TBufferedResponse.Flush; begin FInner.Flush; end;
 procedure TBufferedResponse.SetContentType(const AValue: string); begin FInner.SetContentType(AValue); end;
 procedure TBufferedResponse.SetStatusCode(AValue: Integer); begin FInner.StatusCode := AValue; end;
 function TBufferedResponse.Status(AValue: Integer): IHttpResponse; begin FInner.Status(AValue); Result := Self; end;

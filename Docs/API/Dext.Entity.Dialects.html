@@ -143,6 +143,7 @@
 <a href="Dext.Entity.Query.html" class="nav-item">Dext.Entity.Query</a>
 <a href="Dext.Entity.Scaffolding.html" class="nav-item">Dext.Entity.Scaffolding</a>
 <a href="Dext.Entity.Scaffolding.Processor.html" class="nav-item">Dext.Entity.Scaffolding.Processor</a>
+<a href="Dext.Entity.Sequences.html" class="nav-item">Dext.Entity.Sequences</a>
 <a href="Dext.Entity.Setup.html" class="nav-item">Dext.Entity.Setup</a>
 <a href="Dext.Entity.TemplatedScaffolding.html" class="nav-item">Dext.Entity.TemplatedScaffolding</a>
 <a href="Dext.Entity.Tenancy.html" class="nav-item">Dext.Entity.Tenancy</a>
@@ -396,6 +397,7 @@ class ISQLDialect {    +QuoteIdentifier()
     +GenerateProcedureCallSQL()
     +GetLockingSQL()
     +GenerateSeedData()
+    +GetSequenceNextValSQL()
 }
 class TDialectFactory {    +CreateDialect()
     +DetectDialect()
@@ -436,6 +438,7 @@ class TBaseDialect {    +GenerateCreateTable()
     +GetLockingSQL()
     +GetDialect()
     +GetJsonValueSQL()
+    +GetSequenceNextValSQL()
 }
 TInterfacedObject <|-- TBaseDialect
 ISQLDialect <|.. TBaseDialect
@@ -447,6 +450,7 @@ class TSQLiteDialect {    +QuoteIdentifier()
     +GetCreateTableSQL()
     +GetDialect()
     +GetJsonValueSQL()
+    +GetSequenceNextValSQL()
 }
 TBaseDialect <|-- TSQLiteDialect
 class TPostgreSQLDialect {    +QuoteIdentifier()
@@ -464,6 +468,7 @@ class TPostgreSQLDialect {    +QuoteIdentifier()
     +GenerateProcedureCallSQL()
     +GetLockingSQL()
     +UseSchemaPrefix()
+    +GetSequenceNextValSQL()
 }
 TBaseDialect <|-- TPostgreSQLDialect
 class TFirebirdDialect {    +QuoteIdentifier()
@@ -475,6 +480,7 @@ class TFirebirdDialect {    +QuoteIdentifier()
     +SupportsInsertReturning()
     +GetReturningSQL()
     +GetDialect()
+    +GetSequenceNextValSQL()
 }
 TBaseDialect <|-- TFirebirdDialect
 class TSQLServerDialect {    +QuoteIdentifier()
@@ -508,6 +514,7 @@ class TMySQLDialect {    +QuoteIdentifier()
     +GetDialect()
     +GetJsonValueSQL()
     +GetColumnTypeForField()
+    +GetSequenceNextValSQL()
 }
 TBaseDialect <|-- TMySQLDialect
 class TOracleDialect {    +QuoteIdentifier()
@@ -521,6 +528,7 @@ class TOracleDialect {    +QuoteIdentifier()
     +GetDialect()
     +GenerateProcedureCallSQL()
     +GetLockingSQL()
+    +GetSequenceNextValSQL()
 }
 TBaseDialect <|-- TOracleDialect
 class TInterBaseDialect {    +BooleanToSQL()
@@ -582,6 +590,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GenerateSeedData(AOp: TSeedDataOperation): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div><div class="description">Generates the SQL statement to fetch the next value from a database sequence.</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -640,6 +650,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
 <div class="api-item">
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">function GenerateCreateTable(AOp: TCreateTableOperation): string</div></div>
@@ -685,6 +697,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
 <div class="api-item">
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -719,6 +733,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSchemaPrefix: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -741,6 +757,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetReturningSQL(const const: string): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -807,6 +825,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -833,6 +853,8 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GenerateProcedureCallSQL(const const: string; const const: TArray): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">

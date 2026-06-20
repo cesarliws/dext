@@ -1,4 +1,4 @@
-﻿unit ModelBinding.Controller;
+unit ModelBinding.Controller;
 
 interface
 
@@ -75,6 +75,11 @@ type
     [HttpGet('/route/{id}')]
     [AllowAnonymous]
     procedure GetWithRoute(Ctx: IHttpContext; [FromRoute] Id: Integer; [FromQuery] Details: string);
+    
+    // Test 6: FromBody primitive parameter binding
+    [HttpPost('/echo')]
+    [AllowAnonymous]
+    procedure Echo(Ctx: IHttpContext; [FromBody] const AMsg: string);
   end;
 
 implementation
@@ -126,6 +131,12 @@ begin
   WriteLn(Format('[ApiController] GetWithRoute -> Id=%d, Details=%s', [Id, Details]));
   Ctx.Response.Json(Format('{"source":"controller-route","id":%d,"details":"%s"}', 
     [Id, Details]));
+end;
+
+procedure TModelBindingController.Echo(Ctx: IHttpContext; const AMsg: string);
+begin
+  WriteLn(Format('[ApiController] Echo -> AMsg=%s', [AMsg]));
+  Ctx.Response.Json(Format('{"source":"controller-echo","message":"%s"}', [AMsg]));
 end;
 
 initialization

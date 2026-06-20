@@ -75,6 +75,7 @@ type
     procedure SetContentLength(const AValue: Int64);
     procedure SetContentType(const AValue: string);
     procedure SetStatusCode(AValue: Integer);
+    procedure Flush;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AContent: string); overload;
     procedure Write(const AStream: TStream); overload;
@@ -253,6 +254,10 @@ begin
 end;
 
 procedure TStatefulMockResponse.SetContentLength(const AValue: Int64);
+begin
+end;
+
+procedure TStatefulMockResponse.Flush;
 begin
 end;
 

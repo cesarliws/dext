@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -177,6 +177,8 @@ type
     property NamingStrategy: INamingStrategy read FNamingStrategy write FNamingStrategy;
     
     function GenerateInsertTemplate(out AProps: IList<TPair<TRttiProperty, string>>): string;
+    function GenerateUpdateTemplate(out ASetProps, AWhereProps: IList<TPair<TRttiProperty, string>>): string;
+    function GenerateDeleteTemplate(out AWhereProps: IList<TPair<TRttiProperty, string>>): string;
     /// <summary>Generates a parameterized INSERT statement for the entity.</summary>
     function GenerateInsert(const AEntity: T): string;
     /// <summary>Generates a parameterized UPDATE statement for the entity using its Primary Key.</summary>
@@ -1463,6 +1465,139 @@ begin
     SBCols.Free;
     SBVals.Free;
     // AProps is returned, caller must free
+  end;
+end;
+
+function TSQLGenerator<T>.GenerateUpdateTemplate(out ASetProps, AWhereProps: IList<TPair<TRttiProperty, string>>): string;
+var
+  ColName: string;
+  SBSet, SBWhere: TStringBuilder;
+  IsPK, IsMapped, FirstSet, FirstWhere: Boolean;
+  PropMap: TPropertyMap;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
+begin
+  SBSet := TStringBuilder.Create;
+  SBWhere := TStringBuilder.Create;
+  ASetProps := TCollections.CreateList<TPair<TRttiProperty, string>>;
+  AWhereProps := TCollections.CreateList<TPair<TRttiProperty, string>>;
+  
+  try
+    FirstSet := True;
+    FirstWhere := True;
+    
+    Meta := TReflection.GetMetadata(TypeInfo(T));
+    for Handler in Meta.GetPropertyHandlers() do
+    begin
+      IsMapped := True;
+      IsPK := Handler.GetIsPK();
+      ColName := Handler.GetColumnName();
+      
+      PropMap := nil;
+      if FMap <> nil then
+        FMap.Properties.TryGetValue(Handler.GetName(), PropMap);
+        
+      if PropMap <> nil then
+      begin
+        if PropMap.IsIgnored then IsMapped := False;
+        if PropMap.IsNavigation and not PropMap.IsJsonColumn then IsMapped := False;
+        if PropMap.IsPK then IsPK := True;
+        if PropMap.ColumnName <> '' then ColName := PropMap.ColumnName;
+      end;
+
+      if IsMapped and (PropMap = nil) and (Handler.GetMember() is TRttiProperty) and 
+         (TRttiProperty(Handler.GetMember()).PropertyType.TypeKind in [tkClass, tkInterface]) then
+        IsMapped := False;
+
+      if IsMapped and Handler.GetMember().HasAttribute(NotMappedAttribute) then IsMapped := False;
+
+      if IsMapped and ((Handler.GetMember().HasAttribute(HasManyAttribute)) or (Handler.GetMember().HasAttribute(BelongsToAttribute)) or 
+         (Handler.GetMember().HasAttribute(HasOneAttribute)) or (Handler.GetMember().HasAttribute(ManyToManyAttribute))) then
+        IsMapped := False;
+
+      if Handler.GetMember().HasAttribute(JsonColumnAttribute) then IsMapped := True;
+      
+      if (ColName = Handler.GetName()) and (FNamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+         ColName := FNamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
+      
+      if not IsMapped then Continue;
+      
+      if IsPK then
+      begin
+        AWhereProps.Add(TPair<TRttiProperty, string>.Create(TRttiProperty(Handler.GetMember()), ColName));
+        if not FirstWhere then SBWhere.Append(' AND ');
+        FirstWhere := False;
+        SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ColName);
+      end
+      else
+      begin
+        ASetProps.Add(TPair<TRttiProperty, string>.Create(TRttiProperty(Handler.GetMember()), ColName));
+        if not FirstSet then SBSet.Append(', ');
+        FirstSet := False;
+        SBSet.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ColName);
+      end;
+    end;
+    
+    if SBWhere.Length = 0 then
+      raise Exception.Create('Cannot generate UPDATE template: No Primary Key defined.');
+      
+    Result := Format('UPDATE %s SET %s WHERE %s', 
+      [GetTableName, SBSet.ToString, SBWhere.ToString]);
+  finally
+    SBSet.Free;
+    SBWhere.Free;
+  end;
+end;
+
+function TSQLGenerator<T>.GenerateDeleteTemplate(out AWhereProps: IList<TPair<TRttiProperty, string>>): string;
+var
+  ColName: string;
+  SBWhere: TStringBuilder;
+  IsPK, FirstWhere: Boolean;
+  PropMap: TPropertyMap;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
+begin
+  SBWhere := TStringBuilder.Create;
+  AWhereProps := TCollections.CreateList<TPair<TRttiProperty, string>>;
+  
+  try
+    FirstWhere := True;
+    
+    Meta := TReflection.GetMetadata(TypeInfo(T));
+    for Handler in Meta.GetPropertyHandlers() do
+    begin
+      IsPK := Handler.GetIsPK();
+      ColName := Handler.GetColumnName();
+      
+      PropMap := nil;
+      if FMap <> nil then
+        FMap.Properties.TryGetValue(Handler.GetName(), PropMap);
+        
+      if PropMap <> nil then
+      begin
+        if PropMap.IsPK then IsPK := True;
+        if PropMap.ColumnName <> '' then ColName := PropMap.ColumnName;
+      end;
+
+      if (ColName = Handler.GetName()) and (FNamingStrategy <> nil) and (Handler.GetMember() is TRttiProperty) then
+         ColName := FNamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
+      
+      if not IsPK then Continue;
+      
+      AWhereProps.Add(TPair<TRttiProperty, string>.Create(TRttiProperty(Handler.GetMember()), ColName));
+      if not FirstWhere then SBWhere.Append(' AND ');
+      FirstWhere := False;
+      SBWhere.Append(FDialect.QuoteIdentifier(ColName)).Append(' = :').Append(ColName);
+    end;
+    
+    if SBWhere.Length = 0 then
+      raise Exception.Create('Cannot generate DELETE template: No Primary Key defined.');
+      
+    Result := Format('DELETE FROM %s WHERE %s', 
+      [GetTableName, SBWhere.ToString]);
+  finally
+    SBWhere.Free;
   end;
 end;
 

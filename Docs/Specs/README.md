@@ -46,6 +46,7 @@ ID | Title | Status | Goal
 **S43** | [Net-Advanced (MessagePack, Permessage-Deflate & Native TLS)](S43-Net-Advanced.md) | 📝 Draft | Advanced networking optimizations: MessagePack for SignalR, Permessage-Deflate, and Native TLS.
 **S44** | [HTTP/3 & QUIC Transport Engine](S44-Http3-Quic.md) | 📝 Draft | Native UDP-based QUIC transport and HTTP/3 protocol mapping.
 **S45** | [Advanced Kernel I/O (io_uring & kqueue)](S45-Kernel-Io.md) | 📝 Draft | High-performance OS I/O drivers: io_uring for Linux and kqueue for macOS/BSD.
+**S46** | [Database Sequence Generators & HiLo](S46-Sequence-Generators.md) | ✅ Finalized | Introduce database sequence mapping and HiLo pre-allocation to enable bulk inserts.
 
 ---
 

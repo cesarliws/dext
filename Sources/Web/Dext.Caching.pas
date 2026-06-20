@@ -175,6 +175,7 @@ type
     procedure Forbidden(const AMessage: string = '');
     procedure BadRequest(const AMessage: string = '');
     procedure NotFound(const AMessage: string = '');
+    procedure Flush;
     property StatusCode: Integer read GetStatusCode write SetStatusCode;
     property ContentType: string read GetContentType write SetContentType;
 
@@ -752,6 +753,11 @@ begin
   FStatusCode := 404;
   if AMessage <> '' then FBodyBuffer.Append(AMessage);
   FOriginal.NotFound(AMessage);
+end;
+
+procedure TResponseCaptureWrapper.Flush;
+begin
+  FOriginal.Flush;
 end;
 
 function TResponseCaptureWrapper.GetHtmx: IHtmxResponse;

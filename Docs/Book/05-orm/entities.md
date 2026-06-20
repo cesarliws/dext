@@ -295,22 +295,41 @@ FDb.SaveChanges;
 
 ## Auto-Generated IDs
 
-`SaveChanges` automatically populates IDs for inserted entities (`[AutoInc]`).
+`SaveChanges` automatically populates IDs for inserted entities. Dext supports two primary key generation styles:
+
+### 1. Database-Side Auto-Increment (`[AutoInc]`)
+The database generates the ID during insertion (e.g. `IDENTITY` or serial columns).
 
 ```pascal
-var User := TUser.Create;
-User.Name := 'Alice';
-FDb.Users.Add(User);
-FDb.SaveChanges;
-
-// ✅ User.Id is already populated — no need to query the DB again!
-WriteLn('New ID: ', User.Id);
+[PK, AutoInc]
+property Id: Integer read FId write FId;
 ```
 
 > [!WARNING]
-> ⛔ **NEVER** query the database again to retrieve the ID after saving. The object is already updated.
+> Because the IDs are generated on the database server during the execution of the insert statements, entities configured with `[AutoInc]` **cannot be inserted in high-performance batch/bulk mode (`PersistAddRange`)**. The ORM falls back to row-by-row insertion to retrieve the IDs.
 
-## Detach (Memory Management)
+### 2. Client-Side Pre-Allocation via Sequences (`[Sequence]`)
+Introduces database sequence generators combined with a thread-safe **HiLo Optimizer** (Pooled-lo algorithm). The ORM pre-allocates a range of IDs in memory by querying the database sequence once, then assigns the keys on the client-side. This **fully unlocks high-performance bulk inserts**.
+
+```pascal
+[PK, Sequence('SEQ_USER_ID', 50)]
+property Id: Integer read FId write FId;
+```
+
+* **Parameters:**
+  * `SequenceName`: The name of the sequence generator in the database.
+  * `AllocationSize` (default `50`): The block size of IDs to pre-allocate in memory per roundtrip.
+
+Or configure via the Fluent API in `OnModelCreating`:
+```pascal
+modelBuilder.Entity<TUser>
+  .Property('Id')
+  .UseSequence('SEQ_USER_ID', 50);
+```
+
+---
+
+## Change Tracking
 
 `FDb.Detach(Entity)` only removes the entity from the IdentityMap. It does **NOT** free memory.
 

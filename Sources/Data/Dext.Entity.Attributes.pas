@@ -109,6 +109,30 @@ type
   end;
 
   /// <summary>
+  ///   Specifies that a property value is generated from a database sequence.
+  /// </summary>
+  SequenceAttribute = class(TCustomAttribute)
+  private
+    FSequenceName: string;
+    FAllocationSize: Integer;
+  public
+    /// <summary>
+    ///   Initializes a new instance of the SequenceAttribute with the sequence name and allocation size.
+    /// </summary>
+    /// <param name="ASequenceName">The name of the database sequence.</param>
+    /// <param name="AAllocationSize">The block allocation size for pre-allocated IDs (default is 50).</param>
+    constructor Create(const ASequenceName: string; AAllocationSize: Integer = 50);
+    /// <summary>
+    ///   The name of the sequence in the database.
+    /// </summary>
+    property SequenceName: string read FSequenceName;
+    /// <summary>
+    ///   The allocation size (block size) used by the HiLo pooled range optimizer.
+    /// </summary>
+    property AllocationSize: Integer read FAllocationSize;
+  end;
+
+  /// <summary>
   ///   Marks a property as NOT NULL.
   /// </summary>
   RequiredAttribute = class(TCustomAttribute)
@@ -701,6 +725,14 @@ end;
 constructor DbTypeAttribute.Create(ADataType: TFieldType);
 begin
   FDataType := ADataType;
+end;
+
+{ SequenceAttribute }
+
+constructor SequenceAttribute.Create(const ASequenceName: string; AAllocationSize: Integer);
+begin
+  FSequenceName := ASequenceName;
+  FAllocationSize := AAllocationSize;
 end;
 
 { TypeConverterAttribute }

@@ -143,6 +143,7 @@
 <a href="Dext.Entity.Query.html" class="nav-item">Dext.Entity.Query</a>
 <a href="Dext.Entity.Scaffolding.html" class="nav-item">Dext.Entity.Scaffolding</a>
 <a href="Dext.Entity.Scaffolding.Processor.html" class="nav-item">Dext.Entity.Scaffolding.Processor</a>
+<a href="Dext.Entity.Sequences.html" class="nav-item">Dext.Entity.Sequences</a>
 <a href="Dext.Entity.Setup.html" class="nav-item">Dext.Entity.Setup</a>
 <a href="Dext.Entity.TemplatedScaffolding.html" class="nav-item">Dext.Entity.TemplatedScaffolding</a>
 <a href="Dext.Entity.Tenancy.html" class="nav-item">Dext.Entity.Tenancy</a>
@@ -402,6 +403,11 @@ class TDbSet~T~ {    +CreateGenerator()
     +PersistAddRange()
     +PersistUpdate()
     +PersistRemove()
+    +PersistUpdateRange()
+    +PersistRemoveRange()
+    +IsBulkInsertSafe()
+    +IsBulkUpdateSafe()
+    +IsBulkDeleteSafe()
     +GenerateCreateTableScript()
     +Clear()
     +DetachAll()
@@ -489,6 +495,16 @@ TQueryIterator <|-- TStreamingViewIterator~T~
 <div class="api-signature">procedure PersistUpdate(const const: TObject)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure PersistRemove(const const: TObject)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure PersistUpdateRange(const const: TArray)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure PersistRemoveRange(const const: TArray)</div></div>
+<div class="api-item">
+<div class="api-signature">function IsBulkInsertSafe: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function IsBulkUpdateSafe: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function IsBulkDeleteSafe: Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">function GenerateCreateTableScript: string</div></div>
 <div class="api-item">

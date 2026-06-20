@@ -195,6 +195,7 @@
         <DCCReference Include="..\..\Sources\Data\Dext.Entity.TemplatedScaffolding.pas"/>
         <DCCReference Include="..\..\Sources\Data\Dext.Scaffolding.Models.pas"/>
         <DCCReference Include="..\..\Sources\Data\Dext.Entity.Scaffolding.Processor.pas"/>
+        <DCCReference Include="..\..\Sources\Data\Dext.Entity.Sequences.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

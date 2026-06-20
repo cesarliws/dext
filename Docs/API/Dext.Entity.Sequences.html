@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dext.Entity.Sequences - Dext Framework 1.0</title>
+    
+    <!-- Blocking script to avoid theme flicker --> 
+    <script>
+        (function() {
+            const storedTheme = localStorage.getItem('dext-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', storedTheme);
+        })();
+    </script>
+    
+    <!-- Theme & Layout (Separate files for internal Dext Tooling) -->
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="layout.css">
+    
+    <!-- Mermaid for Diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Dext Framework 1.0</h3>
+            <small>Documentation</small>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="Search API..." id="searchInput">
+        </div>
+        <div class="nav-list" id="navList">
+            <!-- Sidebar Content Injected Here -->
+            <a href="Dext.html" class="nav-item">Dext</a>
+<a href="Dext.AI.MCP.Attributes.html" class="nav-item">Dext.AI.MCP.Attributes</a>
+<a href="Dext.AI.MCP.Prompts.html" class="nav-item">Dext.AI.MCP.Prompts</a>
+<a href="Dext.AI.MCP.Protocol.html" class="nav-item">Dext.AI.MCP.Protocol</a>
+<a href="Dext.AI.MCP.Resources.html" class="nav-item">Dext.AI.MCP.Resources</a>
+<a href="Dext.AI.MCP.Server.html" class="nav-item">Dext.AI.MCP.Server</a>
+<a href="Dext.AI.MCP.Tools.html" class="nav-item">Dext.AI.MCP.Tools</a>
+<a href="Dext.AI.MCP.Types.html" class="nav-item">Dext.AI.MCP.Types</a>
+<a href="Dext.Assertions.html" class="nav-item">Dext.Assertions</a>
+<a href="Dext.Auth.Attributes.html" class="nav-item">Dext.Auth.Attributes</a>
+<a href="Dext.Auth.BasicAuth.html" class="nav-item">Dext.Auth.BasicAuth</a>
+<a href="Dext.Auth.Identity.html" class="nav-item">Dext.Auth.Identity</a>
+<a href="Dext.Auth.JWT.html" class="nav-item">Dext.Auth.JWT</a>
+<a href="Dext.Auth.Middleware.html" class="nav-item">Dext.Auth.Middleware</a>
+<a href="Dext.BackgroundJobs.Config.html" class="nav-item">Dext.BackgroundJobs.Config</a>
+<a href="Dext.BackgroundJobs.Intf.html" class="nav-item">Dext.BackgroundJobs.Intf</a>
+<a href="Dext.BackgroundJobs.Server.html" class="nav-item">Dext.BackgroundJobs.Server</a>
+<a href="Dext.BackgroundJobs.Storage.InMemory.html" class="nav-item">Dext.BackgroundJobs.Storage.InMemory</a>
+<a href="Dext.BackgroundJobs.Storage.Sqlite.html" class="nav-item">Dext.BackgroundJobs.Storage.Sqlite</a>
+<a href="Dext.Caching.html" class="nav-item">Dext.Caching</a>
+<a href="Dext.Caching.Redis.html" class="nav-item">Dext.Caching.Redis</a>
+<a href="Dext.Collections.html" class="nav-item">Dext.Collections</a>
+<a href="Dext.Collections.Algorithms.html" class="nav-item">Dext.Collections.Algorithms</a>
+<a href="Dext.Collections.Base.html" class="nav-item">Dext.Collections.Base</a>
+<a href="Dext.Collections.Channels.html" class="nav-item">Dext.Collections.Channels</a>
+<a href="Dext.Collections.Comparers.html" class="nav-item">Dext.Collections.Comparers</a>
+<a href="Dext.Collections.Concurrent.html" class="nav-item">Dext.Collections.Concurrent</a>
+<a href="Dext.Collections.Dict.html" class="nav-item">Dext.Collections.Dict</a>
+<a href="Dext.Collections.Extensions.html" class="nav-item">Dext.Collections.Extensions</a>
+<a href="Dext.Collections.Factory.html" class="nav-item">Dext.Collections.Factory</a>
+<a href="Dext.Collections.Frozen.html" class="nav-item">Dext.Collections.Frozen</a>
+<a href="Dext.Collections.HashSet.html" class="nav-item">Dext.Collections.HashSet</a>
+<a href="Dext.Collections.Memory.html" class="nav-item">Dext.Collections.Memory</a>
+<a href="Dext.Collections.Queue.html" class="nav-item">Dext.Collections.Queue</a>
+<a href="Dext.Collections.Raw.html" class="nav-item">Dext.Collections.Raw</a>
+<a href="Dext.Collections.RawDict.html" class="nav-item">Dext.Collections.RawDict</a>
+<a href="Dext.Collections.Simd.html" class="nav-item">Dext.Collections.Simd</a>
+<a href="Dext.Collections.Stack.html" class="nav-item">Dext.Collections.Stack</a>
+<a href="Dext.Collections.Vector.html" class="nav-item">Dext.Collections.Vector</a>
+<a href="Dext.Configuration.Binder.html" class="nav-item">Dext.Configuration.Binder</a>
+<a href="Dext.Configuration.Core.html" class="nav-item">Dext.Configuration.Core</a>
+<a href="Dext.Configuration.EnvironmentVariables.html" class="nav-item">Dext.Configuration.EnvironmentVariables</a>
+<a href="Dext.Configuration.Interfaces.html" class="nav-item">Dext.Configuration.Interfaces</a>
+<a href="Dext.Configuration.Json.html" class="nav-item">Dext.Configuration.Json</a>
+<a href="Dext.Configuration.Yaml.html" class="nav-item">Dext.Configuration.Yaml</a>
+<a href="Dext.Core.Activator.html" class="nav-item">Dext.Core.Activator</a>
+<a href="Dext.Core.DateUtils.html" class="nav-item">Dext.Core.DateUtils</a>
+<a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
+<a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
+<a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
+<a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
+<a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
+<a href="Dext.Core.Span.html" class="nav-item">Dext.Core.Span</a>
+<a href="Dext.Core.ValueConverters.html" class="nav-item">Dext.Core.ValueConverters</a>
+<a href="Dext.Core.Writers.html" class="nav-item">Dext.Core.Writers</a>
+<a href="Dext.Dashboard.Routes.html" class="nav-item">Dext.Dashboard.Routes</a>
+<a href="Dext.Dashboard.TestRunner.html" class="nav-item">Dext.Dashboard.TestRunner</a>
+<a href="Dext.Dashboard.TestScanner.html" class="nav-item">Dext.Dashboard.TestScanner</a>
+<a href="Dext.DI.Attributes.html" class="nav-item">Dext.DI.Attributes</a>
+<a href="Dext.DI.Comparers.html" class="nav-item">Dext.DI.Comparers</a>
+<a href="Dext.DI.Core.html" class="nav-item">Dext.DI.Core</a>
+<a href="Dext.DI.Extensions.html" class="nav-item">Dext.DI.Extensions</a>
+<a href="Dext.DI.Extensions.utf8.html" class="nav-item">Dext.DI.Extensions.utf8</a>
+<a href="Dext.DI.Interfaces.html" class="nav-item">Dext.DI.Interfaces</a>
+<a href="Dext.DI.Middleware.html" class="nav-item">Dext.DI.Middleware</a>
+<a href="Dext.EF.Design.DataProvider.html" class="nav-item">Dext.EF.Design.DataProvider</a>
+<a href="Dext.EF.Design.DocExpert.html" class="nav-item">Dext.EF.Design.DocExpert</a>
+<a href="Dext.EF.Design.Editors.html" class="nav-item">Dext.EF.Design.Editors</a>
+<a href="Dext.EF.Design.EntitySelection.html" class="nav-item">Dext.EF.Design.EntitySelection</a>
+<a href="Dext.EF.Design.Expert.html" class="nav-item">Dext.EF.Design.Expert</a>
+<a href="Dext.EF.Design.Metadata.html" class="nav-item">Dext.EF.Design.Metadata</a>
+<a href="Dext.EF.Design.Preview.html" class="nav-item">Dext.EF.Design.Preview</a>
+<a href="Dext.EF.Design.Registration.html" class="nav-item">Dext.EF.Design.Registration</a>
+<a href="Dext.EF.Design.Scaffolding.Helpers.html" class="nav-item">Dext.EF.Design.Scaffolding.Helpers</a>
+<a href="Dext.EF.Design.Scaffolding.Preview.html" class="nav-item">Dext.EF.Design.Scaffolding.Preview</a>
+<a href="Dext.Entity.html" class="nav-item">Dext.Entity</a>
+<a href="Dext.Entity.Attributes.html" class="nav-item">Dext.Entity.Attributes</a>
+<a href="Dext.Entity.Cache.html" class="nav-item">Dext.Entity.Cache</a>
+<a href="Dext.Entity.Collections.html" class="nav-item">Dext.Entity.Collections</a>
+<a href="Dext.Entity.Context.html" class="nav-item">Dext.Entity.Context</a>
+<a href="Dext.Entity.Core.html" class="nav-item">Dext.Entity.Core</a>
+<a href="Dext.Entity.DataProvider.html" class="nav-item">Dext.Entity.DataProvider</a>
+<a href="Dext.Entity.DataSet.html" class="nav-item">Dext.Entity.DataSet</a>
+<a href="Dext.Entity.DbSet.html" class="nav-item">Dext.Entity.DbSet</a>
+<a href="Dext.Entity.Dialects.html" class="nav-item">Dext.Entity.Dialects</a>
+<a href="Dext.Entity.Drivers.FireDAC.html" class="nav-item">Dext.Entity.Drivers.FireDAC</a>
+<a href="Dext.Entity.Drivers.FireDAC.Links.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Links</a>
+<a href="Dext.Entity.Drivers.FireDAC.Manager.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Manager</a>
+<a href="Dext.Entity.Drivers.FireDAC.Phys.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Phys</a>
+<a href="Dext.Entity.Drivers.Interfaces.html" class="nav-item">Dext.Entity.Drivers.Interfaces</a>
+<a href="Dext.Entity.Grouping.html" class="nav-item">Dext.Entity.Grouping</a>
+<a href="Dext.Entity.Joining.html" class="nav-item">Dext.Entity.Joining</a>
+<a href="Dext.Entity.LazyLoader.html" class="nav-item">Dext.Entity.LazyLoader</a>
+<a href="Dext.Entity.LazyLoading.html" class="nav-item">Dext.Entity.LazyLoading</a>
+<a href="Dext.Entity.Mapping.html" class="nav-item">Dext.Entity.Mapping</a>
+<a href="Dext.Entity.Metadata.html" class="nav-item">Dext.Entity.Metadata</a>
+<a href="Dext.Entity.Migrations.html" class="nav-item">Dext.Entity.Migrations</a>
+<a href="Dext.Entity.Migrations.Builder.html" class="nav-item">Dext.Entity.Migrations.Builder</a>
+<a href="Dext.Entity.Migrations.Differ.html" class="nav-item">Dext.Entity.Migrations.Differ</a>
+<a href="Dext.Entity.Migrations.Extractor.html" class="nav-item">Dext.Entity.Migrations.Extractor</a>
+<a href="Dext.Entity.Migrations.Generator.html" class="nav-item">Dext.Entity.Migrations.Generator</a>
+<a href="Dext.Entity.Migrations.Json.html" class="nav-item">Dext.Entity.Migrations.Json</a>
+<a href="Dext.Entity.Migrations.Model.html" class="nav-item">Dext.Entity.Migrations.Model</a>
+<a href="Dext.Entity.Migrations.Operations.html" class="nav-item">Dext.Entity.Migrations.Operations</a>
+<a href="Dext.Entity.Migrations.Runner.html" class="nav-item">Dext.Entity.Migrations.Runner</a>
+<a href="Dext.Entity.Migrations.Serializers.Json.html" class="nav-item">Dext.Entity.Migrations.Serializers.Json</a>
+<a href="Dext.Entity.Naming.html" class="nav-item">Dext.Entity.Naming</a>
+<a href="Dext.Entity.Prototype.html" class="nav-item">Dext.Entity.Prototype</a>
+<a href="Dext.Entity.ProxyFactory.html" class="nav-item">Dext.Entity.ProxyFactory</a>
+<a href="Dext.Entity.Query.html" class="nav-item">Dext.Entity.Query</a>
+<a href="Dext.Entity.Scaffolding.html" class="nav-item">Dext.Entity.Scaffolding</a>
+<a href="Dext.Entity.Scaffolding.Processor.html" class="nav-item">Dext.Entity.Scaffolding.Processor</a>
+<a href="Dext.Entity.Sequences.html" class="nav-item">Dext.Entity.Sequences</a>
+<a href="Dext.Entity.Setup.html" class="nav-item">Dext.Entity.Setup</a>
+<a href="Dext.Entity.TemplatedScaffolding.html" class="nav-item">Dext.Entity.TemplatedScaffolding</a>
+<a href="Dext.Entity.Tenancy.html" class="nav-item">Dext.Entity.Tenancy</a>
+<a href="Dext.Entity.TypeConverters.html" class="nav-item">Dext.Entity.TypeConverters</a>
+<a href="Dext.Entity.TypeSystem.html" class="nav-item">Dext.Entity.TypeSystem</a>
+<a href="Dext.Entity.Validator.html" class="nav-item">Dext.Entity.Validator</a>
+<a href="Dext.Events.html" class="nav-item">Dext.Events</a>
+<a href="Dext.Events.Behaviors.html" class="nav-item">Dext.Events.Behaviors</a>
+<a href="Dext.Events.Bus.html" class="nav-item">Dext.Events.Bus</a>
+<a href="Dext.Events.Extensions.html" class="nav-item">Dext.Events.Extensions</a>
+<a href="Dext.Events.Interfaces.html" class="nav-item">Dext.Events.Interfaces</a>
+<a href="Dext.Events.Lifecycle.html" class="nav-item">Dext.Events.Lifecycle</a>
+<a href="Dext.Events.Testing.html" class="nav-item">Dext.Events.Testing</a>
+<a href="Dext.Filters.html" class="nav-item">Dext.Filters</a>
+<a href="Dext.Filters.BuiltIn.html" class="nav-item">Dext.Filters.BuiltIn</a>
+<a href="Dext.HealthChecks.html" class="nav-item">Dext.HealthChecks</a>
+<a href="Dext.Hosting.html" class="nav-item">Dext.Hosting</a>
+<a href="Dext.Hosting.ApplicationLifetime.html" class="nav-item">Dext.Hosting.ApplicationLifetime</a>
+<a href="Dext.Hosting.AppState.html" class="nav-item">Dext.Hosting.AppState</a>
+<a href="Dext.Hosting.BackgroundService.html" class="nav-item">Dext.Hosting.BackgroundService</a>
+<a href="Dext.Hosting.CLI.html" class="nav-item">Dext.Hosting.CLI</a>
+<a href="Dext.Hosting.CLI.Args.html" class="nav-item">Dext.Hosting.CLI.Args</a>
+<a href="Dext.Hosting.CLI.Config.html" class="nav-item">Dext.Hosting.CLI.Config</a>
+<a href="Dext.Hosting.CLI.Logger.html" class="nav-item">Dext.Hosting.CLI.Logger</a>
+<a href="Dext.Hosting.CLI.Registry.html" class="nav-item">Dext.Hosting.CLI.Registry</a>
+<a href="Dext.Hosting.CLI.Tools.CodeCoverage.html" class="nav-item">Dext.Hosting.CLI.Tools.CodeCoverage</a>
+<a href="Dext.Hosting.CLI.Tools.FacadeGenerator.html" class="nav-item">Dext.Hosting.CLI.Tools.FacadeGenerator</a>
+<a href="Dext.Hosting.CLI.Tools.Sonar.html" class="nav-item">Dext.Hosting.CLI.Tools.Sonar</a>
+<a href="Dext.Hosting.Events.html" class="nav-item">Dext.Hosting.Events</a>
+<a href="Dext.Hosting.Events.Bridge.html" class="nav-item">Dext.Hosting.Events.Bridge</a>
+<a href="Dext.Http.Executor.html" class="nav-item">Dext.Http.Executor</a>
+<a href="Dext.Http.Parser.html" class="nav-item">Dext.Http.Parser</a>
+<a href="Dext.Http.Request.html" class="nav-item">Dext.Http.Request</a>
+<a href="Dext.Http.StatusCodes.html" class="nav-item">Dext.Http.StatusCodes</a>
+<a href="Dext.Http2.Connection.html" class="nav-item">Dext.Http2.Connection</a>
+<a href="Dext.Http2.Framing.html" class="nav-item">Dext.Http2.Framing</a>
+<a href="Dext.Http2.Hpack.html" class="nav-item">Dext.Http2.Hpack</a>
+<a href="Dext.Http2.Stream.html" class="nav-item">Dext.Http2.Stream</a>
+<a href="Dext.Hubs.html" class="nav-item">Dext.Hubs</a>
+<a href="Dext.Interception.html" class="nav-item">Dext.Interception</a>
+<a href="Dext.Interception.ClassProxy.html" class="nav-item">Dext.Interception.ClassProxy</a>
+<a href="Dext.Interception.Proxy.html" class="nav-item">Dext.Interception.Proxy</a>
+<a href="Dext.Json.html" class="nav-item">Dext.Json</a>
+<a href="Dext.Json.Driver.DextJsonDataObjects.html" class="nav-item">Dext.Json.Driver.DextJsonDataObjects</a>
+<a href="Dext.Json.Driver.SystemJson.html" class="nav-item">Dext.Json.Driver.SystemJson</a>
+<a href="Dext.Json.Types.html" class="nav-item">Dext.Json.Types</a>
+<a href="Dext.Json.Utf8.html" class="nav-item">Dext.Json.Utf8</a>
+<a href="Dext.Json.Utf8.Serializer.html" class="nav-item">Dext.Json.Utf8.Serializer</a>
+<a href="Dext.Logging.html" class="nav-item">Dext.Logging</a>
+<a href="Dext.Logging.Async.html" class="nav-item">Dext.Logging.Async</a>
+<a href="Dext.Logging.Console.html" class="nav-item">Dext.Logging.Console</a>
+<a href="Dext.Logging.Extensions.html" class="nav-item">Dext.Logging.Extensions</a>
+<a href="Dext.Logging.Global.html" class="nav-item">Dext.Logging.Global</a>
+<a href="Dext.Logging.RingBuffer.html" class="nav-item">Dext.Logging.RingBuffer</a>
+<a href="Dext.Logging.Sinks.html" class="nav-item">Dext.Logging.Sinks</a>
+<a href="Dext.Logging.Sinks.APM.html" class="nav-item">Dext.Logging.Sinks.APM</a>
+<a href="Dext.Logging.Sinks.Sidecar.html" class="nav-item">Dext.Logging.Sinks.Sidecar</a>
+<a href="Dext.Logging.Telemetry.html" class="nav-item">Dext.Logging.Telemetry</a>
+<a href="Dext.Logging.Tracing.html" class="nav-item">Dext.Logging.Tracing</a>
+<a href="Dext.Mapper.html" class="nav-item">Dext.Mapper</a>
+<a href="Dext.MM.html" class="nav-item">Dext.MM</a>
+<a href="Dext.Mocks.html" class="nav-item">Dext.Mocks</a>
+<a href="Dext.Mocks.Auto.html" class="nav-item">Dext.Mocks.Auto</a>
+<a href="Dext.Mocks.Interceptor.html" class="nav-item">Dext.Mocks.Interceptor</a>
+<a href="Dext.Mocks.Matching.html" class="nav-item">Dext.Mocks.Matching</a>
+<a href="Dext.MultiTenancy.html" class="nav-item">Dext.MultiTenancy</a>
+<a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
+<a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
+<a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
+<a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
+<a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
+<a href="Dext.OpenAPI.Extensions.html" class="nav-item">Dext.OpenAPI.Extensions</a>
+<a href="Dext.OpenAPI.Fluent.html" class="nav-item">Dext.OpenAPI.Fluent</a>
+<a href="Dext.OpenAPI.Generator.html" class="nav-item">Dext.OpenAPI.Generator</a>
+<a href="Dext.OpenAPI.Types.html" class="nav-item">Dext.OpenAPI.Types</a>
+<a href="Dext.Options.html" class="nav-item">Dext.Options</a>
+<a href="Dext.Options.Extensions.html" class="nav-item">Dext.Options.Extensions</a>
+<a href="Dext.RateLimiting.html" class="nav-item">Dext.RateLimiting</a>
+<a href="Dext.RateLimiting.Core.html" class="nav-item">Dext.RateLimiting.Core</a>
+<a href="Dext.RateLimiting.Limiters.html" class="nav-item">Dext.RateLimiting.Limiters</a>
+<a href="Dext.RateLimiting.Policy.html" class="nav-item">Dext.RateLimiting.Policy</a>
+<a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
+<a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
+<a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
+<a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
+<a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
+<a href="Dext.Server.HttpSys.html" class="nav-item">Dext.Server.HttpSys</a>
+<a href="Dext.Server.HttpSys.Api.html" class="nav-item">Dext.Server.HttpSys.Api</a>
+<a href="Dext.Server.Iocp.html" class="nav-item">Dext.Server.Iocp</a>
+<a href="Dext.Server.Iocp.HttpParser.html" class="nav-item">Dext.Server.Iocp.HttpParser</a>
+<a href="Dext.Server.Native.html" class="nav-item">Dext.Server.Native</a>
+<a href="Dext.Sidecar.TestCompat.html" class="nav-item">Dext.Sidecar.TestCompat</a>
+<a href="Dext.Specifications.Base.html" class="nav-item">Dext.Specifications.Base</a>
+<a href="Dext.Specifications.Evaluator.html" class="nav-item">Dext.Specifications.Evaluator</a>
+<a href="Dext.Specifications.Fluent.html" class="nav-item">Dext.Specifications.Fluent</a>
+<a href="Dext.Specifications.Interfaces.html" class="nav-item">Dext.Specifications.Interfaces</a>
+<a href="Dext.Specifications.OrderBy.html" class="nav-item">Dext.Specifications.OrderBy</a>
+<a href="Dext.Specifications.Parser.html" class="nav-item">Dext.Specifications.Parser</a>
+<a href="Dext.Specifications.SQL.Generator.html" class="nav-item">Dext.Specifications.SQL.Generator</a>
+<a href="Dext.Specifications.Types.html" class="nav-item">Dext.Specifications.Types</a>
+<a href="Dext.Swagger.Middleware.html" class="nav-item">Dext.Swagger.Middleware</a>
+<a href="Dext.Telemetry.Context.html" class="nav-item">Dext.Telemetry.Context</a>
+<a href="Dext.Telemetry.Metrics.html" class="nav-item">Dext.Telemetry.Metrics</a>
+<a href="Dext.Templating.html" class="nav-item">Dext.Templating</a>
+<a href="Dext.Testing.html" class="nav-item">Dext.Testing</a>
+<a href="Dext.Testing.Attributes.html" class="nav-item">Dext.Testing.Attributes</a>
+<a href="Dext.Testing.Console.html" class="nav-item">Dext.Testing.Console</a>
+<a href="Dext.Testing.Dashboard.html" class="nav-item">Dext.Testing.Dashboard</a>
+<a href="Dext.Testing.Design.AST.html" class="nav-item">Dext.Testing.Design.AST</a>
+<a href="Dext.Testing.Design.Coverage.html" class="nav-item">Dext.Testing.Design.Coverage</a>
+<a href="Dext.Testing.Design.DockableForm.html" class="nav-item">Dext.Testing.Design.DockableForm</a>
+<a href="Dext.Testing.Design.Expert.html" class="nav-item">Dext.Testing.Design.Expert</a>
+<a href="Dext.Testing.Design.Gutter.html" class="nav-item">Dext.Testing.Design.Gutter</a>
+<a href="Dext.Testing.Design.Presenter.html" class="nav-item">Dext.Testing.Design.Presenter</a>
+<a href="Dext.Testing.Design.Registration.html" class="nav-item">Dext.Testing.Design.Registration</a>
+<a href="Dext.Testing.Design.Server.html" class="nav-item">Dext.Testing.Design.Server</a>
+<a href="Dext.Testing.DI.html" class="nav-item">Dext.Testing.DI</a>
+<a href="Dext.Testing.DUnit.html" class="nav-item">Dext.Testing.DUnit</a>
+<a href="Dext.Testing.DUnit2.html" class="nav-item">Dext.Testing.DUnit2</a>
+<a href="Dext.Testing.DUnitX.html" class="nav-item">Dext.Testing.DUnitX</a>
+<a href="Dext.Testing.Fluent.html" class="nav-item">Dext.Testing.Fluent</a>
+<a href="Dext.Testing.History.html" class="nav-item">Dext.Testing.History</a>
+<a href="Dext.Testing.Host.html" class="nav-item">Dext.Testing.Host</a>
+<a href="Dext.Testing.Integration.html" class="nav-item">Dext.Testing.Integration</a>
+<a href="Dext.Testing.Listeners.Telemetry.html" class="nav-item">Dext.Testing.Listeners.Telemetry</a>
+<a href="Dext.Testing.Report.html" class="nav-item">Dext.Testing.Report</a>
+<a href="Dext.Testing.Runner.html" class="nav-item">Dext.Testing.Runner</a>
+<a href="Dext.Testing.TestInsight.html" class="nav-item">Dext.Testing.TestInsight</a>
+<a href="Dext.Text.Escaping.html" class="nav-item">Dext.Text.Escaping</a>
+<a href="Dext.Threading.Async.html" class="nav-item">Dext.Threading.Async</a>
+<a href="Dext.Threading.CancellationToken.html" class="nav-item">Dext.Threading.CancellationToken</a>
+<a href="Dext.Threading.Sync.html" class="nav-item">Dext.Threading.Sync</a>
+<a href="Dext.Types.Lazy.html" class="nav-item">Dext.Types.Lazy</a>
+<a href="Dext.Types.Nullable.html" class="nav-item">Dext.Types.Nullable</a>
+<a href="Dext.Types.UUID.html" class="nav-item">Dext.Types.UUID</a>
+<a href="Dext.UI.html" class="nav-item">Dext.UI</a>
+<a href="Dext.UI.Attributes.html" class="nav-item">Dext.UI.Attributes</a>
+<a href="Dext.UI.Binder.html" class="nav-item">Dext.UI.Binder</a>
+<a href="Dext.UI.Message.html" class="nav-item">Dext.UI.Message</a>
+<a href="Dext.UI.Module.html" class="nav-item">Dext.UI.Module</a>
+<a href="Dext.UI.Navigator.html" class="nav-item">Dext.UI.Navigator</a>
+<a href="Dext.UI.Navigator.Adapters.html" class="nav-item">Dext.UI.Navigator.Adapters</a>
+<a href="Dext.UI.Navigator.Interfaces.html" class="nav-item">Dext.UI.Navigator.Interfaces</a>
+<a href="Dext.UI.Navigator.Middlewares.html" class="nav-item">Dext.UI.Navigator.Middlewares</a>
+<a href="Dext.UI.Navigator.Types.html" class="nav-item">Dext.UI.Navigator.Types</a>
+<a href="Dext.UI.State.html" class="nav-item">Dext.UI.State</a>
+<a href="Dext.Utils.html" class="nav-item">Dext.Utils</a>
+<a href="Dext.Validation.html" class="nav-item">Dext.Validation</a>
+<a href="Dext.Web.html" class="nav-item">Dext.Web</a>
+<a href="Dext.Web.ApplicationBuilder.Extensions.html" class="nav-item">Dext.Web.ApplicationBuilder.Extensions</a>
+<a href="Dext.Web.Builder.html" class="nav-item">Dext.Web.Builder</a>
+<a href="Dext.Web.Controllers.html" class="nav-item">Dext.Web.Controllers</a>
+<a href="Dext.Web.ControllerScanner.html" class="nav-item">Dext.Web.ControllerScanner</a>
+<a href="Dext.Web.Cors.html" class="nav-item">Dext.Web.Cors</a>
+<a href="Dext.Web.DataApi.html" class="nav-item">Dext.Web.DataApi</a>
+<a href="Dext.Web.DataApi.Resolver.html" class="nav-item">Dext.Web.DataApi.Resolver</a>
+<a href="Dext.Web.DataApi.Utils.html" class="nav-item">Dext.Web.DataApi.Utils</a>
+<a href="Dext.Web.DCS.html" class="nav-item">Dext.Web.DCS</a>
+<a href="Dext.Web.Extensions.html" class="nav-item">Dext.Web.Extensions</a>
+<a href="Dext.Web.Formatters.Interfaces.html" class="nav-item">Dext.Web.Formatters.Interfaces</a>
+<a href="Dext.Web.Formatters.Json.html" class="nav-item">Dext.Web.Formatters.Json</a>
+<a href="Dext.Web.Formatters.Selector.html" class="nav-item">Dext.Web.Formatters.Selector</a>
+<a href="Dext.Web.HandlerInvoker.html" class="nav-item">Dext.Web.HandlerInvoker</a>
+<a href="Dext.Web.Hubs.html" class="nav-item">Dext.Web.Hubs</a>
+<a href="Dext.Web.Hubs.Client.html" class="nav-item">Dext.Web.Hubs.Client</a>
+<a href="Dext.Web.Hubs.Client.Types.html" class="nav-item">Dext.Web.Hubs.Client.Types</a>
+<a href="Dext.Web.Hubs.Clients.html" class="nav-item">Dext.Web.Hubs.Clients</a>
+<a href="Dext.Web.Hubs.Connections.html" class="nav-item">Dext.Web.Hubs.Connections</a>
+<a href="Dext.Web.Hubs.Context.html" class="nav-item">Dext.Web.Hubs.Context</a>
+<a href="Dext.Web.Hubs.Extensions.html" class="nav-item">Dext.Web.Hubs.Extensions</a>
+<a href="Dext.Web.Hubs.Hub.html" class="nav-item">Dext.Web.Hubs.Hub</a>
+<a href="Dext.Web.Hubs.Interfaces.html" class="nav-item">Dext.Web.Hubs.Interfaces</a>
+<a href="Dext.Web.Hubs.Middleware.html" class="nav-item">Dext.Web.Hubs.Middleware</a>
+<a href="Dext.Web.Hubs.Protocol.Json.html" class="nav-item">Dext.Web.Hubs.Protocol.Json</a>
+<a href="Dext.Web.Hubs.Transport.SSE.html" class="nav-item">Dext.Web.Hubs.Transport.SSE</a>
+<a href="Dext.Web.Hubs.Transport.WebSocket.html" class="nav-item">Dext.Web.Hubs.Transport.WebSocket</a>
+<a href="Dext.Web.Hubs.Types.html" class="nav-item">Dext.Web.Hubs.Types</a>
+<a href="Dext.Web.Indy.html" class="nav-item">Dext.Web.Indy</a>
+<a href="Dext.Web.Indy.Server.html" class="nav-item">Dext.Web.Indy.Server</a>
+<a href="Dext.Web.Indy.SSL.Interfaces.html" class="nav-item">Dext.Web.Indy.SSL.Interfaces</a>
+<a href="Dext.Web.Indy.SSL.OpenSSL.html" class="nav-item">Dext.Web.Indy.SSL.OpenSSL</a>
+<a href="Dext.Web.Indy.SSL.Taurus.html" class="nav-item">Dext.Web.Indy.SSL.Taurus</a>
+<a href="Dext.Web.Indy.Types.html" class="nav-item">Dext.Web.Indy.Types</a>
+<a href="Dext.Web.Injection.html" class="nav-item">Dext.Web.Injection</a>
+<a href="Dext.Web.Interfaces.html" class="nav-item">Dext.Web.Interfaces</a>
+<a href="Dext.Web.Middleware.html" class="nav-item">Dext.Web.Middleware</a>
+<a href="Dext.Web.Middleware.Compression.html" class="nav-item">Dext.Web.Middleware.Compression</a>
+<a href="Dext.Web.Middleware.Extensions.html" class="nav-item">Dext.Web.Middleware.Extensions</a>
+<a href="Dext.Web.Middleware.Logging.html" class="nav-item">Dext.Web.Middleware.Logging</a>
+<a href="Dext.Web.Middleware.StartupLock.html" class="nav-item">Dext.Web.Middleware.StartupLock</a>
+<a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
+<a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
+<a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
+<a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
+<a href="Dext.Web.Routing.html" class="nav-item">Dext.Web.Routing</a>
+<a href="Dext.Web.Routing.Attributes.html" class="nav-item">Dext.Web.Routing.Attributes</a>
+<a href="Dext.Web.RoutingMiddleware.html" class="nav-item">Dext.Web.RoutingMiddleware</a>
+<a href="Dext.Web.Sessions.Streamable.html" class="nav-item">Dext.Web.Sessions.Streamable</a>
+<a href="Dext.Web.StaticFiles.html" class="nav-item">Dext.Web.StaticFiles</a>
+<a href="Dext.Web.Versioning.html" class="nav-item">Dext.Web.Versioning</a>
+<a href="Dext.Web.View.html" class="nav-item">Dext.Web.View</a>
+<a href="Dext.Web.View.Native.html" class="nav-item">Dext.Web.View.Native</a>
+<a href="Dext.Web.View.WebStencils.html" class="nav-item">Dext.Web.View.WebStencils</a>
+<a href="Dext.Web.WebApplication.html" class="nav-item">Dext.Web.WebApplication</a>
+<a href="Dext.Web.WebBroker.html" class="nav-item">Dext.Web.WebBroker</a>
+<a href="Dext.WebHost.html" class="nav-item">Dext.WebHost</a>
+<a href="Dext.WebSocket.Handshake.html" class="nav-item">Dext.WebSocket.Handshake</a>
+<a href="Dext.WebSocket.Protocol.html" class="nav-item">Dext.WebSocket.Protocol</a>
+<a href="Dext.Yaml.html" class="nav-item">Dext.Yaml</a>
+<a href="DextJsonDataObjects.html" class="nav-item">DextJsonDataObjects</a>
+
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">&#x1F313;</button>
+        </div>
+        
+        <div id="contentArea">
+            <!-- Main Documentation Content Injected Here -->
+            <h1>Unit Dext.Entity.Sequences</h1><h2>Classes</h2>
+<details class="mermaid-details" open>
+<summary>Class Diagram <span class="collapse-text">(Click to collapse)</span><span class="expand-text">(Click to expand)</span></summary>
+<div class="mermaid-container">
+<div class="mermaid">
+classDiagram
+class TSequenceRange {    +Create()
+    +NextId()
+}
+TObject <|-- TSequenceRange
+class TSequenceManager {    +EnsureSQLiteTable()
+    +FetchNextRangeFromDb()
+    +Create()
+    +Destroy()
+    +GenerateId()
+    +Instance
+}
+TObject <|-- TSequenceManager
+</div>
+</div>
+</details>
+<h2>API Details</h2>
+<div class="class-header">
+<h3>class TSequenceRange</h3><a name="TSequenceRange"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Tracks the low, high and current boundaries of a pre-allocated sequence range (HiLo).</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(ALow: Int64; AHigh: Int64)</div></div>
+<div class="api-item">
+<div class="api-signature">function NextId(out out: Int64): Boolean</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TSequenceManager</h3><a name="TSequenceManager"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Thread-safe manager for DB sequence HiLo/Pooled allocation ranges.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">function GenerateId(const const: string; AAllocationSize: Integer; const const: IDbConnection; const const: ISQLDialect): Int64</div><div class="description">Thread-safe entry point to generate a new sequential ID from a sequence.</div></div>
+<div class="api-item">
+<div class="api-signature">property Instance: </div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure EnsureSQLiteTable(const const: IDbConnection)</div></div>
+<div class="api-item">
+<div class="api-signature">function FetchNextRangeFromDb(const const: string; AAllocSize: Integer; const const: IDbConnection; const const: ISQLDialect): TSequenceRange</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+</div>
+<hr>
+
+        </div>
+    </div>
+
+    <script src="viewer.js"></script>
+</body>
+</html>

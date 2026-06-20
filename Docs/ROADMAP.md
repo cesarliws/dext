@@ -33,6 +33,7 @@ Status | Task | Spec | Description
 ✅ | **Persistent Background Jobs** | [S33](Specs/S33-Background-Jobs.md) | Out-of-process scheduled/recurring background tasks with database/SQLite/InMemory persistence.
 ✅ | **Dynamic Query Filters** | [S34](Specs/S34-Dynamic-Query-Filters.md) | Bypassing global query filters (soft-delete, multi-tenancy) dynamically via `IgnoreQueryFilters`.
 ✅ | **Soft Delete Evolution** | [S21](Specs/S21-SoftDelete-Timestamp-Audit.md) | Soft Delete based on nullable timestamps for audit trails.
+✅ | **Database Sequences & HiLo** | [S46](Specs/S46-Sequence-Generators.md) | Database sequences and thread-safe HiLo pre-allocation registry for client-side ID assignment, unlocking high-performance bulk inserts.
 ✅ | **FluentQuery Join Evolution**| [S19](Specs/S19-FluentQuery-Join-Evolution.md) | Unified strongly-typed fluent SQL joins (Inner, Left, Right, Full, Cross).
 ✅ | **Fluent REST Evolution** | [S20](Specs/S20-Fluent-Rest-Evolution.md) | Enhanced TRestClient factories and native record/array payload support.
 ✅ | **Native Delphi IDE Test Runner** | [S36](Specs/S36-IDE-Test-Runner.md) | Native IDE Test Runner expert with decoupled DUnitX, DUnit, DUnit2, and TestInsight integrations and rich reporting.
@@ -90,6 +91,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Persistent Background Jobs** | [S33](Specs/S33-Background-Jobs.md) | Processamento de tarefas em background agendadas/recorrentes fora do processo com persistência em BD/SQLite/InMemory.
 ✅ | **Filtros Dinâmicos de Query** | [S34](Specs/S34-Dynamic-Query-Filters.md) | Bypass dinâmico de filtros globais de query (soft-delete, multi-tenancy) via `IgnoreQueryFilters`.
 ✅ | **Evolução do Soft Delete** | [S21](Specs/S21-SoftDelete-Timestamp-Audit.md) | Soft Delete baseado em timestamps anuláveis para trilhas de auditoria.
+✅ | **Database Sequences & HiLo** | [S46](Specs/S46-Sequence-Generators.md) | Mapeamento de sequences e pré-alocador HiLo thread-safe para geração de IDs no cliente, desbloqueando inserções em lote (bulk).
 ✅ | **Evolução de Joins FluentQuery**| [S19](Specs/S19-FluentQuery-Join-Evolution.md) | Joins fluentes e fortemente tipados unificados (Inner, Left, Right, Full, Cross).
 ✅ | **Evolução REST Fluente** | [S20](Specs/S20-Fluent-Rest-Evolution.md) | Factories aprimoradas para TRestClient e suporte nativo a records/arrays.
 ✅ | **Test Runner Nativo na IDE** | [S36](Specs/S36-IDE-Test-Runner.md) | Plugin Expert nativo de Test Runner na IDE com integração DUnitX, DUnit, DUnit2 e TestInsight desacoplada e relatórios ricos.

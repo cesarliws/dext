@@ -112,7 +112,7 @@ uses
 
 type
   // ===========================================================================
-  // ??? Aliases for Common Web Types
+  // 🌐 Aliases for Common Web Types
   // ===========================================================================
   
   // {BEGIN_DEXT_ALIASES}
@@ -701,7 +701,7 @@ type
   /// </summary>
   THttpAppBuilderHelper = record helper for TAppBuilder
   public
-    // ?? Factory Methods
+    // 🏭 Factory Methods
     
     /// <summary>
     ///   Creates a new instance of TCorsOptions with default settings.
@@ -718,7 +718,7 @@ type
     /// </summary>
     function CreateStaticFileOptions: TStaticFileOptions;
     
-    // ?? Extensions
+    // 🔌 Extensions
     
     /// <summary>
     ///   Adds CORS middleware to the pipeline using the provided options.
@@ -776,7 +776,7 @@ type
     /// </summary>
     function UseStaticFiles(const ARootPath: string): AppBuilder; overload;
     
-    // ?? Core Forwarding
+    // ⏩ Core Forwarding
     
     /// <summary>
     ///   Adds a middleware class to the pipeline. The middleware must have a constructor accepting RequestDelegate (and optionally other services).
@@ -822,7 +822,7 @@ type
       ATimeoutMinutes: Integer = 30): AppBuilder;
 
     // -------------------------------------------------------------------------
-    // ?? Middleware
+    // ⛓️ Middleware
     // -------------------------------------------------------------------------
     function UseStaticFiles: AppBuilder; overload;
     function UseStartupLock: AppBuilder;
@@ -833,12 +833,12 @@ type
     function UseHttpLogging(const AOptions: THttpLoggingOptions): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // ?? Rate Limiting
+    // 🚦 Rate Limiting
     // -------------------------------------------------------------------------
     function UseRateLimiting(const APolicy: TRateLimitPolicy): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // ?? Response Caching
+    // 💾 Response Caching
     // -------------------------------------------------------------------------
     function UseResponseCache(AConfigurator: TResponseCacheBuilderProc): AppBuilder; overload;
     function UseResponseCache(const ACacheBuilder: TResponseCacheBuilder): AppBuilder; overload;
@@ -846,7 +846,7 @@ type
     function MapEndpoints(AMapper: TProc<TAppBuilder>): TAppBuilder;
     function MapDataApis: TAppBuilder;
     // -------------------------------------------------------------------------
-    // ??? Routing - POST
+    // 📬 Routing - POST
     // -------------------------------------------------------------------------
     
     /// <summary>
@@ -878,7 +878,7 @@ type
     function MapPostResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // ??? Routing - GET
+    // 📥 Routing - GET
     // -------------------------------------------------------------------------
     
     /// <summary>
@@ -923,7 +923,7 @@ type
     function MapGetResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // ??? Routing - PUT
+    // 📤 Routing - PUT
     // -------------------------------------------------------------------------
     function MapPut<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
     function MapPut<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
@@ -940,7 +940,7 @@ type
     function MapPutResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // ??? Routing - DELETE
+    // 🗑️ Routing - DELETE
     // -------------------------------------------------------------------------
     function MapDelete<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
     function MapDelete<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
@@ -957,7 +957,7 @@ type
     function MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // ??? OpenAPI Metadata
+    // 📝 OpenAPI Metadata
     // -------------------------------------------------------------------------
     function WithSummary(const ASummary: string): AppBuilder;
     function WithDescription(const ADescription: string): AppBuilder;

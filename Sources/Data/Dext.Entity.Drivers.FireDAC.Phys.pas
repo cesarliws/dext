@@ -556,18 +556,187 @@ end;
 
 procedure TFireDACPhysCommand.SetParamArray(const AName: string; const AValues: TArray<TValue>);
 var
-  I: integer;
   Param: TFDParam;
+  i: Integer;
+  Val: TValue;
+  Bytes: TBytes;
+  RawStr: RawByteString;
+  Helper: TNullableHelper;
+  InnerVal: TValue;
 begin
-  // Similar to standard driver
   Param := FCommand.Params.FindParam(AName);
-  if Param <> nil then
+  if Param = nil then Exit;
+  
+  for i := 0 to High(AValues) do
   begin
-    for I := 0 to High(AValues) do
+    Val := AValues[i];
+    
+    if Val.IsEmpty then
     begin
-       // Param.AsIntegers[I] := ...
-       // ... logic same as standard driver
-       Param.Values[I] := AValues[I].AsVariant; // Simplified fallback
+      Param.Clear(i);
+      if Param.DataType = ftUnknown then Param.DataType := ftString;
+    end
+    else
+    begin
+      case Val.Kind of
+        tkInteger: 
+        begin
+          Param.DataType := ftInteger;
+          Param.AsIntegers[i] := Val.AsInteger;
+        end;
+        tkInt64:
+        begin
+          Param.DataType := ftLargeInt;
+          Param.AsLargeInts[i] := Val.AsInt64;
+        end;
+        tkFloat:
+        begin
+          if Val.TypeInfo = TypeInfo(TDateTime) then
+          begin
+            Param.DataType := ftDateTime;
+            Param.AsDateTimes[i] := Val.AsType<TDateTime>;
+          end
+          else if Val.TypeInfo = TypeInfo(TDate) then
+          begin
+            Param.DataType := ftDate;
+            Param.AsDates[i] := Val.AsType<TDate>;
+          end
+          else if Val.TypeInfo = TypeInfo(TTime) then
+          begin
+            Param.DataType := ftTime;
+            Param.AsTimes[i] := Val.AsType<TTime>;
+          end
+          else
+          begin
+            Param.DataType := ftFloat;
+            Param.AsFloats[i] := Val.AsExtended;
+          end;
+        end;
+        tkString, tkUString, tkWString, tkChar, tkWChar:
+        begin
+          if Length(Val.AsString) > 4000 then
+          begin
+            if Param.DataType <> ftWideMemo then Param.DataType := ftWideMemo;
+            if Param.Size < Length(Val.AsString) then Param.Size := Length(Val.AsString);
+            Param.AsWideStrings[i] := Val.AsString;
+          end
+          else
+            Param.AsWideStrings[i] := Val.AsString;
+        end;
+        tkDynArray:
+        begin
+          if Val.TypeInfo = TypeInfo(TBytes) then
+          begin
+            Bytes := Val.AsType<TBytes>;
+            SetLength(RawStr, Length(Bytes));
+            if Length(Bytes) > 0 then
+              Move(Bytes[0], RawStr[1], Length(Bytes));
+            Param.AsBlobs[i] := RawStr;
+          end
+          else
+            Param.Values[i] := Val.AsVariant;
+        end;
+        tkEnumeration:
+        begin
+          if Val.TypeInfo = TypeInfo(Boolean) then
+          begin
+            Param.DataType := ftBoolean;
+            Param.AsBooleans[i] := Val.AsBoolean;
+          end
+          else
+          begin
+            Param.DataType := ftInteger;
+            Param.AsIntegers[i] := Val.AsOrdinal;
+          end;
+        end;
+        tkRecord:
+        begin
+          if IsNullable(Val.TypeInfo) then
+          begin
+             Helper := TNullableHelper.Create(Val.TypeInfo);
+             if Helper.HasValue(Val.GetReferenceToRawData) then
+             begin
+               InnerVal := Helper.GetValue(Val.GetReferenceToRawData);
+               case InnerVal.Kind of
+                 tkInteger:
+                   begin
+                     Param.DataType := ftInteger;
+                     Param.AsIntegers[i] := InnerVal.AsInteger;
+                   end;
+                 tkInt64:
+                   begin
+                     Param.DataType := ftLargeInt;
+                     Param.AsLargeInts[i] := InnerVal.AsInt64;
+                   end;
+                 tkFloat:
+                  begin
+                    if InnerVal.TypeInfo = TypeInfo(TDateTime) then
+                    begin
+                      Param.DataType := ftDateTime;
+                      Param.AsDateTimes[i] := InnerVal.AsType<TDateTime>;
+                    end
+                    else if InnerVal.TypeInfo = TypeInfo(TDate) then
+                    begin
+                      Param.DataType := ftDate;
+                      Param.AsDates[i] := InnerVal.AsType<TDate>;
+                    end
+                    else if InnerVal.TypeInfo = TypeInfo(TTime) then
+                    begin
+                      Param.DataType := ftTime;
+                      Param.AsTimes[i] := InnerVal.AsType<TTime>;
+                    end
+                    else
+                    begin
+                      Param.DataType := ftFloat;
+                      Param.AsFloats[i] := InnerVal.AsExtended;
+                    end;
+                  end;
+                  tkString, tkUString, tkWString:
+                  begin
+                    if Length(InnerVal.AsString) > 4000 then
+                    begin
+                        if Param.DataType <> ftWideMemo then Param.DataType := ftWideMemo;
+                        if Param.Size < Length(InnerVal.AsString) then Param.Size := Length(InnerVal.AsString);
+                    end;
+                    Param.AsWideStrings[i] := InnerVal.AsString;
+                  end;
+                  tkDynArray:
+                  begin
+                    if InnerVal.TypeInfo = TypeInfo(TBytes) then
+                    begin
+                      Bytes := InnerVal.AsType<TBytes>;
+                      SetLength(RawStr, Length(Bytes));
+                      if Length(Bytes) > 0 then
+                        Move(Bytes[0], RawStr[1], Length(Bytes));
+                      Param.AsBlobs[i] := RawStr;
+                    end
+                    else
+                      Param.Values[i] := InnerVal.AsVariant;
+                  end;
+                  tkEnumeration:
+                   if InnerVal.TypeInfo = TypeInfo(Boolean) then
+                   begin
+                     Param.DataType := ftBoolean;
+                     Param.AsBooleans[i] := InnerVal.AsBoolean;
+                   end
+                   else
+                   begin
+                     Param.DataType := ftInteger;
+                     Param.AsIntegers[i] := InnerVal.AsOrdinal;
+                   end;
+               end;
+             end
+             else
+             begin
+               Param.Clear(i);
+             end;
+          end
+          else
+             Param.Values[i] := Val.AsVariant;
+        end;
+      else
+        Param.Values[i] := Val.AsVariant;
+      end;
     end;
   end;
 end;

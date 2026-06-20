@@ -444,6 +444,34 @@ Test-Endpoint -Name "Controller: x-TeNanT-iD from header - Misto Case" `
     $r.source -eq "controller-header" -and $r.tenantId -eq "controller-tenant"
 }
 
+# -----------------------------------------------------------------------------
+# TEST 19: Controller FromBody Primitive Name-Matched
+# -----------------------------------------------------------------------------
+Write-TestHeader "19" "Controller: FromBody Primitive Name-Matched"
+
+Test-Endpoint -Name "Controller: String param from name-matched JSON body" `
+    -Method "POST" `
+    -Url "$BaseUrl/api/controller/echo" `
+    -Body '{"AMsg": "Hello Stefano"}' `
+    -Validate {
+    param($r)
+    $r.source -eq "controller-echo" -and $r.message -eq "Hello Stefano"
+}
+
+# -----------------------------------------------------------------------------
+# TEST 20: Controller FromBody Primitive Whole-Body
+# -----------------------------------------------------------------------------
+Write-TestHeader "20" "Controller: FromBody Primitive Whole-Body"
+
+Test-Endpoint -Name "Controller: String param from raw whole body" `
+    -Method "POST" `
+    -Url "$BaseUrl/api/controller/echo" `
+    -Body '"Hello Pure Body"' `
+    -Validate {
+    param($r)
+    $r.source -eq "controller-echo" -and $r.message -eq "Hello Pure Body"
+}
+
 # =============================================================================
 # SUMMARY
 # =============================================================================

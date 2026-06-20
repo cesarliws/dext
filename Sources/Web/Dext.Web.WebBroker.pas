@@ -123,6 +123,7 @@ type
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
+    procedure Flush;
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
@@ -505,6 +506,11 @@ end;
 procedure TDextWebBrokerResponse.SetContentLength(const AValue: Int64);
 begin
   // Will be derived from buffer at flush time; ignore explicit set
+end;
+
+procedure TDextWebBrokerResponse.Flush;
+begin
+  // No-op for buffered WebBroker
 end;
 
 procedure TDextWebBrokerResponse.Write(const AContent: string);

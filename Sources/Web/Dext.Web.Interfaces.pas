@@ -233,6 +233,9 @@ type
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
     
+    /// <summary>Flushes any buffered response data to the underlying transport.</summary>
+    procedure Flush;
+    
     /// <summary>Writes a string directly to the response body (UTF-8).</summary>
     procedure Write(const AContent: string); overload;
     /// <summary>Writes a raw byte buffer to the response body.</summary>

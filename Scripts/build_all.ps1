@@ -69,7 +69,7 @@ $MSBuildArgs = @(
     "/p:DCC_DcuOutput=`"$env:OUTPUT_PATH`"",
     "/p:DCC_BplOutput=`"$env:COMMON_BPL_OUTPUT`"",
     "/p:DCC_DcpOutput=`"$env:COMMON_DCP_OUTPUT`"",
-    "/p:DCC_UnitSearchPath=`"$env:OUTPUT_PATH;C:\dev\Dext\DextRepository\Sources;C:\dev\Dext\DextRepository\External\DelphiAST\Source;C:\dev\Dext\DextRepository\Sources\Common`"",
+    "/p:DCC_UnitSearchPath=`"$env:OUTPUT_PATH;C:\dev\Dext\DextRepository\Sources;C:\dev\Dext\DextRepository\Sources\Dashboard;C:\dev\Dext\DextRepository\External\DelphiAST\Source;C:\dev\Dext\DextRepository\External\DelphiAST\Source\SimpleParser;C:\dev\Dext\DextRepository\Sources\Common`"",
     "/v:minimal",
     "/nologo"
 )

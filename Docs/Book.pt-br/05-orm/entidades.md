@@ -242,20 +242,39 @@ FDb.SaveChanges;
 
 ## IDs Gerados Automaticamente
 
-`SaveChanges` popula automaticamente os IDs de entidades inseridas (`[AutoInc]`).
+O `SaveChanges` popula automaticamente os IDs de entidades inseridas. O Dext suporta dois estilos de geração de chave primária:
+
+### 1. Auto-Incremento no Banco (`[AutoInc]`)
+O próprio banco de dados gera o ID durante a inserção (ex: colunas `IDENTITY` ou `SERIAL`).
 
 ```pascal
-var User := TUser.Create;
-User.Name := 'Alice';
-FDb.Users.Add(User);
-FDb.SaveChanges;
-
-// ✅ User.Id já está populado — não consulte o banco novamente!
-WriteLn('Novo ID: ', User.Id);
+[PK, AutoInc]
+property Id: Integer read FId write FId;
 ```
 
 > [!WARNING]
-> ⛔ **NUNCA** consulte o banco novamente para recuperar o ID após salvar. O objeto já está atualizado.
+> Como os IDs são gerados no servidor do banco durante a execução física dos comandos de insert, entidades configuradas com `[AutoInc]` **não podem ser inseridas no modo lote/lote de alta performance (`PersistAddRange`)**. O ORM fará o fallback para inserções linha a linha para capturar os IDs de retorno.
+
+### 2. Pré-Alocação no Cliente via Sequences (`[Sequence]`)
+Introduz o suporte a geradores de sequência do banco de dados combinados com um **HiLo Optimizer** (algoritmo Pooled-lo). O ORM pré-aloca um bloco de IDs na memória consultando a sequence do banco uma única vez, e atribui as chaves primárias no lado do cliente. Isso **desbloqueia inserções em lote de alta performance (Bulk Insert)**.
+
+```pascal
+[PK, Sequence('SEQ_USER_ID', 50)]
+property Id: Integer read FId write FId;
+```
+
+* **Parâmetros:**
+  * `SequenceName`: O nome da sequence no banco de dados.
+  * `AllocationSize` (padrão `50`): O tamanho do lote de IDs a ser pré-alocado na memória por roundtrip.
+
+Ou configure via Fluent API no `OnModelCreating`:
+```pascal
+modelBuilder.Entity<TUser>
+  .Property('Id')
+  .UseSequence('SEQ_USER_ID', 50);
+```
+
+---
 
 ## Detach (Gerenciamento de Memória)
 

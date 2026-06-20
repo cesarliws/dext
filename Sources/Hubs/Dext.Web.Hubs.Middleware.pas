@@ -104,8 +104,8 @@ type
   THubMiddleware = class
   private
     FHubs: IDictionary<string, THubDispatcher>;
-    FConnectionManager: TConnectionManager;
-    FGroupManager: TGroupManager;
+    FConnectionManager: IConnectionManager;
+    FGroupManager: IGroupManager;
     FSSETransport: TSSETransport;
     FWebSocketTransport: TWebSocketHubTransport;
     FConnectionDispatchers: IDictionary<string, THubDispatcher>;
@@ -133,8 +133,8 @@ type
     /// <summary>Gracefully shuts down all SSE connections</summary>
     procedure Shutdown;
     
-    property ConnectionManager: TConnectionManager read FConnectionManager;
-    property GroupManager: TGroupManager read FGroupManager;
+    property ConnectionManager: IConnectionManager read FConnectionManager;
+    property GroupManager: IGroupManager read FGroupManager;
   end;
 
 implementation
@@ -252,12 +252,15 @@ end;
 { THubMiddleware }
 
 constructor THubMiddleware.Create;
+var
+  LConnectionManager: TConnectionManager;
 begin
   inherited Create;
   FHubs := TCollections.CreateDictionary<string, THubDispatcher>;
   FGroupManager := TGroupManager.Create;
-  FConnectionManager := TConnectionManager.Create;
-  FConnectionManager.SetGroupManager(FGroupManager);
+  LConnectionManager := TConnectionManager.Create;
+  LConnectionManager.SetGroupManager(FGroupManager);
+  FConnectionManager := LConnectionManager;
   FSSETransport := TSSETransport.Create;
   FWebSocketTransport := TWebSocketHubTransport.Create;
   FConnectionDispatchers := TCollections.CreateDictionary<string, THubDispatcher>;
@@ -448,6 +451,7 @@ begin
   Ctx.Response.StatusCode := 200;
   Ctx.Response.SetContentType('application/json');
   Ctx.Response.Write(Response.ToJson);
+  Writeln('Hub: Negotiate request on path ', HubPath, ' - generated ID: ', ConnectionId);
 end;
 
 procedure THubMiddleware.HandleSSEStream(const HubPath: string; Ctx: IHttpContext;
@@ -457,6 +461,7 @@ var
   Connection: TSSEConnection;
   Msg: string;
   KeepAliveCounter: Integer;
+  HasMessages: Boolean;
 begin
   // Get connection ID from query
   if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
@@ -468,12 +473,15 @@ begin
     Exit;
   end;
   
+  // Writeln('Hub: SSE stream requested for HubPath: ', HubPath, ', ConnectionId: ', ConnectionId);
+  
   // Create SSE connection
   Connection := FSSETransport.CreateConnection(ConnectionId);
   Connection.SetConnected;
   
   // Add to connection manager (as interface)
   FConnectionManager.Add(Connection);
+  // Writeln('Hub: Connection added to manager for ID: ', ConnectionId);
   
   // Configure SSE response
   TSSEWriter.ConfigureResponse(Ctx.Response);
@@ -483,11 +491,14 @@ begin
   try
     Dispatcher.OnConnected(ConnectionId);
   except
-    // Log but don't fail
+    on E: Exception do
+      // Writeln('Hub: Error invoking OnConnected: ', E.Message);
   end;
   
   // Send connected event
   TSSEWriter.WriteEvent(Ctx.Response, 'connected', '{"connectionId":"' + ConnectionId + '"}');
+  Ctx.Response.Flush;
+  // Writeln('Hub: Connected event sent to ID: ', ConnectionId);
   
   KeepAliveCounter := 0;
   
@@ -496,23 +507,33 @@ begin
   while (not Connection.Closed) and (not FSSETransport.IsShuttingDown) do
   begin
     // Check for pending messages
+    HasMessages := False;
     while Connection.HasPendingMessages and (not FSSETransport.IsShuttingDown) do
     begin
       Msg := Connection.DequeueMessage;
       if Msg <> '' then
+      begin
+        // Writeln('Hub: Sending SSE payload to ID ', ConnectionId, ': ', Msg);
         TSSEWriter.WriteData(Ctx.Response, Msg);
+        HasMessages := True;
+      end;
     end;
+    if HasMessages then
+      Ctx.Response.Flush;
     
     // Send keep-alive comment every 15 seconds (150 * 100ms)
     Inc(KeepAliveCounter);
     if KeepAliveCounter >= 150 then
     begin
       TSSEWriter.WriteComment(Ctx.Response, 'ping');
+      Ctx.Response.Flush;
       KeepAliveCounter := 0;
     end;
     
     Sleep(100);
   end;
+  
+  // Writeln('Hub: SSE Connection closed for ID: ', ConnectionId, ' (Connection.Closed=', Connection.Closed, ', FSSETransport.IsShuttingDown=', FSSETransport.IsShuttingDown, ')');
   
   // Cleanup
   FConnectionManager.Remove(ConnectionId);
@@ -522,7 +543,8 @@ begin
   try
     Dispatcher.OnDisconnected(ConnectionId, nil);
   except
-    // Log but don't fail
+    on E: Exception do
+      Writeln('Hub: Error invoking OnDisconnected: ', E.Message);
   end;
 end;
 
@@ -600,6 +622,7 @@ begin
   
   // Read body
   Body := ReadStreamToString(Ctx.Request.Body);
+  Writeln('Hub: Invoking method target on Path: ', HubPath, ', ConnectionId: ', ConnectionId, ', Body: ', Body);
   
   try
     // Parse invocation request

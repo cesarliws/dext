@@ -617,6 +617,13 @@ end;
 
 procedure TDextIndyHttpResponse.Flush;
 begin
+  if FStreamMode = ismNormal then
+  begin
+    FStreamMode := ismBuffering;
+    FStreamBuffer := FResponseInfo.ContentText;
+    FResponseInfo.ContentText := '';
+  end;
+
   if FStreamMode <> ismBuffering then
     Exit;
 

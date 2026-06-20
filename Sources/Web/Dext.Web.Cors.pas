@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -297,13 +297,13 @@ end;
 
 procedure TCorsMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 begin
-  DebugLog('?? CORS MIDDLEWARE STARTED');
-  DebugLog('?? Request: ' + AContext.Request.Method + ' ' + AContext.Request.Path);
+  DebugLog('🛡️ CORS MIDDLEWARE STARTED');
+  DebugLog('📥 Request: ' + AContext.Request.Method + ' ' + AContext.Request.Path);
 
   // Debug: ver todos os headers da request
   if FEnableDebugLog then
   begin
-    DebugLog('?? Request Headers:');
+    DebugLog('📋 Request Headers:');
     // For now disabled in generic dictionary to not break zero alloc
     // but the actual dictionary might have headers implementation
   end;
@@ -314,16 +314,16 @@ begin
   // Se for preflight OPTIONS
   if AContext.Request.Method = 'OPTIONS' then
   begin
-    DebugLog('?? CORS: Handling OPTIONS preflight');
+    DebugLog('🔄 CORS: Handling OPTIONS preflight');
     AContext.Response.StatusCode := 204; // No Content
     AContext.Response.SetContentType('text/plain');
-    DebugLog('?? CORS: Stopping pipeline for OPTIONS');
+    DebugLog('🛑 CORS: Stopping pipeline for OPTIONS');
     Exit;
   end;
 
-  DebugLog('?? CORS: Continuing to next middleware');
+  DebugLog('⏭️ CORS: Continuing to next middleware');
   ANext(AContext);
-  DebugLog('?? CORS MIDDLEWARE FINISHED');
+  DebugLog('🏁 CORS MIDDLEWARE FINISHED');
 end;
 
 procedure TCorsMiddleware.AddCorsHeaders(AContext: IHttpContext);

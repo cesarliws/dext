@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -395,11 +395,11 @@ begin
     StateControl.SetState(asMigrating);
 
   {$IFDEF DEXT_ENABLE_ENTITY}
-  // ?? Run Migrations automatically if configured
+  // 🗄️ Run Migrations automatically if configured
   DbConfig := FConfiguration.GetSection('Database');
   if (DbConfig <> nil) and (SameText(DbConfig['AutoMigrate'], 'true')) then
   begin
-    LogInfo('?? AutoMigrate enabled. Checking database schema...');
+    LogInfo('🗄️ AutoMigrate enabled. Checking database schema...');
     
     // Resolve DbContext
     DbContextIntf := FServiceProvider.GetServiceAsInterface(TServiceType.FromInterface(IDbContext));
@@ -428,7 +428,7 @@ begin
   // Start Hosted Services
   HostedManager := nil;
   try
-    // ?? Resolve as INTERFACE (enables ARC management)
+    // ⚙️ Resolve as INTERFACE (enables ARC management)
     ManagerIntf := FServiceProvider.GetServiceAsInterface(TServiceType.FromInterface(IHostedServiceManager));
     if ManagerIntf <> nil then
     begin
@@ -555,7 +555,7 @@ begin
   FServiceProvider := nil;
 
   {$IFDEF DEXT_ENABLE_ENTITY}
-  // ?? Finalize custom FireDAC Manager to drop pools before app shutdown audit
+  // 🔌 Finalize custom FireDAC Manager to drop pools before app shutdown audit
   TDextFireDACManager.Finalize;
   {$ENDIF}
 

@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Base;
+unit EntityDemo.Tests.Base;
 
 interface
 
@@ -209,6 +209,7 @@ begin
   DropTableIfExists('documents');
   DropTableIfExists('articles');
   DropTableIfExists('tasks');
+  DropTableIfExists('sequenced_users');
   DropTableIfExists('converter_test');  // TypeConverter example
 
   // 1.5 Clear SQL Cache to avoid interference between tests
@@ -237,6 +238,7 @@ begin
   FContext.Entities<TUserProfile>;
   FContext.Entities<TUserWithProfile>;
   FContext.Entities<TTask>;
+  FContext.Entities<TSequencedUser>;
   FContext.Entities<TConverterTestEntity>;  // TypeConverter example
 
   WriteLn('🏗️  Creating schema...');

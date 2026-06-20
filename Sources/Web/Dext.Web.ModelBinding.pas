@@ -151,6 +151,8 @@ type
   ///   Converts data from various HTTP sources to native Delphi types using RTTI.
   /// </summary>
   TModelBinder = class(TInterfacedObject, IModelBinder)
+  private
+    function BindBodyPrimitive(AParam: TRttiParameter; Context: IHttpContext): TValue;
   public
     constructor Create;
     destructor Destroy; override;
@@ -291,6 +293,77 @@ destructor TModelBinder.Destroy;
 begin
 
   inherited;
+end;
+
+function TModelBinder.BindBodyPrimitive(AParam: TRttiParameter; Context: IHttpContext): TValue;
+var
+  Stream: TStream;
+  Bytes: TBytes;
+  BodyJsonStr: string;
+  JsonNode: IDextJsonNode;
+  JsonObj: IDextJsonObject;
+  NodeVal: IDextJsonNode;
+begin
+  Stream := Context.Request.Body;
+  if (Stream = nil) or (Stream.Size = 0) then
+    Exit(TReflection.GetDefaultValue(nil, AParam.ParamType.Handle));
+
+  Stream.Position := 0;
+  SetLength(Bytes, Stream.Size);
+  if Stream.Size > 0 then
+    Stream.ReadBuffer(Bytes[0], Stream.Size);
+  BodyJsonStr := TEncoding.UTF8.GetString(Bytes);
+
+  if BodyJsonStr <> '' then
+  begin
+    try
+      JsonNode := TDextJson.Provider.Parse(BodyJsonStr);
+      if (JsonNode <> nil) then
+      begin
+        if (JsonNode.GetNodeType = jntObject) then
+        begin
+          JsonObj := JsonNode as IDextJsonObject;
+          if JsonObj.Contains(AParam.Name) then
+          begin
+            NodeVal := JsonObj.GetNode(AParam.Name);
+            if NodeVal <> nil then
+            begin
+              case NodeVal.GetNodeType of
+                jntString: Result := TReflection.CastFromString(NodeVal.AsString, AParam.ParamType.Handle);
+                jntNumber: Result := TReflection.CastFromString(NodeVal.AsString, AParam.ParamType.Handle);
+                jntBoolean: Result := TValue.From<Boolean>(NodeVal.AsBoolean);
+                jntNull: Result := TReflection.GetDefaultValue(nil, AParam.ParamType.Handle);
+              else
+                Result := TReflection.CastFromString(NodeVal.AsString, AParam.ParamType.Handle);
+              end;
+              Exit;
+            end;
+          end;
+        end;
+
+        case JsonNode.GetNodeType of
+          jntString: Result := TReflection.CastFromString(JsonNode.AsString, AParam.ParamType.Handle);
+          jntNumber: Result := TReflection.CastFromString(JsonNode.AsString, AParam.ParamType.Handle);
+          jntBoolean: Result := TValue.From<Boolean>(JsonNode.AsBoolean);
+          jntNull: Result := TReflection.GetDefaultValue(nil, AParam.ParamType.Handle);
+        else
+          if (Length(BodyJsonStr) >= 2) and (BodyJsonStr[1] = '"') and (BodyJsonStr[Length(BodyJsonStr)] = '"') then
+            Result := TReflection.CastFromString(Copy(BodyJsonStr, 2, Length(BodyJsonStr) - 2), AParam.ParamType.Handle)
+          else
+            Result := TReflection.CastFromString(BodyJsonStr, AParam.ParamType.Handle);
+        end;
+      end
+      else
+        Result := TReflection.GetDefaultValue(nil, AParam.ParamType.Handle);
+    except
+      if (Length(BodyJsonStr) >= 2) and (BodyJsonStr[1] = '"') and (BodyJsonStr[Length(BodyJsonStr)] = '"') then
+        Result := TReflection.CastFromString(Copy(BodyJsonStr, 2, Length(BodyJsonStr) - 2), AParam.ParamType.Handle)
+      else
+        Result := TReflection.CastFromString(BodyJsonStr, AParam.ParamType.Handle);
+    end;
+  end
+  else
+    Result := TReflection.GetDefaultValue(nil, AParam.ParamType.Handle);
 end;
 
 function TModelBinder.BindBody(AType: PTypeInfo; Context: IHttpContext): TValue;
@@ -697,7 +770,10 @@ begin
     end
     else if Attr is FromBodyAttribute then
     begin
-      Result := BindBody(AParam.ParamType.Handle, AContext);
+      if (AParam.ParamType.Handle.Kind <> tkRecord) and (AParam.ParamType.Handle.Kind <> tkClass) then
+        Result := BindBodyPrimitive(AParam, AContext)
+      else
+        Result := BindBody(AParam.ParamType.Handle, AContext);
       Exit;
     end
     else if Attr is FromServicesAttribute then

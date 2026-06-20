@@ -652,3 +652,61 @@ var All := Db.Users.ToList(TAllUsersAdminSpec.Create);
 
 `IgnoreQueryFilters` is **call-scoped** — it does not affect subsequent queries on the same `DbSet`.
 
+## Database Sequence Generators & HiLo (Bulk Insert Optimization)
+
+By default, entities configured with `[AutoInc]` cannot utilize high-performance batch insert (`PersistAddRange`) because IDs are generated on the database server during insert execution. Dext resolves this through client-side pre-allocation via sequences and the **HiLo Optimizer** (Pooled-lo algorithm).
+
+### 1. Attribute Configuration
+Configure the primary key with `[Sequence]`:
+
+```pascal
+type
+  [Table('sequenced_users')]
+  TSequencedUser = class
+  private
+    FId: IntType;
+    FName: StringType;
+  public
+    [PK, Sequence('SEQ_USER_ID', 50)]
+    property Id: IntType read FId write FId;
+
+    property Name: StringType read FName write FName;
+  end;
+```
+
+* **SequenceName**: Name of the sequence object in the database.
+* **AllocationSize**: Range pre-allocated in memory per roundtrip (defaults to `50`).
+
+### 2. Fluent API Configuration
+```pascal
+procedure TAppDbContext.OnModelCreating(Builder: TModelBuilder);
+begin
+  Builder.Entity<TSequencedUser>()
+    .Property('Id')
+    .UseSequence('SEQ_USER_ID', 50);
+end;
+```
+
+### 3. Execution Integration
+When inserting in bulk, Dext pre-allocates IDs on the client side, assigns them to the objects, and routes the operation safely through `PersistAddRange` using FireDAC batch DML (ExecuteBatch) in a single roundtrip:
+
+```pascal
+var BulkList: IList<TSequencedUser>;
+BulkList := TCollections.CreateList<TSequencedUser>(False);
+try
+  for var i := 1 to 100 do
+  begin
+    var SU := TSequencedUser.Create;
+    SU.Name := 'User ' + i.ToString;
+    BulkList.Add(SU);
+  end;
+
+  // Fully optimized batch insert in a single network roundtrip!
+  Db.Entities<TSequencedUser>.AddRange(BulkList);
+  Db.SaveChanges;
+finally
+  for var SU in BulkList do SU.Free;
+end;
+```
+
+

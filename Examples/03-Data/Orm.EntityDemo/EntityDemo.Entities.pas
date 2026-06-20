@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Entities;
+unit EntityDemo.Entities;
 
 interface
 
@@ -77,6 +77,19 @@ type
 
     [ForeignKey('AddressId', caCascade), NotMapped]  // CASCADE on delete
     property Address: TAddress read GetAddress write SetAddress;
+  end;
+
+  [Table('sequenced_users')]
+  TSequencedUser = class
+  private
+    FId: Integer;
+    FName: string;
+    FAge: Integer;
+  public
+    [PK, Sequence('SEQ_USER_ID', 50)]
+    property Id: Integer read FId write FId;
+    property Name: string read FName write FName;
+    property Age: Integer read FAge write FAge;
   end;
 
   [Table('order_items')]

@@ -152,6 +152,8 @@ type
     procedure SetContentType(const AValue: string);
     /// <summary>Sets the response Content-Length header.</summary>
     procedure SetContentLength(const AValue: Int64);
+    /// <summary>Flushes buffered response data to the underlying transport.</summary>
+    procedure Flush;
     /// <summary>Writes a UTF-8 string to the response body.</summary>
     procedure Write(const AContent: string); overload;
     /// <summary>Writes raw bytes to the response body.</summary>
@@ -629,6 +631,11 @@ begin
   if AMessage <> '' then Write(AMessage);
 end;
 
+procedure TDextNativeHttpResponse.Flush;
+begin
+  FRawResponse.Flush;
+end;
+
 procedure TDextNativeHttpResponse.Write(const AContent: string);
 var
   Bytes: TBytes;
@@ -783,7 +790,11 @@ procedure TDextNativeWebServer.Start;
 begin
   if FRunning then Exit;
 
+  {$IFDEF MSWINDOWS}
+  FEngine.Bind('127.0.0.1', FPort);
+  {$ELSE}
   FEngine.Bind('0.0.0.0', FPort);
+  {$ENDIF}
   FEngine.SetOnRequest(
     procedure(const AConnection: IDextServerConnection; const ARequest: IDextRawRequest; const AResponse: IDextRawResponse)
     var

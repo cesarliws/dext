@@ -387,6 +387,7 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 - **Stored Procedures** — Execução declarativa via `[StoredProcedure]` e `[DbParam]`.
 - **Multi-Tenancy** — Banco Compartilhado (TenantId), Isolamento por Schema (`search_path`), Tenant per Database.
 - **Operações em Lote / Bulk** — APIs em lote de alta performance: `AddRange`, `UpdateRange`, e `RemoveRange` com suporte a coleções genéricas brutas (`TArray<T>`, `IEnumerable<T>`) para persistência em massa em uma única transação de contexto.
+- **Database Sequence Generators & HiLo** (`Dext.Entity.Sequences`) — Mapeamento declarativo de sequences através do atributo `[Sequence('name', allocationSize)]` ou via fluent `UseSequence`. Utiliza um `TSequenceManager` thread-safe com otimizador Pooled-lo para pré-alocar blocos de chaves na memória, ativando inserções em lote (bulk) de alta performance para chaves primárias sequenciadas. Suporte a SQLite emulado via tabela dedicada (`dext_sequences`).
 
 ### 4.12 Filtros Dinâmicos de Query (`Dext.Entity.DbSet`, `Dext.Specifications.SQL.Generator`)
 - **`IgnoreQueryFilters` (API Fluente)** — `Db.Users.IgnoreQueryFilters.ToList` — ignora todos os filtros globais de query registrados (Soft Delete, Multi-Tenancy) para uma única chamada. Não afeta chamadas subsequentes.

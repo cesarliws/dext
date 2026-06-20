@@ -120,6 +120,12 @@ type
     function HasEditMask(const AValue: string): IPropertyBuilder<T>;
     function HasAlignment(AValue: TAlignment): IPropertyBuilder<T>;
     function IsReadOnly(AValue: Boolean = True): IPropertyBuilder<T>;
+    /// <summary>
+    ///   Configures this property to use a database sequence generator for primary key pre-allocation.
+    /// </summary>
+    /// <param name="ASequenceName">The name of the database sequence.</param>
+    /// <param name="AAllocationSize">The block allocation size for in-memory HiLo pre-allocation (default is 50).</param>
+    function UseSequence(const ASequenceName: string; AAllocationSize: Integer = 50): IPropertyBuilder<T>;
   end;
 
   /// <summary>
@@ -177,6 +183,10 @@ type
     IsCreatedAt: Boolean;
     IsUpdatedAt: Boolean;
     IsDeletedAt: Boolean; // New: Soft Delete Timestamp
+    // Sequence Generation (S46)
+    IsSequenced: Boolean;
+    SequenceName: string;
+    SequenceAllocationSize: Integer;
     // Internal engine optimization
     FieldOffset: Integer;      // Offset of Null flag (Boolean) - Used by TEntityDataSet
     MetadataOffset: Integer;   // Offset of FInfo (IPropInfo) - Used by Prototype
@@ -379,6 +389,12 @@ type
     function HasEditMask(const AValue: string): IPropertyBuilder<T>;
     function HasAlignment(AValue: TAlignment): IPropertyBuilder<T>;
     function IsReadOnly(AValue: Boolean = True): IPropertyBuilder<T>;
+    /// <summary>
+    ///   Configures this property to use a database sequence generator for primary key pre-allocation.
+    /// </summary>
+    /// <param name="ASequenceName">The name of the database sequence.</param>
+    /// <param name="AAllocationSize">The block allocation size for in-memory HiLo pre-allocation (default is 50).</param>
+    function UseSequence(const ASequenceName: string; AAllocationSize: Integer = 50): IPropertyBuilder<T>;
   end;
 
   /// <summary>
@@ -515,8 +531,14 @@ begin
       (AAttr is CaptionAttribute) or (AAttr is DisplayFormatAttribute) or (AAttr is DisplayWidthAttribute) or
       (AAttr is EditMaskAttribute) or (AAttr is AlignmentAttribute) or (AAttr is DefaultValueAttribute) or
       (AAttr is VisibleAttribute) or (AAttr is ReadOnlyAttribute) or
-      (AAttr is LazyAttribute) then
+      (AAttr is LazyAttribute) or (AAttr is SequenceAttribute) then
   begin
+    if AAttr is SequenceAttribute then
+    begin
+      APropMap.IsSequenced := True;
+      APropMap.SequenceName := SequenceAttribute(AAttr).SequenceName;
+      APropMap.SequenceAllocationSize := SequenceAttribute(AAttr).AllocationSize;
+    end;
     if AAttr is LazyAttribute then APropMap.IsLazy := True;
     if AAttr is ColumnAttribute then APropMap.ColumnName := ColumnAttribute(AAttr).Name;
     if AAttr is FieldAttribute then 
@@ -1659,6 +1681,14 @@ end;
 function TPropertyBuilder<T>.IsReadOnly(AValue: Boolean): IPropertyBuilder<T>;
 begin
   FPropMap.IsReadOnly := AValue;
+  Result := Self;
+end;
+
+function TPropertyBuilder<T>.UseSequence(const ASequenceName: string; AAllocationSize: Integer): IPropertyBuilder<T>;
+begin
+  FPropMap.IsSequenced := True;
+  FPropMap.SequenceName := ASequenceName;
+  FPropMap.SequenceAllocationSize := AAllocationSize;
   Result := Self;
 end;
 

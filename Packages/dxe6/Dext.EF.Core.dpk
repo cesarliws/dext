@@ -84,7 +84,8 @@ contains
   Dext.Entity.LazyLoader in '..\..\Sources\Data\Dext.Entity.LazyLoader.pas',
   Dext.Entity.TemplatedScaffolding in '..\..\Sources\Data\Dext.Entity.TemplatedScaffolding.pas',
   Dext.Scaffolding.Models in '..\..\Sources\Data\Dext.Scaffolding.Models.pas',
-  Dext.Entity.Scaffolding.Processor in '..\..\Sources\Data\Dext.Entity.Scaffolding.Processor.pas';
+  Dext.Entity.Scaffolding.Processor in '..\..\Sources\Data\Dext.Entity.Scaffolding.Processor.pas',
+  Dext.Entity.Sequences in '..\..\Sources\Data\Dext.Entity.Sequences.pas';
 
 end.
 

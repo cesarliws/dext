@@ -103,6 +103,12 @@ type
     procedure PersistAddRange(const AEntities: TArray<TObject>);
     procedure PersistUpdate(const AEntity: TObject);
     procedure PersistRemove(const AEntity: TObject);
+    procedure PersistUpdateRange(const AEntities: TArray<TObject>);
+    procedure PersistRemoveRange(const AEntities: TArray<TObject>);
+    
+    function IsBulkInsertSafe: Boolean;
+    function IsBulkUpdateSafe: Boolean;
+    function IsBulkDeleteSafe: Boolean;
     
     function GetEntityId(const AEntity: TObject): string;
     

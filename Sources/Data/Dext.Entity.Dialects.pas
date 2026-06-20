@@ -105,6 +105,13 @@ type
 
     // Seed Data Support
     function GenerateSeedData(AOp: TSeedDataOperation): string;
+
+    // Sequence Support (S46)
+    /// <summary>
+    ///   Generates the SQL statement to fetch the next value from a database sequence.
+    /// </summary>
+    /// <param name="ASequenceName">The name of the sequence in the database.</param>
+    function GetSequenceNextValSQL(const ASequenceName: string): string;
   end;
   {$M-}
 
@@ -168,6 +175,7 @@ type
 
     function GetDialect: TDatabaseDialect; virtual;
     function GetJsonValueSQL(const AColumn, APath: string): string; virtual;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; virtual;
   end;
 
   /// <summary>
@@ -186,6 +194,7 @@ type
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     function GetDialect: TDatabaseDialect; override;
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -212,6 +221,7 @@ type
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
     function GetLockingSQL(ALockMode: TLockMode): string; override;
     function UseSchemaPrefix: Boolean; override;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -229,6 +239,7 @@ type
     function SupportsInsertReturning: Boolean; override;
     function GetReturningSQL(const AColumnName: string): string; override;
     function GetDialect: TDatabaseDialect; override;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -275,6 +286,7 @@ type
     function GetDialect: TDatabaseDialect; override;
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
     function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string; override;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -294,6 +306,7 @@ type
     function GetDialect: TDatabaseDialect; override;
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
     function GetLockingSQL(ALockMode: TLockMode): string; override;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -415,6 +428,11 @@ end;
 function TBaseDialect.GetJsonValueSQL(const AColumn, APath: string): string;
 begin
   raise Exception.Create('JSON queries not supported by this dialect');
+end;
+
+function TBaseDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  raise ENotSupportedException.Create('Sequences are not supported by this dialect');
 end;
 
 function TBaseDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string;
@@ -832,6 +850,11 @@ begin
   Result := Format('json_extract(%s, ''$.%s'')', [AColumn, APath]);
 end;
 
+function TSQLiteDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT nextval FROM dext_sequences WHERE name = ''%s''', [ASequenceName]);
+end;
+
 { TPostgreSQLDialect }
 
 function TPostgreSQLDialect.BooleanToSQL(AValue: Boolean): string;
@@ -978,6 +1001,11 @@ begin
   Result := False;
 end;
 
+function TPostgreSQLDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT nextval(''%s'')', [ASequenceName]);
+end;
+
 { TInterBaseDialect }
 
 function TInterBaseDialect.BooleanToSQL(AValue: Boolean): string;
@@ -1095,6 +1123,11 @@ end;
 function TFirebirdDialect.GetReturningSQL(const AColumnName: string): string;
 begin
   Result := 'RETURNING ' + QuoteIdentifier(AColumnName);
+end;
+
+function TFirebirdDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT NEXT VALUE FOR %s FROM rdb$database', [ASequenceName]);
 end;
 
 { TSQLServerDialect }
@@ -1408,6 +1441,11 @@ begin
   Result := Format('JSON_UNQUOTE(JSON_EXTRACT(%s, ''$.%s''))', [AColumn, APath]);
 end;
 
+function TMySQLDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT NEXTVAL(%s)', [ASequenceName]);
+end;
+
 { TOracleDialect }
 
 function TOracleDialect.BooleanToSQL(AValue: Boolean): string;
@@ -1524,6 +1562,11 @@ begin
     lmExclusiveNoWait: Result := 'FOR UPDATE NOWAIT';
     else Result := '';
   end;
+end;
+
+function TOracleDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT %s.NEXTVAL FROM dual', [ASequenceName]);
 end;
 
 end.

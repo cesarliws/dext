@@ -133,6 +133,11 @@ type
     procedure PersistAddRange(const AEntities: TArray<TObject>);
     procedure PersistUpdate(const AEntity: TObject);
     procedure PersistRemove(const AEntity: TObject);
+    procedure PersistUpdateRange(const AEntities: TArray<TObject>);
+    procedure PersistRemoveRange(const AEntities: TArray<TObject>);
+    function IsBulkInsertSafe: Boolean;
+    function IsBulkUpdateSafe: Boolean;
+    function IsBulkDeleteSafe: Boolean;
     function GenerateCreateTableScript: string;
     procedure Clear;
     procedure DetachAll;
@@ -1308,6 +1313,328 @@ begin
     end;
   finally
     Generator.Free;
+  end;
+end;
+
+procedure TDbSet<T>.PersistUpdateRange(const AEntities: TArray<TObject>);
+var
+  Cmd: IDbCommand;
+  EntitiesT: TArray<T>;
+  Generator: TSqlGenerator<T>;
+  Helper: TNullableHelper;
+  i: Integer;
+  Pair: TPair<TRttiProperty, string>;
+  ParamName: string;
+  ParamValues: TArray<TValue>;
+  Prop: TRttiProperty;
+  SetProps, WhereProps: IList<TPair<TRttiProperty, string>>;
+  Sql: string;
+  Val: TValue;
+  Converter: ITypeConverter;
+  PropMap: TPropertyMap;
+begin
+  if Length(AEntities) = 0 then Exit;
+  SetLength(EntitiesT, Length(AEntities));
+  for i := 0 to High(AEntities) do
+  begin
+    EntitiesT[i] := T(AEntities[i]);
+    HandleTimestamps(AEntities[i], False);
+  end;
+  
+  Generator := CreateGenerator;
+  try
+    Sql := Generator.GenerateUpdateTemplate(SetProps, WhereProps);
+    try
+      if Sql = '' then Exit;
+      Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
+      Cmd.SetArraySize(Length(EntitiesT));
+      SetLength(ParamValues, Length(EntitiesT));
+      
+      // Bind SET parameters
+      for Pair in SetProps do
+      begin
+        Prop := Pair.Key;
+        ParamName := Pair.Value;
+        
+        PropMap := nil;
+        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        
+        Converter := nil;
+        if PropMap <> nil then Converter := PropMap.Converter;
+        if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
+        if (Converter = nil) and (PropMap <> nil) and PropMap.IsJsonColumn then
+          Converter := TJsonConverter.Create(PropMap.UseJsonB);
+
+        for i := 0 to High(EntitiesT) do
+        begin
+          Val := Prop.GetValue(Pointer(EntitiesT[i]));
+          
+          if IsNullable(Val.TypeInfo) then
+          begin
+             Helper := TNullableHelper.Create(Val.TypeInfo);
+             if Helper.HasValue(Val.GetReferenceToRawData) then
+               Val := Helper.GetValue(Val.GetReferenceToRawData)
+             else
+               Val := TValue.Empty;
+          end;
+          
+          TReflection.TryUnwrapProp(Val, Val);
+          
+          if Converter <> nil then
+            Val := Converter.ToDatabase(Val, Generator.GetDialectEnum);
+            
+          ParamValues[i] := Val;
+        end;
+        Cmd.SetParamArray(ParamName, ParamValues);
+      end;
+      
+      // Bind WHERE parameters (PKs)
+      for Pair in WhereProps do
+      begin
+        Prop := Pair.Key;
+        ParamName := Pair.Value;
+        
+        PropMap := nil;
+        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        
+        Converter := nil;
+        if PropMap <> nil then Converter := PropMap.Converter;
+        if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
+
+        for i := 0 to High(EntitiesT) do
+        begin
+          Val := Prop.GetValue(Pointer(EntitiesT[i]));
+          
+          if IsNullable(Val.TypeInfo) then
+          begin
+             Helper := TNullableHelper.Create(Val.TypeInfo);
+             if Helper.HasValue(Val.GetReferenceToRawData) then
+               Val := Helper.GetValue(Val.GetReferenceToRawData)
+             else
+               Val := TValue.Empty;
+          end;
+          
+          TReflection.TryUnwrapProp(Val, Val);
+          
+          if Converter <> nil then
+            Val := Converter.ToDatabase(Val, Generator.GetDialectEnum);
+            
+          ParamValues[i] := Val;
+        end;
+        Cmd.SetParamArray(ParamName, ParamValues);
+      end;
+      
+      Cmd.ExecuteBatch(Length(EntitiesT));
+      
+      // After batch execution, update identity maps
+      for i := 0 to High(EntitiesT) do
+      begin
+        Sql := GetEntityId(EntitiesT[i]);
+        if not FIdentityMap.ContainsKey(Sql) then
+        begin
+           if FOrphans.Contains(EntitiesT[i]) then
+             FIdentityMap.Add(Sql, FOrphans.Extract(EntitiesT[i]))
+           else
+             FIdentityMap.Add(Sql, EntitiesT[i]);
+        end;
+      end;
+    finally
+      SetProps := nil;
+      WhereProps := nil;
+    end;
+  finally
+    Generator.Free;
+  end;
+end;
+
+procedure TDbSet<T>.PersistRemoveRange(const AEntities: TArray<TObject>);
+var
+  Cmd: IDbCommand;
+  EntitiesT: TArray<T>;
+  Generator: TSqlGenerator<T>;
+  Helper: TNullableHelper;
+  i: Integer;
+  Pair: TPair<TRttiProperty, string>;
+  ParamName: string;
+  ParamValues: TArray<TValue>;
+  Prop: TRttiProperty;
+  WhereProps: IList<TPair<TRttiProperty, string>>;
+  Sql: string;
+  Val: TValue;
+  Converter: ITypeConverter;
+  PropMap: TPropertyMap;
+begin
+  if Length(AEntities) = 0 then Exit;
+  SetLength(EntitiesT, Length(AEntities));
+  for i := 0 to High(AEntities) do
+    EntitiesT[i] := T(AEntities[i]);
+    
+  Generator := CreateGenerator;
+  try
+    Sql := Generator.GenerateDeleteTemplate(WhereProps);
+    try
+      if Sql = '' then Exit;
+      Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
+      Cmd.SetArraySize(Length(EntitiesT));
+      SetLength(ParamValues, Length(EntitiesT));
+      
+      // Bind WHERE parameters (PKs)
+      for Pair in WhereProps do
+      begin
+        Prop := Pair.Key;
+        ParamName := Pair.Value;
+        
+        PropMap := nil;
+        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        
+        Converter := nil;
+        if PropMap <> nil then Converter := PropMap.Converter;
+        if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
+
+        for i := 0 to High(EntitiesT) do
+        begin
+          Val := Prop.GetValue(Pointer(EntitiesT[i]));
+          
+          if IsNullable(Val.TypeInfo) then
+          begin
+             Helper := TNullableHelper.Create(Val.TypeInfo);
+             if Helper.HasValue(Val.GetReferenceToRawData) then
+               Val := Helper.GetValue(Val.GetReferenceToRawData)
+             else
+               Val := TValue.Empty;
+          end;
+          
+          TReflection.TryUnwrapProp(Val, Val);
+          
+          if Converter <> nil then
+            Val := Converter.ToDatabase(Val, Generator.GetDialectEnum);
+            
+          ParamValues[i] := Val;
+        end;
+        Cmd.SetParamArray(ParamName, ParamValues);
+      end;
+      
+      Cmd.ExecuteBatch(Length(EntitiesT));
+      
+      // Remove from identity maps
+      for i := 0 to High(EntitiesT) do
+      begin
+        FIdentityMap.Remove(GetEntityId(EntitiesT[i]));
+      end;
+    finally
+      WhereProps := nil;
+    end;
+  finally
+    Generator.Free;
+  end;
+end;
+
+function TDbSet<T>.IsBulkInsertSafe: Boolean;
+var
+  Handler: IPropertyHandler;
+  Meta: TTypeMetadata;
+  PropMap: TPropertyMap;
+  IsAutoInc: Boolean;
+begin
+  Result := True;
+  
+  // Check mapping for shadow properties
+  if FMap <> nil then
+  begin
+    for PropMap in FMap.Properties.Values do
+    begin
+      if PropMap.IsShadow then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end;
+  end;
+
+  Meta := TReflection.GetMetadata(TypeInfo(T));
+  for Handler in Meta.GetPropertyHandlers() do
+  begin
+    IsAutoInc := Handler.GetIsAutoInc();
+    if FMap <> nil then
+    begin
+      if FMap.Properties.TryGetValue(Handler.GetName(), PropMap) then
+      begin
+        if PropMap.IsAutoInc then IsAutoInc := True;
+        if PropMap.IsSequenced then IsAutoInc := False;
+      end;
+    end;
+    if IsAutoInc then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+end;
+
+function TDbSet<T>.IsBulkUpdateSafe: Boolean;
+var
+  Handler: IPropertyHandler;
+  Meta: TTypeMetadata;
+  PropMap: TPropertyMap;
+begin
+  Result := True;
+  
+  // Check mapping for shadow properties
+  if FMap <> nil then
+  begin
+    for PropMap in FMap.Properties.Values do
+    begin
+      if PropMap.IsShadow then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end;
+  end;
+
+  Meta := TReflection.GetMetadata(TypeInfo(T));
+  for Handler in Meta.GetPropertyHandlers() do
+  begin
+    if Handler.GetMember().HasAttribute(VersionAttribute) then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+end;
+
+function TDbSet<T>.IsBulkDeleteSafe: Boolean;
+var
+  Attr: TCustomAttribute;
+  RType: TRttiType;
+  PropMap: TPropertyMap;
+begin
+  Result := True;
+  
+  // 1. Check Fluent Mapping for soft delete
+  if (FMap <> nil) and FMap.IsSoftDelete then
+  begin
+    Exit(False);
+  end;
+  
+  if FMap <> nil then
+  begin
+    for PropMap in FMap.Properties.Values do
+    begin
+      if PropMap.IsDeletedAt then
+        Exit(False);
+    end;
+  end;
+  
+  // 2. Check Attribute for soft delete
+  RType := TReflection.Context.GetType(T);
+  if RType <> nil then
+  begin
+    for Attr in RType.GetAttributes do
+    begin
+      if Attr is SoftDeleteAttribute then
+        Exit(False);
+    end;
   end;
 end;
 

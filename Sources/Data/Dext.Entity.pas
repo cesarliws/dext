@@ -1,4 +1,4 @@
-unit Dext.Entity;
+﻿unit Dext.Entity;
 
 {$IFDEF FPC}
   {$MODE DELPHI}
@@ -394,7 +394,7 @@ const
   // {END_DEXT_ALIASES}
 
   // ===========================================================================
-  // ?? Local Types & Helpers
+  // ⚡ Local Types & Helpers
   // ===========================================================================
 type
   /// <summary>

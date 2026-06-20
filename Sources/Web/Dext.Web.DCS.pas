@@ -188,6 +188,7 @@ type
     procedure Forbidden(const AMessage: string = '');
     procedure BadRequest(const AMessage: string = '');
     procedure NotFound(const AMessage: string = '');
+    procedure Flush;
     property StatusCode: Integer read GetStatusCode write SetStatusCode;
     property ContentType: string read GetContentType write SetContentType;
   end;
@@ -711,6 +712,11 @@ procedure TDextDCSResponse.NotFound(const AMessage: string);
 begin
   FStatusCode := 404;
   if AMessage <> '' then Write(AMessage);
+end;
+
+procedure TDextDCSResponse.Flush;
+begin
+  // No-op for DCS adapter
 end;
 
 { TDextDCSContext }

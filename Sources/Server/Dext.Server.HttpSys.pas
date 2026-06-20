@@ -422,14 +422,68 @@ begin
 end;
 
 function TDextHttpSysRequest.GetBodyStream: TStream;
+var
+  PChunk: PHTTP_DATA_CHUNK_INMEMORY;
+  I: Integer;
+  BytesReceived: ULONG;
+  Ret: ULONG;
+  TempBuf: TBytes;
 begin
   if FBodyStream = nil then
   begin
+    FBodyStream := TMemoryStream.Create;
+    
+    // 1. Copy pre-allocated body chunks
     if (FRequest.EntityChunkCount > 0) and (FRequest.pEntityChunks <> nil) then
     begin
-      // Wrapper around in-memory body if pre-allocated
+      PChunk := PHTTP_DATA_CHUNK_INMEMORY(FRequest.pEntityChunks);
+      for I := 0 to FRequest.EntityChunkCount - 1 do
+      begin
+        if PChunk.DataChunkType = hctFromMemory then
+        begin
+          if (PChunk.pBuffer <> nil) and (PChunk.BufferLength > 0) then
+            FBodyStream.WriteBuffer(PChunk.pBuffer^, PChunk.BufferLength);
+        end;
+        Inc(PChunk);
+      end;
     end;
-    FBodyStream := TMemoryStream.Create;
+    
+    // 2. Read remaining body chunks via HttpReceiveRequestEntityBody
+    if (FRequest.Flags and HTTP_REQUEST_FLAG_MORE_ENTITY_BODY_EXISTS) <> 0 then
+    begin
+      SetLength(TempBuf, 32768);
+      while True do
+      begin
+        BytesReceived := 0;
+        Ret := HttpReceiveRequestEntityBody(
+          FEngine.FReqQueue,
+          FRequest.RequestId,
+          0,
+          @TempBuf[0],
+          Length(TempBuf),
+          BytesReceived,
+          nil
+        );
+        
+        if Ret = ERROR_SUCCESS then
+        begin
+          if BytesReceived > 0 then
+            FBodyStream.WriteBuffer(TempBuf[0], BytesReceived)
+          else
+            Break;
+        end
+        else if Ret = ERROR_HANDLE_EOF then
+        begin
+          if BytesReceived > 0 then
+            FBodyStream.WriteBuffer(TempBuf[0], BytesReceived);
+          Break;
+        end
+        else
+          Break;
+      end;
+    end;
+    
+    FBodyStream.Position := 0;
   end;
   Result := FBodyStream;
 end;
@@ -542,7 +596,7 @@ end;
 function TDextHttpSysRequest.GetPath: string;
 begin
   if FRequest.CookedUrl.pAbsPath <> nil then
-    Result := string(FRequest.CookedUrl.pAbsPath)
+    SetString(Result, FRequest.CookedUrl.pAbsPath, FRequest.CookedUrl.AbsPathLength div SizeOf(WideChar))
   else
     Result := '/';
 end;
@@ -551,7 +605,7 @@ end;
 function TDextHttpSysRequest.GetQueryString: string;
 begin
   if FRequest.CookedUrl.pQueryString <> nil then
-    Result := string(FRequest.CookedUrl.pQueryString)
+    SetString(Result, FRequest.CookedUrl.pQueryString, FRequest.CookedUrl.QueryStringLength div SizeOf(WideChar))
   else
     Result := '';
 end;
@@ -779,9 +833,61 @@ begin
 end;
 
 procedure TDextHttpSysResponse.Flush;
+var
+  Chunk: HTTP_DATA_CHUNK_INMEMORY;
+  Response: HTTP_RESPONSE;
+  BytesSent: ULONG;
+  Ret: ULONG;
+  I: Integer;
 begin
-  if not FHeadersSent then
-    SendHeadersInternal(False);
+  if FHeadersSent then Exit;
+
+  FillChar(Response, SizeOf(Response), 0);
+  Response.StatusCode := FStatusCode;
+  Response.ReasonLength := FReasonLen;
+  Response.pReason := @FReasonBuffer[0];
+  Response.Version.MajorVersion := 1;
+  Response.Version.MinorVersion := 1;
+
+  for I := 0 to 29 do
+  begin
+    if FHeaderValues[I].Length > 0 then
+    begin
+      Response.Headers.KnownHeaders[I].pRawValue := @FHeaderData[FHeaderValues[I].Offset];
+      Response.Headers.KnownHeaders[I].RawValueLength := FHeaderValues[I].Length;
+    end;
+  end;
+
+  if (FBodyBuffer <> nil) and (FBodyBuffer.Position > 0) then
+  begin
+    FillChar(Chunk, SizeOf(Chunk), 0);
+    Chunk.DataChunkType := hctFromMemory;
+    Chunk.pBuffer := FBodyBuffer.Memory;
+    Chunk.BufferLength := FBodyBuffer.Position;
+
+    Response.EntityChunkCount := 1;
+    Response.pEntityChunks := @Chunk;
+  end;
+
+  Ret := HttpSendHttpResponse(
+    FReqQueue,
+    FRequestId,
+    HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+    @Response,
+    nil,
+    BytesSent,
+    nil,
+    0,
+    nil,
+    nil
+  );
+
+  if Ret <> ERROR_SUCCESS then
+    raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
+
+  FHeadersSent := True;
+  if FBodyBuffer <> nil then
+    FBodyBuffer.Position := 0;
 end;
 
 procedure TDextHttpSysResponse.SendHeaders;

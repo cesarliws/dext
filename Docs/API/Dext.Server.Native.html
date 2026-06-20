@@ -143,6 +143,7 @@
 <a href="Dext.Entity.Query.html" class="nav-item">Dext.Entity.Query</a>
 <a href="Dext.Entity.Scaffolding.html" class="nav-item">Dext.Entity.Scaffolding</a>
 <a href="Dext.Entity.Scaffolding.Processor.html" class="nav-item">Dext.Entity.Scaffolding.Processor</a>
+<a href="Dext.Entity.Sequences.html" class="nav-item">Dext.Entity.Sequences</a>
 <a href="Dext.Entity.Setup.html" class="nav-item">Dext.Entity.Setup</a>
 <a href="Dext.Entity.TemplatedScaffolding.html" class="nav-item">Dext.Entity.TemplatedScaffolding</a>
 <a href="Dext.Entity.Tenancy.html" class="nav-item">Dext.Entity.Tenancy</a>
@@ -417,6 +418,7 @@ class TDextNativeHttpResponse {    +Create()
     +SetStatusCode()
     +SetContentType()
     +SetContentLength()
+    +Flush()
     +Write()
     +Json()
     +AddHeader()
@@ -560,6 +562,8 @@ IWebHost <|.. TDextNativeWebServer
 <div class="api-signature">procedure SetContentType(const const: string)</div><div class="description">Sets the response Content-Type header.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetContentLength(const const: Int64)</div><div class="description">Sets the response Content-Length header.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Flush</div><div class="description">Flushes buffered response data to the underlying transport.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Write(const const: string)</div><div class="description">Writes a UTF-8 string to the response body.</div></div>
 <div class="api-item">

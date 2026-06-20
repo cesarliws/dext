@@ -146,6 +146,7 @@ Always use native Smart Property aliases (**IntType**, **StringType**, **DoubleT
 | **Field/Prop Mapping** | `[Column('name')]` | Property | Map property to specific column |
 | | `[PK]` or `[PrimaryKey]` | Property | Primary Key (supports composite PKs) |
 | | `[AutoInc]` | Property | Auto-incrementing integer PK |
+| | `[Sequence('name', alloc)]` | Property | Primary Key pre-allocation via Database Sequence generator (HiLo) |
 | | `[Required]` | Property | NOT NULL constraint |
 | | `[MaxLength(N)]` | Property | Max string/array length |
 | | `[MinLength(N)]` | Property | Min string/array length |
