@@ -1,4 +1,4 @@
-unit AirFlow.Simulator;
+﻿unit AirFlow.Simulator;
 
 interface
 
@@ -162,7 +162,7 @@ begin
       LatDiff := -23.5505 - V.Latitude;
       LngDiff := -46.6333 - V.Longitude;
       Dist := Sqrt(LatDiff * LatDiff + LngDiff * LngDiff);
-      
+
       if Dist < 0.005 then
       begin
         FLock.Enter;

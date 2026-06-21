@@ -24,11 +24,11 @@
 {                                                                           }
 {  Windows HTTP Server (http.sys) driver implementation.                    }
 {                                                                           }
-{***************************************************************************}
 unit Dext.Server.HttpSys;
 
 interface
 
+{$IFDEF MSWINDOWS}
 uses
   System.Classes,
   System.SysUtils,
@@ -40,6 +40,7 @@ uses
   Dext.Server.HttpSys.Api,
   Dext.Web.Interfaces,
   Dext.DI.Interfaces;
+
 
 type
   TDextHttpSysEngine = class;
@@ -304,9 +305,11 @@ type
     class function Factory(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost; static;
     property BufferPool: TDextHttpSysBufferPool read FBufferPool;
   end;
+{$ENDIF}
 
 implementation
 
+{$IFDEF MSWINDOWS}
 uses
   System.SysConst,
   Dext.WebSocket.Handshake,
@@ -1736,8 +1739,8 @@ end;
 
 class function TDextHttpSysEngine.Factory(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost;
 begin
-  // IWebHost factory adapter for WebApplication pipeline
   Result := nil;
 end;
+{$ENDIF}
 
 end.

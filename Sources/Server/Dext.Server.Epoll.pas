@@ -263,15 +263,47 @@ implementation
 {$IFDEF LINUX}
 uses
   Posix.Base,
-  Posix.Types,
   Posix.SysTypes,
   Posix.SysSocket,
-  Posix.SysEpoll,
   Posix.Unistd,
   Posix.Fcntl,
   Posix.ArpaInet,
   Posix.NetinetIn,
   Posix.Errno;
+
+const
+  EPOLLIN      = $00000001;
+  EPOLLOUT     = $00000004;
+  EPOLLERR     = $00000008;
+  EPOLLHUP     = $00000010;
+  EPOLLRDHUP   = $00002000;
+  EPOLLET      = $80000000;
+  EPOLLONESHOT = $40000000;
+
+  EPOLL_CTL_ADD = 1;
+  EPOLL_CTL_DEL = 2;
+  EPOLL_CTL_MOD = 3;
+
+type
+  epoll_data = record
+    case Integer of
+      0: (ptr: Pointer);
+      1: (fd: Integer);
+      2: (u32: Cardinal);
+      3: (u64: UInt64);
+  end;
+
+  epoll_event = packed record
+    events: Cardinal;
+    data: epoll_data;
+  end;
+  pepoll_event = ^epoll_event;
+
+function epoll_create(size: Integer): Integer; cdecl; external libc name 'epoll_create';
+function epoll_create1(flags: Integer): Integer; cdecl; external libc name 'epoll_create1';
+function epoll_ctl(epfd: Integer; op: Integer; fd: Integer; event: pepoll_event): Integer; cdecl; external libc name 'epoll_ctl';
+function epoll_wait(epfd: Integer; events: pepoll_event; maxevents: Integer; timeout: Integer): Integer; cdecl; external libc name 'epoll_wait';
+
 
 { TDextEpollConnection }
 
@@ -308,7 +340,7 @@ var
   AddrLen: socklen_t;
 begin
   AddrLen := SizeOf(Addr);
-  if getsockname(FSocket, PSockAddr(@Addr)^, AddrLen) = 0 then
+  if getsockname(FSocket, Psockaddr(@Addr)^, AddrLen) = 0 then
     Result := ntohs(Addr.sin_port)
   else
     Result := 0;
@@ -320,7 +352,7 @@ var
   AddrLen: socklen_t;
 begin
   AddrLen := SizeOf(Addr);
-  if getpeername(FSocket, PSockAddr(@Addr)^, AddrLen) = 0 then
+  if getpeername(FSocket, Psockaddr(@Addr)^, AddrLen) = 0 then
     Result := string(AnsiString(inet_ntoa(Addr.sin_addr)))
   else
     Result := '';
@@ -332,7 +364,7 @@ var
   AddrLen: socklen_t;
 begin
   AddrLen := SizeOf(Addr);
-  if getpeername(FSocket, PSockAddr(@Addr)^, AddrLen) = 0 then
+  if getpeername(FSocket, Psockaddr(@Addr)^, AddrLen) = 0 then
     Result := ntohs(Addr.sin_port)
   else
     Result := 0;
@@ -511,15 +543,6 @@ var
   ClientFd: Integer;
   Addr: sockaddr_in;
   AddrLen: socklen_t;
-  BytesRead: Integer;
-  Buffer: TBytes;
-  Method, Path, Query, Version: string;
-  Headers: TDictionary<string, string>;
-  BodyOffset: Integer;
-  ContentLength: Int64;
-  Connection: IDextServerConnection;
-  RawRequest: IDextRawRequest;
-  RawResponse: IDextRawResponse;
 begin
   while not Terminated and FEngine.FRunning do
   begin
@@ -541,7 +564,7 @@ begin
         while True do
         begin
           AddrLen := SizeOf(Addr);
-          ClientFd := accept(FEngine.FListenSocket, PSockAddr(@Addr)^, AddrLen);
+          ClientFd := accept(FEngine.FListenSocket, Psockaddr(@Addr)^, AddrLen);
           if ClientFd < 0 then
           begin
             if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
@@ -611,7 +634,7 @@ begin
   if FEpollFd < 0 then
     raise EOSError.Create('epoll_create1 failed');
 
-  if pipe(FPipeFds) < 0 then
+  if pipe(@FPipeFds[0]) < 0 then
     raise EOSError.Create('pipe failed');
 
   // Set pipe to non-blocking
@@ -622,7 +645,7 @@ begin
     raise EOSError.Create('socket creation failed');
 
   OptVal := 1;
-  setsockopt(FListenSocket, SOL_SOCKET, SO_REUSEADDR, @OptVal, SizeOf(OptVal));
+  setsockopt(FListenSocket, SOL_SOCKET, SO_REUSEADDR, OptVal, SizeOf(OptVal));
 
   fcntl(FListenSocket, F_SETFL, O_NONBLOCK);
 
@@ -634,7 +657,7 @@ begin
   else
     Addr.sin_addr.s_addr := inet_addr(PAnsiChar(AnsiString(FAddress)));
 
-  if bind(FListenSocket, PSockAddr(@Addr)^, SizeOf(Addr)) < 0 then
+  if Posix.SysSocket.bind(FListenSocket, Psockaddr(@Addr)^, SizeOf(Addr)) < 0 then
     raise EOSError.Create('bind failed');
 
   if listen(FListenSocket, SOMAXCONN) < 0 then

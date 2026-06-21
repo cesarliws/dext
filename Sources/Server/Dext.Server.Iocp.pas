@@ -29,6 +29,7 @@ unit Dext.Server.Iocp;
 
 interface
 
+{$IFDEF MSWINDOWS}
 uses
   System.Classes,
   System.SysUtils,
@@ -39,6 +40,7 @@ uses
   Dext.Server.Engine.Interfaces,
   Dext.Server.Iocp.HttpParser,
   Dext.Collections.Dict;
+
 
 type
   TDextIocpEngine = class;
@@ -263,9 +265,11 @@ type
     /// <summary>Sets the socket upgrade event handler.</summary>
     procedure SetOnUpgrade(const AHandler: TUpgradeEventHandler);
   end;
+{$ENDIF}
 
 implementation
 
+{$IFDEF MSWINDOWS}
 const
   WSAID_ACCEPTEX: TGUID = '{b5367d37-239b-11d1-871c-0020afd6127f}';
   WSAID_GETACCEPTEXSOCKADDRS: TGUID = '{b5367d38-239b-11d1-871c-0020afd6127f}';
@@ -840,5 +844,7 @@ procedure TDextIocpEngine.SetOnUpgrade(const AHandler: TUpgradeEventHandler);
 begin
   FOnUpgrade := AHandler;
 end;
+
+{$ENDIF}
 
 end.

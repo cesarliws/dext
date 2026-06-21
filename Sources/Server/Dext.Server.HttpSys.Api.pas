@@ -29,6 +29,7 @@ unit Dext.Server.HttpSys.Api;
 
 interface
 
+{$IFDEF MSWINDOWS}
 uses
   Winapi.Windows;
 
@@ -374,6 +375,7 @@ function HttpSendHttpResponse(ReqQueueHandle: THandle; RequestId: HTTP_REQUEST_I
 function HttpSendResponseEntityBody(ReqQueueHandle: THandle; RequestId: HTTP_REQUEST_ID; Flags: ULONG; EntityChunkCount: USHORT; pEntityChunks: Pointer; var BytesSent: ULONG; pReserved1: Pointer; pReserved2: Pointer; pOverlapped: POverlapped; pLogData: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
 
 function HttpSetUrlGroupProperty(UrlGroupId: HTTP_URL_GROUP_ID; PropertyId: HTTP_SERVER_PROPERTY; pPropertyInformation: Pointer; PropertyInformationLength: ULONG): ULONG; stdcall; external HTTPAPI_DLL;
+{$ENDIF}
 
 implementation
 
