@@ -28,6 +28,9 @@ Ao participar deste projeto, você concorda em cumprir seus termos e diretrizes.
 *   Use espaços, não tabs (2 ou 4 espaços conforme o padrão do projeto).
 *   Siga as convenções de nomenclatura: `T` para Classes, `I` para Interfaces, `f` para campos privados.
 *   Mantenha os métodos focados e siga os princípios SOLID.
+*   **Desempenho & Segurança de Interfaces**:
+    *   Sempre passe parâmetros de interface como `const` nas assinaturas de métodos (ex: `procedure DoSomething(const AService: IMyService)`). Isso evita chamadas desnecessárias a `_AddRef` e `_Release` geradas pelo compilador, eliminando sobrecarga com instruções atômicas de CPU.
+    *   Evite misturar ponteiros de objetos puros (raw objects) com referências de interfaces em limites públicos ou APIs visíveis ao usuário. Restrinja a desvirtualização (fazer typecast de interfaces de volta para objetos) estritamente a loops internos isolados onde o ciclo de vida do objeto é totalmente controlado e nunca exposto.
 
 ### Testes
 *   Novas funcionalidades devem, idealmente, vir acompanhadas de testes unitários.

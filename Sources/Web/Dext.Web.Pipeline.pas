@@ -160,22 +160,27 @@ begin
     // O roteamento agora está DENTRO do pipeline como um middleware
     FMiddlewarePipeline(AContext);
     
-    Payload := TJSONObject.Create;
-    Payload.AddPair('method', AContext.Request.Method);
-    Payload.AddPair('url', AContext.Request.Path);
-    Payload.AddPair('status', TJSONNumber.Create(AContext.Response.StatusCode));
-    
-    TDiagnosticSource.Instance.Write('HTTP.Request', Payload, 'HTTP', SW.ElapsedMilliseconds);
-    Span.SetStatus('Success');
-  except
-    on E: Exception do
+    // Only allocate telemetry payload when observers are actually listening
+    if TDiagnosticSource.Instance.Enabled then
     begin
       Payload := TJSONObject.Create;
       Payload.AddPair('method', AContext.Request.Method);
       Payload.AddPair('url', AContext.Request.Path);
-      Payload.AddPair('error', E.Message);
-      
-      TDiagnosticSource.Instance.Write('HTTP.Request', Payload, 'HTTP', SW.ElapsedMilliseconds, 'Error', E.Message);
+      Payload.AddPair('status', TJSONNumber.Create(AContext.Response.StatusCode));
+      TDiagnosticSource.Instance.Write('HTTP.Request', Payload, 'HTTP', SW.ElapsedMilliseconds);
+    end;
+    Span.SetStatus('Success');
+  except
+    on E: Exception do
+    begin
+      if TDiagnosticSource.Instance.Enabled then
+      begin
+        Payload := TJSONObject.Create;
+        Payload.AddPair('method', AContext.Request.Method);
+        Payload.AddPair('url', AContext.Request.Path);
+        Payload.AddPair('error', E.Message);
+        TDiagnosticSource.Instance.Write('HTTP.Request', Payload, 'HTTP', SW.ElapsedMilliseconds, 'Error', E.Message);
+      end;
       Span.SetStatus('Error', E.Message);
       raise;
     end;

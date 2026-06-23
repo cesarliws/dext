@@ -1126,6 +1126,7 @@ function TFluentQuery<T>.ToList: IList<T>;
 var
   Enumerator: IEnumerator<T>;
   OwnsObjects: Boolean;
+  LList: TList<T>;
 begin
   // DEFAULT BEHAVIOR:
   // Usually, objects are owned by IdentityMap (Tracking=True), so List should NOT own them (OwnsObjects=False).
@@ -1149,12 +1150,17 @@ begin
     end;
     
     // Fallback for filtered/projected queries
-    Result := TCollections.CreateList<T>(OwnsObjects);
+    LList := TList<T>.Create(OwnsObjects);
+    if (FSpecification <> nil) and (FSpecification.GetTake > 0) then
+      LList.Capacity := FSpecification.GetTake
+    else
+      LList.Capacity := 64; // Default sensible initial capacity to avoid early resizing
+    Result := LList;
     if Enumerator = nil then Exit;
 
     try
       while Enumerator.MoveNext do
-        Result.Add(Enumerator.Current);
+        LList.Add(Enumerator.Current);
 
     except
       // If exception happens, result list is freed. 

@@ -137,6 +137,7 @@ type
     FOptions: TDataApiOptions;
     FDbContext: TDbContext;
     FEntityClass: TClass;
+    FSerializer: TDextSerializer;
     procedure RegisterRoutes(const ABuilder: IApplicationBuilder);
     function CheckAuthorization(const Context: IHttpContext; AIsWrite: Boolean): IResult;
     function GetJsonSettings: TJsonSettings;
@@ -341,10 +342,12 @@ begin
   FDbContext := ADbContext;
   if FOptions = nil then
     FOptions := TDataApiOptions.Create;
+  FSerializer := TDextSerializer.Create(GetJsonSettings);
 end;
 
 destructor TDataApiHandler.Destroy;
 begin
+  FSerializer.Free;
   FOptions.Free;
   inherited;
 end;
@@ -394,17 +397,8 @@ begin
 end;
 
 function TDataApiHandler.ValueToJson(const AValue: TValue): string;
-var
-  Settings: TJsonSettings;
-  Serializer: TDextSerializer;
 begin
-  Settings := GetJsonSettings;
-  Serializer := TDextSerializer.Create(Settings);
-  try
-    Result := Serializer.Serialize(AValue);
-  finally
-    Serializer.Free;
-  end;
+  Result := FSerializer.Serialize(AValue);
 end;
 
 function TDataApiHandler.GetJsonSettings: TJsonSettings;

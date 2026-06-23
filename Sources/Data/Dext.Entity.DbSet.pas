@@ -62,11 +62,23 @@ uses
   Dext.Logging.Tracing,
   System.Diagnostics;
 
-// Helper function to convert TValue to string for identity map keys
-// TValue.ToString does not work correctly for TGUID (returns type name, not value)
-function TValueToKeyString(const AValue: TValue): string;
-
 type
+  TColumnHydrationItem = record
+    ColumnIndex: Integer;
+    Prop: TRttiProperty;
+    Field: TRttiField;
+    Converter: ITypeConverter;
+    DefaultValue: Variant;
+    IsMultiMap: Boolean;
+    MultiMapPrefix: string;
+    ColumnName: string;
+  end;
+
+  THydrationPlan = record
+    Items: TArray<TColumnHydrationItem>;
+    PKColumns: TArray<Integer>;
+  end;
+
   /// <summary>
   ///   Concrete implementation of an entity set (DbSet), providing query and persistence operations.
   /// </summary>
@@ -85,11 +97,12 @@ type
     FTableName: string;
 
     function CreateGenerator: TSqlGenerator<T>;
-    function Hydrate(const Reader: IDbReader; const Tracking: Boolean = True): T;
+    function BuildHydrationPlan(const Reader: IDbReader): THydrationPlan;
+    function Hydrate(const Reader: IDbReader; const Plan: THydrationPlan; const Tracking: Boolean = True): T;
 
     procedure ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string; out IDs: IList<TValue>; out FKMap: IDictionary<T, TValue>);
     procedure HandleTimestamps(const AEntity: TObject; AIsInsert: Boolean);
-    procedure HydrateTarget(const Reader: IDbReader; Target: T);
+    procedure HydrateTarget(const Reader: IDbReader; Target: T; const Plan: THydrationPlan);
     procedure LoadAndAssign(const AEntities: IList<T>; const NavPropName: string);
     procedure LoadManyToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
     procedure LoadOneToMany(const AEntities: IList<T>; const NavPropName: string; const PropMap: TPropertyMap);
@@ -254,7 +267,7 @@ type
     ///   Links two entities in a Many-to-Many relationship (Intersection Table).
     /// </summary>
     procedure LinkManyToMany(const AEntity: T; const APropertyName: string; const ARelatedEntity: TObject); overload;
-    
+
     /// <summary>
     ///   Removes the link between two entities in a Many-to-Many relationship.
     /// </summary>
@@ -277,7 +290,7 @@ type
     function FromSql(const ASql: string): TFluentQuery<T>; overload;
     function TryLock(const AEntity: T; const AToken: string; ADurationMinutes: Integer = 30): Boolean;
     function Unlock(const AEntity: T): Boolean;
-    
+
     /// <summary>
     ///   Returns a high-performance iterator that reuses a single object instance (Flyweight pattern).
     ///   Crucial for processing millions of records with low memory footprint (zero GC).
@@ -305,6 +318,7 @@ type
     FParams: TArray<TValue>;
     FReader: IDbReader;
     FInitialized: Boolean;
+    FPlan: THydrationPlan;
   protected
     function MoveNextCore: Boolean; override;
   public
@@ -322,6 +336,7 @@ type
     FIteratorObject: T;
     FInitialized: Boolean;
     FSpec: ISpecification<T>;
+    FPlan: THydrationPlan;
   protected
     function MoveNextCore: Boolean; override;
   public
@@ -329,6 +344,9 @@ type
     destructor Destroy; override;
   end;
 
+// Helper function to convert TValue to string for identity map keys
+// TValue.ToString does not work correctly for TGUID (returns type name, not value)
+function TValueToKeyString(const AValue: TValue): string;
 function TValueToVariant(const AValue: TValue): Variant;
 
 implementation
@@ -347,7 +365,16 @@ begin
   if AValue.IsEmpty then
     Exit('');
 
-  // Use the robust Variant conversion which handles Prop<T> and TGUID
+  case AValue.Kind of
+    tkInteger:
+      Exit(IntToStr(AValue.AsInteger));
+    tkInt64:
+      Exit(IntToStr(AValue.AsInt64));
+    tkUString, tkString, tkWString:
+      Exit(AValue.AsString);
+  end;
+
+  // Fallback for GUIDs, Nullables, Records, etc.
   V := TValueToVariant(AValue);
   if VarIsNull(V) or VarIsEmpty(V) then
     Exit('');
@@ -439,6 +466,7 @@ begin
       Cmd := FDbSet.FContext.Connection.CreateCommand(FSql);
       Cmd.BindSequentialParams(FParams);
       FReader := Cmd.ExecuteQuery;
+      FPlan := FDbSet.BuildHydrationPlan(FReader);
       FInitialized := True;
       TDiagnosticSource.Instance.Write('SQL.Query', TJSONObject.Create(TJSONPair.Create('sql', FSql)), 'SQL', SW.ElapsedMilliseconds);
     except
@@ -452,7 +480,7 @@ begin
   
   if FReader.Next then
   begin
-    FCurrent := FDbSet.Hydrate(FReader, False); // Default to NoTracking for raw SQL for now
+    FCurrent := FDbSet.Hydrate(FReader, FPlan, False); // Default to NoTracking for raw SQL for now
     Result := True;
   end;
 end;
@@ -501,6 +529,7 @@ begin
       end;
         
       FReader := Cmd.ExecuteQuery;
+      FPlan := FDbSet.BuildHydrationPlan(FReader);
     finally
       Gen.Free;
     end;
@@ -509,7 +538,7 @@ begin
   
   if FReader.Next then
   begin
-    FDbSet.HydrateTarget(FReader, FIteratorObject);
+    FDbSet.HydrateTarget(FReader, FIteratorObject, FPlan);
     Result := True;
   end
   else
@@ -761,56 +790,140 @@ begin
   raise Exception.Create('Could not determine Primary Key for related entity ' + AObject.ClassName);
 end;
 
-function TDbSet<T>.Hydrate(const Reader: IDbReader; const Tracking: Boolean): T;
+function TDbSet<T>.BuildHydrationPlan(const Reader: IDbReader): THydrationPlan;
 var
-  ColName, PKCol: string;
-  DiscVal: Variant;
   i: Integer;
+  ColCount: Integer;
+  ColName, ColNameLower: string;
+  Prop: TRttiProperty;
+  Field: TRttiField;
+  PropMap: TPropertyMap;
+  Converter: ITypeConverter;
+  DefValue: Variant;
+  SeparatorIdx: Integer;
+  PKCol: string;
+  Item: TColumnHydrationItem;
+  ItemIdx, PKIdx: Integer;
+begin
+  ColCount := Reader.GetColumnCount;
+  SetLength(Result.Items, ColCount);
+  SetLength(Result.PKColumns, ColCount);
+  ItemIdx := 0;
+  PKIdx := 0;
+
+  for i := 0 to ColCount - 1 do
+  begin
+    ColName := Reader.GetColumnName(i);
+    ColNameLower := ColName.ToLower;
+
+    // 1. Check if it's a primary key column
+    for PKCol in FPKColumns do
+    begin
+      if SameText(PKCol, ColName) then
+      begin
+        Result.PKColumns[PKIdx] := i;
+        Inc(PKIdx);
+        Break;
+      end;
+    end;
+
+    // 2. Resolve properties / mapping
+    if FProps.TryGetValue(ColNameLower, Prop) then
+    begin
+      PropMap := nil;
+      if FMap <> nil then 
+        FMap.Properties.TryGetValue(Prop.Name, PropMap);
+
+      DefValue := Null;
+      if PropMap <> nil then
+        DefValue := PropMap.DefaultValue;
+
+      Converter := nil;
+      if PropMap <> nil then 
+        Converter := PropMap.Converter;
+      if Converter = nil then 
+        Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
+      if (Converter = nil) and (PropMap <> nil) and PropMap.IsJsonColumn then
+        Converter := TJsonConverter.Create(PropMap.UseJsonB);
+
+      Field := nil;
+      FFields.TryGetValue(ColNameLower, Field);
+
+      Item.ColumnIndex := i;
+      Item.Prop := Prop;
+      Item.Field := Field;
+      Item.Converter := Converter;
+      Item.DefaultValue := DefValue;
+      Item.IsMultiMap := False;
+      Item.MultiMapPrefix := '';
+      Item.ColumnName := ColName;
+
+      Result.Items[ItemIdx] := Item;
+      Inc(ItemIdx);
+    end
+    else
+    begin
+      // Multi-Mapping check
+      SeparatorIdx := ColName.IndexOf('_');
+      if SeparatorIdx < 0 then 
+        SeparatorIdx := ColName.IndexOf('.');
+
+      if SeparatorIdx > 0 then
+      begin
+        Item.ColumnIndex := i;
+        Item.Prop := nil;
+        Item.Field := nil;
+        Item.Converter := nil;
+        Item.DefaultValue := Null;
+        Item.IsMultiMap := True;
+        Item.MultiMapPrefix := ColName.Substring(0, SeparatorIdx);
+        Item.ColumnName := ColName;
+        
+        // Let's resolve the target class property to make sure it exists
+        if FProps.TryGetValue(Item.MultiMapPrefix.ToLower, Prop) and (Prop.PropertyType.TypeKind = tkClass) then
+        begin
+          Item.Prop := Prop;
+          Result.Items[ItemIdx] := Item;
+          Inc(ItemIdx);
+        end;
+      end;
+    end;
+  end;
+
+  SetLength(Result.Items, ItemIdx);
+  SetLength(Result.PKColumns, PKIdx);
+end;
+
+
+function TDbSet<T>.Hydrate(const Reader: IDbReader; const Plan: THydrationPlan; const Tracking: Boolean): T;
+var
+  DiscVal: Variant;
   PKVal: string;
-  PKValues: IDictionary<string, string>;
   SB: TStringBuilder;
   SubMap: TEntityMap;
+  i: Integer;
 begin
   PKVal := '';
   
-  if FPKColumns.Count > 0 then
+  if Length(Plan.PKColumns) > 0 then
   begin
-    PKValues := TCollections.CreateDictionary<string, string>;
-    try
-      for i := 0 to Reader.GetColumnCount - 1 do
-      begin
-        ColName := Reader.GetColumnName(i);
-        for PKCol in FPKColumns do
+    if Length(Plan.PKColumns) = 1 then
+    begin
+      PKVal := TValueToKeyString(Reader.GetValue(Plan.PKColumns[0]));
+    end
+    else
+    begin
+      SB := TStringBuilder.Create;
+      try
+        for i := 0 to Length(Plan.PKColumns) - 1 do
         begin
-          if SameText(PKCol, ColName) then
-          begin
-             PKValues.Add(PKCol, TValueToKeyString(Reader.GetValue(i))); 
-             Break;
-          end;
+          if i > 0 then SB.Append('|');
+          SB.Append(TValueToKeyString(Reader.GetValue(Plan.PKColumns[i])));
         end;
+        PKVal := SB.ToString;
+      finally
+        SB.Free;
       end;
-      if FPKColumns.Count = 1 then
-      begin
-        if PKValues.ContainsKey(FPKColumns[0]) then
-          PKVal := PKValues[FPKColumns[0]];
-      end
-      else
-      begin
-        SB := TStringBuilder.Create;
-        try
-          for i := 0 to FPKColumns.Count - 1 do
-          begin
-            if i > 0 then SB.Append('|');
-            if PKValues.ContainsKey(FPKColumns[i]) then
-              SB.Append(PKValues[FPKColumns[i]]);
-          end;
-          PKVal := SB.ToString;
-        finally
-          SB.Free;
-        end;
-      end;
-    finally
-      PKValues := nil;
     end;
   end;
   
@@ -843,7 +956,7 @@ begin
       FIdentityMap.Add(PKVal, Result);
     end;
     
-    HydrateTarget(Reader, Result);
+    HydrateTarget(Reader, Result, Plan);
   except
     on E: Exception do
     begin
@@ -854,73 +967,50 @@ begin
   end;
 end;
 
-procedure TDbSet<T>.HydrateTarget(const Reader: IDbReader; Target: T);
+
+procedure TDbSet<T>.HydrateTarget(const Reader: IDbReader; Target: T; const Plan: THydrationPlan);
 var
-  ColName: string;
-  Converter: ITypeConverter;
-  Field: TRttiField;
   i: Integer;
-  Prefix: string;
-  Prop: TRttiProperty;
-  PropMap: TPropertyMap;
-  PropTypeName: string;
-  SeparatorIdx: Integer;
   Val: TValue;
+  Item: TColumnHydrationItem;
+  PropTypeName: string;
 begin
   TLazyInjector.Inject(FContext, Target);
   
-  for i := 0 to Reader.GetColumnCount - 1 do
+  for i := 0 to Length(Plan.Items) - 1 do
   begin
-    ColName := Reader.GetColumnName(i);
-    Val := Reader.GetValue(i);
+    Item := Plan.Items[i];
+    Val := Reader.GetValue(Item.ColumnIndex);
     
-    if FProps.TryGetValue(ColName.ToLower, Prop) then
+    if not Item.IsMultiMap then
     begin
       try
-        Converter := nil;
-        PropMap := nil;
-        
-        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        if Val.IsEmpty and not VarIsNull(Item.DefaultValue) then
+          Val := TValue.FromVariant(Item.DefaultValue);
 
-        if Val.IsEmpty and (PropMap <> nil) and not VarIsNull(PropMap.DefaultValue) then
-          Val := TValue.FromVariant(PropMap.DefaultValue);
-
-        if PropMap <> nil then Converter := PropMap.Converter;
-        if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
-        if (Converter = nil) and (PropMap <> nil) and PropMap.IsJsonColumn then
-          Converter := TJsonConverter.Create(PropMap.UseJsonB);
-          
-        if Converter <> nil then
-           Val := Converter.FromDatabase(Val, Prop.PropertyType.Handle);
+        if Item.Converter <> nil then
+          Val := Item.Converter.FromDatabase(Val, Item.Prop.PropertyType.Handle);
         
-        if FFields.TryGetValue(ColName.ToLower, Field) then
-          TReflection.SetValue(Pointer(Target), Field, Val)
+        if Item.Field <> nil then
+          TReflection.SetValue(Pointer(Target), Item.Field, Val)
         else
-          TReflection.SetValue(Pointer(Target), Prop, Val);
+          TReflection.SetValue(Pointer(Target), Item.Prop, Val);
       except
         on E: Exception do
         begin
           PropTypeName := '';
-          if Prop.PropertyType <> nil then
-            PropTypeName := Prop.PropertyType.Name;
+          if (Item.Prop <> nil) and (Item.Prop.PropertyType <> nil) then
+            PropTypeName := Item.Prop.PropertyType.Name;
           raise Exception.CreateFmt(
             'Error hydrating %s.%s (property type %s) from column "%s": %s',
-            [Target.ClassName, Prop.Name, PropTypeName, ColName, E.Message]);
+            [Target.ClassName, Item.Prop.Name, PropTypeName, Item.ColumnName, E.Message]);
         end;
       end;
     end
     else
     begin
       // Multi-Mapping
-      SeparatorIdx := ColName.IndexOf('_');
-      if SeparatorIdx < 0 then SeparatorIdx := ColName.IndexOf('.');
-      
-      if SeparatorIdx > 0 then
-      begin
-        Prefix := ColName.Substring(0, SeparatorIdx);
-        if FProps.TryGetValue(Prefix.ToLower, Prop) and (Prop.PropertyType.TypeKind = tkClass) then
-           TReflection.SetValueByPath(TObject(Target), ColName, Val);
-      end;
+      TReflection.SetValueByPath(TObject(Target), Item.ColumnName, Val);
     end;
   end;
 end;
@@ -2150,21 +2240,25 @@ var
   Sql: string;
   Tracking: Boolean;
   Span: TSpan;
+  LPlan: THydrationPlan;
+  SW: TStopwatch;
+  PlanTime, HydrationTime: Int64;
+  LList: TList<T>;
 begin
   LSpec := ASpec;
-
+ 
   // Propagate spec-level filter flags to DbSet state for this query execution.
   // ResetQueryFlags in the finally block ensures these do not leak between calls.
   if (LSpec <> nil) and LSpec.IsIgnoringFilters then
     FIgnoreQueryFilters := True;
   if (LSpec <> nil) and LSpec.IsOnlyDeleted then
     FOnlyDeleted := True;
-
+ 
   ApplyTenantFilter(LSpec);
-
+ 
   Span := TTracer.BeginSpan('DbSet.ToList', 'SQL');
   Span.SetAttribute('entity', string(PTypeInfo(TypeInfo(T)).Name));
-
+ 
   IsProjection := (LSpec <> nil) and (Length(LSpec.GetSelectedColumns) > 0);
   
   // Tracking defaults to True
@@ -2173,16 +2267,23 @@ begin
     Tracking := LSpec.IsTrackingEnabled
   else
     Tracking := True;
-
+ 
   // Projections FORCE tracking off regardless of Spec setting
   if IsProjection then
     Tracking := False;
-
+ 
   if PTypeInfo(TypeInfo(T)).Kind = tkClass then
-    Result := TCollections.CreateObjectList<T>(not Tracking)
+    LList := TList<T>.Create(not Tracking)
   else
-    Result := TCollections.CreateList<T>;
-
+    LList := TList<T>.Create;
+    
+  if (LSpec <> nil) and (LSpec.GetTake > 0) then
+    LList.Capacity := LSpec.GetTake
+  else
+    LList.Capacity := 64; // Default initial capacity to avoid early resizing
+    
+  Result := LList;
+ 
   Generator := CreateGenerator;
   try
     if LSpec <> nil then
@@ -2202,14 +2303,24 @@ begin
     try
       Reader := Cmd.ExecuteQuery;
       RowCount := 0;
+      
+      SW := TStopwatch.StartNew;
+      LPlan := BuildHydrationPlan(Reader);
+      PlanTime := SW.ElapsedMilliseconds;
+      
+      SW := TStopwatch.StartNew;
       while Reader.Next do
       begin
         Inc(RowCount);
-        Entity := Hydrate(Reader, Tracking);
-        Result.Add(Entity);
+        Entity := Hydrate(Reader, LPlan, Tracking);
+        LList.Add(Entity);
       end;
+      HydrationTime := SW.ElapsedMilliseconds;
+      
       Span.SetAttribute('rows', RowCount);
       Span.SetAttribute('sql', Sql);
+      Span.SetAttribute('plan_build_ms', PlanTime);
+      Span.SetAttribute('hydration_loop_ms', HydrationTime);
     except
       on E: Exception do
       begin
@@ -2217,7 +2328,7 @@ begin
         raise;
       end;
     end;
-
+ 
     if (LSpec <> nil) and (Length(LSpec.GetIncludes) > 0) then
       DoLoadIncludes(Result, LSpec.GetIncludes);
   finally

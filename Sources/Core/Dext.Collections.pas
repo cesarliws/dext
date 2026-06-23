@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -210,6 +210,8 @@ type
     procedure SetItem(Index: Integer; const Value: T); inline;
     function GetOwnsObjects: Boolean; inline;
     procedure SetOwnsObjects(Value: Boolean); inline;
+    function GetCapacity: Integer; inline;
+    procedure SetCapacity(Value: Integer); inline;
   protected
     procedure Notify(Sender: TObject; const Item: T;
       Action: TCollectionNotification); virtual;
@@ -275,12 +277,14 @@ type
     function IndexedSort(const AComparer: IComparer<T> = nil): TArray<Integer>;
     function ToArray: TArray<T>;
 
-    /// <summary>Number of elements present in the list.</summary>
+     /// <summary>Number of elements present in the list.</summary>
     property Count: Integer read GetCount;
     /// <summary>Indexed access to elements.</summary>
     property Items[Index: Integer]: T read GetItem write SetItem; default;
     /// <summary>If True, automatically frees objects (TObject) on Delete/Clear.</summary>
     property OwnsObjects: Boolean read GetOwnsObjects write SetOwnsObjects;
+    /// <summary>Capacity of the list.</summary>
+    property Capacity: Integer read GetCapacity write SetCapacity;
   public
     destructor Destroy; override;
   end;
@@ -410,6 +414,16 @@ end;
 procedure TList<T>.SetOwnsObjects(Value: Boolean);
 begin
   FOwnsObjects := Value;
+end;
+
+function TList<T>.GetCapacity: Integer;
+begin
+  Result := FCore.Capacity;
+end;
+
+procedure TList<T>.SetCapacity(Value: Integer);
+begin
+  FCore.Capacity := Value;
 end;
 
 function TList<T>.GetCount: Integer;

@@ -235,7 +235,7 @@ end;
 procedure TLoggingTelemetryObserver.OnEvent(const AEvent: TTelemetryEvent);
 var
   SqlCmd: string;
-  LVal, LMethodVal, LPathVal, LStatusVal: TJSONValue;
+  LVal, LMethodVal, LPathVal, LStatusVal, LPlanBuildVal, LHydrationLoopVal: TJSONValue;
   LMethod, LPath, LStatus: string;
 begin
   if AEvent.Category = 'SQL' then
@@ -246,12 +246,29 @@ begin
     else
       SqlCmd := AEvent.Name;
     
-    FLogger.Info( 
-      Format('[SQL] Executed in %dms (%s affected): %s', [
-        AEvent.DurationMs, 
-        AEvent.Status,
-        SqlCmd
-      ]));
+    LPlanBuildVal := AEvent.Data.GetValue('plan_build_ms');
+    LHydrationLoopVal := AEvent.Data.GetValue('hydration_loop_ms');
+    
+    if (LPlanBuildVal <> nil) and (LHydrationLoopVal <> nil) then
+    begin
+      FLogger.Info( 
+        Format('[SQL] Executed in %dms (%s) [Plan Build: %s ms, Hydration Loop: %s ms]: %s', [
+          AEvent.DurationMs, 
+          AEvent.Status,
+          LPlanBuildVal.Value,
+          LHydrationLoopVal.Value,
+          SqlCmd
+        ]));
+    end
+    else
+    begin
+      FLogger.Info( 
+        Format('[SQL] Executed in %dms (%s affected): %s', [
+          AEvent.DurationMs, 
+          AEvent.Status,
+          SqlCmd
+        ]));
+    end;
   end
   else if AEvent.Category = 'HTTP' then
   begin

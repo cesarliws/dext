@@ -28,6 +28,9 @@ By participating in this project, you agree to abide by its terms.
 *   Use spaces, not tabs (2 or 4 spaces as per the project standard).
 *   Follow the naming conventions: `T` for Classes, `I` for Interfaces, `f` for private fields.
 *   Keep methods focused and adhere to SOLID principles.
+*   **Interface Performance & Safety**:
+    *   Always pass interface parameters as `const` in method signatures (e.g., `procedure DoSomething(const AService: IMyService)`). This prevents the compiler from generating unnecessary `_AddRef` and `_Release` calls, avoiding overhead from atomic CPU lock instructions.
+    *   Avoid mixing raw object pointers and interface references at public boundaries or within user-facing APIs. Restrict devirtualization (casting interfaces back to objects) strictly to isolated internal loops where the object lifecycle is fully controlled and never exposed.
 
 ### Testing
 *   New features should ideally come with unit tests.

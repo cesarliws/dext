@@ -215,13 +215,73 @@ type
   end;
 
   /// <summary>
+  ///   Classification of how a property should be serialized.
+  ///   Pre-computed once per type to avoid repeated RTTI dispatch.
+  /// </summary>
+  TSerializeKind = (
+    skInteger,
+    skFloat,
+    skDateTime,
+    skString,
+    skBoolean,
+    skEnumAsString,
+    skEnumAsNumber,
+    skRecord,
+    skRecordGUID,
+    skRecordUUID,
+    skClass,
+    skList,
+    skDynArray,
+    skInterface,
+    skUnknown
+  );
+
+  /// <summary>
+  ///   Pre-computed serialization metadata for a single property.
+  ///   Built once per type, reused across all instances.
+  /// </summary>
+  TSerializationPlanItem = record
+    /// <summary>Final JSON key name (with case style and JsonNameAttribute already applied).</summary>
+    JsonName: string;
+    /// <summary>Cached property handler for fast Get/Set (avoids repeated RTTI lookups).</summary>
+    Handler: IInterface;
+    /// <summary>Fallback RTTI property reference (used when Handler is nil).</summary>
+    Prop: TRttiProperty;
+    /// <summary>Pre-classified serialization strategy.</summary>
+    Kind: TSerializeKind;
+    /// <summary>Whether this property is a SmartProp that needs unwrapping.</summary>
+    IsSmartProp: Boolean;
+    /// <summary>Whether the underlying type is a list (for tkClass/tkInterface).</summary>
+    IsListType: Boolean;
+    /// <summary>PTypeInfo of the property value type (after SmartProp unwrap).</summary>
+    ValueTypeInfo: PTypeInfo;
+  end;
+
+  /// <summary>
+  ///   Complete serialization plan for a class type.
+  ///   Built once per PTypeInfo, cached globally for reuse.
+  /// </summary>
+  TSerializationPlan = record
+    Items: TArray<TSerializationPlanItem>;
+    Count: Integer;
+  end;
+  PSerializationPlan = ^TSerializationPlan;
+
+  /// <summary>
   ///   Internal class responsible for complex conversion logic.
   ///   Manages type mapping, RTTI, attributes, and List/Dictionary conversion.
   /// </summary>
   TDextSerializer = class
   private
+    class var FPlanCache: TObject;  // TObjectDictionary<PTypeInfo, TObject> wrapping TSerializationPlan
+    class var FPlanLock: TObject;   // TCriticalSection for thread-safe plan creation
+    class constructor Create;
+    class destructor Destroy;
+  private
     FSettings: TJsonSettings;
     function CreateInstanceForDeserialization(AType: PTypeInfo): TValue;
+    function GetOrBuildPlan(AType: PTypeInfo): PSerializationPlan;
+    function SerializeObjectWithPlan(Obj: TObject; const Plan: TSerializationPlan): IDextJsonObject;
   protected
     function GetFieldName(AField: TRttiField): string;
     function GetRecordName(ARttiType: TRttiType): string;
@@ -342,6 +402,8 @@ implementation
 uses
   System.Classes,
   System.DateUtils,
+  System.Generics.Collections,
+  System.SyncObjs,
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
@@ -616,6 +678,287 @@ begin
 end;
 
 { TDextSerializer }
+
+type
+  /// <summary>
+  ///   Wrapper object to store a TSerializationPlan inside TObjectDictionary.
+  /// </summary>
+  TSerializationPlanHolder = class
+  public
+    Plan: TSerializationPlan;
+  end;
+
+class constructor TDextSerializer.Create;
+begin
+  FPlanCache := TObjectDictionary<PTypeInfo, TSerializationPlanHolder>.Create([doOwnsValues]);
+  FPlanLock := TCriticalSection.Create;
+end;
+
+class destructor TDextSerializer.Destroy;
+begin
+  FreeAndNil(FPlanCache);
+  FreeAndNil(FPlanLock);
+end;
+
+function TDextSerializer.GetOrBuildPlan(AType: PTypeInfo): PSerializationPlan;
+var
+  Cache: TObjectDictionary<PTypeInfo, TSerializationPlanHolder>;
+  Lock: TCriticalSection;
+  Holder: TSerializationPlanHolder;
+  RttiType: TRttiType;
+  Props: TArray<TRttiProperty>;
+  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
+  I, ItemCount: Integer;
+  ShouldSkip: Boolean;
+  PropName: string;
+  LTypeInfo: PTypeInfo;
+  LTypeKind: TTypeKind;
+  Item: TSerializationPlanItem;
+begin
+  Cache := TObjectDictionary<PTypeInfo, TSerializationPlanHolder>(FPlanCache);
+  Lock := TCriticalSection(FPlanLock);
+
+  // Fast path: plan already exists (lock-free read)
+  Lock.Enter;
+  try
+    if Cache.TryGetValue(AType, Holder) then
+    begin
+      Result := @Holder.Plan;
+      Exit;
+    end;
+  finally
+    Lock.Leave;
+  end;
+
+  // Slow path: build plan
+  RttiType := TReflection.GetMetadata(AType).RttiType;
+  Props := RttiType.GetProperties;
+
+  Holder := TSerializationPlanHolder.Create;
+  SetLength(Holder.Plan.Items, Length(Props));
+  ItemCount := 0;
+
+  for I := 0 to High(Props) do
+  begin
+    Prop := Props[I];
+
+    // Skip non-public/published properties
+    if (Prop.Visibility <> mvPublic) and (Prop.Visibility <> mvPublished) then
+      Continue;
+
+    // Skip TObject/TInterfacedObject internals
+    if (Prop.Parent <> nil) and
+       ((Prop.Parent.Name = 'TObject') or (Prop.Parent.Name = 'TInterfacedObject')) then
+      Continue;
+
+    // Skip if has JsonIgnore attribute
+    ShouldSkip := False;
+    for Attr in Prop.GetAttributes do
+    begin
+      if (Attr is JsonIgnoreAttribute) or (Attr.ClassName = 'NotMappedAttribute') then
+      begin
+        ShouldSkip := True;
+        Break;
+      end;
+    end;
+    if ShouldSkip then
+      Continue;
+
+    // Determine JSON name
+    PropName := ApplyCaseStyle(Prop.Name);
+    for Attr in Prop.GetAttributes do
+      if Attr is JsonNameAttribute then
+      begin
+        PropName := JsonNameAttribute(Attr).Name;
+        Break;
+      end;
+
+    Item := Default(TSerializationPlanItem);
+    Item.JsonName := PropName;
+    Item.Prop := Prop;
+    Item.Handler := TReflection.GetHandler(AType, Prop.Name);
+
+    // Determine the type info for classification
+    if Prop.PropertyType <> nil then
+    begin
+      LTypeInfo := Prop.PropertyType.Handle;
+      LTypeKind := Prop.PropertyType.TypeKind;
+    end
+    else
+    begin
+      LTypeInfo := nil;
+      LTypeKind := tkUnknown;
+    end;
+
+    // Check for SmartProp
+    Item.IsSmartProp := (LTypeKind = tkRecord) and (LTypeInfo <> nil) and
+                         TReflection.IsSmartProp(LTypeInfo);
+
+    // If SmartProp, classify by inner type
+    if Item.IsSmartProp then
+    begin
+      LTypeInfo := TReflection.GetUnderlyingType(LTypeInfo);
+      if LTypeInfo <> nil then
+        LTypeKind := LTypeInfo.Kind
+      else
+        LTypeKind := tkUnknown;
+    end;
+
+    Item.ValueTypeInfo := LTypeInfo;
+
+    // Check if it's a list type
+    Item.IsListType := (LTypeKind in [tkClass, tkInterface]) and (LTypeInfo <> nil) and
+                        IsListType(LTypeInfo);
+
+    // Classify serialization kind
+    case LTypeKind of
+      tkInteger, tkInt64:
+        Item.Kind := skInteger;
+      tkFloat:
+        begin
+          if (LTypeInfo = TypeInfo(TDateTime)) or (LTypeInfo = TypeInfo(TDate)) or
+             (LTypeInfo = TypeInfo(TTime)) then
+            Item.Kind := skDateTime
+          else
+            Item.Kind := skFloat;
+        end;
+      tkString, tkLString, tkWString, tkUString:
+        Item.Kind := skString;
+      tkEnumeration:
+        begin
+          if LTypeInfo = TypeInfo(Boolean) then
+            Item.Kind := skBoolean
+          else
+            Item.Kind := skEnumAsString;
+        end;
+      tkRecord:
+        begin
+          if LTypeInfo = TypeInfo(TGUID) then
+            Item.Kind := skRecordGUID
+          else if LTypeInfo = TypeInfo(TUUID) then
+            Item.Kind := skRecordUUID
+          else
+            Item.Kind := skRecord;
+        end;
+      tkClass:
+        begin
+          if Item.IsListType then
+            Item.Kind := skList
+          else
+            Item.Kind := skClass;
+        end;
+      tkInterface:
+        begin
+          if Item.IsListType then
+            Item.Kind := skList
+          else
+            Item.Kind := skInterface;
+        end;
+      tkDynArray:
+        Item.Kind := skDynArray;
+    else
+      Item.Kind := skUnknown;
+    end;
+
+    Holder.Plan.Items[ItemCount] := Item;
+    Inc(ItemCount);
+  end;
+
+  Holder.Plan.Count := ItemCount;
+  SetLength(Holder.Plan.Items, ItemCount);
+
+  // Store in cache
+  Lock.Enter;
+  try
+    if not Cache.ContainsKey(AType) then
+      Cache.Add(AType, Holder)
+    else
+    begin
+      // Another thread built it first — use theirs
+      Holder.Free;
+      Cache.TryGetValue(AType, Holder);
+    end;
+  finally
+    Lock.Leave;
+  end;
+
+  Result := @Holder.Plan;
+end;
+
+function TDextSerializer.SerializeObjectWithPlan(Obj: TObject; const Plan: TSerializationPlan): IDextJsonObject;
+var
+  I: Integer;
+  Item: TSerializationPlanItem;
+  PropValue: TValue;
+  Unwrapped: TValue;
+begin
+  Result := TDextJson.Provider.CreateObject;
+  if Obj = nil then Exit;
+
+  for I := 0 to Plan.Count - 1 do
+  begin
+    Item := Plan.Items[I];
+
+    // Get property value (handler is faster than RTTI GetProperty)
+    if Item.Handler <> nil then
+      PropValue := (Item.Handler as IPropertyHandler).GetValue(Pointer(Obj))
+    else
+      PropValue := Item.Prop.GetValue(Pointer(Obj));
+
+    // Unwrap SmartProp if needed
+    if Item.IsSmartProp then
+    begin
+      if TReflection.TryUnwrapProp(PropValue, Unwrapped) then
+        PropValue := Unwrapped;
+    end;
+
+    // Handle null/empty values
+    if PropValue.IsEmpty then
+    begin
+      if not FSettings.FIgnoreNullValues then
+        Result.SetNull(Item.JsonName);
+      Continue;
+    end;
+
+    // Dispatch based on pre-computed kind
+    case Item.Kind of
+      skInteger:
+        Result.SetInt64(Item.JsonName, PropValue.AsInt64);
+      skFloat:
+        Result.SetDouble(Item.JsonName, PropValue.AsExtended);
+      skDateTime:
+        Result.SetString(Item.JsonName, FormatDateTime(FSettings.DateFormat, PropValue.AsExtended));
+      skString:
+        Result.SetString(Item.JsonName, PropValue.AsString);
+      skBoolean:
+        Result.SetBoolean(Item.JsonName, PropValue.AsBoolean);
+      skEnumAsString:
+        Result.SetString(Item.JsonName, GetEnumName(Item.ValueTypeInfo, PropValue.AsOrdinal));
+      skEnumAsNumber:
+        Result.SetInt64(Item.JsonName, PropValue.AsOrdinal);
+      skRecordGUID:
+        Result.SetString(Item.JsonName, GetGUIDString(PropValue));
+      skRecordUUID:
+        Result.SetString(Item.JsonName, GetUUIDString(PropValue));
+      skRecord:
+        Result.SetObject(Item.JsonName, SerializeRecord(PropValue));
+      skClass:
+        begin
+          if PropValue.AsObject = nil then
+            Result.SetNull(Item.JsonName)
+          else
+            Result.SetObject(Item.JsonName, SerializeObject(PropValue));
+        end;
+      skList:
+        Result.SetArray(Item.JsonName, SerializeList(PropValue));
+      skDynArray:
+        Result.SetArray(Item.JsonName, SerializeArray(PropValue));
+      skInterface:
+        Result.SetNull(Item.JsonName);
+    end;
+  end;
+end;
 
 constructor TDextSerializer.Create(const ASettings: TJsonSettings);
 begin
@@ -1292,154 +1635,24 @@ end;
 
 function TDextSerializer.SerializeObject(const AValue: TValue): IDextJsonObject;
 var
-  Attr: TCustomAttribute;
-  Handler: IPropertyHandler;
-  LTypeInfo: PTypeInfo;
-  LTypeKind: TTypeKind;
-  NestedRecord: IDextJsonObject;
   Obj: TObject;
-  Prop: TRttiProperty;
-  PropName: string;
-  PropValue: TValue;
-  RttiType: TRttiType;
-  ShouldSkip: Boolean;
-  Unwrapped: TValue;
+  Plan: PSerializationPlan;
 begin
-  Result := TDextJson.Provider.CreateObject;
-
   if AValue.IsEmpty then
+  begin
+    Result := TDextJson.Provider.CreateObject;
     Exit;
+  end;
 
   Obj := AValue.AsObject;
   if Obj = nil then
-    Exit;
-
-  RttiType := TReflection.GetMetadata(Obj.ClassInfo).RttiType;
-
-  for Prop in RttiType.GetProperties do
   begin
-    // Skip non-public/published properties
-    if (Prop.Visibility <> mvPublic) and (Prop.Visibility <> mvPublished) then
-      Continue;
-
-    // Issue #108: Skip properties declared by TObject or TInterfacedObject.
-    // These are Delphi internal properties (e.g. 'refCount') used for reference
-    // counting and memory management -- they must never appear in JSON output.
-    if (Prop.Parent <> nil) and
-       ((Prop.Parent.Name = 'TObject') or (Prop.Parent.Name = 'TInterfacedObject')) then
-      Continue;
-
-    // Skip if has JsonIgnore attribute
-    ShouldSkip := False;
-    for Attr in Prop.GetAttributes do
-    begin
-      if (Attr is JsonIgnoreAttribute) or (Attr.ClassName = 'NotMappedAttribute') then
-      begin
-        ShouldSkip := True;
-        Break;
-      end;
-    end;
-
-    if ShouldSkip then
-      Continue;
-
-    PropName := ApplyCaseStyle(Prop.Name);
-
-    // Check for JsonName attribute
-    for Attr in Prop.GetAttributes do
-      if Attr is JsonNameAttribute then
-      begin
-        PropName := JsonNameAttribute(Attr).Name;
-        Break;
-      end;
-
-    Handler := TReflection.GetHandler(Obj.ClassInfo, Prop.Name);
-    if Handler <> nil then
-      PropValue := Handler.GetValue(Pointer(Obj))
-    else
-      PropValue := Prop.GetValue(Pointer(Obj));
-
-    LTypeKind := PropValue.Kind;
-    LTypeInfo := PropValue.TypeInfo;
-
-    // Smart Properties Support: Unwrap Prop<T>
-    if (LTypeKind = tkRecord) and (LTypeInfo <> nil) and
-       TReflection.IsSmartProp(LTypeInfo) then
-    begin
-      if TReflection.TryUnwrapProp(PropValue, Unwrapped) then
-      begin
-        PropValue := Unwrapped;
-        LTypeKind := PropValue.Kind;
-        LTypeInfo := PropValue.TypeInfo;
-      end;
-    end;
-
-    // Handle null/empty values
-    if PropValue.IsEmpty then
-    begin
-      if not FSettings.FIgnoreNullValues then
-        Result.SetNull(PropName);
-      Continue;
-    end;
-
-    // Serialize based on property type
-    case LTypeKind of
-      tkInteger, tkInt64:
-        Result.SetInt64(PropName, PropValue.AsInt64);
-
-      tkFloat:
-        begin
-          if (LTypeInfo = TypeInfo(TDateTime)) or
-             (LTypeInfo = TypeInfo(TDate)) or
-             (LTypeInfo = TypeInfo(TTime)) then
-            Result.SetString(PropName, FormatDateTime(FSettings.DateFormat, PropValue.AsExtended))
-          else
-            Result.SetDouble(PropName, PropValue.AsExtended);
-        end;
-
-      tkString, tkLString, tkWString, tkUString:
-        Result.SetString(PropName, PropValue.AsString);
-
-      tkEnumeration:
-        begin
-          if LTypeInfo = TypeInfo(Boolean) then
-            Result.SetBoolean(PropName, PropValue.AsBoolean)
-          else
-            Result.SetString(PropName, GetEnumName(LTypeInfo, PropValue.AsOrdinal));
-        end;
-
-      tkRecord:
-        begin
-          if LTypeInfo = TypeInfo(TGUID) then
-            Result.SetString(PropName, GetGUIDString(PropValue))
-          else if LTypeInfo = TypeInfo(TUUID) then
-            Result.SetString(PropName, GetUUIDString(PropValue))
-          else
-          begin
-            NestedRecord := SerializeRecord(PropValue);
-            Result.SetObject(PropName, NestedRecord);
-          end;
-        end;
-
-      tkClass, tkInterface:
-        begin
-          if IsListType(LTypeInfo) then
-            Result.SetArray(PropName, SerializeList(PropValue))
-          else if LTypeKind = tkClass then
-          begin
-            if PropValue.AsObject = nil then
-              Result.SetNull(PropName)
-            else
-              Result.SetObject(PropName, SerializeObject(PropValue));
-          end
-          else
-            Result.SetNull(PropName);
-        end;
-
-      tkDynArray:
-        Result.SetArray(PropName, SerializeArray(PropValue));
-    end;
+    Result := TDextJson.Provider.CreateObject;
+    Exit;
   end;
+
+  Plan := GetOrBuildPlan(Obj.ClassInfo);
+  Result := SerializeObjectWithPlan(Obj, Plan^);
 end;
 
 function TDextSerializer.ShouldSkipField(AField: TRttiField; const AValue: TValue): Boolean;

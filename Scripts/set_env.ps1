@@ -14,6 +14,8 @@ param(
     [string]$DelphiVersion = ""
 )
 
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
 # 1. Store inputs in environment variables (for MSBuild and other tools)
 $env:PLATFORM = $Platform
 $env:BUILD_CONFIG = $Config

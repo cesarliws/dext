@@ -84,6 +84,7 @@ type
     FQuery: TFDQuery;
     FOwnsQuery: Boolean;
     FIsFirstMove: Boolean;
+    FFields: TArray<TField>;
   public
     constructor Create(AQuery: TFDQuery; AOwnsQuery: Boolean);
     destructor Destroy; override;
@@ -195,54 +196,49 @@ function FireDACFieldToTValue(Field: TField): TValue;
 begin
   if (Field = nil) or Field.IsNull then
     Exit(TValue.Empty);
-  try
-    case Field.DataType of
-      ftUnknown:
-        Result := TValue.FromVariant(Field.Value);
-      ftString, ftWideString, ftMemo, ftWideMemo, ftFixedChar, ftFixedWideChar:
-        Result := TValue.From<string>(Field.AsWideString);
-      ftSmallint, ftShortint:
-        Result := TValue.From<Integer>(Field.AsInteger);
-      ftInteger, ftAutoInc, ftWord:
-        Result := TValue.From<Integer>(Field.AsInteger);
-      ftLongWord:
-        Result := TValue.From<Int64>(Field.AsLargeInt);
-      ftLargeint:
-        Result := TValue.From<Int64>(Field.AsLargeInt);
-      ftFloat, Data.DB.ftSingle:
-        Result := TValue.From<Double>(Field.AsFloat);
-      Data.DB.ftExtended:
-        Result := TValue.From<Double>(Field.AsFloat);
-      ftCurrency, ftBCD:
+  case Field.DataType of
+    ftUnknown:
+      Result := TValue.FromVariant(Field.Value);
+    ftString, ftWideString, ftMemo, ftWideMemo, ftFixedChar, ftFixedWideChar:
+      Result := TValue.From<string>(Field.AsWideString);
+    ftSmallint, ftShortint:
+      Result := TValue.From<Integer>(Field.AsInteger);
+    ftInteger, ftAutoInc, ftWord:
+      Result := TValue.From<Integer>(Field.AsInteger);
+    ftLongWord:
+      Result := TValue.From<Int64>(Field.AsLargeInt);
+    ftLargeint:
+      Result := TValue.From<Int64>(Field.AsLargeInt);
+    ftFloat, Data.DB.ftSingle:
+      Result := TValue.From<Double>(Field.AsFloat);
+    Data.DB.ftExtended:
+      Result := TValue.From<Double>(Field.AsFloat);
+    ftCurrency, ftBCD:
+      Result := TValue.From<Currency>(Field.AsCurrency);
+    ftFMTBcd:
+      try
         Result := TValue.From<Currency>(Field.AsCurrency);
-      ftFMTBcd:
-        try
-          Result := TValue.From<Currency>(Field.AsCurrency);
-        except
-          Result := TValue.From<Double>(Field.AsFloat);
-        end;
-      ftBoolean:
-        Result := TValue.From<Boolean>(Field.AsBoolean);
-      ftDate:
-        Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
-      ftTime:
-        Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
-      ftDateTime, ftTimeStamp, ftOraTimeStamp, ftTimeStampOffset:
-        Result := TValue.From<TDateTime>(Field.AsDateTime);
-      ftBlob, ftOraBlob, ftGraphic, ftTypedBinary, ftParadoxOle, ftDBaseOle, ftVarBytes, ftBytes:
-        try
-          Result := TValue.From<TBytes>(Field.AsBytes);
-        except
-          Result := TValue.FromVariant(Field.Value);
-        end;
-      ftGuid:
-        Result := TValue.From<TGUID>(Field.AsGuid);
-    else
-      Result := TValue.FromVariant(Field.Value);
-    end;
-  except
-    on E: EVariantTypeCastError do
-      Result := TValue.FromVariant(Field.Value);
+      except
+        Result := TValue.From<Double>(Field.AsFloat);
+      end;
+    ftBoolean:
+      Result := TValue.From<Boolean>(Field.AsBoolean);
+    ftDate:
+      Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
+    ftTime:
+      Result := TValue.From<TTime>(TimeOf(Field.AsDateTime));
+    ftDateTime, ftTimeStamp, ftOraTimeStamp, ftTimeStampOffset:
+      Result := TValue.From<TDateTime>(Field.AsDateTime);
+    ftBlob, ftOraBlob, ftGraphic, ftTypedBinary, ftParadoxOle, ftDBaseOle, ftVarBytes, ftBytes:
+      try
+        Result := TValue.From<TBytes>(Field.AsBytes);
+      except
+        Result := TValue.FromVariant(Field.Value);
+      end;
+    ftGuid:
+      Result := TValue.From<TGUID>(Field.AsGuid);
+  else
+    Result := TValue.FromVariant(Field.Value);
   end;
 end;
 
@@ -307,11 +303,18 @@ end;
 { TFireDACReader }
 
 constructor TFireDACReader.Create(AQuery: TFDQuery; AOwnsQuery: Boolean);
+var
+  i: Integer;
 begin
   inherited Create;
   FQuery := AQuery;
   FOwnsQuery := AOwnsQuery;
   FIsFirstMove := True;
+  
+  // Cache the fields to avoid FQuery.Fields[Index] property getter overhead
+  SetLength(FFields, FQuery.FieldCount);
+  for i := 0 to FQuery.FieldCount - 1 do
+    FFields[i] := FQuery.Fields[i];
 end;
 
 destructor TFireDACReader.Destroy;
@@ -338,7 +341,7 @@ end;
 
 function TFireDACReader.GetValue(AColumnIndex: Integer): TValue;
 begin
-  Result := FireDACFieldToTValue(FQuery.Fields[AColumnIndex]);
+  Result := FireDACFieldToTValue(FFields[AColumnIndex]);
 end;
 
 function TFireDACReader.GetValue(const AColumnName: string): TValue;
