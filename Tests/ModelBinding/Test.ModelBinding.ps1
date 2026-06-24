@@ -472,6 +472,24 @@ Test-Endpoint -Name "Controller: String param from raw whole body" `
     $r.source -eq "controller-echo" -and $r.message -eq "Hello Pure Body"
 }
 
+# -----------------------------------------------------------------------------
+# TEST 21: Controller FromBody Primitive Multi-Field Optional/Absent Fields
+# -----------------------------------------------------------------------------
+Write-TestHeader "21" "Controller: FromBody Primitive Multi-Field Optional/Absent Fields"
+
+Test-Endpoint -Name "Controller: Multi-field FromBody with absent fields" `
+    -Method "POST" `
+    -Url "$BaseUrl/api/controller/multibody" `
+    -Body '{"codice":"acme","denominazione":"ACME"}' `
+    -Validate {
+    param($r)
+    $r.source -eq "controller-multibody" -and `
+    $r.codice -eq "acme" -and `
+    $r.denominazione -eq "ACME" -and `
+    $r.piano -eq "DefaultPiano" -and `
+    $r.note -eq ""
+}
+
 # =============================================================================
 # SUMMARY
 # =============================================================================

@@ -32,8 +32,10 @@ type
     FQuery: IStringDictionary;
     FHeaders: IStringDictionary;
     FRouteParams: TRouteValueDictionary;
+    FBody: TStream;
   public
     constructor Create;
+    destructor Destroy; override;
     function GetMethod: string;
     function GetPath: string;
     function GetQuery: IStringDictionary;
@@ -88,6 +90,11 @@ type
 
   TDummyController = class
     procedure Action([DefaultValue('Dext')] Name: string; [DefaultValue(100)] Score: Integer);
+    procedure MultiBodyAction(
+      [FromBody] const codice: string;
+      [FromBody] const denominazione: string;
+      [FromBody] [DefaultValue('DefaultPiano')] const piano: string;
+      [FromBody] const note: string);
   end;
 
   [TestClass]
@@ -95,6 +102,7 @@ type
   private
     FBinder: IModelBinder;
     function CreateMockContext(AQueryParams: TArray<string> = []): IHttpContext;
+    function CreateMockContextWithBody(const AJson: string): IHttpContext;
   public
     [Setup]
     procedure Setup;
@@ -107,6 +115,15 @@ type
 
     [Test]
     procedure Test_BindQuery_Class_With_DefaultValue;
+
+    [Test]
+    procedure Test_BindBodyPrimitive_Present;
+
+    [Test]
+    procedure Test_BindBodyPrimitive_Absent_WithDefaultValue;
+
+    [Test]
+    procedure Test_BindBodyPrimitive_Absent_NoDefaultValue;
   end;
 
 implementation
@@ -119,9 +136,16 @@ begin
   FQuery := TDextStringDictionary.Create;
   FHeaders := TDextStringDictionary.Create;
   FRouteParams.Clear;
+  FBody := nil;
 end;
 
-function TMockHttpRequest.GetBody: TStream; begin Result := nil; end;
+destructor TMockHttpRequest.Destroy;
+begin
+  FBody.Free;
+  inherited;
+end;
+
+function TMockHttpRequest.GetBody: TStream; begin Result := FBody; end;
 function TMockHttpRequest.GetCookies: IStringDictionary; begin Result := nil; end;
 function TMockHttpRequest.GetFiles: IFormFileCollection; begin Result := nil; end;
 function TMockHttpRequest.GetHeader(const AName: string): string; begin if not FHeaders.TryGetValue(AName, Result) then Result := ''; end;
@@ -155,6 +179,7 @@ procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin en
 { TDummyController }
 
 procedure TDummyController.Action(Name: string; Score: Integer); begin end;
+procedure TDummyController.MultiBodyAction(const codice, denominazione, piano, note: string); begin end;
 
 { TWebBindingTests }
 
@@ -174,6 +199,20 @@ begin
   begin
     Req.FQuery.Add(AQueryParams[I], AQueryParams[I+1]);
     Inc(I, 2);
+  end;
+  Result := TMockHttpContext.Create(Req);
+end;
+
+function TWebBindingTests.CreateMockContextWithBody(const AJson: string): IHttpContext;
+var
+  Req: TMockHttpRequest;
+  Bytes: TBytes;
+begin
+  Req := TMockHttpRequest.Create;
+  if AJson <> '' then
+  begin
+    Bytes := TEncoding.UTF8.GetBytes(AJson);
+    Req.FBody := TBytesStream.Create(Bytes);
   end;
   Result := TMockHttpContext.Create(Req);
 end;
@@ -242,6 +281,74 @@ begin
   finally
     Obj.Free;
   end;
+end;
+
+procedure TWebBindingTests.Test_BindBodyPrimitive_Present;
+var
+  Context: IHttpContext;
+  Val: TValue;
+  Ctx: TRttiContext;
+  Meth: TRttiMethod;
+  Param: TRttiParameter;
+begin
+  Context := CreateMockContextWithBody('{"codice":"acme","denominazione":"ACME"}');
+  Meth := Ctx.GetType(TDummyController).GetMethod('MultiBodyAction');
+  
+  // Param 0: codice
+  Param := Meth.GetParameters[0];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.AsString).Be('acme');
+  
+  // Param 1: denominazione
+  Param := Meth.GetParameters[1];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.AsString).Be('ACME');
+end;
+
+procedure TWebBindingTests.Test_BindBodyPrimitive_Absent_WithDefaultValue;
+var
+  Context: IHttpContext;
+  Val: TValue;
+  Ctx: TRttiContext;
+  Meth: TRttiMethod;
+  Param: TRttiParameter;
+  Attr: TCustomAttribute;
+begin
+  Context := CreateMockContextWithBody('{"codice":"acme","denominazione":"ACME"}'); // piano is omitted
+  Meth := Ctx.GetType(TDummyController).GetMethod('MultiBodyAction');
+  
+  WriteLn('DEBUG Unit Test: Meth assigned = ', Assigned(Meth));
+  if Assigned(Meth) then
+  begin
+    WriteLn('DEBUG Unit Test: Params count = ', Length(Meth.GetParameters));
+    Param := Meth.GetParameters[2];
+    WriteLn('DEBUG Unit Test: Param[2] Name = ', Param.Name);
+    for Attr in Param.GetAttributes do
+      WriteLn('DEBUG Unit Test: Param[2] Attr = ', Attr.ClassName);
+  end;
+  
+  // Param 2: piano
+  Param := Meth.GetParameters[2];
+  Val := FBinder.BindParameter(Param, Context);
+  WriteLn('DEBUG Unit Test: Val = ', Val.AsString);
+  Should(Val.AsString).Be('DefaultPiano');
+end;
+
+procedure TWebBindingTests.Test_BindBodyPrimitive_Absent_NoDefaultValue;
+var
+  Context: IHttpContext;
+  Val: TValue;
+  Ctx: TRttiContext;
+  Meth: TRttiMethod;
+  Param: TRttiParameter;
+begin
+  Context := CreateMockContextWithBody('{"codice":"acme","denominazione":"ACME"}'); // note is omitted
+  Meth := Ctx.GetType(TDummyController).GetMethod('MultiBodyAction');
+  
+  // Param 3: note
+  Param := Meth.GetParameters[3];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.AsString).Be('');
 end;
 
 end.

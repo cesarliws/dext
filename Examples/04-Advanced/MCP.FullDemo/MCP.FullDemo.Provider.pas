@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {  MCP Full Demo — Provider RTTI                                            }
 {                                                                           }
@@ -22,9 +22,10 @@ interface
 uses
   System.SysUtils,
   System.JSON,
-  Dext.MCP.Types,
-  Dext.MCP.Attributes,
-  Dext.MCP.Tools;
+  Dext.AI.MCP.Attributes,
+  Dext.AI.MCP.Protocol,
+  Dext.AI.MCP.Types,
+  Dext.AI.MCP.Tools;
 
 // ---------------------------------------------------------------------------
 // TDemoProvider

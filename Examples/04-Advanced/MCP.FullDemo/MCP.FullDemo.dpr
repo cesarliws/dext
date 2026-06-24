@@ -1,49 +1,43 @@
-program MCP.FullDemo;
+﻿program MCP.FullDemo;
 
 {$APPTYPE CONSOLE}
 {$R *.res}
 
-{***************************************************************************}
-{                                                                           }
-{  MCP Full Demo — Dext MCP 2025-03-26                                     }
-{                                                                           }
-{  Demonstra o uso completo do Dext MCP Server:                            }
-{                                                                           }
-{    TRANSPORT   HTTP Streamable (POST /mcp) — protocolo 2025-03-26        }
-{    TOOLS       4 tools via provider RTTI ([MCPTool] + [MCPParam])        }
-{    RESOURCES   2 resources via provider RTTI ([MCPResource])             }
-{    PROMPTS     2 prompts via provider RTTI ([MCPPrompt] + [MCPPromptArg])}
-{    RESULTADO   TMCPToolResult rico (Text, Error, multi-content)          }
-{                                                                           }
-{  Stack HTTP: Indy TIdHTTPServer (via TWebHostBuilder do Dext)            }
-{                                                                           }
-{  Uso:                                                                     }
-{    MCP.FullDemo.exe                -> Streamable em http://localhost:3031 }
-{    MCP.FullDemo.exe --port 3040    -> Streamable em porta customizada    }
-{    MCP.FullDemo.exe --sse          -> SSE legacy (Claude Desktop antigo) }
-{    MCP.FullDemo.exe --stdio        -> Stdio (Claude Desktop processo)    }
-{                                                                           }
-{  Conectar ao Claude Code:                                                 }
-{    claude mcp add demo http://localhost:3031/mcp                         }
-{                                                                           }
-{  Verificar manualmente (curl):                                            }
-{    curl -X POST http://localhost:3031/mcp \                              }
-{      -H "Content-Type: application/json" \                               }
-{      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{        }
-{           "protocolVersion":"2025-03-26",                                }
-{           "clientInfo":{"name":"test","version":"1.0"}}}'                }
-{                                                                           }
-{***************************************************************************}
+(*****************************************************************************)
+(*                                                                           *)
+(*  MCP Full Demo — Dext MCP 2025-03-26                                      *)
+(*                                                                           *)
+(*  Demonstra o uso completo do Dext MCP Server:                             *)
+(*                                                                           *)
+(*    TRANSPORT   HTTP Streamable (POST /mcp) — protocolo 2025-03-26         *)
+(*    TOOLS       4 tools via provider RTTI ([MCPTool] + [MCPParam])         *)
+(*    RESOURCES   2 resources via provider RTTI ([MCPResource])              *)
+(*    PROMPTS     2 prompts via provider RTTI ([MCPPrompt] + [MCPPromptArg]) *)
+(*    RESULTADO   TMCPToolResult rico (Text, Error, multi-content)           *)
+(*                                                                           *)
+(*  Stack HTTP: Indy TIdHTTPServer (via TWebHostBuilder do Dext)             *)
+(*                                                                           *)
+(*  Uso:                                                                     *)
+(*    MCP.FullDemo.exe                -> Streamable em http://localhost:3031 *)
+(*    MCP.FullDemo.exe --port 3040    -> Streamable em porta customizada     *)
+(*    MCP.FullDemo.exe --sse          -> SSE legacy (Claude Desktop antigo)  *)
+(*    MCP.FullDemo.exe --stdio        -> Stdio (Claude Desktop processo)     *)
+(*                                                                           *)
+(*  Conectar ao Claude Code:                                                 *)
+(*    claude mcp add demo http://localhost:3031/mcp                          *)
+(*                                                                           *)
+(*  Verificar manualmente (curl):                                            *)
+(*    curl -X POST http://localhost:3031/mcp \                               *)
+(*      -H "Content-Type: application/json" \                                *)
+(*      -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{         *)
+(*           "protocolVersion":"2025-03-26",                                 *)
+(*           "clientInfo":{"name":"test","version":"1.0"}}}'                 *)
+(*                                                                           *)
+(*****************************************************************************)
 
 uses
   System.SysUtils,
-  Dext.MCP.Protocol     in '..\..\Sources\MCP\Dext.MCP.Protocol.pas',
-  Dext.MCP.Types        in '..\..\Sources\MCP\Dext.MCP.Types.pas',
-  Dext.MCP.Attributes   in '..\..\Sources\MCP\Dext.MCP.Attributes.pas',
-  Dext.MCP.Tools        in '..\..\Sources\MCP\Dext.MCP.Tools.pas',
-  Dext.MCP.Resources    in '..\..\Sources\MCP\Dext.MCP.Resources.pas',
-  Dext.MCP.Prompts      in '..\..\Sources\MCP\Dext.MCP.Prompts.pas',
-  Dext.MCP.Server       in '..\..\Sources\MCP\Dext.MCP.Server.pas',
+  Dext.AI.MCP.Server,
   MCP.FullDemo.Provider in 'MCP.FullDemo.Provider.pas';
 
 // ---------------------------------------------------------------------------

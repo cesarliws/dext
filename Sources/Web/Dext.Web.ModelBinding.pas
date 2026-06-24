@@ -332,13 +332,17 @@ begin
                 jntString: Result := TReflection.CastFromString(NodeVal.AsString, AParam.ParamType.Handle);
                 jntNumber: Result := TReflection.CastFromString(NodeVal.AsString, AParam.ParamType.Handle);
                 jntBoolean: Result := TValue.From<Boolean>(NodeVal.AsBoolean);
-                jntNull: Result := TReflection.GetDefaultValue(nil, AParam.ParamType.Handle);
+                jntNull: Result := TReflection.GetDefaultValue(AParam, AParam.ParamType.Handle);
               else
                 Result := TReflection.CastFromString(NodeVal.AsString, AParam.ParamType.Handle);
               end;
-              Exit;
-            end;
-          end;
+            end
+            else
+              Result := TReflection.GetDefaultValue(AParam, AParam.ParamType.Handle);
+          end
+          else
+            Result := TReflection.GetDefaultValue(AParam, AParam.ParamType.Handle);
+          Exit;
         end;
 
         case JsonNode.GetNodeType of

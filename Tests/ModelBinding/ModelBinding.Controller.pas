@@ -4,9 +4,11 @@ interface
 
 uses
   System.SysUtils,
+  System.Classes,
   Dext.Web,
   Dext.Web.Results,
-  Dext.Validation;
+  Dext.Validation,
+  Dext.Entity.Attributes;
 
 type
   // -------------------------------------------------------------------------
@@ -80,6 +82,15 @@ type
     [HttpPost('/echo')]
     [AllowAnonymous]
     procedure Echo(Ctx: IHttpContext; [FromBody] const AMsg: string);
+    
+    // Test 7: Multi-field primitive [FromBody] with optional parameters
+    [HttpPost('/multibody')]
+    [AllowAnonymous]
+    procedure MultiBody(Ctx: IHttpContext; 
+      [FromBody] const codice: string; 
+      [FromBody] const denominazione: string;
+      [FromBody] [DefaultValue('DefaultPiano')] const piano: string;
+      [FromBody] const note: string);
   end;
 
 implementation
@@ -137,6 +148,14 @@ procedure TModelBindingController.Echo(Ctx: IHttpContext; const AMsg: string);
 begin
   WriteLn(Format('[ApiController] Echo -> AMsg=%s', [AMsg]));
   Ctx.Response.Json(Format('{"source":"controller-echo","message":"%s"}', [AMsg]));
+end;
+
+procedure TModelBindingController.MultiBody(Ctx: IHttpContext; const codice, denominazione, piano, note: string);
+begin
+  WriteLn(Format('[ApiController] MultiBody -> codice=%s, denominazione=%s, piano=%s, note=%s', 
+    [codice, denominazione, piano, note]));
+  Ctx.Response.Json(Format('{"source":"controller-multibody","codice":"%s","denominazione":"%s","piano":"%s","note":"%s"}', 
+    [codice, denominazione, piano, note]));
 end;
 
 initialization

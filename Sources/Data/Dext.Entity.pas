@@ -109,6 +109,7 @@ type
   VisibleAttribute = Dext.Entity.Attributes.VisibleAttribute;
   ReadOnlyAttribute = Dext.Entity.Attributes.ReadOnlyAttribute;
   DefaultValueAttribute = Dext.Entity.Attributes.DefaultValueAttribute;
+  SequenceAttribute = Dext.Entity.Attributes.SequenceAttribute;
 
   // Short Aliases
   PK = Dext.Entity.Attributes.PK;

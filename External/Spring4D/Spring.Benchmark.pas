@@ -1941,7 +1941,10 @@ begin
   GetLogicalProcessorInformation(nil, bufferSize);
   GetMem(buff, bufferSize);
   if not GetLogicalProcessorInformation(buff, bufferSize) then
-    DiagnoseAndExit('Failed during call to GetLogicalProcessorInformation: ' + GetLastError.ToString);
+  begin
+    FreeMem(buff);
+    Exit(nil);
+  end;
 
   for i := 0 to (bufferSize div SizeOf(TSystemLogicalProcessorInformation)) - 1 do
   begin
@@ -3836,10 +3839,29 @@ end;
 
 class constructor TCPUInfo.Create;
 begin
-  numCpus := GetNumCPUs;
-  cyclesPerSecond := GetCPUCyclesPerSecond;
-  cycleDuration := 1 / cyclesPerSecond;
-  caches := GetCacheSizes;
+  try
+    numCpus := GetNumCPUs;
+  except
+    numCpus := 1;
+  end;
+
+  try
+    cyclesPerSecond := GetCPUCyclesPerSecond;
+    if cyclesPerSecond > 0 then
+      cycleDuration := 1 / cyclesPerSecond
+    else
+      cycleDuration := 0.0;
+  except
+    cyclesPerSecond := 0.0;
+    cycleDuration := 0.0;
+  end;
+
+  try
+    caches := GetCacheSizes;
+  except
+    caches := nil;
+  end;
+
   scaling := Unknown;
   loadAvg := nil;
 end;

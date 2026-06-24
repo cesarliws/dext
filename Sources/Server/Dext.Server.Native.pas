@@ -255,6 +255,7 @@ type
     FEngine: IDextServerEngine;
     FPipeline: TRequestDelegate;
     FServices: IServiceProvider;
+    FOptions: TServerEngineOptions;
     FRunning: Boolean;
   public
     /// <summary>Initializes a new native web server instance.</summary>
@@ -290,36 +291,49 @@ uses
 
 function UrlDecode(const AStr: string): string;
 var
-  I: Integer;
+  I, J, Len: Integer;
   Ch: Char;
   Code: Integer;
 begin
-  Result := '';
+  Len := Length(AStr);
+  if Len = 0 then Exit('');
+
+  // 1. Quick check to avoid any allocation if no decoding is needed
+  J := 0;
+  for I := 1 to Len do
+    if (AStr[I] = '%') or (AStr[I] = '+') then
+    begin
+      J := 1;
+      Break;
+    end;
+  if J = 0 then Exit(AStr);
+
+  // 2. Pre-allocate the maximum potential buffer size
+  SetLength(Result, Len);
   I := 1;
-  while I <= Length(AStr) do
+  J := 1;
+  while I <= Len do
   begin
     Ch := AStr[I];
     if Ch = '%' then
     begin
-      if I + 2 <= Length(AStr) then
+      if (I + 2 <= Len) and TryStrToInt('$' + Copy(AStr, I + 1, 2), Code) then
       begin
-        if TryStrToInt('$' + Copy(AStr, I + 1, 2), Code) then
-        begin
-          Result := Result + Char(Code);
-          Inc(I, 2);
-        end
-        else
-          Result := Result + Ch;
+        Result[J] := Char(Code);
+        Inc(I, 2);
       end
       else
-        Result := Result + Ch;
+        Result[J] := Ch;
     end
     else if Ch = '+' then
-      Result := Result + ' '
+      Result[J] := ' '
     else
-      Result := Result + Ch;
+      Result[J] := Ch;
     Inc(I);
+    Inc(J);
   end;
+  // 3. Shrink string to actual decoded length
+  SetLength(Result, J - 1);
 end;
 
 { TDextNativeFormFile }
@@ -752,6 +766,7 @@ begin
   FPort := APort;
   FPipeline := APipeline;
   FServices := AServices;
+  FOptions := AOptions;
   FRunning := False;
   
   // Decide best engine based on platform/options
@@ -790,11 +805,7 @@ procedure TDextNativeWebServer.Start;
 begin
   if FRunning then Exit;
 
-  {$IFDEF MSWINDOWS}
-  FEngine.Bind('127.0.0.1', FPort);
-  {$ELSE}
-  FEngine.Bind('0.0.0.0', FPort);
-  {$ENDIF}
+  FEngine.Bind(FOptions.BindAddress, FPort);
   FEngine.SetOnRequest(
     procedure(const AConnection: IDextServerConnection; const ARequest: IDextRawRequest; const AResponse: IDextRawResponse)
     var

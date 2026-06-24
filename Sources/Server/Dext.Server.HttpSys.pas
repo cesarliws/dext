@@ -51,7 +51,7 @@ type
   TDextHttpSysBufferPool = class
   private
     FPool: TList;
-    FLock: TCriticalSection;
+    FLock: TSpinLock;
     FMaxPoolSize: Integer;
   public
     constructor Create(AMaxPoolSize: Integer = 64);
@@ -68,6 +68,7 @@ type
     FEngine: TDextHttpSysEngine;
     FRequest: PHTTP_REQUEST;
     FBodyStream: TCustomMemoryStream;
+    FBodyRead: Boolean;
     function GetMethod: string;
     function GetPath: string;
     function GetQueryString: string;
@@ -144,7 +145,7 @@ type
   TDextHttpSysRequestPool = class
   private
     FPool: TList;
-    FLock: TCriticalSection;
+    FLock: TSpinLock;
     FMaxPoolSize: Integer;
   public
     constructor Create(AMaxPoolSize: Integer = 64);
@@ -159,7 +160,7 @@ type
   TDextHttpSysResponsePool = class
   private
     FPool: TList;
-    FLock: TCriticalSection;
+    FLock: TSpinLock;
     FMaxPoolSize: Integer;
   public
     constructor Create(AMaxPoolSize: Integer = 64);
@@ -315,13 +316,16 @@ uses
   Dext.WebSocket.Handshake,
   Dext.WebSocket.Protocol;
 
+var
+  KnownRequestHeadersMapGlobal: TDictionary<string, Integer>;
+  KnownResponseHeadersMapGlobal: TDictionary<string, Integer>;
+
 { TDextHttpSysBufferPool }
 
 constructor TDextHttpSysBufferPool.Create(AMaxPoolSize: Integer);
 begin
   inherited Create;
   FPool := TList.Create;
-  FLock := TCriticalSection.Create;
   FMaxPoolSize := AMaxPoolSize;
 end;
 
@@ -335,9 +339,8 @@ begin
       TMemoryStream(Item).Free;
     FPool.Free;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
-  FLock.Free;
   inherited;
 end;
 
@@ -352,7 +355,7 @@ begin
       FPool.Delete(FPool.Count - 1);
     end;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
   if Result = nil then
   begin
@@ -380,7 +383,7 @@ begin
       ABuffer.Free;
     end;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
 end;
 
@@ -392,6 +395,7 @@ begin
   FRequest := ARequest;
   FBodyStream := nil;
   FEngine := nil;
+  FBodyRead := False;
 end;
 
 destructor TDextHttpSysRequest.Destroy;
@@ -405,6 +409,7 @@ procedure TDextHttpSysRequest.Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_
 begin
   FEngine := AEngine;
   FRequest := ARequest;
+  FBodyRead := False;
   if Assigned(FBodyStream) then
   begin
     FBodyStream.Size := 0;
@@ -433,8 +438,11 @@ var
   TempBuf: TBytes;
 begin
   if FBodyStream = nil then
-  begin
     FBodyStream := TMemoryStream.Create;
+
+  if not FBodyRead then
+  begin
+    FBodyRead := True;
     
     // 1. Copy pre-allocated body chunks
     if (FRequest.EntityChunkCount > 0) and (FRequest.pEntityChunks <> nil) then
@@ -525,19 +533,18 @@ const
 
 function TDextHttpSysRequest.GetHeader(const AName: string): string;
 var
+  Index: Integer;
   I: Integer;
+  UnknownName: string;
 begin
   Result := '';
   // Check known headers
-  for I := 0 to 40 do
+  if KnownRequestHeadersMapGlobal.TryGetValue(AName, Index) then
   begin
-    if SameText(HTTP_KNOWN_REQUEST_HEADERS[I], AName) then
+    if FRequest.Headers.KnownHeaders[Index].RawValueLength > 0 then
     begin
-      if FRequest.Headers.KnownHeaders[I].RawValueLength > 0 then
-      begin
-        Result := string(AnsiString(FRequest.Headers.KnownHeaders[I].pRawValue));
-        Exit;
-      end;
+      SetString(Result, PAnsiChar(FRequest.Headers.KnownHeaders[Index].pRawValue), FRequest.Headers.KnownHeaders[Index].RawValueLength);
+      Exit;
     end;
   end;
 
@@ -546,9 +553,10 @@ begin
   begin
     for I := 0 to FRequest.Headers.UnknownHeaderCount - 1 do
     begin
-      if SameText(string(AnsiString(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pName)), AName) then
+      SetString(UnknownName, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pName), PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].NameLength);
+      if SameText(UnknownName, AName) then
       begin
-        Result := string(AnsiString(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pRawValue));
+        SetString(Result, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pRawValue), PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].RawValueLength);
         Exit;
       end;
     end;
@@ -558,21 +566,25 @@ end;
 procedure TDextHttpSysRequest.PopulateHeaders(ADict: TDictionary<string, string>);
 var
   I: Integer;
+  Val: string;
+  UnknownName: string;
 begin
   for I := 0 to 40 do
   begin
     if FRequest.Headers.KnownHeaders[I].RawValueLength > 0 then
-      ADict.AddOrSetValue(HTTP_KNOWN_REQUEST_HEADERS[I], string(AnsiString(FRequest.Headers.KnownHeaders[I].pRawValue)));
+    begin
+      SetString(Val, PAnsiChar(FRequest.Headers.KnownHeaders[I].pRawValue), FRequest.Headers.KnownHeaders[I].RawValueLength);
+      ADict.AddOrSetValue(HTTP_KNOWN_REQUEST_HEADERS[I], Val);
+    end;
   end;
 
   if (FRequest.Headers.UnknownHeaderCount > 0) and (FRequest.Headers.pUnknownHeaders <> nil) then
   begin
     for I := 0 to FRequest.Headers.UnknownHeaderCount - 1 do
     begin
-      ADict.AddOrSetValue(
-        string(AnsiString(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pName)),
-        string(AnsiString(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pRawValue))
-      );
+      SetString(UnknownName, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pName), PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].NameLength);
+      SetString(Val, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].pRawValue), PHTTP_UNKNOWN_HEADER_ARRAY(FRequest.Headers.pUnknownHeaders)^[I].RawValueLength);
+      ADict.AddOrSetValue(UnknownName, Val);
     end;
   end;
 end;
@@ -590,7 +602,7 @@ begin
     HttpVerbCONNECT: Result := 'CONNECT';
   else
     if FRequest.pUnknownVerb <> nil then
-      Result := string(AnsiString(FRequest.pUnknownVerb))
+      SetString(Result, PAnsiChar(FRequest.pUnknownVerb), FRequest.UnknownVerbLength)
     else
       Result := 'GET';
   end;
@@ -950,29 +962,26 @@ end;
 
 procedure TDextHttpSysResponse.SetHeader(const AName, AValue: string);
 var
-  I: Integer;
+  Index: Integer;
   Written: Integer;
 begin
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
 
-  for I := 0 to 29 do
+  if KnownResponseHeadersMapGlobal.TryGetValue(AName, Index) then
   begin
-    if SameText(HTTP_KNOWN_RESPONSE_HEADERS[I], AName) then
-    begin
-      if FHeaderDataLen + Length(AValue) * 3 + 1 >= SizeOf(FHeaderData) then
-        Exit;
-
-      Written := WideCharToMultiByte(CP_UTF8, 0, PChar(AValue), Length(AValue), @FHeaderData[FHeaderDataLen], SizeOf(FHeaderData) - FHeaderDataLen - 1, nil, nil);
-      if Written > 0 then
-      begin
-        FHeaderData[FHeaderDataLen + Written] := #0;
-        FHeaderValues[I].Offset := FHeaderDataLen;
-        FHeaderValues[I].Length := Written;
-        FHeaderDataLen := FHeaderDataLen + Written + 1;
-      end;
+    if FHeaderDataLen + Length(AValue) * 3 + 1 >= SizeOf(FHeaderData) then
       Exit;
+
+    Written := WideCharToMultiByte(CP_UTF8, 0, PChar(AValue), Length(AValue), @FHeaderData[FHeaderDataLen], SizeOf(FHeaderData) - FHeaderDataLen - 1, nil, nil);
+    if Written > 0 then
+    begin
+      FHeaderData[FHeaderDataLen + Written] := #0;
+      FHeaderValues[Index].Offset := FHeaderDataLen;
+      FHeaderValues[Index].Length := Written;
+      FHeaderDataLen := FHeaderDataLen + Written + 1;
     end;
+    Exit;
   end;
 end;
 
@@ -1236,6 +1245,7 @@ end;
 constructor TDextHttpSysConnection.Create(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
 var
   I: Integer;
+  UnknownName: string;
 begin
   inherited Create;
   FConnectionId := ARequest.ConnectionId;
@@ -1251,9 +1261,10 @@ begin
   begin
     for I := 0 to ARequest.Headers.UnknownHeaderCount - 1 do
     begin
-      if SameText(string(AnsiString(PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].pName)), 'Sec-WebSocket-Key') then
+      SetString(UnknownName, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].pName), PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].NameLength);
+      if SameText(UnknownName, 'Sec-WebSocket-Key') then
       begin
-        FSecWebSocketKey := string(AnsiString(PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].pRawValue));
+        SetString(FSecWebSocketKey, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].pRawValue), PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].RawValueLength);
         Break;
       end;
     end;
@@ -1306,7 +1317,6 @@ constructor TDextHttpSysRequestPool.Create(AMaxPoolSize: Integer);
 begin
   inherited Create;
   FPool := TList.Create;
-  FLock := TCriticalSection.Create;
   FMaxPoolSize := AMaxPoolSize;
 end;
 
@@ -1323,9 +1333,8 @@ begin
     end;
     FPool.Free;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
-  FLock.Free;
   inherited;
 end;
 
@@ -1340,7 +1349,7 @@ begin
       FPool.Delete(FPool.Count - 1);
     end;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
   if Result = nil then
   begin
@@ -1368,7 +1377,7 @@ begin
       ARequest.Free;
     end;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
 end;
 
@@ -1378,7 +1387,6 @@ constructor TDextHttpSysResponsePool.Create(AMaxPoolSize: Integer);
 begin
   inherited Create;
   FPool := TList.Create;
-  FLock := TCriticalSection.Create;
   FMaxPoolSize := AMaxPoolSize;
 end;
 
@@ -1395,9 +1403,8 @@ begin
     end;
     FPool.Free;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
-  FLock.Free;
   inherited;
 end;
 
@@ -1412,7 +1419,7 @@ begin
       FPool.Delete(FPool.Count - 1);
     end;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
   if Result = nil then
   begin
@@ -1447,7 +1454,7 @@ begin
       AResponse.Free;
     end;
   finally
-    FLock.Leave;
+    FLock.Exit;
   end;
 end;
 
@@ -1484,7 +1491,7 @@ begin
     Ret := HttpReceiveHttpRequest(
       FReqQueue,
       RequestId,
-      0,
+      HTTP_RECEIVE_REQUEST_FLAG_COPY_BODY,
       Request,
       Length(ReqBuffer),
       BytesReturned,
@@ -1631,14 +1638,35 @@ begin
   if FRunning then Exit;
 
   // Register prefix
-  if (FAddress = '0.0.0.0') or (FAddress = '') then
+  if (FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '') then
     UrlPrefix := Format('http://+:%d/', [FListeningPort])
   else
     UrlPrefix := Format('http://%s:%d/', [FAddress, FListeningPort]);
     
   Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
   if Ret <> ERROR_SUCCESS then
-    raise EOSError.Create('HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' with error code: ' + IntToStr(Ret));
+  begin
+    if Ret = 5 then // Access Denied
+    begin
+      var Err := EOSError.Create(
+        'HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' (Access Denied).' + #13#10 +
+        'This error occurs because registering URL prefixes on all interfaces (+ or 0.0.0.0) requires administrative privileges.' + #13#10 +
+        'To resolve this:' + #13#10 +
+        '1. Run your application as Administrator.' + #13#10 +
+        '2. Or register this URL prefix using netsh in an elevated prompt:' + #13#10 +
+        '   netsh http add urlacl url=' + UrlPrefix + ' user=Todos' + #13#10 +
+        '3. Or configure the server BindAddress to "localhost" or "127.0.0.1" in TServerEngineOptions to run without elevation.'
+      );
+      Err.ErrorCode := Ret;
+      raise Err;
+    end
+    else
+    begin
+      var Err := EOSError.Create('HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' with error code: ' + IntToStr(Ret));
+      Err.ErrorCode := Ret;
+      raise Err;
+    end;
+  end;
 
   FRunning := True;
 
@@ -1741,6 +1769,23 @@ class function TDextHttpSysEngine.Factory(Port: Integer; Pipeline: TRequestDeleg
 begin
   Result := nil;
 end;
+{$ENDIF}
+
+initialization
+{$IFDEF MSWINDOWS}
+  KnownRequestHeadersMapGlobal := TDictionary<string, Integer>.Create(True, False, 0);
+  for var I := 0 to 40 do
+    KnownRequestHeadersMapGlobal.Add(HTTP_KNOWN_REQUEST_HEADERS[I], I);
+
+  KnownResponseHeadersMapGlobal := TDictionary<string, Integer>.Create(True, False, 0);
+  for var I := 0 to 29 do
+    KnownResponseHeadersMapGlobal.Add(HTTP_KNOWN_RESPONSE_HEADERS[I], I);
+{$ENDIF}
+
+finalization
+{$IFDEF MSWINDOWS}
+  KnownRequestHeadersMapGlobal.Free;
+  KnownResponseHeadersMapGlobal.Free;
 {$ENDIF}
 
 end.

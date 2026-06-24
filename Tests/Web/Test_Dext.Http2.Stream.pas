@@ -1,6 +1,6 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
-{           Dext Framework — HTTP/2 Stream State Machine Unit Tests        }
+{           Dext Framework - HTTP/2 Stream State Machine Unit Tests        }
 {                                                                           }
 {           Tests stream state transitions, flow control, and stream map   }
 {           binary search/insert/remove behavior.                           }
@@ -20,7 +20,7 @@ uses
 
 type
   /// <summary>Tests for TDextHttp2Stream state transitions.</summary>
-  [TestFixture('HTTP/2 Stream — State Machine')]
+  [TestFixture('HTTP/2 Stream - State Machine')]
   TStreamStateTests = class
   public
     [Test]
@@ -42,7 +42,7 @@ type
   end;
 
   /// <summary>Tests for stream header accumulation and data buffering.</summary>
-  [TestFixture('HTTP/2 Stream — Header and Data Accumulation')]
+  [TestFixture('HTTP/2 Stream - Header and Data Accumulation')]
   TStreamAccumulationTests = class
   private
     FDecoder: THpackDecoder;
@@ -62,7 +62,7 @@ type
   end;
 
   /// <summary>Tests for flow control (send/recv window).</summary>
-  [TestFixture('HTTP/2 Stream — Flow Control')]
+  [TestFixture('HTTP/2 Stream - Flow Control')]
   TStreamFlowControlTests = class
   public
     [Test]
@@ -76,7 +76,7 @@ type
   end;
 
   /// <summary>Tests for TDextHttp2StreamMap sorted array operations.</summary>
-  [TestFixture('HTTP/2 Stream — StreamMap')]
+  [TestFixture('HTTP/2 Stream - StreamMap')]
   TStreamMapTests = class
   private
     FMap: TDextHttp2StreamMap;

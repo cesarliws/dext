@@ -48,6 +48,8 @@ type
     KeepAlive: Boolean;
     /// <summary>Keep-Alive timeout in seconds (default: 120).</summary>
     KeepAliveTimeoutSec: Integer;
+    /// <summary>The IP address or host to bind the server to (default: '0.0.0.0').</summary>
+    BindAddress: string;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -73,6 +75,9 @@ type
     /// <param name="AEnable">True to enable keep-alive.</param>
     /// <param name="ATimeoutSec">Keep-alive timeout in seconds.</param>
     function WithKeepAlive(AEnable: Boolean; ATimeoutSec: Integer = 120): TServerEngineOptions;
+    /// <summary>Configures the server bind address (e.g. '0.0.0.0', '127.0.0.1', or '+').</summary>
+    /// <param name="AAddress">The bind address string.</param>
+    function WithBindAddress(const AAddress: string): TServerEngineOptions;
   end;
 
 implementation
@@ -87,6 +92,7 @@ begin
   Result.ShutdownTimeoutMs := 5000;
   Result.KeepAlive := True;
   Result.KeepAliveTimeoutSec := 120;
+  Result.BindAddress := '0.0.0.0';
 end;
 
 { TServerEngineOptionsHelper }
@@ -119,6 +125,12 @@ function TServerEngineOptionsHelper.WithKeepAlive(AEnable: Boolean; ATimeoutSec:
 begin
   Self.KeepAlive := AEnable;
   Self.KeepAliveTimeoutSec := ATimeoutSec;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithBindAddress(const AAddress: string): TServerEngineOptions;
+begin
+  Self.BindAddress := AAddress;
   Result := Self;
 end;
 

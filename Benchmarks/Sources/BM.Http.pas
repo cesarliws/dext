@@ -1,4 +1,4 @@
-unit BM.Http;
+﻿unit BM.Http;
 
 interface
 
@@ -9,6 +9,7 @@ procedure BM_Http_Indy_Ping(const state: TState);
 procedure BM_Http_HttpSys_Ping(const state: TState);
 procedure BM_Http_InMemory_Ping(const state: TState);
 procedure RunStandaloneServer(const AEngine: string);
+procedure InitializeHttpBenchmarks;
 
 implementation
 
@@ -21,6 +22,7 @@ uses
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
   Dext.Server.Engine.Interfaces,
+  Dext.Server.Engine.Types,
   Dext.WebHost,
   Dext.Web.Interfaces,
   Dext.Web;
@@ -261,8 +263,8 @@ begin
     end);
     
   GNativeHost := Builder.Build as IWebApplication;
-  GNativeHost.UseNativeServer;
-  
+  GNativeHost.UseNativeServer(TServerEngineOptions.Default.WithBindAddress('localhost'));
+
   PortTry := 8090;
   while PortTry < 8100 do
   begin
@@ -271,11 +273,19 @@ begin
       GNativePort := PortTry;
       Exit;
     except
+      on E: EOSError do
+      begin
+        if E.ErrorCode = 5 then
+          raise; // Propaga erro de permissão do http.sys imediatamente
+        Inc(PortTry);
+        if PortTry >= 8100 then
+          raise;
+      end;
       on E: Exception do
       begin
         Inc(PortTry);
         if PortTry >= 8100 then
-          raise Exception.Create('Failed to start http.sys server: no free ports found in range 8090-8100. Original error: ' + E.Message);
+          raise;
       end;
     end;
   end;
@@ -420,7 +430,8 @@ begin
   Host.Stop;
 end;
 
-initialization
+procedure InitializeHttpBenchmarks;
+begin
   var IsServerMode := False;
   for var I := 1 to ParamCount do
     if SameText(ParamStr(I), '--server') then
@@ -433,7 +444,9 @@ initialization
     StartNativeServer;
     SetupInMemoryPipeline;
   end;
+end;
 
+initialization
   // Run network benchmarks scaling from 1 to 4 threads
   Benchmark(BM_Http_Indy_Ping, 'BM_Http_Indy_Ping_T1').Threads(1);
   Benchmark(BM_Http_Indy_Ping, 'BM_Http_Indy_Ping_T4').Threads(4);

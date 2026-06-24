@@ -13,6 +13,7 @@ Mergulhos profundos em infraestrutura e padrões avançados.
 7. [Pipeline de Resiliência](resiliencia.md) - Tratamento de falhas estilo Polly (Retry, Circuit Breaker, Fallback, Timeout)
 8. [Persistent Background Jobs](background-jobs.md) - Tarefas agendadas e atrasadas fora do processo principal
 9. [Filtros Dinâmicos de Query](filtros-dinamicos-query.md) - Ignorar Soft Delete e Multi-Tenancy sob demanda
+10. [Otimização com Delphi64RTL (Win64)](performance-delphi64rtl.md) - Usando assembly otimizado e SIMD
 
 ## Exemplos Rápidos
 

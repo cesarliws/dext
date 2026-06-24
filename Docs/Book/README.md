@@ -105,6 +105,7 @@
 - [Template Engine (S09)](10-advanced/templating.md) ⭐ **NEW** - Razor-style AST engine
 - [Serialization & Globalization](10-advanced/serialization-globalization.md) ⭐ **NEW** - Handling locales and JSON formats
 - [Resilience Pipeline (S32)](10-advanced/resilience.md) ⭐ **NEW** - Polly-style fault handling (Retry, Circuit Breaker, Fallback, Timeout)
+- [Delphi64RTL Optimization (Win64)](10-advanced/performance-delphi64rtl.md) ⭐ **NEW** - Using optimized assembly and SIMD
 
 #### [11. Desktop UI (Dext.UI)](11-desktop-ui/README.md) ⭐ NEW
 
