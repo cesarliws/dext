@@ -1,4 +1,4 @@
-﻿unit Dext.Testing.Design.DockableForm;
+unit Dext.Testing.Design.DockableForm;
 
 interface
 
@@ -5048,7 +5048,7 @@ begin
       // ignore errors during analysis
     end;
   finally
-    for IntPair in TestDurations do Pair.Value.Free;
+    for IntPair in TestDurations do IntPair.Value.Free;
     TestDurations.Free;
     for Pair in TestStatuses do Pair.Value.Free;
     TestStatuses.Free;
