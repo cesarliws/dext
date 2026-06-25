@@ -26,26 +26,26 @@
 {                                                                           }
 {  [1] REGISTRY (TEventHandlerRegistry)                                     }
 {      - TMultiReadExclusiveWriteSynchronizer: write-once at startup,       }
-{        read-many at runtime — zero write contention after app start.      }
-{      - FBehaviors: TList<T> (concrete Dext type) — direct TRawList        }
+{        read-many at runtime - zero write contention after app start.      }
+{      - FBehaviors: TList<T> (concrete Dext type) - direct TRawList        }
 {        access; for-in uses the record-based TListEnumerator<T>, avoiding  }
 {        ARC overhead per iteration (vs. iterating through IList<T>).       }
-{      - FHandlers / FEventBehaviors: IDictionary<Pointer, IList<T>> —     }
+{      - FHandlers / FEventBehaviors: IDictionary<Pointer, IList<T>> -     }
 {        ARC-managed; no manual Free in destructor.                         }
 {                                                                           }
 {  [2] DISPATCH SNAPSHOT CACHE (TEventBus.FSnapshotCache)                  }
 {      - TMultiReadExclusiveWriteSynchronizer guards the cache.             }
-{        Hot-path (post-warm-up) takes a read lock — multiple threads read  }
+{        Hot-path (post-warm-up) takes a read lock - multiple threads read  }
 {        concurrently with no contention. Cold-path (first Publish per       }
 {        event type) takes a write lock once.                               }
 {      - EventTypeName (ShortString→UnicodeString conversion) is cached in  }
-{        the snapshot — zero string allocation on the hot-path.             }
+{        the snapshot - zero string allocation on the hot-path.             }
 {                                                                           }
 {  [3] SINGLETON vs SCOPED BUS (FCreateScope flag)                         }
 {      - AddEventBus (Singleton): FCreateScope=True. Publish creates a new  }
-{        child scope per call — handlers are isolated from each other.      }
+{        child scope per call - handlers are isolated from each other.      }
 {      - AddScopedEventBus (Scoped): FCreateScope=False. Publish uses the   }
-{        injected scoped provider directly — handlers share the request     }
+{        injected scoped provider directly - handlers share the request     }
 {        unit-of-work (DbContext, Identity, etc.).                          }
 {      - PublishBackground ALWAYS creates a fresh scope from FServiceProvider}
 {        before TTask.Run. The IServiceScope is captured in the closure,    }
@@ -54,10 +54,10 @@
 {                                                                           }
 {  [4] EXCEPTION AGGREGATION                                                }
 {      - Each handler invocation is individually wrapped in try/except.     }
-{        All handlers always run — a failing handler does not abort the     }
+{        All handlers always run - a failing handler does not abort the     }
 {        remaining ones.                                                     }
 {      - Errors are collected lazily (IList<string> allocated only on       }
-{        first failure — zero allocation on the happy path).                }
+{        first failure - zero allocation on the happy path).                }
 {      - After all handlers: if any failed, raise EEventDispatchAggregate.  }
 {                                                                           }
 {  [5] PER-EVENT BEHAVIORS                                                  }
@@ -109,7 +109,7 @@ type
   /// <summary>
   ///   Thread-safe registry. Write-once at startup, read-many during dispatch.
   ///   FBehaviors uses the concrete TList<T> type for record-based
-  ///   enumeration (TListEnumerator<T> — no ARC per element access).
+  ///   enumeration (TListEnumerator<T> - no ARC per element access).
   /// </summary>
   TEventHandlerRegistry = class(TInterfacedObject, IEventHandlerRegistry)
   private
@@ -178,7 +178,7 @@ type
       const ACreateScope: Boolean = True);
     destructor Destroy; override;
 
-    // Typed convenience — not on the interface (E2535).
+    // Typed convenience - not on the interface (E2535).
     // For interface-based callers use TEventBusExtensions.Publish<T>.
     function Publish<T>(const AEvent: T): TPublishResult;
     procedure PublishBackground<T>(const AEvent: T);
@@ -189,7 +189,7 @@ implementation
 uses
   Dext.Core.Reflection;
 
-// Standalone pipeline builder — each call creates a new stack frame so the
+// Standalone pipeline builder - each call creates a new stack frame so the
 // anonymous function captures its OWN copies of ABehavior and ANext.
 // Inline vars inside a for-loop share one stack slot in some Delphi versions,
 // causing all closures to alias the final iteration value (→ infinite recursion).
@@ -243,7 +243,7 @@ end;
 destructor TEventHandlerRegistry.Destroy;
 begin
   FLock.Free;
-  FBehaviors.Free; // concrete TList — explicit free
+  FBehaviors.Free; // concrete TList - explicit free
   FEventBehaviors := nil;
   FHandlers := nil;
   inherited;
@@ -325,7 +325,7 @@ begin
   try
     SetLength(Result, FBehaviors.Count);
     I := 0;
-    for F in FBehaviors do // uses TListEnumerator<T> — zero ARC overhead
+    for F in FBehaviors do // uses TListEnumerator<T> - zero ARC overhead
     begin
       Result[I] := F;
       Inc(I);
@@ -381,7 +381,7 @@ var
   I: Integer;
   Method, LMethod: TRttiMethod;
 begin
-  // Hot-path: read lock — multiple threads can read concurrently post-warm-up.
+  // Hot-path: read lock - multiple threads can read concurrently post-warm-up.
   FSnapshotLock.BeginRead;
   try
     if FSnapshotCache.TryGetValue(AEventType, Result) then
@@ -390,7 +390,7 @@ begin
     FSnapshotLock.EndRead;
   end;
  
-  // Cold-path: first Publish for this event type — build and store snapshot.
+  // Cold-path: first Publish for this event type - build and store snapshot.
   FSnapshotLock.BeginWrite;
   try
     if not FSnapshotCache.TryGetValue(AEventType, Result) then
@@ -513,7 +513,7 @@ begin
  
       if Length(Behaviors) = 0 then
       begin
-        // Fast-path: direct RTTI call — no closure allocation.
+        // Fast-path: direct RTTI call - no closure allocation.
         Method.Invoke(HandlerObj, [LocalEvent]);
       end
       else
@@ -528,7 +528,7 @@ begin
             LocalMethod.Invoke(LocalHandlerObj, [LocalEventVal]);
           end;
  
-        // Wrap in behaviors — reverse order so first-registered runs outermost.
+        // Wrap in behaviors - reverse order so first-registered runs outermost.
         for J := High(Behaviors) downto 0 do
           Pipeline := WrapBehavior(Behaviors[J], AEventType, LocalEventVal, Pipeline);
  
@@ -614,7 +614,7 @@ function TEventBus.Publish<T>(const AEvent: T): TPublishResult;
 var
   V: TValue;
 begin
-  // Box to TValue and delegate — keeps the generic method body trivial,
+  // Box to TValue and delegate - keeps the generic method body trivial,
   // avoiding a Delphi 11/12 compiler bug (E2018) with generic methods
   // returning record types on classes with interface method resolution clauses.
   V := TValue.From<T>(AEvent);

@@ -1,6 +1,6 @@
-# Configuração Claude — MCP Full Demo
+# Configuração Claude - MCP Full Demo
 
-## Claude Code (recomendado — MCP 2025-03-26)
+## Claude Code (recomendado - MCP 2025-03-26)
 
 ```bash
 # Adicionar o servidor
@@ -45,7 +45,7 @@ Reinicie o Claude Desktop após editar o arquivo.
 
 ---
 
-## Claude Desktop (Stdio — processo gerenciado)
+## Claude Desktop (Stdio - processo gerenciado)
 
 ```json
 {

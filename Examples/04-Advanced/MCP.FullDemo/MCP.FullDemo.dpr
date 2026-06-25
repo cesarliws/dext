@@ -5,11 +5,11 @@
 
 (*****************************************************************************)
 (*                                                                           *)
-(*  MCP Full Demo — Dext MCP 2025-03-26                                      *)
+(*  MCP Full Demo - Dext MCP 2025-03-26                                      *)
 (*                                                                           *)
 (*  Demonstra o uso completo do Dext MCP Server:                             *)
 (*                                                                           *)
-(*    TRANSPORT   HTTP Streamable (POST /mcp) — protocolo 2025-03-26         *)
+(*    TRANSPORT   HTTP Streamable (POST /mcp) - protocolo 2025-03-26         *)
 (*    TOOLS       4 tools via provider RTTI ([MCPTool] + [MCPParam])         *)
 (*    RESOURCES   2 resources via provider RTTI ([MCPResource])              *)
 (*    PROMPTS     2 prompts via provider RTTI ([MCPPrompt] + [MCPPromptArg]) *)
@@ -105,7 +105,7 @@ begin
     // Print startup banner
     Writeln;
     Writeln('╔══════════════════════════════════════════════════╗');
-    Writeln('║         Dext MCP Full Demo — v1.0.0              ║');
+    Writeln('║         Dext MCP Full Demo - v1.0.0              ║');
     Writeln('╚══════════════════════════════════════════════════╝');
     Writeln;
     Writeln('  Protocolo   : MCP 2025-03-26');
@@ -129,18 +129,18 @@ begin
     Writeln('  Health      : GET  ' + Url + '/health');
     Writeln;
     Writeln('  Tools       : ' + IntToStr(Server.Registry.Count));
-    Writeln('    calcular-desconto        — desconto progressivo');
-    Writeln('    validar-cpf              — verificação algoritmo RF');
-    Writeln('    calcular-imc             — classificação OMS');
-    Writeln('    gerar-relatorio-texto    — multi-content result');
+    Writeln('    calcular-desconto        - desconto progressivo');
+    Writeln('    validar-cpf              - verificação algoritmo RF');
+    Writeln('    calcular-imc             - classificação OMS');
+    Writeln('    gerar-relatorio-texto    - multi-content result');
     Writeln;
     Writeln('  Resources   : ' + IntToStr(Server.Resources.Count));
-    Writeln('    config://demo            — configurações do servidor');
-    Writeln('    docs://regras-desconto   — tabela de descontos');
+    Writeln('    config://demo            - configurações do servidor');
+    Writeln('    docs://regras-desconto   - tabela de descontos');
     Writeln;
     Writeln('  Prompts     : ' + IntToStr(Server.Prompts.Count));
-    Writeln('    analise-venda            — análise comercial');
-    Writeln('    revisao-codigo-delphi    — revisão de código');
+    Writeln('    analise-venda            - análise comercial');
+    Writeln('    revisao-codigo-delphi    - revisão de código');
     Writeln;
 
     if Transport = mtStreamable then

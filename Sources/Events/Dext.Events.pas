@@ -58,7 +58,7 @@
 ///     .AddEventBehavior&lt;TEventExceptionBehavior&gt;
 ///     .AddEventBehavior&lt;TEventLoggingBehavior&gt;;
 ///
-///   // 4. Inject and publish (preferred — typed, ISP-compliant)
+///   // 4. Inject and publish (preferred - typed, ISP-compliant)
 ///   constructor TMyService.Create(
 ///     const APublisher: IEventPublisher&lt;TOrderCreatedEvent&gt;);
 ///   FPublisher.Publish(Event);

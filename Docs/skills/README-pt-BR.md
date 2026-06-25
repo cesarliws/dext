@@ -28,6 +28,7 @@ Pacotes de instruções focados para escrever código **Dext** (framework modern
 | **dext-database-as-api** | `dext-database-as-api.md` | API REST CRUD instantânea de entidades ORM com zero código (`MapDataApi<T>`) |
 | **dext-desktop-ui** | `dext-desktop-ui.md` | Aplicativos desktop VCL, Navigator (inspirado no Flutter), Magic Binding (bidirecional, declarativo), MVVM |
 | **dext-server-adapters** | `dext-server-adapters.md` | Adaptador Indy (self-hosted), SSL/HTTPS (OpenSSL/Taurus), `Run` vs `Start`, padrões de deploy, WebBroker/ISAPI (roadmap) |
+| **dext-mcp** | `dext-mcp.md` | Model Context Protocol, servidores MCP, registrar ferramentas, recursos e prompts, chamadas de BD via IA |
 
 ## Instalação Manual
 
@@ -172,6 +173,13 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 - Construir aplicativos desktop VCL com o Dext Navigator
 - Implementar o Magic Binding (binding bidirecional declarativo)
 - Seguir o padrão MVVM com ViewModel + Controller + Frame
+
+**Carregue `dext-mcp`** quando:
+
+- Criar ou configurar um servidor MCP (Model Context Protocol)
+- Expor ferramentas (tools), recursos ou prompts customizados para assistentes de IA
+- Configurar conexões SQLite ou integração de banco de dados com chamadas de IA
+- Sincronizar atualizações de banco de dados com threads de interface gráfica VCL/FMX
 
 ## Fatos Principais sobre o Framework
 

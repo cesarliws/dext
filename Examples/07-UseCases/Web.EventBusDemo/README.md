@@ -1,13 +1,13 @@
 # Web.EventBus.Demo
 
-Demonstrates **`AddScopedEventBus`** — the Dext Event Bus integrated into a web API controller.
+Demonstrates **`AddScopedEventBus`** - the Dext Event Bus integrated into a web API controller.
 
 ## Key Concepts
 
 | Concept | Description |
 |---------|-------------|
 | `AddScopedEventBus` | `IEventBus` is created **once per HTTP request**. Handlers share the caller's DI scope. |
-| `AddEventBus` | Singleton bus — each `Publish` creates a fresh child scope (for background services). |
+| `AddEventBus` | Singleton bus - each `Publish` creates a fresh child scope (for background services). |
 | `TEventExceptionBehavior` | Wraps handler failures as `EEventDispatchException` with event context. |
 | `TEventBusExtensions.Publish<T>` | Static helper to publish typed events through the bus. |
 
@@ -25,11 +25,11 @@ With `AddEventBus` (singleton), each `Publish` creates a *new child scope*, isol
 
 ```
 Web.EventBus.Demo/
-├── Web.EventBusDemo.dpr                 # Entry point — listens on port 8080
+├── Web.EventBusDemo.dpr                 # Entry point - listens on port 8080
 ├── Web.EventBusDemo.dproj               # Delphi project file
-├── EventBusWebDemo.Startup.pas          # IStartup — delegates event bus config, adds controllers
+├── EventBusWebDemo.Startup.pas          # IStartup - delegates event bus config, adds controllers
 ├── EventBusWebDemo.EventBusConfig.pas   # Isolated event bus registration (record helper scope)
-├── EventBusWebDemo.Controller.pas       # TTaskController — publishes events on each action
+├── EventBusWebDemo.Controller.pas       # TTaskController - publishes events on each action
 ├── EventBusWebDemo.Events.pas           # Event records + handlers (WriteLn output)
 └── Test.Web.EventBusDemo.ps1            # PowerShell integration test script
 ```
@@ -195,6 +195,6 @@ response fields.
 
 ## See Also
 
-- [`EventsBus.Demo`](../EventsBus.Demo/) — console-only demo: behaviors, lifecycle, testing
+- [`EventsBus.Demo`](../EventsBus.Demo/) - console-only demo: behaviors, lifecycle, testing
 - [Event Bus documentation](../../Docs/Book/10-advanced/event-bus.md)
 - [Event Bus comparison](../../Docs/Book/10-advanced/event-bus-comparison.md)

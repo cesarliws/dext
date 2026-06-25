@@ -102,7 +102,7 @@ begin
   Handler := TMockLifecycleHandler.Create;
   // 1. REGISTER THE MOCK INSTANCE FIRST!
   // This ensures DI already has the singleton before the Event Bus asks for it.
-  // NOTE: DI container takes ownership — do NOT free Handler manually.
+  // NOTE: DI container takes ownership - do NOT free Handler manually.
   Services.AddSingletonInstance<TMockLifecycleHandler>(Handler);
   
   // 2. Now register the handler in the Bus

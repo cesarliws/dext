@@ -36,7 +36,7 @@ type
     function GetStr2: string;
   end;
 
-  [TestFixture('Collections — Robustness')]
+  [TestFixture('Collections - Robustness')]
   TRobustnessTests = class
   public
     [Test]

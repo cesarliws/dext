@@ -1785,7 +1785,7 @@ begin
         Manager := TDextServices.GetService<IStreamableSessionManager>(Ctx.Services);
         if Assigned(Manager) then
         begin
-          // Resolve host ApplicationStopping token — Scavenger exits within 500ms
+          // Resolve host ApplicationStopping token - Scavenger exits within 500ms
           // when the host begins shutdown, aligned with the framework's CT pattern.
           StoppingToken := nil;
           LifetimeIntf := Ctx.Services.GetServiceAsInterface(

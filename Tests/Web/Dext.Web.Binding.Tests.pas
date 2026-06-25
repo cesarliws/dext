@@ -95,6 +95,10 @@ type
       [FromBody] const denominazione: string;
       [FromBody] [DefaultValue('DefaultPiano')] const piano: string;
       [FromBody] const note: string);
+    procedure ArrayAction(
+      [FromBody] const tables: TArray<string>;
+      [FromBody] const codes: TArray<Integer>;
+      [FromBody] const names: TArray<string>);
   end;
 
   [TestClass]
@@ -124,6 +128,12 @@ type
 
     [Test]
     procedure Test_BindBodyPrimitive_Absent_NoDefaultValue;
+
+    [Test]
+    procedure Test_BindBodyPrimitive_Array_In_Object;
+
+    [Test]
+    procedure Test_BindBodyPrimitive_Array_Direct;
   end;
 
 implementation
@@ -180,6 +190,7 @@ procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin en
 
 procedure TDummyController.Action(Name: string; Score: Integer); begin end;
 procedure TDummyController.MultiBodyAction(const codice, denominazione, piano, note: string); begin end;
+procedure TDummyController.ArrayAction(const tables: TArray<string>; const codes: TArray<Integer>; const names: TArray<string>); begin end;
 
 { TWebBindingTests }
 
@@ -312,25 +323,13 @@ var
   Ctx: TRttiContext;
   Meth: TRttiMethod;
   Param: TRttiParameter;
-  Attr: TCustomAttribute;
 begin
   Context := CreateMockContextWithBody('{"codice":"acme","denominazione":"ACME"}'); // piano is omitted
   Meth := Ctx.GetType(TDummyController).GetMethod('MultiBodyAction');
   
-  WriteLn('DEBUG Unit Test: Meth assigned = ', Assigned(Meth));
-  if Assigned(Meth) then
-  begin
-    WriteLn('DEBUG Unit Test: Params count = ', Length(Meth.GetParameters));
-    Param := Meth.GetParameters[2];
-    WriteLn('DEBUG Unit Test: Param[2] Name = ', Param.Name);
-    for Attr in Param.GetAttributes do
-      WriteLn('DEBUG Unit Test: Param[2] Attr = ', Attr.ClassName);
-  end;
-  
   // Param 2: piano
   Param := Meth.GetParameters[2];
   Val := FBinder.BindParameter(Param, Context);
-  WriteLn('DEBUG Unit Test: Val = ', Val.AsString);
   Should(Val.AsString).Be('DefaultPiano');
 end;
 
@@ -349,6 +348,67 @@ begin
   Param := Meth.GetParameters[3];
   Val := FBinder.BindParameter(Param, Context);
   Should(Val.AsString).Be('');
+end;
+
+procedure TWebBindingTests.Test_BindBodyPrimitive_Array_In_Object;
+var
+  Context: IHttpContext;
+  Val: TValue;
+  Ctx: TRttiContext;
+  Meth: TRttiMethod;
+  Param: TRttiParameter;
+  ArrStr: TArray<string>;
+  ArrInt: TArray<Integer>;
+begin
+  Context := CreateMockContextWithBody('{"tables":["Comuni","Province"],"codes":[10,20],"names":null}');
+  Meth := Ctx.GetType(TDummyController).GetMethod('ArrayAction');
+  
+  // Param 0: tables
+  Param := Meth.GetParameters[0];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.IsArray).BeTrue;
+  ArrStr := Val.AsType<TArray<string>>;
+  Should(Length(ArrStr)).Be(2);
+  Should(ArrStr[0]).Be('Comuni');
+  Should(ArrStr[1]).Be('Province');
+
+  // Param 1: codes
+  Param := Meth.GetParameters[1];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.IsArray).BeTrue;
+  ArrInt := Val.AsType<TArray<Integer>>;
+  Should(Length(ArrInt)).Be(2);
+  Should(ArrInt[0]).Be(10);
+  Should(ArrInt[1]).Be(20);
+
+  // Param 2: names (null)
+  Param := Meth.GetParameters[2];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.IsArray).BeTrue;
+  Should(Length(Val.AsType<TArray<string>>)).Be(0);
+end;
+
+procedure TWebBindingTests.Test_BindBodyPrimitive_Array_Direct;
+var
+  Context: IHttpContext;
+  Val: TValue;
+  Ctx: TRttiContext;
+  Meth: TRttiMethod;
+  Param: TRttiParameter;
+  ArrStr: TArray<string>;
+begin
+  Context := CreateMockContextWithBody('["One","Two","Three"]');
+  Meth := Ctx.GetType(TDummyController).GetMethod('ArrayAction');
+  
+  // Param 0: tables
+  Param := Meth.GetParameters[0];
+  Val := FBinder.BindParameter(Param, Context);
+  Should(Val.IsArray).BeTrue;
+  ArrStr := Val.AsType<TArray<string>>;
+  Should(Length(ArrStr)).Be(3);
+  Should(ArrStr[0]).Be('One');
+  Should(ArrStr[1]).Be('Two');
+  Should(ArrStr[2]).Be('Three');
 end;
 
 end.

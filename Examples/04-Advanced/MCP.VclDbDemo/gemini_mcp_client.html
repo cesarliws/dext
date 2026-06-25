@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dext MCP Gemini Client</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0e17;
+      --panel: rgba(20, 30, 48, 0.7);
+      --border: rgba(255, 255, 255, 0.08);
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --text: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem;
+      background-image: radial-gradient(circle at 10% 20%, rgba(79, 70, 229, 0.15) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 45%);
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 2.5rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #a5b4fc 0%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .config-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .config-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    input, textarea {
+      background: rgba(10, 15, 30, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    button {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 0.8rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    button:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      background: var(--text-muted);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+      align-self: flex-start;
+    }
+
+    .status-badge.connected {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .console-box {
+      background: rgba(10, 15, 26, 0.95);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      min-height: 250px;
+      max-height: 400px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+
+    .log-line {
+      line-height: 1.5;
+    }
+
+    .log-time {
+      color: #6366f1;
+    }
+
+    .log-client {
+      color: #a5b4fc;
+    }
+
+    .log-server {
+      color: #10b981;
+    }
+
+    .log-gemini {
+      color: #f59e0b;
+    }
+
+    .log-error {
+      color: var(--error);
+    }
+
+    .chat-bubble {
+      padding: 0.8rem 1rem;
+      border-radius: 12px;
+      max-width: 85%;
+    }
+
+    .chat-bubble.user {
+      background: rgba(79, 70, 229, 0.2);
+      border: 1px solid rgba(79, 70, 229, 0.3);
+      align-self: flex-end;
+    }
+
+    .chat-bubble.ai {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      align-self: flex-start;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>Dext MCP Gemini Client</h1>
+      <p class="subtitle">Conecte seu servidor Dext MCP diretamente ao Gemini Pro/Flash</p>
+    </header>
+
+    <div class="config-grid">
+      <div class="input-group">
+        <label for="apiKey">Gemini API Key</label>
+        <input type="password" id="apiKey" placeholder="Cole sua chave API do Gemini...">
+      </div>
+      <div class="input-group">
+        <label for="serverUrl">Dext MCP Server URL</label>
+        <input type="text" id="serverUrl" value="http://localhost:3031/mcp">
+      </div>
+    </div>
+
+    <div class="actions">
+      <button id="btnConnect" onclick="connectMCP()">Conectar ao MCP Server</button>
+      <div id="statusBadge" class="status-badge">Desconectado</div>
+    </div>
+
+    <div class="input-group">
+      <label for="promptInput">O que você quer que o Gemini faça?</label>
+      <textarea id="promptInput" rows="3" placeholder="Ex: Sorteie um participante para mim e diga quem foi o vencedor." disabled></textarea>
+    </div>
+
+    <div class="actions">
+      <button id="btnSubmit" onclick="runAgent()" disabled>Executar com Gemini</button>
+    </div>
+
+    <label>Log de Comunicação / Conversa</label>
+    <div id="consoleLog" class="console-box">
+      <div class="log-line"><span class="log-time">[Sistema]</span> Insira sua Gemini API Key e inicie a conexão.</div>
+    </div>
+  </div>
+
+  <script>
+    let mcpSessionId = '';
+    let mcpTools = [];
+    const apiKeyInput = document.getElementById('apiKey');
+    const serverUrlInput = document.getElementById('serverUrl');
+    const promptInput = document.getElementById('promptInput');
+    const btnConnect = document.getElementById('btnConnect');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const statusBadge = document.getElementById('statusBadge');
+    const consoleLog = document.getElementById('consoleLog');
+
+    // Load API Key from localStorage if exists
+    if (localStorage.getItem('gemini_api_key')) {
+      apiKeyInput.value = localStorage.getItem('gemini_api_key');
+    }
+
+    function addLog(source, msg, type = '') {
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      const time = new Date().toLocaleTimeString();
+      let sourceSpan = `<span class="log-time">[${time}]</span> `;
+      
+      if (source === 'Client') sourceSpan += `<span class="log-client">[Client -> Dext]</span>`;
+      else if (source === 'Server') sourceSpan += `<span class="log-server">[Dext -> Client]</span>`;
+      else if (source === 'Gemini') sourceSpan += `<span class="log-gemini">[Gemini API]</span>`;
+      else sourceSpan += `<span class="log-time">[${source}]</span>`;
+
+      line.innerHTML = `${sourceSpan} <span class="${type}">${msg}</span>`;
+      consoleLog.appendChild(line);
+      consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    async function connectMCP() {
+      const url = serverUrlInput.value.trim();
+      const apiKey = apiKeyInput.value.trim();
+
+      if (!apiKey) {
+        alert('Por favor, informe a Gemini API Key.');
+        return;
+      }
+      localStorage.setItem('gemini_api_key', apiKey);
+
+      try {
+        btnConnect.disabled = true;
+        addLog('Sistema', `Tentando conectar a ${url}...`);
+
+        // 1. Initialize MCP Session
+        const initPayload = {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-03-26",
+            clientInfo: { name: "GeminiWebClient", version: "1.0.0" }
+          }
+        };
+
+        addLog('Client', `Enviando initialize...`);
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(initPayload)
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+        }
+
+        mcpSessionId = res.headers.get('Mcp-Session-Id');
+        const initData = await res.json();
+        addLog('Server', `Conectado! Protocolo: ${initData.result.protocolVersion}, Session-Id: ${mcpSessionId}`);
+
+        // 2. Fetch tools list
+        const toolsPayload = {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/list"
+        };
+
+        addLog('Client', `Enviando tools/list...`);
+        const toolsRes = await fetch(url, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Mcp-Session-Id': mcpSessionId
+          },
+          body: JSON.stringify(toolsPayload)
+        });
+
+        const toolsData = await toolsRes.json();
+        mcpTools = toolsData.result.tools || [];
+        addLog('Server', `Carregou ${mcpTools.length} ferramenta(s): ${mcpTools.map(t => t.name).join(', ')}`);
+
+        // Update UI
+        statusBadge.textContent = 'Conectado';
+        statusBadge.className = 'status-badge connected';
+        promptInput.disabled = false;
+        btnSubmit.disabled = false;
+        btnConnect.disabled = false;
+      } catch (err) {
+        addLog('Sistema', `Erro de conexão: ${err.message}`, 'log-error');
+        statusBadge.textContent = 'Desconectado';
+        statusBadge.className = 'status-badge';
+        btnConnect.disabled = false;
+      }
+    }
+
+    // Convert MCP parameter schema to Gemini function calling schema
+    function convertMcpToolsToGemini(tools) {
+      return tools.map(tool => {
+        const properties = {};
+        const required = [];
+
+        if (tool.inputSchema && tool.inputSchema.properties) {
+          for (const [key, val] of Object.entries(tool.inputSchema.properties)) {
+            properties[key] = {
+              type: val.type === 'integer' || val.type === 'number' ? 'NUMBER' : 'STRING',
+              description: val.description || ''
+            };
+          }
+        }
+
+        if (tool.inputSchema && Array.isArray(tool.inputSchema.required)) {
+          required.push(...tool.inputSchema.required);
+        }
+
+        return {
+          name: tool.name,
+          description: tool.description,
+          parameters: {
+            type: 'OBJECT',
+            properties: properties,
+            required: required
+          }
+        };
+      });
+    }
+
+    async function runAgent() {
+      const prompt = promptInput.value.trim();
+      const apiKey = apiKeyInput.value.trim();
+      if (!prompt) return;
+
+      btnSubmit.disabled = true;
+      addLog('Sistema', `Enviando prompt ao Gemini: "${prompt}"`);
+
+      // Prepare Gemini tools
+      const geminiTools = [{
+        functionDeclarations: convertMcpToolsToGemini(mcpTools)
+      }];
+
+      const chatHistory = [
+        { role: 'user', parts: [{ text: prompt }] }
+      ];
+
+      try {
+        let conversationFinished = false;
+        let loops = 0;
+
+        while (!conversationFinished && loops < 5) {
+          loops++;
+          addLog('Gemini', `Chamando API do Gemini...`);
+
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: chatHistory,
+              tools: geminiTools
+            })
+          });
+
+          const resData = await response.json();
+          if (resData.error) {
+            throw new Error(resData.error.message);
+          }
+
+          const candidate = resData.candidates[0];
+          const part = candidate.content.parts[0];
+
+          // Check if Gemini wants to call a tool
+          if (part.functionCall) {
+            const call = part.functionCall;
+            addLog('Gemini', `Gemini decidiu chamar a ferramenta: <strong>${call.name}</strong> com os argumentos: ${JSON.stringify(call.args)}`);
+
+            // Execute MCP tool call on Delphi Server
+            const callPayload = {
+              jsonrpc: "2.0",
+              id: 3,
+              method: "tools/call",
+              params: {
+                name: call.name,
+                arguments: call.args
+              }
+            };
+
+            addLog('Client', `Invocando tool "${call.name}" no servidor Dext...`);
+            const mcpCallRes = await fetch(serverUrlInput.value.trim(), {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Mcp-Session-Id': mcpSessionId
+              },
+              body: JSON.stringify(callPayload)
+            });
+
+            const mcpCallData = await mcpCallRes.json();
+            let resultText = '';
+            
+            if (mcpCallData.result && mcpCallData.result.content) {
+              resultText = mcpCallData.result.content.map(c => c.text).join('\n');
+            } else if (mcpCallData.error) {
+              resultText = `Erro: ${mcpCallData.error.message}`;
+            }
+
+            addLog('Server', `Retorno da tool: "${resultText}"`);
+
+            // Append assistant call and function response to Gemini history
+            chatHistory.push(candidate.content);
+            chatHistory.push({
+              role: 'user',
+              parts: [{
+                functionResponse: {
+                  name: call.name,
+                  response: { result: resultText }
+                }
+              }]
+            });
+          } else {
+            // Gemini returned final text answer
+            addLog('Gemini', `Resposta final: <strong>${part.text}</strong>`);
+            conversationFinished = true;
+          }
+        }
+      } catch (err) {
+        addLog('Sistema', `Erro durante execução: ${err.message}`, 'log-error');
+      } finally {
+        btnSubmit.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-# 🎪 Web.EventHub — Event Management & Registration Platform
+# 🎪 Web.EventHub - Event Management & Registration Platform
 
 A comprehensive **Dext Framework** example demonstrating how to build a real-world event management API with attendee registration, speaker management, and automatic waitlist promotion.
 

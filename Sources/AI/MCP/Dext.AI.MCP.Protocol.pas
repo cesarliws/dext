@@ -87,7 +87,7 @@ type
   end;
 
   /// <summary>
-  /// Legacy tool handler callback — returns a plain string.
+  /// Legacy tool handler callback - returns a plain string.
   /// The string can be plain text or a JSON payload; it is sent as text content.
   /// New code should prefer TMCPToolResultCallback (rich content + error flag).
   /// </summary>
@@ -122,7 +122,7 @@ type
 
     /// <summary>
     /// Builds a success response from an already-parsed TJSONValue.
-    /// The value is cloned — caller retains ownership of ResultObj.
+    /// The value is cloned - caller retains ownership of ResultObj.
     /// </summary>
     class function Success(const Id: TJSONValue; const ResultObj: TJSONValue): string; overload;
 

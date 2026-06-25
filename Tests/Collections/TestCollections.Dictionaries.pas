@@ -1,6 +1,6 @@
 {***************************************************************************}
 {                                                                           }
-{           Dext Framework — Collections Unit Tests                         }
+{           Dext Framework - Collections Unit Tests                         }
 {                                                                           }
 {           Tests for IDictionary<K,V>, TDictionary<K,V>,           }
 {           TCollections.CreateDictionary<K,V>                              }
@@ -47,7 +47,7 @@ type
   end;
 
   /// <summary>Basic dictionary operations with Integer keys</summary>
-  [TestFixture('Dictionary — Basic Operations')]
+  [TestFixture('Dictionary - Basic Operations')]
   TDictionaryBasicTests = class
   public
     [Test]
@@ -97,7 +97,7 @@ type
   end;
 
   /// <summary>Dictionary with string keys (managed type, FNV hash)</summary>
-  [TestFixture('Dictionary — String Keys')]
+  [TestFixture('Dictionary - String Keys')]
   TDictionaryStringKeyTests = class
   public
     [Test]
@@ -120,7 +120,7 @@ type
   end;
 
   /// <summary>Dictionary with OwnsValues for object cleanup</summary>
-  [TestFixture('Dictionary — Ownership')]
+  [TestFixture('Dictionary - Ownership')]
   TDictionaryOwnershipTests = class
   public
     [Setup]
@@ -140,7 +140,7 @@ type
   end;
 
   /// <summary>Stress tests: large insert, rehashing, collisions</summary>
-  [TestFixture('Dictionary — Stress')]
+  [TestFixture('Dictionary - Stress')]
   TDictionaryStressTests = class
   public
     [Test]
@@ -154,7 +154,7 @@ type
   end;
 
   /// <summary>TCollections factory method tests</summary>
-  [TestFixture('Collections — Factory')]
+  [TestFixture('Collections - Factory')]
   TCollectionsFactoryTests = class
   public
     [Test]
@@ -170,8 +170,8 @@ type
     procedure CreateDictionary_WithOwnership_ShouldWork;
   end;
 
-  /// <summary>Dictionary — Enumerator (for..in)</summary>
-  [TestFixture('Dictionary — Enumerator')]
+  /// <summary>Dictionary - Enumerator (for..in)</summary>
+  [TestFixture('Dictionary - Enumerator')]
   TDictionaryEnumeratorTests = class
   public
     [Test]
@@ -182,7 +182,7 @@ type
   end;
 
   /// <summary>Dictionary with Interface keys and values</summary>
-  [TestFixture('Dictionary — Interface Elements')]
+  [TestFixture('Dictionary - Interface Elements')]
   TDictionaryInterfaceTests = class
   public
     [Test]
@@ -193,7 +193,7 @@ type
   end;
 
   /// <summary>Dictionary with managed records</summary>
-  [TestFixture('Dictionary — Managed Records')]
+  [TestFixture('Dictionary - Managed Records')]
   TDictionaryManagedRecordTests = class
   public
     [Test]

@@ -735,7 +735,7 @@ var
   Member: TRttiMember;
 begin
   // Lock-free fast path: once FHandlersReady=1, FHandlers is fully populated
-  // and will only be read — no lock needed
+  // and will only be read - no lock needed
   if FHandlersReady = 1 then
   begin
     FHandlers.TryGetValue(APropName, Result);
@@ -766,7 +766,7 @@ begin
       // Signal that this handler is now permanently cached.
       // NOTE: FHandlersReady=1 is a stronger guarantee set by GetHandlerBySnakeCase
       // (which populates ALL handlers at once). For individual GetHandler calls,
-      // we keep the write lock for safety — reads outside the lock only happen
+      // we keep the write lock for safety - reads outside the lock only happen
       // when the full population has completed.
     end;
   finally
@@ -1357,7 +1357,7 @@ begin
     end;
   end;
 
-  // No [DefaultValue] attribute found — return zero/empty for type
+  // No [DefaultValue] attribute found - return zero/empty for type
   TValue.Make(nil, AType, Result);
 end;
 

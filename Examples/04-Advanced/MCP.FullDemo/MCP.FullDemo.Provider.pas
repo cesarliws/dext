@@ -1,12 +1,12 @@
 ﻿{***************************************************************************}
 {                                                                           }
-{  MCP Full Demo — Provider RTTI                                            }
+{  MCP Full Demo - Provider RTTI                                            }
 {                                                                           }
 {  Demonstra os três pilares do Dext MCP 2025-03-26:                       }
 {                                                                           }
-{    TOOLS    — lógica invocável pelo LLM                                  }
-{    RESOURCES — documentos/dados que o LLM pode ler                       }
-{    PROMPTS  — templates de mensagens reutilizáveis                       }
+{    TOOLS    - lógica invocável pelo LLM                                  }
+{    RESOURCES - documentos/dados que o LLM pode ler                       }
+{    PROMPTS  - templates de mensagens reutilizáveis                       }
 {                                                                           }
 {  Usando o padrão RTTI (provider class com atributos):                    }
 {    - [MCPTool]      marca um método como tool                            }
@@ -40,7 +40,7 @@ type
   public
 
     // =========================================================================
-    // TOOLS — operações que o LLM pode executar
+    // TOOLS - operações que o LLM pode executar
     // =========================================================================
 
     [MCPTool('calcular-desconto',
@@ -52,7 +52,7 @@ type
 
     [MCPTool('validar-cpf',
       'Valida se um CPF é matematicamente correto (dígitos verificadores). ' +
-      'Não consulta base de dados — apenas valida o formato e dígitos. ' +
+      'Não consulta base de dados - apenas valida o formato e dígitos. ' +
       'Aceita CPF com ou sem pontuação (999.999.999-99 ou 99999999999).')]
     [MCPParam('cpf', 'CPF a validar (com ou sem formatação)', ptString)]
     function ValidarCPF(const Args: TJSONObject): TMCPToolResult; virtual;
@@ -74,7 +74,7 @@ type
     function GerarRelatorio(const Args: TJSONObject): TMCPToolResult; virtual;
 
     // =========================================================================
-    // RESOURCES — dados que o LLM pode consultar por URI
+    // RESOURCES - dados que o LLM pode consultar por URI
     // =========================================================================
 
     [MCPResource('config://demo', 'Configuração Demo',
@@ -86,7 +86,7 @@ type
     function ReadRegrasDesconto(const AUri: string): TMCPResourceContents; virtual;
 
     // =========================================================================
-    // PROMPTS — templates de mensagens reutilizáveis
+    // PROMPTS - templates de mensagens reutilizáveis
     // =========================================================================
 
     [MCPPrompt('analise-venda',
@@ -168,12 +168,12 @@ begin
 
   if Length(Digits) <> 11 then
     Exit(TMCPToolResult.Error(
-      Format('CPF inválido: "%s" — deve ter 11 dígitos', [CPF])));
+      Format('CPF inválido: "%s" - deve ter 11 dígitos', [CPF])));
 
   // Check all-same-digit
   if (Copy(Digits, 2, 10) = StringOfChar(Digits[1], 10)) then
     Exit(TMCPToolResult.Error(
-      Format('CPF inválido: "%s" — dígitos todos iguais', [CPF])));
+      Format('CPF inválido: "%s" - dígitos todos iguais', [CPF])));
 
   // Verify first check digit
   Sum := 0;
@@ -183,7 +183,7 @@ begin
   if Rem = 10 then Rem := 0;
   if Rem <> Digit(Digits, 10) then
     Exit(TMCPToolResult.Error(
-      Format('CPF inválido: "%s" — primeiro dígito verificador incorreto', [CPF])));
+      Format('CPF inválido: "%s" - primeiro dígito verificador incorreto', [CPF])));
 
   // Verify second check digit
   Sum := 0;
@@ -193,7 +193,7 @@ begin
   if Rem = 10 then Rem := 0;
   if Rem <> Digit(Digits, 11) then
     Exit(TMCPToolResult.Error(
-      Format('CPF inválido: "%s" — segundo dígito verificador incorreto', [CPF])));
+      Format('CPF inválido: "%s" - segundo dígito verificador incorreto', [CPF])));
 
   Result := TMCPToolResult.Text(
     Format('CPF válido: %s.%s.%s-%s',

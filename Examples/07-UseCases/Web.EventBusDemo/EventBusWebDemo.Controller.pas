@@ -5,7 +5,7 @@ unit EventBusWebDemo.Controller;
 {                                                                           }
 {  IEventBus is injected as a SCOPED service (AddScopedEventBus).           }
 {  Handlers resolved during Publish share the same DI scope as this         }
-{  controller — same ILogger context, same DbContext (if registered).       }
+{  controller - same ILogger context, same DbContext (if registered).       }
 {***************************************************************************}
 
 interface
@@ -48,15 +48,15 @@ type
   public
     constructor Create(const AEventBus: IEventBus);
 
-    /// <summary>POST /api/tasks — Create a new task and publish TTaskCreatedEvent</summary>
+    /// <summary>POST /api/tasks - Create a new task and publish TTaskCreatedEvent</summary>
     [HttpPost]
     function CreateTask(const Request: TCreateTaskRequest): IResult;
 
-    /// <summary>PUT /api/tasks/{id}/complete — Complete a task and publish TTaskCompletedEvent</summary>
+    /// <summary>PUT /api/tasks/{id}/complete - Complete a task and publish TTaskCompletedEvent</summary>
     [HttpPut('/{id}/complete')]
     function CompleteTask(Id: Integer; const Request: TCompleteTaskRequest): IResult;
 
-    /// <summary>DELETE /api/tasks/{id} — Cancel a task and publish TTaskCancelledEvent</summary>
+    /// <summary>DELETE /api/tasks/{id} - Cancel a task and publish TTaskCancelledEvent</summary>
     [HttpDelete('/{id}')]
     function CancelTask(Id: Integer; const Request: TCancelTaskRequest): IResult;
   end;

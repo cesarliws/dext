@@ -24,7 +24,7 @@
 {                                                                           }
 {  Low-level memory management for Dext.Collections.                        }
 {  Provides aligned allocation and safe managed-type operations on raw      }
-{  memory buffers. This unit has NO generic types — everything operates     }
+{  memory buffers. This unit has NO generic types - everything operates     }
 {  on Pointer + PTypeInfo + ElementSize.                                    }
 {                                                                           }
 {***************************************************************************}

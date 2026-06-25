@@ -1943,7 +1943,7 @@ var
       if S[P] = '(' then Inc(LDepth)
       else if S[P] = ')' then
       begin
-        //   Outer context's closing paren (depth 0 before the ')') — stop without consuming
+        //   Outer context's closing paren (depth 0 before the ')') - stop without consuming
         if LDepth = 0 then
           Break;
         Dec(LDepth);
@@ -1951,7 +1951,7 @@ var
         if LDepth = 0 then
         begin
           Inc(P); // consume the ')'
-          // If next char is '.' this is a chained call like .trim().uppercase() — continue
+          // If next char is '.' this is a chained call like .trim().uppercase() - continue
           if (P <= Length(S)) and (S[P] = '.') then
             Continue;
           Break; // no chain, stop here
@@ -2484,7 +2484,7 @@ var
         if Length(AEndMarkers) > 0 then
         begin
           // When both 'else' and 'endif' are markers, only report 'endif'
-          // because @else is optional — the user must close with @endif
+          // because @else is optional - the user must close with @endif
           LReportMarkers := AEndMarkers;
           LHasElse := System.StrUtils.MatchStr('else', LReportMarkers);
           LHasEndif := System.StrUtils.MatchStr('endif', LReportMarkers);

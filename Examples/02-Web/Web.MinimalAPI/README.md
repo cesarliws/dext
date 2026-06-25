@@ -1,6 +1,6 @@
 # Minimal API Example
 
-The simplest way to create HTTP endpoints with Dext — no Controllers needed!
+The simplest way to create HTTP endpoints with Dext - no Controllers needed!
 
 ## 🚀 Features
 

@@ -1,6 +1,6 @@
 {***************************************************************************}
 {                                                                           }
-{           Dext Framework — HTTP/2 Connection Unit Tests                  }
+{           Dext Framework - HTTP/2 Connection Unit Tests                  }
 {                                                                           }
 {           Tests connection preface validation, SETTINGS handshake,       }
 {           request dispatch, PING/PONG, GOAWAY, and full request round-  }
@@ -22,7 +22,7 @@ uses
 
 type
   /// <summary>Tests for client preface validation.</summary>
-  [TestFixture('HTTP/2 Connection — Preface')]
+  [TestFixture('HTTP/2 Connection - Preface')]
   TConnectionPrefaceTests = class
   private
     FConn: TDextHttp2Connection;
@@ -44,7 +44,7 @@ type
   end;
 
   /// <summary>Tests for SETTINGS handshake.</summary>
-  [TestFixture('HTTP/2 Connection — SETTINGS Handshake')]
+  [TestFixture('HTTP/2 Connection - SETTINGS Handshake')]
   TConnectionSettingsTests = class
   private
     FConn: TDextHttp2Connection;
@@ -63,7 +63,7 @@ type
   end;
 
   /// <summary>Tests for PING handling.</summary>
-  [TestFixture('HTTP/2 Connection — PING')]
+  [TestFixture('HTTP/2 Connection - PING')]
   TConnectionPingTests = class
   private
     FConn: TDextHttp2Connection;
@@ -81,7 +81,7 @@ type
   end;
 
   /// <summary>Tests for complete HTTP/2 request dispatch.</summary>
-  [TestFixture('HTTP/2 Connection — Request Dispatch')]
+  [TestFixture('HTTP/2 Connection - Request Dispatch')]
   TConnectionRequestTests = class
   private
     FConn: TDextHttp2Connection;
@@ -336,7 +336,7 @@ begin
   SetLength(pingBuf, 32);
   pos := 0;
   TDextHttp2FrameCodec.WritePingAck(@payload[0], pingBuf, pos); // Note: WritePingAck writes ACK=1
-  // We need a PING (not PING ACK) — build manually
+  // We need a PING (not PING ACK) - build manually
   // length=8, type=6, flags=0, stream=0, payload=8x$AB
   SetLength(pingBuf, 17);
   pingBuf[0] := 0; pingBuf[1] := 0; pingBuf[2] := 8; // length

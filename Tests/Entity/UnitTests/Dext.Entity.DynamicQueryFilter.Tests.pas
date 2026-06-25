@@ -57,7 +57,7 @@ type
   end;
 
   // -----------------------------------------------------------------
-  //  Unit tests — SQL generation level (no DB needed)
+  //  Unit tests - SQL generation level (no DB needed)
   // -----------------------------------------------------------------
 
   [Fixture]
@@ -78,7 +78,7 @@ type
   end;
 
   // -----------------------------------------------------------------
-  //  Integration tests — end-to-end with SQLite in-memory
+  //  Integration tests - end-to-end with SQLite in-memory
   // -----------------------------------------------------------------
 
   [Fixture]
@@ -268,7 +268,7 @@ var
 begin
   // Create a spec and a fluent query pointing to it.
   // Calling IgnoreQueryFilters on the query propagates the flag to the spec.
-  // Then pass the spec to ToList — this exercises the full Spec→DbSet path.
+  // Then pass the spec to ToList - this exercises the full Spec→DbSet path.
   Spec := TSpecification<TDqfTask>.Create;
   Query := TFluentQuery<TDqfTask>.Create(nil, Spec);
   Query.IgnoreQueryFilters;

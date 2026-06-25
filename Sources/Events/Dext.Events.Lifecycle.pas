@@ -29,9 +29,9 @@ unit Dext.Events.Lifecycle;
 ///   IHostApplicationLifetime bridge for the Dext Event Bus.
 ///
 ///   Publishes three lifecycle events as the application progresses:
-///     TApplicationStartedEvent   — after the host finishes startup
-///     TApplicationStoppingEvent  — when a graceful shutdown is requested
-///     TApplicationStoppedEvent   — after all requests have drained
+///     TApplicationStartedEvent   - after the host finishes startup
+///     TApplicationStoppingEvent  - when a graceful shutdown is requested
+///     TApplicationStoppedEvent   - after all requests have drained
 ///
 ///   Registration:
 ///   <code>

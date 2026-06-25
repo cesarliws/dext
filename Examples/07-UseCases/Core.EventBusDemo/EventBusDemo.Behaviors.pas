@@ -18,7 +18,7 @@ uses
 type
   /// <summary>
   ///   Prints ">> entering" before and "&lt;&lt; leaving" after each handler.
-  ///   Calls ANext() to continue the pipeline — omitting the call would
+  ///   Calls ANext() to continue the pipeline - omitting the call would
   ///   short-circuit all remaining behaviors and the handler itself.
   /// </summary>
   TConsolePipelineBehavior = class(TInterfacedObject, IEventBehavior)
@@ -66,7 +66,7 @@ begin
   begin
     WriteLn(Format('  [Validate] Order #%d rejected: TotalAmount must be > 0',
       [Evt.OrderId]));
-    // Do NOT call ANext — short-circuit the pipeline for this handler.
+    // Do NOT call ANext - short-circuit the pipeline for this handler.
     Exit;
   end;
   WriteLn(Format('  [Validate] Order #%d passed validation ($%.2f)',

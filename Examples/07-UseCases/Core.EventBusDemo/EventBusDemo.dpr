@@ -2,7 +2,7 @@ program EventBusDemo;
 
 {***************************************************************************}
 {                                                                           }
-{  Core.EventBusDemo — Dext Framework Event Bus Showcase                   }
+{  Core.EventBusDemo - Dext Framework Event Bus Showcase                   }
 {                                                                           }
 {  Demonstrates all event bus features:                                     }
 {    1. Basic publish/subscribe (single handler)                            }
@@ -61,7 +61,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 1 — Basic: one event, one handler
+// Demo 1 - Basic: one event, one handler
 // ---------------------------------------------------------------------------
 
 procedure Demo1_Basic;
@@ -71,7 +71,7 @@ var
   Evt: TOrderPlacedEvent;
   Res: TPublishResult;
 begin
-  Separator('Demo 1: Basic — One event, one handler');
+  Separator('Demo 1: Basic - One event, one handler');
 
   Provider := BuildProvider(
     procedure(S: TDextServices)
@@ -92,7 +92,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 2 — Multiple handlers for the same event
+// Demo 2 - Multiple handlers for the same event
 // ---------------------------------------------------------------------------
 
 procedure Demo2_MultipleHandlers;
@@ -102,7 +102,7 @@ var
   Evt: TOrderPlacedEvent;
   Res: TPublishResult;
 begin
-  Separator('Demo 2: Multiple handlers — all three run in order');
+  Separator('Demo 2: Multiple handlers - all three run in order');
 
   Provider := BuildProvider(
     procedure(S: TDextServices)
@@ -125,7 +125,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 3 — Global behavior
+// Demo 3 - Global behavior
 // ---------------------------------------------------------------------------
 
 procedure Demo3_GlobalBehavior;
@@ -142,7 +142,7 @@ begin
       S.AddEventBus
        .AddEventHandler<TOrderPlacedEvent, TEmailNotificationHandler>
        .AddEventHandler<TOrderPlacedEvent, TAuditLogHandler>
-       .AddEventBehavior<TConsolePipelineBehavior>;  // global — wraps ALL handlers
+       .AddEventBehavior<TConsolePipelineBehavior>;  // global - wraps ALL handlers
     end);
 
   Bus := GetBus(Provider);
@@ -154,7 +154,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 4 — Per-event behavior
+// Demo 4 - Per-event behavior
 // ---------------------------------------------------------------------------
 
 procedure Demo4_PerEventBehavior;
@@ -188,7 +188,7 @@ begin
   TEventBusExtensions.Publish<TOrderPlacedEvent>(Bus, ValidEvt);
 
   WriteLn;
-  WriteLn('  >> Invalid order ($0.00 — validation will short-circuit):');
+  WriteLn('  >> Invalid order ($0.00 - validation will short-circuit):');
   InvalidEvt.OrderId := 5; 
   InvalidEvt.CustomerId := 104;
   InvalidEvt.TotalAmount := 0; 
@@ -204,7 +204,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 5 — IEventPublisher<T> typed publisher
+// Demo 5 - IEventPublisher<T> typed publisher
 // ---------------------------------------------------------------------------
 
 procedure Demo5_TypedPublisher;
@@ -213,7 +213,7 @@ var
   OrderSvc: IOrderService;
   PaySvc: IPaymentService;
 begin
-  Separator('Demo 5: IEventPublisher<T> — typed publisher injected into services');
+  Separator('Demo 5: IEventPublisher<T> - typed publisher injected into services');
 
   Provider := BuildProvider(
     procedure(S: TDextServices)
@@ -242,7 +242,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 6 — Background (fire-and-forget) publishing
+// Demo 6 - Background (fire-and-forget) publishing
 // ---------------------------------------------------------------------------
 
 procedure Demo6_BackgroundPublish;
@@ -251,7 +251,7 @@ var
   Bus: IEventBus;
   Evt: TOrderPlacedEvent;
 begin
-  Separator('Demo 6: PublishBackground — fire-and-forget on a thread pool thread');
+  Separator('Demo 6: PublishBackground - fire-and-forget on a thread pool thread');
 
   Provider := BuildProvider(
     procedure(S: TDextServices)
@@ -268,7 +268,7 @@ begin
   Evt.TotalAmount := 55.00; 
   Evt.ItemCount := 1;
 
-  WriteLn('  Calling PublishBackground — returns immediately...');
+  WriteLn('  Calling PublishBackground - returns immediately...');
   TEventBusExtensions.PublishBackground<TOrderPlacedEvent>(Bus, Evt);
   WriteLn('  ...returned. Handlers run asynchronously:');
 
@@ -277,7 +277,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 7 — Exception aggregation
+// Demo 7 - Exception aggregation
 // ---------------------------------------------------------------------------
 
 procedure Demo7_ExceptionAggregation;
@@ -287,7 +287,7 @@ var
   Evt: TOrderPlacedEvent;
   Err: string;
 begin
-  Separator('Demo 7: Exception aggregation — all handlers run even when one fails');
+  Separator('Demo 7: Exception aggregation - all handlers run even when one fails');
 
   Provider := BuildProvider(
     procedure(S: TDextServices)
@@ -318,12 +318,12 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// Demo 8 — Testing with TEventBusTracker
+// Demo 8 - Testing with TEventBusTracker
 // ---------------------------------------------------------------------------
 
 procedure Demo8_Testing;
 begin
-  Separator('Demo 8: TEventBusTracker — unit testing without real handlers');
+  Separator('Demo 8: TEventBusTracker - unit testing without real handlers');
   RunTests;
 end;
 
@@ -336,7 +336,7 @@ begin
     SetConsoleCharSet(65001);
     WriteLn('');
     WriteLn('╔══════════════════════════════════════════════════════════════╗');
-    WriteLn('║         Dext Framework — Event Bus Demo                      ║');
+    WriteLn('║         Dext Framework - Event Bus Demo                      ║');
     WriteLn('╚══════════════════════════════════════════════════════════════╝');
 
     Demo1_Basic;

@@ -15,7 +15,7 @@ uses
   Dext.Events.Interfaces;
 
 // ==========================================================================
-// Domain Events (plain records — zero allocation, value semantics)
+// Domain Events (plain records - zero allocation, value semantics)
 // ==========================================================================
 
 type
@@ -39,7 +39,7 @@ type
   end;
 
 // ==========================================================================
-// Handlers — parameterless constructors, zero DI dependencies
+// Handlers - parameterless constructors, zero DI dependencies
 // ==========================================================================
 
   TTaskCreatedHandler = class(TInterfacedObject, IEventHandler<TTaskCreatedEvent>)

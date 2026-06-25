@@ -247,7 +247,7 @@ begin
       begin
         {$IFDEF DEBUG}
         DebugLog(
-          '[Dext.Json] WARNING: Cannot instantiate "' + TargetClass.ClassName + '" — ' +
+          '[Dext.Json] WARNING: Cannot instantiate "' + TargetClass.ClassName + '" - ' +
           'no parameterless constructor found. ' +
           'Use JsonSettings.ServiceProvider(sp) to enable DI-based construction.');
         {$ENDIF}
@@ -264,7 +264,7 @@ begin
       begin
         {$IFDEF DEBUG}
         DebugLog(
-          '[Dext.Json] WARNING: Cannot instantiate interface "' + string(AType^.Name) + '" — ' +
+          '[Dext.Json] WARNING: Cannot instantiate interface "' + string(AType^.Name) + '" - ' +
           'no implementation registered. ' +
           'Use TActivator.RegisterDefault<IService, TImpl> or ' +
           'configure a ServiceProvider via JsonSettings.ServiceProvider(sp).');

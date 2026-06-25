@@ -720,7 +720,7 @@ begin
                 SeenPaths.Free;
               end;
             except
-              // Swallow auto-discovery errors — not critical
+              // Swallow auto-discovery errors - not critical
             end;
             BaseDirs.Free;
 
@@ -1243,7 +1243,7 @@ begin
           if Streamer <> nil then
             Streamer.PushEvent('log', AItem.ToJson);
             
-          // Append to in-memory ring buffer — disk save handled by FSaveTimer
+          // Append to in-memory ring buffer - disk save handled by FSaveTimer
           TMonitor.Enter(FLock);
           try
             FTraceHistory.Add('{"event":"log","data":' + AItem.ToJson + '}');
@@ -1317,7 +1317,7 @@ begin
         if Streamer <> nil then
           Streamer.PushEvent('span', Body);
 
-        // Append to in-memory ring buffer — disk save handled by FSaveTimer
+        // Append to in-memory ring buffer - disk save handled by FSaveTimer
         TMonitor.Enter(FLock);
         try
           FTraceHistory.Add('{"event":"span","data":' + Body + '}');
@@ -1496,7 +1496,7 @@ begin
 
         BroadcastSSE('metrics', Body);
 
-        // Append to in-memory ring buffer — disk save handled by FSaveTimer
+        // Append to in-memory ring buffer - disk save handled by FSaveTimer
         TMonitor.Enter(FLock);
         try
           FMetricsHistory.Add(Body);
@@ -1673,7 +1673,7 @@ begin
         '  </div>' +
         '</div>';
 
-      // Results.Html sets Content-Type: text/html — required for HTMX fragment swap
+      // Results.Html sets Content-Type: text/html - required for HTMX fragment swap
       Results.Html(Html, 200).Execute(Ctx);
     end);
 

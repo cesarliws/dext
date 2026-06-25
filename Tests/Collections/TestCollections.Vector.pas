@@ -9,7 +9,7 @@ uses
   Dext.Collections.Vector;
 
 type
-  [TestFixture('Collections — Vector')]
+  [TestFixture('Collections - Vector')]
   TVectorTests = class
   public
     [Test]

@@ -1,6 +1,6 @@
 {***************************************************************************}
 {                                                                           }
-{           Dext Framework — HTTP/2 Framing Unit Tests                     }
+{           Dext Framework - HTTP/2 Framing Unit Tests                     }
 {                                                                           }
 {           Tests frame parsing, write helpers, and payload accessors       }
 {           (RFC 9113).                                                     }
@@ -18,7 +18,7 @@ uses
 
 type
   /// <summary>Tests for TDextHttp2FrameCodec.TryReadFrame</summary>
-  [TestFixture('HTTP/2 Framing — TryReadFrame')]
+  [TestFixture('HTTP/2 Framing - TryReadFrame')]
   TFrameReadTests = class
   public
     [Test]
@@ -34,7 +34,7 @@ type
   end;
 
   /// <summary>Tests for SETTINGS frame writer and parser.</summary>
-  [TestFixture('HTTP/2 Framing — SETTINGS')]
+  [TestFixture('HTTP/2 Framing - SETTINGS')]
   TFrameSettingsTests = class
   public
     [Test]
@@ -48,7 +48,7 @@ type
   end;
 
   /// <summary>Tests for PING frame writer.</summary>
-  [TestFixture('HTTP/2 Framing — PING')]
+  [TestFixture('HTTP/2 Framing - PING')]
   TFramePingTests = class
   public
     [Test]
@@ -58,7 +58,7 @@ type
   end;
 
   /// <summary>Tests for GOAWAY, RST_STREAM, WINDOW_UPDATE writers.</summary>
-  [TestFixture('HTTP/2 Framing — Control Frames')]
+  [TestFixture('HTTP/2 Framing - Control Frames')]
   TFrameControlTests = class
   public
     [Test]
@@ -72,7 +72,7 @@ type
   end;
 
   /// <summary>Tests for HEADERS and DATA frame writers.</summary>
-  [TestFixture('HTTP/2 Framing — HEADERS and DATA')]
+  [TestFixture('HTTP/2 Framing - HEADERS and DATA')]
   TFrameDataHeadersTests = class
   public
     [Test]
@@ -107,7 +107,7 @@ var
   frame: THttp2Frame;
   consumed: Integer;
 begin
-  // Only 5 bytes — not a full 9-byte header
+  // Only 5 bytes - not a full 9-byte header
   data := TBytes.Create($00, $00, $01, $04, $00);
   Should(TDextHttp2FrameCodec.TryReadFrame(@data[0], 5,
     HTTP2_DEFAULT_MAX_FRAME_SIZE, frame, consumed)).BeFalse;

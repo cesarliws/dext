@@ -1,6 +1,6 @@
 ﻿{***************************************************************************}
 {                                                                           }
-{           Dext Framework — Collections Unit Tests                         }
+{           Dext Framework - Collections Unit Tests                         }
 {                                                                           }
 {           Tests for TElementCategoryHelper (Code Folding Classifier)      }
 {                                                                           }
@@ -29,7 +29,7 @@ type
     ['{12345678-1234-1234-1234-123456789012}']
   end;
 
-  [TestFixture('Collections — Type Factory (Code Folding)')]
+  [TestFixture('Collections - Type Factory (Code Folding)')]
   TFactoryTests = class
   public
     [Test]

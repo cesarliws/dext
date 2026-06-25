@@ -1,6 +1,6 @@
 # Exemplo Minimal API
 
-A forma mais simples de criar endpoints HTTP com Dext — sem Controllers!
+A forma mais simples de criar endpoints HTTP com Dext - sem Controllers!
 
 ## 🚀 Funcionalidades
 

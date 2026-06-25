@@ -64,7 +64,7 @@ uses
 {$IFDEF DEXT_ENABLE_DCS}
 type
   // -------------------------------------------------------------------------
-  // TDextDCSFormFile — IFormFile backed by a DCS TFormField
+  // TDextDCSFormFile - IFormFile backed by a DCS TFormField
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Implementation of <see cref="IFormFile"/> for the DCS adapter.
@@ -91,7 +91,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextDCSRequest — IHttpRequest backed by ICrossHttpRequest
+  // TDextDCSRequest - IHttpRequest backed by ICrossHttpRequest
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Implementation of <see cref="IHttpRequest"/> for the DCS (CrossSockets) server.
@@ -139,7 +139,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextDCSResponse — IHttpResponse backed by ICrossHttpResponse (buffered)
+  // TDextDCSResponse - IHttpResponse backed by ICrossHttpResponse (buffered)
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Implementation of <see cref="IHttpResponse"/> for the DCS (CrossSockets) server.
@@ -194,7 +194,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextDCSContext — IHttpContext for a single DCS request
+  // TDextDCSContext - IHttpContext for a single DCS request
   // -------------------------------------------------------------------------
   /// <summary>
   ///   HTTP context specific to the DCS adapter.
@@ -229,7 +229,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextDCSServer — IWebHost backed by ICrossHttpServer (DCS)
+  // TDextDCSServer - IWebHost backed by ICrossHttpServer (DCS)
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Web Server based on the DCS (Delphi-Cross-Socket) library.
@@ -527,7 +527,7 @@ begin
       FCustomHeaders.ValueFromIndex[I]
     );
 
-  // Cookies — convert TCookieOptions to DCS MaxAge (seconds from now)
+  // Cookies - convert TCookieOptions to DCS MaxAge (seconds from now)
   for Entry in FCookies do
   begin
     if Entry.Options.Expires = 0 then
@@ -549,7 +549,7 @@ begin
     );
   end;
 
-  // Body — copy memory stream bytes into a TBytes and send
+  // Body - copy memory stream bytes into a TBytes and send
   if FBuffer.Size > 0 then
   begin
     SetLength(Bytes, FBuffer.Size);

@@ -120,7 +120,7 @@ type
     FRecvBuffer: TBytes;
     FRecvLen: Integer;
 
-    // Flow control — connection-level
+    // Flow control - connection-level
     FConnRecvWindow: Integer;
     FConnSendWindow: Integer;
 
@@ -128,7 +128,7 @@ type
     FPeerSettingsSynced: Boolean;  // True after receiving first SETTINGS ACK
     FLocalSettingsSent: Boolean;
 
-    // Output buffer — all outgoing bytes queued here
+    // Output buffer - all outgoing bytes queued here
     FOutputBuffer: TBytes;
     FOutputLen: Integer;
 
@@ -382,7 +382,7 @@ begin
   begin
     if not TDextHttp2FrameCodec.TryReadFrame(ptr, avail, FOptions.MaxFrameSize,
       frame, consumed) then
-      Break; // need more data — leave bytes in buffer
+      Break; // need more data - leave bytes in buffer
 
     // Dispatch by frame type
     case THttp2FrameType(frame.FrameType) of
@@ -404,7 +404,7 @@ begin
     if FState = THttp2ConnectionState.csClosed then Break;
   end;
 
-  // Compact the receive buffer — move leftover bytes to front
+  // Compact the receive buffer - move leftover bytes to front
   FRecvLen := avail;
   if (avail > 0) and (ptr <> @FRecvBuffer[0]) then
     Move(ptr^, FRecvBuffer[0], avail);
@@ -455,7 +455,7 @@ begin
   Stream := FStreams.Find(AFrame.StreamId);
   if Stream = nil then
   begin
-    // Unknown Stream — send RST_STREAM
+    // Unknown Stream - send RST_STREAM
     Pos := FOutputLen;
     TDextHttp2FrameCodec.WriteRstStream(AFrame.StreamId, HTTP2_ERR_STREAM_CLOSED, FOutputBuffer, Pos);
     FOutputLen := Pos;
@@ -628,7 +628,7 @@ begin
   FOutputLen := pos;
 
   // If this was the first SETTINGS from the peer and we're in exchange phase,
-  // transition — but we still need to wait for OUR settings ACK
+  // transition - but we still need to wait for OUR settings ACK
   // (see HandleSettings ACK branch above)
 end;
 

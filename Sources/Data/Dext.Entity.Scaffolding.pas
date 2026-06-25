@@ -52,7 +52,7 @@ type
     IsNullable: Boolean;
     IsPrimaryKey: Boolean;
     IsAutoInc: Boolean;
-    IsArray: Boolean; // Firebird array columns (e.g. VARCHAR[1:5]) — unsupported by standard SELECT
+    IsArray: Boolean; // Firebird array columns (e.g. VARCHAR[1:5]) - unsupported by standard SELECT
   end;
 
   /// <summary>
@@ -975,7 +975,7 @@ begin
           if ClassUsedNames.ContainsKey(FinalNavName.ToUpper) or
              ClassUsedNames.ContainsKey(('F' + FinalNavName).ToUpper) then
           begin
-            // Step 2: EF Core convention — append 'Navigation' suffix on collision
+            // Step 2: EF Core convention - append 'Navigation' suffix on collision
             FinalNavName := NavPropName + 'Navigation';
             // Step 3: Numeric fallback if 'Navigation' also collides (edge case)
             Suffix := 1;

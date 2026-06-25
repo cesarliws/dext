@@ -9,7 +9,7 @@ uses
   Dext.Collections.Concurrent;
 
 type
-  [TestFixture('Collections — Concurrent Dictionary')]
+  [TestFixture('Collections - Concurrent Dictionary')]
   TConcurrentDictionaryTests = class
   public
     [Test]

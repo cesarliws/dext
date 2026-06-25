@@ -51,7 +51,7 @@ type
   TMCPContentType = (mctText, mctImage, mctAudio, mctResource);
 
   /// <summary>
-  /// A single content item — used inside TMCPToolResult and TMCPPromptMessage.
+  /// A single content item - used inside TMCPToolResult and TMCPPromptMessage.
   ///
   /// Use the class factory methods to construct:
   ///   TMCPContent.Text('hello')
@@ -95,11 +95,11 @@ type
   /// Result returned by MCP tool callbacks.
   ///
   /// Factory methods:
-  ///   TMCPToolResult.Text('plain text')          — success, one text item
-  ///   TMCPToolResult.Error('something failed')   — error result
-  ///   TMCPToolResult.Image(b64, 'image/png')     — success, one image item
-  ///   TMCPToolResult.Audio(b64, 'audio/mpeg')    — success, one audio item
-  ///   TMCPToolResult.Resource(uri, text)         — success, embedded resource
+  ///   TMCPToolResult.Text('plain text')          - success, one text item
+  ///   TMCPToolResult.Error('something failed')   - error result
+  ///   TMCPToolResult.Image(b64, 'image/png')     - success, one image item
+  ///   TMCPToolResult.Audio(b64, 'audio/mpeg')    - success, one audio item
+  ///   TMCPToolResult.Resource(uri, text)         - success, embedded resource
   ///
   /// Multiple content items:
   ///   var R := TMCPToolResult.Text('caption');
@@ -124,7 +124,7 @@ type
   end;
 
   /// <summary>
-  /// Rich tool callback — return TMCPToolResult instead of a plain string.
+  /// Rich tool callback - return TMCPToolResult instead of a plain string.
   /// Preferred over TMCPToolCallback for multi-content and error signalling.
   /// </summary>
   TMCPToolResultCallback = reference to function(
@@ -150,7 +150,7 @@ type
     function ToJSON: TJSONObject;
   end;
 
-  /// <summary>Callback invoked on resources/read — receives URI, returns contents.</summary>
+  /// <summary>Callback invoked on resources/read - receives URI, returns contents.</summary>
   TMCPResourceReadCallback = reference to function(
     const AUri: string): TMCPResourceContents;
 
@@ -180,7 +180,7 @@ type
     function ToJSON: TJSONObject;
   end;
 
-  /// <summary>Callback invoked on prompts/get — receives template arguments.</summary>
+  /// <summary>Callback invoked on prompts/get - receives template arguments.</summary>
   TMCPPromptGetCallback = reference to function(
     const Args: TJSONObject): TMCPPromptResult;
 

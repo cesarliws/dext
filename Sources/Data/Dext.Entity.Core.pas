@@ -173,7 +173,7 @@ type
     ///  If the SQL is a stored procedure, you cannot compose over it (Where, OrderBy won't work).
     ///  If the SQL is a SELECT statement, depending on the provider, you might be able to compose.
     ///  Parameters are bound in declaration order (first placeholder in the SQL matches AParams[0]),
-    ///  e.g. <c>WHERE id = :UserId</c> with <c>[TValue.From(42)]</c> — not by names like <c>p0</c>.
+    ///  e.g. <c>WHERE id = :UserId</c> with <c>[TValue.From(42)]</c> - not by names like <c>p0</c>.
     /// </summary>
     function FromSql(const ASql: string; const AParams: array of TValue): TFluentQuery<T>; overload;
     function FromSql(const ASql: string): TFluentQuery<T>; overload;

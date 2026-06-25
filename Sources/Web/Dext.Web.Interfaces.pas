@@ -323,7 +323,7 @@ type
     procedure DestroySession(const ASessionId: string);
     /// <summary>
     ///   Starts the background GC scavenger.
-    ///   AStoppingToken: optional host ApplicationStopping token — when cancelled,
+    ///   AStoppingToken: optional host ApplicationStopping token - when cancelled,
     ///   the scavenger exits without waiting for the full interval.
     /// </summary>
     procedure StartScavenger(AIntervalSeconds: Integer = 60; ATimeoutMinutes: Integer = 30;

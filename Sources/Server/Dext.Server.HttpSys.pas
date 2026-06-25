@@ -1634,6 +1634,7 @@ var
   I: Integer;
   ThreadCount: Integer;
   Worker: TDextHttpSysWorker;
+  Err: EOSError;
 begin
   if FRunning then Exit;
 
@@ -1648,7 +1649,7 @@ begin
   begin
     if Ret = 5 then // Access Denied
     begin
-      var Err := EOSError.Create(
+      Err := EOSError.Create(
         'HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' (Access Denied).' + #13#10 +
         'This error occurs because registering URL prefixes on all interfaces (+ or 0.0.0.0) requires administrative privileges.' + #13#10 +
         'To resolve this:' + #13#10 +
@@ -1662,7 +1663,7 @@ begin
     end
     else
     begin
-      var Err := EOSError.Create('HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' with error code: ' + IntToStr(Ret));
+      Err := EOSError.Create('HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' with error code: ' + IntToStr(Ret));
       Err.ErrorCode := Ret;
       raise Err;
     end;
@@ -1771,21 +1772,36 @@ begin
 end;
 {$ENDIF}
 
-initialization
+procedure LoadKnownRequestHeadersMap;
 {$IFDEF MSWINDOWS}
+var
+  i: Integer;
+begin
   KnownRequestHeadersMapGlobal := TDictionary<string, Integer>.Create(True, False, 0);
-  for var I := 0 to 40 do
-    KnownRequestHeadersMapGlobal.Add(HTTP_KNOWN_REQUEST_HEADERS[I], I);
+  for i := 0 to 40 do
+    KnownRequestHeadersMapGlobal.Add(HTTP_KNOWN_REQUEST_HEADERS[i], i);
 
   KnownResponseHeadersMapGlobal := TDictionary<string, Integer>.Create(True, False, 0);
-  for var I := 0 to 29 do
-    KnownResponseHeadersMapGlobal.Add(HTTP_KNOWN_RESPONSE_HEADERS[I], I);
+  for i := 0 to 29 do
+    KnownResponseHeadersMapGlobal.Add(HTTP_KNOWN_RESPONSE_HEADERS[i], i);
+end;
+{$ELSE}
+begin
+end;
 {$ENDIF}
 
-finalization
+procedure UnloadKnownRequestHeadersMap;
+begin
 {$IFDEF MSWINDOWS}
   KnownRequestHeadersMapGlobal.Free;
   KnownResponseHeadersMapGlobal.Free;
 {$ENDIF}
+end;
+
+initialization
+  LoadKnownRequestHeadersMap;
+
+finalization
+  UnloadKnownRequestHeadersMap;
 
 end.

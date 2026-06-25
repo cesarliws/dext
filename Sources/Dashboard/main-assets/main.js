@@ -54,7 +54,7 @@ async function load() {
         if (savedPj) selectActiveProject(savedPj, true);
     } catch (e) { console.error("load() dashboard error:", e); }
 
-    // Load telemetry history independently — must not be blocked by dashboard errors
+    // Load telemetry history independently - must not be blocked by dashboard errors
     try { loadHistory(); } catch(e) { console.warn("loadHistory error:", e); }
 
     // Initialize metrics charts & load metrics history

@@ -80,7 +80,7 @@ type
     ftPriority     = $02,  // Stream priority (deprecated)
     ftRstStream    = $03,  // Stream reset
     ftSettings     = $04,  // Connection configuration
-    ftPushPromise  = $05,  // Server push (parse only — not generated)
+    ftPushPromise  = $05,  // Server push (parse only - not generated)
     ftPing         = $06,  // Liveness check
     ftGoaway       = $07,  // Graceful shutdown
     ftWindowUpdate = $08,  // Flow control
@@ -89,7 +89,7 @@ type
 
   /// <summary>
   ///   Parsed representation of an HTTP/2 frame header + reference to the payload bytes.
-  ///   The Payload field is a direct reference into the caller's buffer — zero copy.
+  ///   The Payload field is a direct reference into the caller's buffer - zero copy.
   /// </summary>
   THttp2Frame = record
     /// <summary>Payload length in bytes (24-bit field from wire format).</summary>
@@ -115,7 +115,7 @@ type
 
   /// <summary>
   ///   Provides zero-copy HTTP/2 frame parsing and type-safe write helpers.
-  ///   All methods are class-level — no instance needed.
+  ///   All methods are class-level - no instance needed.
   /// </summary>
   TDextHttp2FrameCodec = class
   private
@@ -132,7 +132,7 @@ type
     /// <summary>
     ///   Attempts to parse a single HTTP/2 frame from the given byte buffer.
     ///   Returns False and sets ABytesConsumed to 0 if the buffer does not yet
-    ///   hold a complete frame (incremental — safe for stream reassembly).
+    ///   hold a complete frame (incremental - safe for stream reassembly).
     /// </summary>
     /// <param name="ABuffer">Pointer to the start of the receive buffer.</param>
     /// <param name="AAvail">Number of bytes available in the buffer.</param>
@@ -159,14 +159,14 @@ type
 
     /// <summary>
     ///   Extracts the HEADERS payload: strips padding and PRIORITY prefix if present.
-    ///   Returns a pointer and length into the original frame payload — zero copy.
+    ///   Returns a pointer and length into the original frame payload - zero copy.
     /// </summary>
     class function GetHeaderBlockFragment(const AFrame: THttp2Frame;
       out AData: PByte; out ALen: Integer): Boolean; static;
 
     /// <summary>
     ///   Extracts the DATA payload: strips the padding prefix/suffix if present.
-    ///   Returns a pointer and length into the original frame payload — zero copy.
+    ///   Returns a pointer and length into the original frame payload - zero copy.
     /// </summary>
     class function GetDataPayload(const AFrame: THttp2Frame;
       out AData: PByte; out ALen: Integer): Boolean; static;
@@ -189,7 +189,7 @@ type
       out ASettings: THttp2Settings): Boolean; static;
 
     // ------------------------------------------------------------------
-    //  Writers — append frame bytes to a caller-provided TBytes buffer
+    //  Writers - append frame bytes to a caller-provided TBytes buffer
     // ------------------------------------------------------------------
 
     /// <summary>Appends a SETTINGS frame (with optional ACK flag) to AOutput.</summary>
@@ -261,7 +261,7 @@ begin
   Result[4].Id := HTTP2_SETTINGS_MAX_FRAME_SIZE;         Result[4].Value := HTTP2_DEFAULT_MAX_FRAME_SIZE;
 end;
 
-{ TDextHttp2FrameCodec — private helpers }
+{ TDextHttp2FrameCodec - private helpers }
 
 class function TDextHttp2FrameCodec.Read3(P: PByte): Cardinal;
 begin
@@ -291,7 +291,7 @@ begin
   Inc(APos, ALen);
 end;
 
-{ TDextHttp2FrameCodec — Reader }
+{ TDextHttp2FrameCodec - Reader }
 
 class function TDextHttp2FrameCodec.TryReadFrame(ABuffer: PByte; AAvail: Integer;
   AMaxFrameSize: Cardinal;
@@ -323,7 +323,7 @@ begin
   Result := True;
 end;
 
-{ TDextHttp2FrameCodec — Flag helpers }
+{ TDextHttp2FrameCodec - Flag helpers }
 
 class function TDextHttp2FrameCodec.HasEndStream(const AFrame: THttp2Frame): Boolean;
 begin
@@ -345,7 +345,7 @@ begin
   Result := (AFrame.Flags and FLAG_PADDED) <> 0;
 end;
 
-{ TDextHttp2FrameCodec — Payload accessors }
+{ TDextHttp2FrameCodec - Payload accessors }
 
 class function TDextHttp2FrameCodec.GetHeaderBlockFragment(const AFrame: THttp2Frame;
   out AData: PByte; out ALen: Integer): Boolean;
@@ -465,7 +465,7 @@ begin
   Result := True;
 end;
 
-{ TDextHttp2FrameCodec — Writers }
+{ TDextHttp2FrameCodec - Writers }
 
 // Writes the 9-byte frame header directly into AOutput at APos
 procedure WriteHeader(var AOutput: TBytes; var APos: Integer;

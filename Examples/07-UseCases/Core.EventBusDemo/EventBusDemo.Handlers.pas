@@ -17,7 +17,7 @@ uses
 
 type
   // --------------------------------------------------------------------------
-  // TOrderPlacedEvent handlers (three handlers — all run in order)
+  // TOrderPlacedEvent handlers (three handlers - all run in order)
   // --------------------------------------------------------------------------
 
   TEmailNotificationHandler = class(TInterfacedObject,
@@ -59,7 +59,7 @@ type
   end;
 
   // --------------------------------------------------------------------------
-  // Deliberately failing handler — used by the exception demo
+  // Deliberately failing handler - used by the exception demo
   // --------------------------------------------------------------------------
 
   TAlwaysFailHandler = class(TInterfacedObject,
@@ -106,7 +106,7 @@ end;
 
 procedure TInventoryAlertHandler.Handle(const AEvent: TInventoryLowEvent);
 begin
-  WriteLn(Format('  [ALERT]    Product "%s" (ID %d): stock %d < minimum %d — reorder needed!',
+  WriteLn(Format('  [ALERT]    Product "%s" (ID %d): stock %d < minimum %d - reorder needed!',
     [AEvent.ProductName, AEvent.ProductId, AEvent.CurrentStock, AEvent.MinimumStock]));
 end;
 

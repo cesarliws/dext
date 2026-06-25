@@ -749,7 +749,7 @@ begin
   Engine := TTemplating.CreateEngine;
   Context := TTemplating.CreateContext;
   
-  // TFDMemTable is a pure-Delphi in-memory table — no midas.dll dependency,
+  // TFDMemTable is a pure-Delphi in-memory table - no midas.dll dependency,
   // no false-positive FastMM5 leaks on shutdown.
   DataSet := TFDMemTable.Create(nil);
   try

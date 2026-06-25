@@ -1,4 +1,4 @@
-# Dext HTTP/2 — gRPC Test Script
+# Dext HTTP/2 - gRPC Test Script
 # This script sends a mockup gRPC unary request over HTTP/2 to the local echo server.
 
 $ErrorActionPreference = "Stop"

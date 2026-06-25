@@ -61,11 +61,11 @@ type
   /// <summary>
   ///   Fake IEventBus for unit tests. Records every published event in an
   ///   IList<TValue> (TRawList backend) for deterministic assertions.
-  ///   PublishBackground is synchronous — no sleep/wait needed in tests.
+  ///   PublishBackground is synchronous - no sleep/wait needed in tests.
   ///   Thread-safe for tests that publish from multiple threads.
   /// </summary>
   TEventBusTracker = class(TInterfacedObject, IEventBus)
-    // Interface method resolution — avoids conflict with TObject.Dispatch.
+    // Interface method resolution - avoids conflict with TObject.Dispatch.
     function IEventBus.Dispatch           = TrackerDispatch;
     procedure IEventBus.DispatchBackground = TrackerDispatchBackground;
   private
@@ -158,7 +158,7 @@ end;
 procedure TEventBusTracker.TrackerDispatchBackground(AEventType: PTypeInfo;
   const AEvent: TValue);
 begin
-  // Synchronous in the test double — avoids timing dependencies in assertions.
+  // Synchronous in the test double - avoids timing dependencies in assertions.
   TrackerDispatch(AEventType, AEvent);
 end;
 
@@ -221,7 +221,7 @@ var
   Expected: PTypeInfo;
   Found: Boolean;
 begin
-  Result   := Default(T); // suppress W1035 — raise below ensures caller never sees this
+  Result   := Default(T); // suppress W1035 - raise below ensures caller never sees this
   Expected := TypeInfo(T);
   Found := False;
   FLock.Enter;
@@ -250,7 +250,7 @@ begin
   end;
 end;
 
-{ TEventBusTracker — static registration helper }
+{ TEventBusTracker - static registration helper }
 
 class function TEventBusTracker.Register(const AServices: TDextServices;
   out ATracker: TEventBusTracker): TDextServices;

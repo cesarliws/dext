@@ -35,7 +35,7 @@ begin
   try
     SetConsoleCharSet(65001);
     WriteLn('==============================================');
-    WriteLn(' Dext Event Bus — Web Integration Demo');
+    WriteLn(' Dext Event Bus - Web Integration Demo');
     WriteLn('==============================================');
     WriteLn;
     WriteLn('Pattern: AddScopedEventBus');
@@ -43,10 +43,10 @@ begin
     WriteLn('  - Handlers share same ILogger / DbContext');
     WriteLn;
     WriteLn('Endpoints:');
-    WriteLn('  POST   /api/tasks                — Create task');
-    WriteLn('  PUT    /api/tasks/{id}/complete  — Complete task');
-    WriteLn('  DELETE /api/tasks/{id}           — Cancel task');
-    WriteLn('  GET    /swagger                  — Swagger UI');
+    WriteLn('  POST   /api/tasks                - Create task');
+    WriteLn('  PUT    /api/tasks/{id}/complete  - Complete task');
+    WriteLn('  DELETE /api/tasks/{id}           - Cancel task');
+    WriteLn('  GET    /swagger                  - Swagger UI');
     WriteLn;
     WriteLn('Example:');
     WriteLn('  curl -X POST http://localhost:8080/api/tasks \');

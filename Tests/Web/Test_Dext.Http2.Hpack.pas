@@ -1,6 +1,6 @@
 {***************************************************************************}
 {                                                                           }
-{           Dext Framework — HTTP/2 HPACK Unit Tests                       }
+{           Dext Framework - HTTP/2 HPACK Unit Tests                       }
 {                                                                           }
 {           Tests RFC 7541 static table, dynamic table, Huffman decode,    }
 {           and encode/decode round-trip using RFC C.3/C.4 test vectors.   }
@@ -18,7 +18,7 @@ uses
 
 type
   /// <summary>Tests for the HPACK static table lookups.</summary>
-  [TestFixture('HPACK — Static Table')]
+  [TestFixture('HPACK - Static Table')]
   THpackStaticTableTests = class
   public
     [Test]
@@ -32,7 +32,7 @@ type
   end;
 
   /// <summary>Tests for the HPACK dynamic table (RFC 7541 §4).</summary>
-  [TestFixture('HPACK — Dynamic Table')]
+  [TestFixture('HPACK - Dynamic Table')]
   THpackDynTableTests = class
   public
     [Test]
@@ -46,7 +46,7 @@ type
   end;
 
   /// <summary>Tests for Huffman decoding.</summary>
-  [TestFixture('HPACK — Huffman')]
+  [TestFixture('HPACK - Huffman')]
   THpackHuffmanTests = class
   public
     [Test]
@@ -58,7 +58,7 @@ type
   end;
 
   /// <summary>Tests for THpackDecoder using RFC 7541 Appendix C vectors.</summary>
-  [TestFixture('HPACK — Decoder (RFC C vectors)')]
+  [TestFixture('HPACK - Decoder (RFC C vectors)')]
   THpackDecoderTests = class
   private
     FDecoder: THpackDecoder;
@@ -67,15 +67,15 @@ type
     [Teardown] procedure Teardown;
 
     [Test]
-    /// <summary>RFC 7541 §C.2.1 — Literal Header Field with Incremental Indexing.</summary>
+    /// <summary>RFC 7541 §C.2.1 - Literal Header Field with Incremental Indexing.</summary>
     procedure Decode_C2_1_LiteralWithIndexing;
 
     [Test]
-    /// <summary>RFC 7541 §C.2.2 — Literal Header Field without Indexing.</summary>
+    /// <summary>RFC 7541 §C.2.2 - Literal Header Field without Indexing.</summary>
     procedure Decode_C2_2_LiteralWithoutIndexing;
 
     [Test]
-    /// <summary>RFC 7541 §C.2.4 — Indexed Header Field.</summary>
+    /// <summary>RFC 7541 §C.2.4 - Indexed Header Field.</summary>
     procedure Decode_C2_4_IndexedField;
 
     [Test]
@@ -88,7 +88,7 @@ type
   end;
 
   /// <summary>Tests for THpackEncoder round-trip.</summary>
-  [TestFixture('HPACK — Encoder Round-Trip')]
+  [TestFixture('HPACK - Encoder Round-Trip')]
   THpackEncoderTests = class
   private
     FEncoder: THpackEncoder;
@@ -297,7 +297,7 @@ begin
   FDecoder.Free;
 end;
 
-// RFC 7541 §C.2.1 — Literal Header Field with Incremental Indexing
+// RFC 7541 §C.2.1 - Literal Header Field with Incremental Indexing
 // custom-key: custom-header
 // Wire: 40 0a 63 75 73 74 6f 6d 2d 6b 65 79 0d 63 75 73 74 6f 6d 2d 68 65 61 64 65 72
 procedure THpackDecoderTests.Decode_C2_1_LiteralWithIndexing;
@@ -315,7 +315,7 @@ begin
   Should(headers[0].Value).Be('custom-header');
 end;
 
-// RFC 7541 §C.2.2 — Literal Header Field without Indexing
+// RFC 7541 §C.2.2 - Literal Header Field without Indexing
 // :path = /sample/path
 // Wire: 04 0c 2f 73 61 6d 70 6c 65 2f 70 61 74 68
 procedure THpackDecoderTests.Decode_C2_2_LiteralWithoutIndexing;
@@ -332,7 +332,7 @@ begin
   Should(headers[0].Value).Be('/sample/path');
 end;
 
-// RFC 7541 §C.2.4 — Indexed Header Field — :method GET (index 2)
+// RFC 7541 §C.2.4 - Indexed Header Field - :method GET (index 2)
 procedure THpackDecoderTests.Decode_C2_4_IndexedField;
 var
   data: TBytes;
@@ -369,7 +369,7 @@ begin
   Should(headers[0].Value).Be('no-cache');
 end;
 
-// Decode the same block twice — second time should hit the dynamic table
+// Decode the same block twice - second time should hit the dynamic table
 procedure THpackDecoderTests.Decode_DynamicTableLookup;
 var
   enc: THpackEncoder;

@@ -88,7 +88,7 @@ class function TElementCategoryHelper.Classify(ATypeInfo: PTypeInfo;
 begin
   if ATypeInfo = nil then
   begin
-    // No RTTI — classify by size only (unmanaged)
+    // No RTTI - classify by size only (unmanaged)
     case ASize of
       1: Result := ecUnmanaged1;
       2: Result := ecUnmanaged2;
@@ -101,36 +101,36 @@ begin
   end;
 
   case ATypeInfo.Kind of
-    // Strings — all reference-counted, pointer-sized storage
+    // Strings - all reference-counted, pointer-sized storage
     tkUString,
     tkLString,
     tkWString:
       Result := ecString;
 
-    // Interfaces — pointer-sized, reference-counted
+    // Interfaces - pointer-sized, reference-counted
     tkInterface:
       Result := ecInterface;
 
-    // Dynamic arrays — pointer-sized, reference-counted
+    // Dynamic arrays - pointer-sized, reference-counted
     tkDynArray:
       Result := ecDynArray;
 
-    // Variants — 16 bytes, managed
+    // Variants - 16 bytes, managed
     tkVariant:
       Result := ecVariant;
 
-    // Classes — pointer-sized, may own objects
+    // Classes - pointer-sized, may own objects
     tkClass:
       Result := ecObject;
 
-    // Records — check for managed fields
+    // Records - check for managed fields
     tkRecord{$IF Declared(tkMRecord)}, tkMRecord{$IFEND}:
     begin
       if IsManagedType(ATypeInfo) then
         Result := ecManagedRecord
       else
       begin
-        // Unmanaged record — classify by size
+        // Unmanaged record - classify by size
         case ASize of
           1: Result := ecUnmanaged1;
           2: Result := ecUnmanaged2;
@@ -212,7 +212,7 @@ begin
       {$ENDIF}
     end;
 
-    // Class reference / method pointer — platform pointer size
+    // Class reference / method pointer - platform pointer size
     tkClassRef,
     tkProcedure:
     begin
@@ -233,12 +233,12 @@ begin
       {$ENDIF}
     end;
 
-    // Static arrays — always unmanaged N
+    // Static arrays - always unmanaged N
     tkArray:
       Result := ecUnmanagedN;
 
   else
-    // Unknown — fallback to size-based classification
+    // Unknown - fallback to size-based classification
     case ASize of
       1: Result := ecUnmanaged1;
       2: Result := ecUnmanaged2;

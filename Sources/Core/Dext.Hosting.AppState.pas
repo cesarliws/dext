@@ -157,7 +157,7 @@ begin
     TValue.Make(@Event, TypeInfo(TAppStateChangedEvent), EventValue);
     FEventBus.Dispatch(TypeInfo(TAppStateChangedEvent), EventValue);
   except
-    // State events are best-effort — never block state transitions
+    // State events are best-effort - never block state transitions
   end;
 end;
 

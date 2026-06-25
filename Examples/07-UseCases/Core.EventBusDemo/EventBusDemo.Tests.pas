@@ -3,7 +3,7 @@ unit EventBusDemo.Tests;
 /// <summary>
 ///   Demonstrates testing with TEventBusTracker.
 ///   TEventBusTracker is a fake IEventBus that records every published event
-///   without running any real handlers — perfect for unit tests.
+///   without running any real handlers - perfect for unit tests.
 ///
 ///   TEventBusTracker.Register registers the tracker as the IEventBus
 ///   singleton, so any service that injects IEventBus or

@@ -78,7 +78,7 @@ end;
 
 /// <summary>
 /// Returns True if the trimmed line is exactly '[Test]', '[Fact]', '[TestCase]',
-/// '[TestCase(...]', '[TestCaseSource(...]', '[Ignore]' etc. — i.e. a method-level
+/// '[TestCase(...]', '[TestCaseSource(...]', '[Ignore]' etc. - i.e. a method-level
 /// attribute that appears on the line immediately before the procedure/function.
 /// We treat any line matching \[Test...\] or \[Fact\] as "the next method is a test".
 /// </summary>
@@ -150,7 +150,7 @@ begin
       Trimmed := Trimmed.TrimRight([#13]);
     if Trimmed = '' then Continue;
 
-    // Stop at implementation section — we only parse the interface
+    // Stop at implementation section - we only parse the interface
     if SameText(Trimmed, 'implementation') then
       Break;
 
@@ -201,11 +201,11 @@ begin
         end
         else
         begin
-          // Some other attribute — clear method flag only if the attribute
+          // Some other attribute - clear method flag only if the attribute
           // itself is on its own line (no remainder following it)
           if Remainder = '' then
             Continue;
-          // Otherwise there might be a declaration after the attribute — fall through
+          // Otherwise there might be a declaration after the attribute - fall through
           Trimmed := Remainder;
         end;
       end;
@@ -246,7 +246,7 @@ begin
       end
       else
       begin
-        // Nested type inside current class — track depth
+        // Nested type inside current class - track depth
         Inc(NestingDepth);
         NextLineIsFixture := False;
       end;

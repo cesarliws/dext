@@ -2,7 +2,7 @@ unit EventBusDemo.Events;
 
 /// <summary>
 ///   Event record definitions for the EventBusDemo.
-///   All events are plain records — stack-allocated, zero heap pressure.
+///   All events are plain records - stack-allocated, zero heap pressure.
 /// </summary>
 
 interface

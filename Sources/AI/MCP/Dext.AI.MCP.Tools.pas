@@ -67,7 +67,7 @@ type
   TMCPToolRegistry = class;
 
   // ---------------------------------------------------------------------------
-  // TMCPToolProvider — base class for RTTI-based tool registration
+  // TMCPToolProvider - base class for RTTI-based tool registration
   // ---------------------------------------------------------------------------
 
   /// <summary>
@@ -86,7 +86,7 @@ type
   end;
 
   // ---------------------------------------------------------------------------
-  // IMCPToolBuilder — fluent configuration interface
+  // IMCPToolBuilder - fluent configuration interface
   // ---------------------------------------------------------------------------
 
   /// <summary>
@@ -124,7 +124,7 @@ type
   end;
 
   // ---------------------------------------------------------------------------
-  // TMCPToolRegistry — holds all registered tools + RTTI provider scan
+  // TMCPToolRegistry - holds all registered tools + RTTI provider scan
   // ---------------------------------------------------------------------------
 
   /// <summary>
@@ -258,7 +258,7 @@ end;
 function TMCPToolRegistry.MakeProviderCallback(AProvider: TMCPToolProvider;
   AMethod: TRttiMethod; const AName: string): TMCPToolResultCallback;
 begin
-  // AMethod and AProvider are parameters — each call creates a distinct
+  // AMethod and AProvider are parameters - each call creates a distinct
   // activation record, so the closure captures the right values per tool.
   Result := function(const Args: TJSONObject): TMCPToolResult
   var

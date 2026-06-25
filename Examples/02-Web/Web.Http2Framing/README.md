@@ -1,4 +1,4 @@
-# Dext HTTP/2 — gRPC Unary Example & Test
+# Dext HTTP/2 - gRPC Unary Example & Test
 
 This directory demonstrates how to run a mockup gRPC unary request over plain-text HTTP/2 (`h2c`) against the Dext HTTP/2 implementation.
 

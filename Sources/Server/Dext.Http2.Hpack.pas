@@ -174,7 +174,7 @@ type
 implementation
 
 // ---------------------------------------------------------------------------
-//  HPACK Static Table — RFC 7541 Appendix A
+//  HPACK Static Table - RFC 7541 Appendix A
 //  Index 1..61, used as-is (1-based)
 // ---------------------------------------------------------------------------
 
@@ -244,7 +244,7 @@ const
   );
 
 // ---------------------------------------------------------------------------
-//  Huffman decode table — RFC 7541 Appendix B
+//  Huffman decode table - RFC 7541 Appendix B
 //  Format: packed record per decoded byte:
 //    Bits 7..4 = bits consumed from current byte (0-8)
 //    Bits 3..0 = decoded symbol (0-255, or $FF for EOS/invalid)
@@ -432,7 +432,7 @@ const
     (Code: $7fffea;   Bits: 23),  // 168
     (Code: $3fffdd;   Bits: 22),  // 169
     (Code: $4;        Bits:  5),  // note: table indexes shift here; these are symbol 170+
-    // Remaining symbols use simpler encodings — abbreviated for clarity
+    // Remaining symbols use simpler encodings - abbreviated for clarity
     // Full table continues for 128..255 as per RFC 7541 Appendix B
     (Code: $3fffde;   Bits: 22),  // 170
     (Code: $fffff0;   Bits: 24),  // 171

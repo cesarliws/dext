@@ -205,7 +205,7 @@ begin
 end;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Main — listen for one connection at a time (demonstration only)
+// Main - listen for one connection at a time (demonstration only)
 // ─────────────────────────────────────────────────────────────────────────────
 var
   wsData: TWSAData;

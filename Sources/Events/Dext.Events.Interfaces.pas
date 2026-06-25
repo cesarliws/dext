@@ -44,7 +44,7 @@ type
   /// <summary>
   ///   Carries the result of a Publish<T> call.
   ///   HandlersInvoked counts all handlers that were started, including those
-  ///   that raised — use HandlersFailed to distinguish successes.
+  ///   that raised - use HandlersFailed to distinguish successes.
   /// </summary>
   TPublishResult = record
     HandlersInvoked: Integer;
@@ -55,7 +55,7 @@ type
 
   /// <summary>
   ///   Marker base interface for all event handlers.
-  ///   Internal — implement IEventHandler<T> in application code.
+  ///   Internal - implement IEventHandler<T> in application code.
   /// </summary>
   IEventHandler = interface
     ['{A1E74C28-3F9D-4B5A-8C0E-2D6F1A7B3C9E}']
@@ -71,7 +71,7 @@ type
 
   /// <summary>
   ///   Cross-cutting behavior applied around every handler invocation.
-  ///   Behaviors form an ordered pipeline — each must call ANext() to continue.
+  ///   Behaviors form an ordered pipeline - each must call ANext() to continue.
   ///   Registered globally (all events) or per event type.
   ///   Register via Services.AddEventBehavior&lt;TBehavior&gt;() (global) or
   ///   Services.AddEventBehaviorFor&lt;TEvent, TBehavior&gt;() (per-event).
@@ -87,7 +87,7 @@ type
 
   /// <summary>
   ///   Facade for publishing a single type of event.
-  ///   Follows the Interface Segregation Principle (ISP) — inject IEventPublisher&lt;T&gt; instead of IEventBus
+  ///   Follows the Interface Segregation Principle (ISP) - inject IEventPublisher&lt;T&gt; instead of IEventBus
   ///   in components that only publish a specific type of event.
   /// </summary>
   IEventPublisher<T> = interface
@@ -128,16 +128,16 @@ type
   ///   Internal registry: maps event TypeInfo to handler entry lists and
   ///   manages global + per-event behavior factory lists.
   ///   Populated at startup by AddEventHandler/AddEventBehavior.
-  ///   Do not consume directly — use IEventBus.
+  ///   Do not consume directly - use IEventBus.
   /// </summary>
   IEventHandlerRegistry = interface
     ['{E5C18A6C-7B3D-8F9E-2A4C-6B0D5E1F7A3C}']
     procedure RegisterHandler(AEventType: PTypeInfo; AHandlerClass: TClass;
       const AFactory: TFunc<IServiceProvider, TObject>);
-    // Global behavior — applied to all event types
+    // Global behavior - applied to all event types
     procedure RegisterBehavior(
       const AFactory: TFunc<IServiceProvider, TObject>);
-    // Per-event behavior — applied only to a specific event type
+    // Per-event behavior - applied only to a specific event type
     procedure RegisterEventBehavior(AEventType: PTypeInfo;
       const AFactory: TFunc<IServiceProvider, TObject>);
 
@@ -159,7 +159,7 @@ type
   ///   <code>
   ///     // FBus: IEventBus (injected)
   ///     TEventBusExtensions.Publish&lt;TOrderPlacedEvent&gt;(FBus, Event);
-  ///     // or inject the narrow IEventPublisher&lt;T&gt; (preferred — ISP):
+  ///     // or inject the narrow IEventPublisher&lt;T&gt; (preferred - ISP):
   ///     FPublisher.Publish(Event);
   ///   </code>
   /// </summary>

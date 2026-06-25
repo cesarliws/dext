@@ -44,7 +44,7 @@ uses
 
 type
   // -------------------------------------------------------------------------
-  // TDextWebBrokerRequest — IHttpRequest backed by TWebRequest
+  // TDextWebBrokerRequest - IHttpRequest backed by TWebRequest
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Implementation of <see cref="IHttpRequest"/> for the Delphi WebBroker pattern.
@@ -94,7 +94,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextWebBrokerResponse — IHttpResponse backed by TWebResponse (buffered)
+  // TDextWebBrokerResponse - IHttpResponse backed by TWebResponse (buffered)
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Implementation of <see cref="IHttpResponse"/> for the Delphi WebBroker pattern.
@@ -143,7 +143,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextWebBrokerContext — IHttpContext for a single WebBroker request
+  // TDextWebBrokerContext - IHttpContext for a single WebBroker request
   // -------------------------------------------------------------------------
   TDextWebBrokerContext = class(TInterfacedObject, IHttpContext)
   private
@@ -181,7 +181,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextWebBrokerServer — no-op IWebHost (WebBroker/IIS is the real server)
+  // TDextWebBrokerServer - no-op IWebHost (WebBroker/IIS is the real server)
   // -------------------------------------------------------------------------
   TDextWebBrokerServer = class(TInterfacedObject, IWebHost)
   public
@@ -192,7 +192,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextWebBrokerApp — global coordinator for DLL/CGI lifecycle
+  // TDextWebBrokerApp - global coordinator for DLL/CGI lifecycle
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Global coordinator for the lifecycle of Dext applications running under WebBroker (DLL/CGI).
@@ -220,7 +220,7 @@ type
   end;
 
   // -------------------------------------------------------------------------
-  // TDextWebModule — TWebModule wired to TDextWebBrokerApp
+  // TDextWebModule - TWebModule wired to TDextWebBrokerApp
   // -------------------------------------------------------------------------
   /// <summary>
   ///   Specialized TWebModule to facilitate the bridge between WebBroker and Dext routes.
@@ -765,7 +765,7 @@ begin
   FApp.BuildServices;
 
   // Start the pipeline (runs hosted services, migrations, etc.)
-  // Use port 0 — the factory ignores it.
+  // Use port 0 - the factory ignores it.
   FApp.Start(0);
 end;
 

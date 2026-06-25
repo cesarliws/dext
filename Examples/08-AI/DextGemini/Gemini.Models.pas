@@ -40,7 +40,7 @@ type
   end;
 
   // ---------------------------------------------------------------------------
-  // Response models — successful (200 OK)
+  // Response models - successful (200 OK)
   // ---------------------------------------------------------------------------
 
   TGeminiCandidate = record
@@ -77,7 +77,7 @@ type
   end;
 
   // ---------------------------------------------------------------------------
-  // Response models — API error body
+  // Response models - API error body
   // ---------------------------------------------------------------------------
 
   TGeminiErrorDetail = record

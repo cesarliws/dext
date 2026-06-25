@@ -2834,7 +2834,7 @@ begin
   LogPerformance('RunActiveProjectTests: before build');
 
   Project.ProjectBuilder.BuildProject(cmOTAMake, False, True);
-  // Returns immediately — NotifyCompileComplete is called by Expert.AfterCompile
+  // Returns immediately - NotifyCompileComplete is called by Expert.AfterCompile
 end;
 
 procedure TFormDextTestRunner.LaunchTestExe(const ATestFilter: string);
@@ -3142,7 +3142,7 @@ begin
   if not ASucceeded then
   begin
     FRunningTests := False;
-    LogMsg('❌ Compile failed — tests not executed.');
+    LogMsg('❌ Compile failed - tests not executed.');
     TStopwatch(FStopwatch).Stop;
     UpdateTimingLabels;
     if Assigned(ProgressPanel) then

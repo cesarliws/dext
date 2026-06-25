@@ -29,7 +29,7 @@ uses
   Dext.Collections;
 
 type
-  [TestFixture('Collections — Queues and Stacks')]
+  [TestFixture('Collections - Queues and Stacks')]
   TTestQueuesAndStacks = class
   public
     [Test]

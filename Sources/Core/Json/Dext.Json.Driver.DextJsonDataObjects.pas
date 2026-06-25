@@ -259,12 +259,18 @@ end;
 
 function TJsonDataObjectAdapter.GetNodeType: TDextJsonNodeType;
 begin
-  Result := jntObject;
+  if FObj = nil then
+    Result := jntNull
+  else
+    Result := jntObject;
 end;
 
 function TJsonDataObjectAdapter.AsString: string;
 begin
-  Result := FObj.ToJSON();
+  if FObj = nil then
+    Result := ''
+  else
+    Result := FObj.ToJSON();
 end;
 
 function TJsonDataObjectAdapter.AsInteger: Integer;
@@ -294,16 +300,24 @@ end;
 
 function TJsonDataObjectAdapter.ToJson(Indented: Boolean): string;
 begin
-  Result := FObj.ToJSON(not Indented);
+  if FObj = nil then
+    Result := 'null'
+  else
+    Result := FObj.ToJSON(not Indented);
 end;
 
 function TJsonDataObjectAdapter.Contains(const Name: string): Boolean;
 begin
-  Result := FObj.Contains(Name);
+  if FObj = nil then
+    Result := False
+  else
+    Result := FObj.Contains(Name);
 end;
 
 function TJsonDataObjectAdapter.GetNode(const Name: string): IDextJsonNode;
 begin
+  if FObj = nil then
+    Exit(nil);
   case FObj.Types[Name] of
     jdtObject: Result := TJsonDataObjectAdapter.Create(FObj.O[Name], False);
     jdtArray: Result := TJsonDataArrayAdapter.Create(FObj.A[Name], False);
@@ -321,33 +335,50 @@ end;
 
 function TJsonDataObjectAdapter.GetString(const Name: string): string;
 begin
-  Result := FObj.S[Name];
+  if FObj = nil then
+    Result := ''
+  else
+    Result := FObj.S[Name];
 end;
 
 function TJsonDataObjectAdapter.GetInteger(const Name: string): Integer;
 begin
-  Result := FObj.I[Name];
+  if FObj = nil then
+    Result := 0
+  else
+    Result := FObj.I[Name];
 end;
 
 function TJsonDataObjectAdapter.GetInt64(const Name: string): Int64;
 begin
-  Result := FObj.L[Name];
+  if FObj = nil then
+    Result := 0
+  else
+    Result := FObj.L[Name];
 end;
 
 function TJsonDataObjectAdapter.GetDouble(const Name: string): Double;
 begin
-  Result := FObj.F[Name];
+  if FObj = nil then
+    Result := 0
+  else
+    Result := FObj.F[Name];
 end;
 
 function TJsonDataObjectAdapter.GetBoolean(const Name: string): Boolean;
 begin
-  Result := FObj.B[Name];
+  if FObj = nil then
+    Result := False
+  else
+    Result := FObj.B[Name];
 end;
 
 function TJsonDataObjectAdapter.GetObject(const Name: string): IDextJsonObject;
 var
   Obj: TJsonObject;
 begin
+  if FObj = nil then
+    Exit(nil);
   Obj := FObj.O[Name];
   if Assigned(Obj) then
     Result := TJsonDataObjectAdapter.Create(Obj, False)
@@ -359,6 +390,8 @@ function TJsonDataObjectAdapter.GetArray(const Name: string): IDextJsonArray;
 var
   Arr: TJsonArray;
 begin
+  if FObj = nil then
+    Exit(nil);
   Arr := FObj.A[Name];
   if Assigned(Arr) then
     Result := TJsonDataArrayAdapter.Create(Arr, False)
@@ -368,37 +401,48 @@ end;
 
 function TJsonDataObjectAdapter.GetCount: Integer;
 begin
-  Result := FObj.Count;
+  if FObj = nil then
+    Result := 0
+  else
+    Result := FObj.Count;
 end;
 
 function TJsonDataObjectAdapter.GetName(Index: Integer): string;
 begin
-  Result := FObj.Names[Index];
+  if FObj = nil then
+    Result := ''
+  else
+    Result := FObj.Names[Index];
 end;
 
 procedure TJsonDataObjectAdapter.SetString(const Name, Value: string);
 begin
-  FObj.S[Name] := Value;
+  if FObj <> nil then
+    FObj.S[Name] := Value;
 end;
 
 procedure TJsonDataObjectAdapter.SetInteger(const Name: string; Value: Integer);
 begin
-  FObj.I[Name] := Value;
+  if FObj <> nil then
+    FObj.I[Name] := Value;
 end;
 
 procedure TJsonDataObjectAdapter.SetInt64(const Name: string; Value: Int64);
 begin
-  FObj.L[Name] := Value;
+  if FObj <> nil then
+    FObj.L[Name] := Value;
 end;
 
 procedure TJsonDataObjectAdapter.SetDouble(const Name: string; Value: Double);
 begin
-  FObj.F[Name] := Value;
+  if FObj <> nil then
+    FObj.F[Name] := Value;
 end;
 
 procedure TJsonDataObjectAdapter.SetBoolean(const Name: string; Value: Boolean);
 begin
-  FObj.B[Name] := Value;
+  if FObj <> nil then
+    FObj.B[Name] := Value;
 end;
 
 procedure TJsonDataObjectAdapter.SetObject(const Name: string; Value: IDextJsonObject);
@@ -412,6 +456,8 @@ var
   NestedObj: IDextJsonObject;
   NestedArr: IDextJsonArray;
 begin
+  if FObj = nil then
+    Exit;
   if Value = nil then
     FObj.O[Name] := nil
   else if Value is TJsonDataObjectAdapter then
@@ -466,6 +512,8 @@ procedure TJsonDataObjectAdapter.SetArray(const Name: string; Value: IDextJsonAr
 var
   NestedAdapter: TJsonDataArrayAdapter;
 begin
+  if FObj = nil then
+    Exit;
   if Value = nil then
     FObj.A[Name] := nil
   else if Value is TJsonDataArrayAdapter then
@@ -479,6 +527,8 @@ end;
 
 procedure TJsonDataObjectAdapter.SetNode(const Name: string; Value: IDextJsonNode);
 begin
+  if FObj = nil then
+    Exit;
   if Value = nil then
     SetNull(Name)
   else
@@ -496,7 +546,8 @@ end;
 
 procedure TJsonDataObjectAdapter.SetNull(const Name: string);
 begin
-  FObj.O[Name] := nil;
+  if FObj <> nil then
+    FObj.O[Name] := nil;
 end;
 
 { TJsonDataArrayAdapter }
@@ -517,12 +568,18 @@ end;
 
 function TJsonDataArrayAdapter.GetNodeType: TDextJsonNodeType;
 begin
-  Result := jntArray;
+  if FArr = nil then
+    Result := jntNull
+  else
+    Result := jntArray;
 end;
 
 function TJsonDataArrayAdapter.AsString: string;
 begin
-  Result := FArr.ToJSON();
+  if FArr = nil then
+    Result := ''
+  else
+    Result := FArr.ToJSON();
 end;
 
 function TJsonDataArrayAdapter.AsInteger: Integer;
@@ -552,16 +609,24 @@ end;
 
 function TJsonDataArrayAdapter.ToJson(Indented: Boolean): string;
 begin
-  Result := FArr.ToJSON(not Indented);
+  if FArr = nil then
+    Result := 'null'
+  else
+    Result := FArr.ToJSON(not Indented);
 end;
 
 function TJsonDataArrayAdapter.GetCount: NativeInt;
 begin
-  Result := FArr.Count;
+  if FArr = nil then
+    Result := 0
+  else
+    Result := FArr.Count;
 end;
 
 function TJsonDataArrayAdapter.GetNode(Index: Integer): IDextJsonNode;
 begin
+  if FArr = nil then
+    Exit(nil);
   case FArr.Types[Index] of
     jdtObject: Result := TJsonDataObjectAdapter.Create(FArr.O[Index], False);
     jdtArray: Result := TJsonDataArrayAdapter.Create(FArr.A[Index], False);
@@ -579,32 +644,47 @@ end;
 
 function TJsonDataArrayAdapter.GetString(Index: Integer): string;
 begin
-  Result := FArr.S[Index];
+  if FArr = nil then
+    Result := ''
+  else
+    Result := FArr.S[Index];
 end;
 
 function TJsonDataArrayAdapter.GetInteger(Index: Integer): Integer;
 begin
-  Result := FArr.I[Index];
+  if FArr = nil then
+    Result := 0
+  else
+    Result := FArr.I[Index];
 end;
 
 function TJsonDataArrayAdapter.GetInt64(Index: Integer): Int64;
 begin
-  Result := FArr.L[Index];
+  if FArr = nil then
+    Result := 0
+  else
+    Result := FArr.L[Index];
 end;
 
 function TJsonDataArrayAdapter.GetDouble(Index: Integer): Double;
 begin
-  Result := FArr.F[Index];
+  if FArr = nil then
+    Result := 0
+  else
+    Result := FArr.F[Index];
 end;
 
 function TJsonDataArrayAdapter.GetBoolean(Index: Integer): Boolean;
 begin
-  Result := FArr.B[Index];
+  if FArr = nil then
+    Result := False
+  else
+    Result := FArr.B[Index];
 end;
 
 function TJsonDataArrayAdapter.GetObject(Index: Integer): IDextJsonObject;
 begin
-  if (Index >= 0) and (Index < FArr.Count) and (FArr.Types[Index] = jdtObject) then
+  if (FArr <> nil) and (Index >= 0) and (Index < FArr.Count) and (FArr.Types[Index] = jdtObject) then
     Result := TJsonDataObjectAdapter.Create(FArr.O[Index], False)
   else
     Result := nil;
@@ -612,7 +692,7 @@ end;
 
 function TJsonDataArrayAdapter.GetArray(Index: Integer): IDextJsonArray;
 begin
-  if (Index >= 0) and (Index < FArr.Count) and (FArr.Types[Index] = jdtArray) then
+  if (FArr <> nil) and (Index >= 0) and (Index < FArr.Count) and (FArr.Types[Index] = jdtArray) then
     Result := TJsonDataArrayAdapter.Create(FArr.A[Index], False)
   else
     Result := nil;
@@ -620,33 +700,40 @@ end;
 
 procedure TJsonDataArrayAdapter.Add(const Value: string);
 begin
-  FArr.Add(Value);
+  if FArr <> nil then
+    FArr.Add(Value);
 end;
 
 procedure TJsonDataArrayAdapter.Add(Value: Integer);
 begin
-  FArr.Add(Value);
+  if FArr <> nil then
+    FArr.Add(Value);
 end;
 
 procedure TJsonDataArrayAdapter.Add(Value: Int64);
 begin
-  FArr.Add(Value);
+  if FArr <> nil then
+    FArr.Add(Value);
 end;
 
 procedure TJsonDataArrayAdapter.Add(Value: Double);
 begin
-  FArr.Add(Value);
+  if FArr <> nil then
+    FArr.Add(Value);
 end;
 
 procedure TJsonDataArrayAdapter.Add(Value: Boolean);
 begin
-  FArr.Add(Value);
+  if FArr <> nil then
+    FArr.Add(Value);
 end;
 
 procedure TJsonDataArrayAdapter.Add(Value: IDextJsonObject);
 var
   NestedAdapter: TJsonDataObjectAdapter;
 begin
+  if FArr = nil then
+    Exit;
   if Value is TJsonDataObjectAdapter then
   begin
     NestedAdapter := Value as TJsonDataObjectAdapter;
@@ -661,6 +748,8 @@ procedure TJsonDataArrayAdapter.Add(Value: IDextJsonArray);
 var
   NestedAdapter: TJsonDataArrayAdapter;
 begin
+  if FArr = nil then
+    Exit;
   if Value is TJsonDataArrayAdapter then
   begin
     NestedAdapter := Value as TJsonDataArrayAdapter;
@@ -673,7 +762,8 @@ end;
 
 procedure TJsonDataArrayAdapter.AddNull;
 begin
-  FArr.AddObject(nil);
+  if FArr <> nil then
+    FArr.AddObject(nil);
 end;
 
 { TJsonDataObjectsProvider }

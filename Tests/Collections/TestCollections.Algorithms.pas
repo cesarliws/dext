@@ -11,7 +11,7 @@ uses
   Dext.Collections.Simd;
 
 type
-  [TestFixture('Collections — Algorithms')]
+  [TestFixture('Collections - Algorithms')]
   TAlgorithmsTests = class
   public
     [Test]

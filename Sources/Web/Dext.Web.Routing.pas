@@ -397,7 +397,7 @@ begin
     end
     else if (Route.Pattern <> nil) and Route.Pattern.Match(Path, ARouteParams) then
     begin
-      // Pattern match — clear params for now, we'll re-extract for the winner
+      // Pattern match - clear params for now, we'll re-extract for the winner
       ARouteParams.Clear;
       if (BestPattern = nil) and IsVersionMatch(RequestVersion, Route.Metadata.ApiVersions) then
         BestPattern := Route

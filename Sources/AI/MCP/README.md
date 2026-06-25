@@ -1,7 +1,7 @@
 # Dext MCP Server
 
 Implementação nativa do **Model Context Protocol (MCP) 2025-03-26** para o Dext Framework.  
-Zero dependências externas — usa apenas RTL Delphi + infraestrutura Dext.
+Zero dependências externas - usa apenas RTL Delphi + infraestrutura Dext.
 
 ```
 [Claude Code / Claude Desktop / Agente IA]
@@ -27,13 +27,13 @@ Zero dependências externas — usa apenas RTL Delphi + infraestrutura Dext.
 | `Dext.MCP.Tools.pas` | Registry de tools + builder fluente + provider RTTI |
 | `Dext.MCP.Resources.pas` | Registry de resources + builder fluente |
 | `Dext.MCP.Prompts.pas` | Registry de prompts + builder fluente |
-| `Dext.MCP.Server.pas` | `TMCPServer` — Streamable, SSE legacy, Stdio; dispatch completo |
+| `Dext.MCP.Server.pas` | `TMCPServer` - Streamable, SSE legacy, Stdio; dispatch completo |
 
 ---
 
 ## Quick Start
 
-### Streamable transport (recomendado — MCP 2025-03-26)
+### Streamable transport (recomendado - MCP 2025-03-26)
 
 ```pascal
 uses
@@ -88,7 +88,7 @@ claude mcp add meu-servidor http://localhost:3031/mcp
 |---|---|---|---|
 | **HTTP Streamable** | `mtStreamable` | `http://host/mcp` | MCP 2025-03-26 ✓ |
 | SSE legacy | `mtSSE` | `http://host/sse` | MCP 2024-11-05 |
-| Stdio | `mtStdio` | — | Claude Desktop processo |
+| Stdio | `mtStdio` | - | Claude Desktop processo |
 
 ---
 
@@ -137,7 +137,7 @@ Server.Tool('relatorio-completo')
   .Description('Retorna relatório com texto e gráfico')
   .OnCallResult(function(Args: TJSONObject): TMCPToolResult
     begin
-      Result := TMCPToolResult.Text('Relatório de Vendas — Março 2026');
+      Result := TMCPToolResult.Text('Relatório de Vendas - Março 2026');
       Result.AddContent(TMCPContent.Image(GerarGrafico, 'image/png'));
       Result.AddContent(TMCPContent.Text('Total: R$ 125.400,00'));
     end);
@@ -191,7 +191,7 @@ begin
 end;
 ```
 
-### Callback legado (string) — backward-compat
+### Callback legado (string) - backward-compat
 
 ```pascal
 // Código existente continua funcionando sem nenhuma mudança
@@ -207,7 +207,7 @@ Server.Tool('ping')
 
 ## Resources
 
-Resources são fontes de dados que o LLM pode ler por URI — como "documentos" acessíveis ao modelo.
+Resources são fontes de dados que o LLM pode ler por URI - como "documentos" acessíveis ao modelo.
 
 ### Builder fluente
 
@@ -278,7 +278,7 @@ function RevisaoCodigo(const Args: TJSONObject): TMCPPromptResult; virtual;
 
 | Factory method | Uso |
 |---|---|
-| `TMCPToolResult.Text(msg)` | Texto simples — caso mais comum |
+| `TMCPToolResult.Text(msg)` | Texto simples - caso mais comum |
 | `TMCPToolResult.Error(msg)` | Erro da tool (`isError: true`) |
 | `TMCPToolResult.Image(b64, mime)` | Imagem base64 (ex: `image/png`) |
 | `TMCPToolResult.Audio(b64, mime)` | Áudio base64 (ex: `audio/mpeg`) |
@@ -324,9 +324,9 @@ function RevisaoCodigo(const Args: TJSONObject): TMCPPromptResult; virtual;
 
 | Método JSON-RPC | Capacidade |
 |---|---|
-| `initialize` | — handshake, cria sessão, retorna capabilities |
-| `notifications/initialized` | — confirmação (sem resposta) |
-| `ping` | — keep-alive |
+| `initialize` | - handshake, cria sessão, retorna capabilities |
+| `notifications/initialized` | - confirmação (sem resposta) |
+| `ping` | - keep-alive |
 | `tools/list` | `tools` |
 | `tools/call` | `tools` |
 | `resources/list` | `resources` |

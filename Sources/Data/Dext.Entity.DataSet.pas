@@ -3291,7 +3291,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-//  GetFieldData — Override with TValueBuffer (TArray<Byte>) for modern Delphi
+//  GetFieldData - Override with TValueBuffer (TArray<Byte>) for modern Delphi
 //  This is the method TField.GetData actually calls (XE3+).
 // ---------------------------------------------------------------------------
 function TEntityDataSet.GetFieldData(Field: TField; Buffer: Pointer): Boolean;

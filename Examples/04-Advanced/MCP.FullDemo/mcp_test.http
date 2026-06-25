@@ -1,10 +1,10 @@
 ### ============================================================
-### Dext MCP Full Demo — Test Suite
+### Dext MCP Full Demo - Test Suite
 ### ============================================================
 ### Rode: MCP.FullDemo.exe  (porta padrão 3031)
 ###
 ### Compatível com: VS Code REST Client, JetBrains HTTP Client, curl
-### Protocolo: MCP 2025-03-26 — HTTP Streamable (POST /mcp)
+### Protocolo: MCP 2025-03-26 - HTTP Streamable (POST /mcp)
 ###
 ### Fluxo obrigatório:
 ###   1. initialize  → recebe Mcp-Session-Id no header de resposta
@@ -37,7 +37,7 @@ Accept: application/json
 # }
 
 
-### ── 1. Initialize (PRIMEIRO — cria a sessão) ───────────────────────────
+### ── 1. Initialize (PRIMEIRO - cria a sessão) ───────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -90,7 +90,7 @@ Mcp-Session-Id: {{session_id}}
 }
 
 ###
-# Esperado: HTTP 202 (sem body) — é uma notificação, não precisa de resposta
+# Esperado: HTTP 202 (sem body) - é uma notificação, não precisa de resposta
 
 
 ### ── 3. Ping ─────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ Mcp-Session-Id: {{session_id}}
 # calcular-desconto, validar-cpf, calcular-imc, gerar-relatorio-texto
 
 
-### ── 5. tools/call — calcular-desconto ──────────────────────────────────
+### ── 5. tools/call - calcular-desconto ──────────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -159,7 +159,7 @@ Mcp-Session-Id: {{session_id}}
 # }
 
 
-### ── 6. tools/call — validar-cpf (válido) ───────────────────────────────
+### ── 6. tools/call - validar-cpf (válido) ───────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -178,10 +178,10 @@ Mcp-Session-Id: {{session_id}}
 }
 
 ###
-# CPF matematicamente válido — esperado: "CPF válido: 529.982.247-25"
+# CPF matematicamente válido - esperado: "CPF válido: 529.982.247-25"
 
 
-### ── 7. tools/call — validar-cpf (inválido) ─────────────────────────────
+### ── 7. tools/call - validar-cpf (inválido) ─────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -200,11 +200,11 @@ Mcp-Session-Id: {{session_id}}
 }
 
 ###
-# Esperado: TMCPToolResult.Error — isError: true no JSON de resultado
+# Esperado: TMCPToolResult.Error - isError: true no JSON de resultado
 # Porque todos os dígitos são iguais
 
 
-### ── 8. tools/call — calcular-imc ──────────────────────────────────────
+### ── 8. tools/call - calcular-imc ──────────────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -227,7 +227,7 @@ Mcp-Session-Id: {{session_id}}
 # IMC = 80 / (1.75²) = 26.1 → Sobrepeso
 
 
-### ── 9. tools/call — gerar-relatorio-texto (multi-content) ──────────────
+### ── 9. tools/call - gerar-relatorio-texto (multi-content) ──────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -269,7 +269,7 @@ Mcp-Session-Id: {{session_id}}
 # config://demo, docs://regras-desconto
 
 
-### ── 11. resources/read — config://demo ────────────────────────────────
+### ── 11. resources/read - config://demo ────────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -288,7 +288,7 @@ Mcp-Session-Id: {{session_id}}
 # Esperado: JSON com configurações do servidor (stack: Indy, etc.)
 
 
-### ── 12. resources/read — docs://regras-desconto ───────────────────────
+### ── 12. resources/read - docs://regras-desconto ───────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -325,7 +325,7 @@ Mcp-Session-Id: {{session_id}}
 # analise-venda, revisao-codigo-delphi
 
 
-### ── 14. prompts/get — analise-venda ───────────────────────────────────
+### ── 14. prompts/get - analise-venda ───────────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -350,7 +350,7 @@ Mcp-Session-Id: {{session_id}}
 # contendo o prompt de análise formatado
 
 
-### ── 15. prompts/get — revisao-codigo-delphi ───────────────────────────
+### ── 15. prompts/get - revisao-codigo-delphi ───────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -372,7 +372,7 @@ Mcp-Session-Id: {{session_id}}
 ###
 
 
-### ── 16. Erro — tool não encontrada ─────────────────────────────────────
+### ── 16. Erro - tool não encontrada ─────────────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -393,7 +393,7 @@ Mcp-Session-Id: {{session_id}}
 # { "error": { "code": -32000, "message": "Tool not found: tool-inexistente" } }
 
 
-### ── 17. Erro — método não existe ───────────────────────────────────────
+### ── 17. Erro - método não existe ───────────────────────────────────────
 
 POST {{base}}/mcp
 Content-Type: {{content_type}}
@@ -415,7 +415,7 @@ DELETE {{base}}/mcp
 Mcp-Session-Id: {{session_id}}
 
 ###
-# Esperado: HTTP 200 — sessão encerrada
+# Esperado: HTTP 200 - sessão encerrada
 # Chamadas subsequentes com este session_id retornarão 404
 
 

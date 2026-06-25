@@ -20,26 +20,26 @@
 {***************************************************************************}
 {                                                                           }
 {  Description:                                                             }
-{    Native MCP (Model Context Protocol) server — protocol 2025-03-26.      }
+{    Native MCP (Model Context Protocol) server - protocol 2025-03-26.      }
 {                                                                           }
 {  Transports:                                                              }
-{    mtStreamable — HTTP Streamable (MCP 2025-03-26, recommended)           }
+{    mtStreamable - HTTP Streamable (MCP 2025-03-26, recommended)           }
 {      POST /mcp           ? synchronous JSON-RPC response                  }
 {      DELETE /mcp         ? close session                                  }
 {      GET  /mcp/sse       ? SSE notification stream (optional)             }
 {      Claude Code config: url = http://host/mcp                            }
 {                                                                           }
-{    mtSSE  — legacy SSE transport (MCP 2024-11-05, backward-compat)        }
+{    mtSSE  - legacy SSE transport (MCP 2024-11-05, backward-compat)        }
 {      GET  /sse           ? SSE stream (endpoint event ? message events)   }
 {      POST /message       ? enqueue message, returns 202                   }
 {      Claude Desktop config: url = http://host/sse                         }
 {                                                                           }
-{    mtStdio — stdin/stdout (Claude Desktop process integration)            }
+{    mtStdio - stdin/stdout (Claude Desktop process integration)            }
 {                                                                           }
 {  Capabilities (MCP 2025-03-26):                                           }
 {    - tools        (list + call)                                           }
-{    - resources    (list + read)                  — when resources added   }
-{    - prompts      (list + get)                   — when prompts added     }
+{    - resources    (list + read)                  - when resources added   }
+{    - prompts      (list + get)                   - when prompts added     }
 {                                                                           }
 {  Quick start:                                                             }
 {    var Server := TMCPServer.Create('my-server');                          }
@@ -78,16 +78,16 @@ uses
 type
   /// <summary>
   /// MCP transport selection.
-  ///   mtStreamable — HTTP Streamable, recommended for MCP 2025-03-26.
-  ///   mtSSE        — Legacy SSE transport (older Claude Desktop / agents).
-  ///   mtStdio      — stdin/stdout for Claude Desktop process launch.
+  ///   mtStreamable - HTTP Streamable, recommended for MCP 2025-03-26.
+  ///   mtSSE        - Legacy SSE transport (older Claude Desktop / agents).
+  ///   mtStdio      - stdin/stdout for Claude Desktop process launch.
   /// </summary>
   TMCPTransport = (mtStreamable, mtSSE, mtStdio);
 
 
 
   // ---------------------------------------------------------------------------
-  // TMCPServer — main entry point
+  // TMCPServer - main entry point
   // ---------------------------------------------------------------------------
 
   /// <summary>
@@ -194,9 +194,9 @@ type
 
     /// <summary>
     /// Starts the server.
-    ///   mtStreamable — non-blocking HTTP (recommended, MCP 2025-03-26)
-    ///   mtSSE        — non-blocking HTTP (legacy)
-    ///   mtStdio      — blocking stdin loop
+    ///   mtStreamable - non-blocking HTTP (recommended, MCP 2025-03-26)
+    ///   mtSSE        - non-blocking HTTP (legacy)
+    ///   mtStdio      - blocking stdin loop
     /// </summary>
     procedure Run(ATransport: TMCPTransport = mtStreamable;
       const AUrl: string = 'http://localhost:3031');
@@ -265,7 +265,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// TMCPServer — helpers
+// TMCPServer - helpers
 // ---------------------------------------------------------------------------
 
 class function TMCPServer.ReadBody(Ctx: IHttpContext): string;
@@ -307,7 +307,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// TMCPServer — JSON-RPC dispatch
+// TMCPServer - JSON-RPC dispatch
 // ---------------------------------------------------------------------------
 
 function TMCPServer.Dispatch(const Body: string;
@@ -335,7 +335,7 @@ begin
     if Method = 'notifications/initialized' then
       Exit('');
 
-    // initialize via SSE or stdio — creates a session; session ID not needed here
+    // initialize via SSE or stdio - creates a session; session ID not needed here
     if Method = 'initialize' then
     begin
       IgnoredSessionId := '';
@@ -626,7 +626,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// TMCPServer — HTTP Streamable transport (MCP 2025-03-26)
+// TMCPServer - HTTP Streamable transport (MCP 2025-03-26)
 // ---------------------------------------------------------------------------
 
 procedure TMCPServer.RouteStreamablePost(Ctx: IHttpContext);
@@ -697,7 +697,7 @@ begin
     Ctx.Response.Write(Response);
   end
   else
-    Ctx.Response.StatusCode := 202; // notification — no response body
+    Ctx.Response.StatusCode := 202; // notification - no response body
 end;
 
 procedure TMCPServer.RouteStreamableDelete(Ctx: IHttpContext);
@@ -724,7 +724,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// TMCPServer — legacy SSE transport handlers
+// TMCPServer - legacy SSE transport handlers
 // ---------------------------------------------------------------------------
 
 procedure TMCPServer.RouteSSE(Ctx: IHttpContext);
@@ -739,7 +739,7 @@ begin
 
     { Switch the Indy response to chunked Transfer-Encoding. Without this,
       Response.Write accumulates into FResponseInfo.ContentText and nothing
-      reaches the client until the handler returns — which for SSE is
+      reaches the client until the handler returns - which for SSE is
       "never" (the loop below runs until shutdown). The Flush after the
       first event releases headers + the endpoint event so the client can
       start POSTing to /message. }
@@ -826,7 +826,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// TMCPServer — stdio transport
+// TMCPServer - stdio transport
 // ---------------------------------------------------------------------------
 
 procedure TMCPServer.RunStdioLoop;
@@ -846,7 +846,7 @@ begin
 end;
 
 // ---------------------------------------------------------------------------
-// TMCPServer — public API
+// TMCPServer - public API
 // ---------------------------------------------------------------------------
 
 constructor TMCPServer.Create(const AName: string; const AVersion: string);
@@ -878,7 +878,7 @@ end;
 
 procedure TMCPServer.RegisterProvider(AProvider: TMCPToolProvider);
 begin
-  // Register tools — the registry takes ownership of AProvider
+  // Register tools - the registry takes ownership of AProvider
   FRegistry.RegisterProvider(AProvider);
 
   // Scan the same provider for [MCPResource] and [MCPPrompt] methods.
@@ -937,7 +937,7 @@ begin
               Ctx.Response.StatusCode := 204;
             end);
         end
-        else // mtSSE — legacy transport
+        else // mtSSE - legacy transport
         begin
           App.MapGet('/sse',
             procedure(Ctx: IHttpContext)

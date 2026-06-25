@@ -9,7 +9,7 @@ uses
   Dext.Collections.Raw;
 
 type
-  [TestFixture('Raw — TRawList Operations')]
+  [TestFixture('Raw - TRawList Operations')]
   TRawListTests = class
   public
     [Test]

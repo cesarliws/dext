@@ -26,7 +26,7 @@
 {  Uses open addressing with linear probing and separated metadata.         }
 {  Capacity is always a power of 2 for fast modulo via bitmask.             }
 {                                                                           }
-{  This unit has NO generic types — everything operates on                  }
+{  This unit has NO generic types - everything operates on                  }
 {  Pointer + PTypeInfo + ElementSize.                                       }
 {                                                                           }
 {***************************************************************************}
@@ -157,7 +157,7 @@ const
   FNV_OFFSET_BASIS = 2166136261;
   FNV_PRIME = 16777619;
 
-{ Hash Functions — overflow is intentional in hash algorithms }
+{ Hash Functions - overflow is intentional in hash algorithms }
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
 
@@ -475,7 +475,7 @@ begin
     end
     else if Meta <> SLOT_EMPTY then
     begin
-      // Tombstone — content already finalized on Remove, skip
+      // Tombstone - content already finalized on Remove, skip
     end;
   end;
 

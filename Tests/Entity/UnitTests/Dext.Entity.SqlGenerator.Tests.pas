@@ -92,7 +92,7 @@ type
   TCreateTableAutoIncTests = class
   public
     [Test]
-    // Firebird + [Column('ID'), PK, AutoInc] — mirrors TEmpresa from the Evo project.
+    // Firebird + [Column('ID'), PK, AutoInc] - mirrors TEmpresa from the Evo project.
     procedure Test_Firebird_ColumnAttr_AutoInc_ProducesIdentity;
 
     [Test]

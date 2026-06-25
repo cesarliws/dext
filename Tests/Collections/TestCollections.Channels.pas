@@ -11,7 +11,7 @@ uses
   Dext.Collections.Channels;
 
 type
-  [TestFixture('Collections — Channels')]
+  [TestFixture('Collections - Channels')]
   TChannelTests = class
   public
     [Test]

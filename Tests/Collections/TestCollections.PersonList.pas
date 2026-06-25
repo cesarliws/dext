@@ -18,7 +18,7 @@ type
     property Name: string read FName;
   end;
 
-  [TestFixture('List — Class TPerson Operations')]
+  [TestFixture('List - Class TPerson Operations')]
   TListPersonTests = class
   public
     [Test]

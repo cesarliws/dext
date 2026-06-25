@@ -618,7 +618,7 @@ Content-Type: application/json
           this._source.onmessage = e => this._onEvent('message', e.data);
           
           this._source.onerror = () => {
-            console.warn('[DextSSE] connection error — retrying in 5s...');
+            console.warn('[DextSSE] connection error - retrying in 5s...');
             this.disconnect();
             setTimeout(() => this.connect(this._onEvent), 5000);
           };

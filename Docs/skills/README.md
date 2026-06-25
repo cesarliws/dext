@@ -28,6 +28,7 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 | **dext-database-as-api** | `dext-database-as-api.md` | Zero-code CRUD REST API from ORM entities (`MapDataApi<T>`) |
 | **dext-desktop-ui** | `dext-desktop-ui.md` | VCL desktop apps, Navigator (Flutter-inspired), Magic Binding (declarative two-way), MVVM |
 | **dext-server-adapters** | `dext-server-adapters.md` | Indy adapter (self-hosted), SSL/HTTPS (OpenSSL/Taurus), `Run` vs `Start`, deployment patterns, WebBroker/ISAPI (roadmap) |
+| **dext-mcp** | `dext-mcp.md` | Model Context Protocol, MCP servers, registering tools, resources, and prompts, database function calling |
 
 ## Manual Installation
 
@@ -172,6 +173,13 @@ Skills are loaded dynamically when the agent needs them. The README is always lo
 - Building VCL desktop applications with Dext Navigator
 - Implementing Magic Binding (declarative two-way binding)
 - Following MVVM pattern with ViewModel + Controller + Frame
+
+**Load `dext-mcp`** when:
+
+- Creating or configuring an MCP (Model Context Protocol) server
+- Exposing custom tools or resources to AI agents
+- Setting up SQLite or database integration with AI model function calling
+- Sychronizing database updates with VCL/FMX UI threads
 
 ## Key Framework Facts
 

@@ -4,7 +4,7 @@ unit EventBusDemo.Services;
 ///   Application services for the EventBusDemo.
 ///
 ///   TOrderService uses the narrow IEventPublisher&lt;TOrderPlacedEvent&gt;
-///   instead of the full IEventBus — it declares exactly which event it emits.
+///   instead of the full IEventBus - it declares exactly which event it emits.
 ///
 ///   TPaymentService uses IEventBus directly, since it publishes two different
 ///   event types (TPaymentProcessedEvent and TInventoryLowEvent).
@@ -32,7 +32,7 @@ type
   end;
 
   /// <summary>
-  ///   Uses IEventPublisher&lt;TOrderPlacedEvent&gt; — narrow, ISP-compliant.
+  ///   Uses IEventPublisher&lt;TOrderPlacedEvent&gt; - narrow, ISP-compliant.
   ///   In tests: swap the publisher for a TEventBusTracker and assert on events.
   /// </summary>
   TOrderService = class(TInterfacedObject, IOrderService)
@@ -45,7 +45,7 @@ type
   end;
 
   /// <summary>
-  ///   Uses IEventBus directly — publishes two different event types.
+  ///   Uses IEventBus directly - publishes two different event types.
   ///   Simulates low-inventory detection after every payment.
   /// </summary>
   TPaymentService = class(TInterfacedObject, IPaymentService)

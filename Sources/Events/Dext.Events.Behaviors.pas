@@ -33,7 +33,7 @@ unit Dext.Events.Behaviors;
 ///     Services.AddEventBehavior<TEventExceptionBehavior>()  // structured wrapping
 ///     Services.AddEventBehavior<TEventTimingBehavior>()     // debug-only (OutputDebugString)
 ///
-///   Behaviors execute in registration order — first registered runs outermost.
+///   Behaviors execute in registration order - first registered runs outermost.
 ///   Recommended order for production:
 ///     TEventExceptionBehavior (outer) → TEventLoggingBehavior (inner) → handler
 /// </summary>
@@ -57,12 +57,12 @@ type
   ///   Writes structured entries to Dext's ILogger on every handler dispatch.
   ///
   ///   Log levels:
-  ///   - Debug  — "Handling {EventName}" before invoking the next step.
-  ///   - Debug  — "Handled {EventName} in {N}ms" after successful dispatch.
-  ///   - Error  — "{EventName} handler raised {ExceptionMessage}" on failure
+  ///   - Debug  - "Handling {EventName}" before invoking the next step.
+  ///   - Debug  - "Handled {EventName} in {N}ms" after successful dispatch.
+  ///   - Error  - "{EventName} handler raised {ExceptionMessage}" on failure
   ///              (exception is re-raised so the pipeline can continue).
   ///
-  ///   Registration (global — applies to every event type):
+  ///   Registration (global - applies to every event type):
   ///   <code>
   ///     Services
   ///       .AddEventBus
@@ -178,7 +178,7 @@ begin
     ANext();
   except
     on E: EEventDispatchException do
-      raise; // Already wrapped — preserve original context
+      raise; // Already wrapped - preserve original context
     on E: Exception do
     begin
       Wrapped := EEventDispatchException.CreateFmt(

@@ -40,7 +40,7 @@ uses
 
 type
   // --- Internal registration records (required by generic methods below) ------
-  // Not part of the public API — do not use in application code.
+  // Not part of the public API - do not use in application code.
 
   THandlerRegistration = record
     EventType: PTypeInfo;
@@ -110,7 +110,7 @@ type
 
     /// <summary>
     ///   Registers THandler as a handler for event type TEvent.
-    ///   Multiple handlers per event type are supported — they run in order.
+    ///   Multiple handlers per event type are supported - they run in order.
     ///   THandler is resolved from the DI scope per Publish call.
     /// </summary>
     function AddEventHandler<TEvent; THandler: class>: TDextServices;
@@ -128,7 +128,7 @@ type
     ///   TBehavior is resolved from the DI scope per Publish call.
     ///
     ///   Note: named AddEventBehaviorFor (not AddEventBehavior) to avoid an
-    ///   "Ambiguous overloaded call" error in Delphi 11/12 — the compiler
+    ///   "Ambiguous overloaded call" error in Delphi 11/12 - the compiler
     ///   cannot disambiguate generic overloads that differ only in type-
     ///   parameter count on record helpers.
     /// </summary>
@@ -137,7 +137,7 @@ type
     /// <summary>
     ///   Registers IEventPublisher<T> as a transient service.
     ///   Components that only ever publish one event type can inject the narrow
-    ///   IEventPublisher<T> instead of IEventBus — clearer intent and
+    ///   IEventPublisher<T> instead of IEventBus - clearer intent and
     ///   easier to mock in unit tests.
     ///
     ///   Usage:
@@ -203,7 +203,7 @@ begin
   Behaviors := TCollections.CreateList<TEventBehaviorRegistration>;
 end;
 
-// Standalone factory builder — each call creates a new stack frame so the
+// Standalone factory builder - each call creates a new stack frame so the
 // anonymous function captures its OWN copy of AClass.  Inline vars inside a
 // for-loop share one stack slot in some Delphi versions, causing all closures
 // to alias the final iteration value.
@@ -242,7 +242,7 @@ var
 begin
   Accumulator := TEventHandlerAccumulator.Create;
 
-  // Pre-created singleton — DI container owns and frees the accumulator.
+  // Pre-created singleton - DI container owns and frees the accumulator.
   AddSingletonInstance<TEventHandlerAccumulator>(Accumulator);
 
   // IEventHandlerRegistry: populated lazily on first resolution.

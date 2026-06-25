@@ -1,7 +1,7 @@
 # MCP Full Demo
 
 Exemplo completo do **Dext MCP Server** implementando os três pilares do protocolo MCP 2025-03-26:
-**Tools**, **Resources** e **Prompts** — usando o padrão RTTI com atributos.
+**Tools**, **Resources** e **Prompts** - usando o padrão RTTI com atributos.
 
 ---
 
@@ -28,7 +28,7 @@ MCP.FullDemo.exe
 
 ### Stack HTTP
 
-O Dext abstrai o servidor HTTP via interfaces (`IWebHost`, `IHttpContext`). Por baixo, `TWebHostBuilder.CreateDefault` instancia um **`TIndyWebServer`** — wrapper sobre o `TIdHTTPServer` do [Indy](https://github.com/IndySockets/Indy). Não há nenhuma outra biblioteca HTTP sob o Indy. O Dext oferece dois adapters opcionais adicionais (DCS e WebBroker/IIS), mas o MCP usa exclusivamente o Indy.
+O Dext abstrai o servidor HTTP via interfaces (`IWebHost`, `IHttpContext`). Por baixo, `TWebHostBuilder.CreateDefault` instancia um **`TIndyWebServer`** - wrapper sobre o `TIdHTTPServer` do [Indy](https://github.com/IndySockets/Indy). Não há nenhuma outra biblioteca HTTP sob o Indy. O Dext oferece dois adapters opcionais adicionais (DCS e WebBroker/IIS), mas o MCP usa exclusivamente o Indy.
 
 ---
 
@@ -61,7 +61,7 @@ Não há dependências externas além do próprio Dext.
 ## Como executar
 
 ```
-# Padrão — Streamable em http://localhost:3031 (recomendado)
+# Padrão - Streamable em http://localhost:3031 (recomendado)
 MCP.FullDemo.exe
 
 # Porta customizada
@@ -178,14 +178,14 @@ Resposta esperada:
 
 ```
 MCP.FullDemo/
-├── MCP.FullDemo.dpr          Programa principal — startup, flags CLI, banner
-├── MCP.FullDemo.Provider.pas TDemoProvider — todas as tools, resources e prompts
+├── MCP.FullDemo.dpr          Programa principal - startup, flags CLI, banner
+├── MCP.FullDemo.Provider.pas TDemoProvider - todas as tools, resources e prompts
 ├── mcp_test.http             18 testes HTTP para verificação manual
 ├── README.md                 Esta documentação
 └── claude_config.md          Referência rápida de configuração
 ```
 
-### `MCP.FullDemo.Provider.pas` — o arquivo mais importante
+### `MCP.FullDemo.Provider.pas` - o arquivo mais importante
 
 Contém `TDemoProvider`, uma subclasse de `TMCPToolProvider` com métodos anotados:
 
@@ -212,7 +212,7 @@ type
 O registro no servidor é uma única linha:
 ```pascal
 Server.RegisterProvider(TDemoProvider.Create);
-// O servidor assume ownership do provider — não precisa Free manual
+// O servidor assume ownership do provider - não precisa Free manual
 ```
 
 O RTTI do Delphi escaneia os atributos em tempo de execução e registra cada método automaticamente nas respectivas registries (tools, resources, prompts).

@@ -1,6 +1,6 @@
 {***************************************************************************}
 {                                                                           }
-{           Dext Framework — Collections Unit Tests                         }
+{           Dext Framework - Collections Unit Tests                         }
 {                                                                           }
 {           Tests for IList<T>, TList<T>, TCollections.CreateList<T>        }
 {                                                                           }
@@ -47,7 +47,7 @@ type
   end;
 
   /// <summary>Basic list operations: Add, Remove, Count, Clear, IndexOf, Contains</summary>
-  [TestFixture('List — Basic Operations')]
+  [TestFixture('List - Basic Operations')]
   TListBasicTests = class
   public
     [Test]
@@ -115,7 +115,7 @@ type
   end;
 
   /// <summary>List with records containing managed fields (strings)</summary>
-  [TestFixture('List — Managed Records')]
+  [TestFixture('List - Managed Records')]
   TListManagedRecordTests = class
   public
     [Test]
@@ -126,7 +126,7 @@ type
   end;
 
   /// <summary>List operations with string elements (managed type)</summary>
-  [TestFixture('List — String Elements')]
+  [TestFixture('List - String Elements')]
   TListStringTests = class
   public
     [Test]
@@ -149,7 +149,7 @@ type
   end;
 
   /// <summary>List operations with interface elements (ref-counted)</summary>
-  [TestFixture('List — Interface Elements')]
+  [TestFixture('List - Interface Elements')]
   TListInterfaceTests = class
   public
     [Test]
@@ -163,7 +163,7 @@ type
   end;
 
   /// <summary>OwnsObjects behavior</summary>
-  [TestFixture('List — Ownership')]
+  [TestFixture('List - Ownership')]
   TListOwnershipTests = class
   public
     [Setup]
@@ -183,7 +183,7 @@ type
   end;
 
   /// <summary>For..in enumerator behavior</summary>
-  [TestFixture('List — Enumerator')]
+  [TestFixture('List - Enumerator')]
   TListEnumeratorTests = class
   public
     [Test]
@@ -197,7 +197,7 @@ type
   end;
 
   /// <summary>LINQ-style extensions: Where, Any, All, ForEach</summary>
-  [TestFixture('List — LINQ Extensions')]
+  [TestFixture('List - LINQ Extensions')]
   TListLinqTests = class
   public
     [Test]
@@ -220,7 +220,7 @@ type
   end;
 
   /// <summary>Tests for the non-generic IObjectList interface mapping</summary>
-  [TestFixture('List — IObjectList Interface')]
+  [TestFixture('List - IObjectList Interface')]
   TListIObjectListTests = class
   public
     [Test]

@@ -21,7 +21,7 @@
 {                                                                           }
 {  Author:  Cesar Romero                                                    }
 {  Created: 2025-12-08                                                      }
-{  Refactored: 2026-02-23 — Replaced RTL generics with TRawList backend     }
+{  Refactored: 2026-02-23 - Replaced RTL generics with TRawList backend     }
 {                                                                           }
 {***************************************************************************}
 unit Dext.Collections;
