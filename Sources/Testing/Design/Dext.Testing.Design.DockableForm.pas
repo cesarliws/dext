@@ -1,4 +1,8 @@
-unit Dext.Testing.Design.DockableForm;
+﻿unit Dext.Testing.Design.DockableForm;
+
+{$IFDEF DEBUG}
+  {.$DEFINE DEXT_TEST_EXPLORER_LOG_FILE_ENABLED}
+{$ENDIF}
 
 interface
 
@@ -610,8 +614,8 @@ end;
 
 constructor TTestSession.CreateFromExisting(ATabSheet: TTabSheet; ATreeView: TTreeView; ALocations: TList<TTestLocation>; const AProjFile: string);
 var
-  PPI: Integer;
   FilterPanel: TPanel;
+  PPI: Integer;
 begin
   inherited Create;
   TabSheet := ATabSheet;
@@ -763,17 +767,17 @@ end;
 
 constructor TFormDextTestRunner.Create(AOwner: TComponent);
 var
-  ThemingServices: IOTAIDEThemingServices;
-  RunAllMenu: TPopupMenu;
-  RunAllItem1, RunAllItem2, RunAllItem3: TMenuItem;
-  PopupMenu: TPopupMenu;
-  MenuItem: TMenuItem;
   DisabledMsgLabel: TLabel;
   EnableButton: TButton;
-  LayoutMode: Integer;
   GroupingMode: Integer;
-  IniFile: string;
   Ini: TMemIniFile;
+  IniFile: string;
+  LayoutMode: Integer;
+  MenuItem: TMenuItem;
+  PopupMenu: TPopupMenu;
+  RunAllItem1, RunAllItem2, RunAllItem3: TMenuItem;
+  RunAllMenu: TPopupMenu;
+  ThemingServices: IOTAIDEThemingServices;
 begin
   FormDextTestRunner := Self;
   FRunningProcessHandle := 0;
@@ -1121,40 +1125,40 @@ end;
 
 procedure TFormDextTestRunner.ApplyDpiScaling;
 var
-  LPPI: Integer;
-  Idx: Integer;
+  i: Integer;
+  Ppi: Integer;
   Session: TTestSession;
 begin
-  LPPI := Self.CurrentPPI;
-  if LPPI = 0 then
-    LPPI := 96;
+  Ppi := Self.CurrentPPI;
+  if Ppi = 0 then
+    Ppi := 96;
 
-  ButtonsPanel.Height := MulDiv(31, LPPI, 96);
-  
-  RefreshButton.Height := MulDiv(25, LPPI, 96);
-  RefreshButton.Width := MulDiv(90, LPPI, 96);
-  
-  RunAllButton.Height := MulDiv(25, LPPI, 96);
-  RunAllButton.Width := MulDiv(95, LPPI, 96);
-  
-  RunSelectedButton.Height := MulDiv(25, LPPI, 96);
-  RunSelectedButton.Width := MulDiv(95, LPPI, 96);
-  
-  StopButton.Height := MulDiv(25, LPPI, 96);
-  StopButton.Width := MulDiv(65, LPPI, 96);
-  
-  ActionsButton.Height := MulDiv(25, LPPI, 96);
-  ActionsButton.Width := MulDiv(30, LPPI, 96);
+  ButtonsPanel.Height := MulDiv(31, Ppi, 96);
+
+  RefreshButton.Height := MulDiv(25, Ppi, 96);
+  RefreshButton.Width := MulDiv(90, Ppi, 96);
+
+  RunAllButton.Height := MulDiv(25, Ppi, 96);
+  RunAllButton.Width := MulDiv(95, Ppi, 96);
+
+  RunSelectedButton.Height := MulDiv(25, Ppi, 96);
+  RunSelectedButton.Width := MulDiv(95, Ppi, 96);
+
+  StopButton.Height := MulDiv(25, Ppi, 96);
+  StopButton.Width := MulDiv(65, Ppi, 96);
+
+  ActionsButton.Height := MulDiv(25, Ppi, 96);
+  ActionsButton.Width := MulDiv(30, Ppi, 96);
 
   if Assigned(FSessions) then
   begin
-    for Idx := 0 to FSessions.Count - 1 do
+    for i := 0 to FSessions.Count - 1 do
     begin
-      Session := FSessions[Idx];
+      Session := FSessions[i];
       if Assigned(Session.FilterEdit) and Assigned(Session.FilterEdit.Parent) then
-        TPanel(Session.FilterEdit.Parent).Height := MulDiv(28, LPPI, 96);
+        TPanel(Session.FilterEdit.Parent).Height := MulDiv(28, Ppi, 96);
       if Assigned(Session.ClearFilterButton) then
-        Session.ClearFilterButton.Width := MulDiv(22, LPPI, 96);
+        Session.ClearFilterButton.Width := MulDiv(22, Ppi, 96);
     end;
   end;
 end;
@@ -1168,21 +1172,21 @@ end;
 
 function TFormDextTestRunner.GetProjectByFileName(const AFileName: string): IOTAProject;
 var
-  LModuleServices: IOTAModuleServices;
-  LGroup: IOTAProjectGroup;
-  I: Integer;
+  i: Integer;
+  ModuleServices: IOTAModuleServices;
+  ProjectGroup: IOTAProjectGroup;
 begin
   Result := nil;
-  if not Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+  if not Supports(BorlandIDEServices, IOTAModuleServices, ModuleServices) then
     Exit;
-  LGroup := LModuleServices.MainProjectGroup;
-  if Assigned(LGroup) then
+  ProjectGroup := ModuleServices.MainProjectGroup;
+  if Assigned(ProjectGroup) then
   begin
-    for I := 0 to LGroup.ProjectCount - 1 do
+    for i := 0 to ProjectGroup.ProjectCount - 1 do
     begin
-      if Assigned(LGroup.Projects[I]) and SameText(LGroup.Projects[I].FileName, AFileName) then
+      if Assigned(ProjectGroup.Projects[i]) and SameText(ProjectGroup.Projects[i].FileName, AFileName) then
       begin
-        Result := LGroup.Projects[I];
+        Result := ProjectGroup.Projects[i];
         Exit;
       end;
     end;
@@ -1191,22 +1195,22 @@ end;
 
 procedure TFormDextTestRunner.RefreshActiveProjectTestsList;
 var
+  Cache: TFileScanCache;
   CacheDict: TObjectDictionary<string, TFileScanCache>;
   FileName: string;
   Files: TArray<string>;
   FilesToScan: TList<string>;
   FilesToScanArray: TArray<string>;
+  FileTime: TDateTime;
   Generation: Integer;
   i: Integer;
   ModifiedTimes: TArray<TDateTime>;
   Project: IOTAProject;
-  LStopwatch: TStopwatch;
-  Cache: TFileScanCache;
-  FileTime: TDateTime;
+  Stopwatch: TStopwatch;
   Tests: TList<TTestLocation>;
 begin
   if not FEnabled then Exit;
-  LStopwatch := TStopwatch.StartNew;
+  Stopwatch := TStopwatch.StartNew;
   LogPerformance('RefreshActiveProjectTestsList: begin');
   Project := GetProjectByFileName(FActiveProjectFile);
   if not Assigned(Project) then
@@ -1219,7 +1223,7 @@ begin
     finally
       TestsTreeView.Items.EndUpdate;
     end;
-    LogPerformance(Format('RefreshActiveProjectTestsList: no project %.2f ms', [LStopwatch.Elapsed.TotalMilliseconds]));
+    LogPerformance(Format('RefreshActiveProjectTestsList: no project %.2f ms', [Stopwatch.Elapsed.TotalMilliseconds]));
     Exit;
   end;
 
@@ -1333,17 +1337,17 @@ begin
             begin
               ExpandTestsTreeView;
             end));
-          LogPerformance(Format('RefreshActiveProjectTestsList: ui rebuild %.2f ms, total %.2f ms', [UiStopwatch.Elapsed.TotalMilliseconds, LStopwatch.Elapsed.TotalMilliseconds]));
+          LogPerformance(Format('RefreshActiveProjectTestsList: ui rebuild %.2f ms, total %.2f ms', [UiStopwatch.Elapsed.TotalMilliseconds, Stopwatch.Elapsed.TotalMilliseconds]));
         end));
     end));
 end;
 
 procedure TFormDextTestRunner.ApplyIDETheme;
 var
-  ThemingServices: IOTAIDEThemingServices;
   BgColor, FgColor: TColor;
-  Idx: Integer;
+  i: Integer;
   Session: TTestSession;
+  ThemingServices: IOTAIDEThemingServices;
 begin
   if Supports(BorlandIDEServices, IOTAIDEThemingServices, ThemingServices) then
   begin
@@ -1364,9 +1368,9 @@ begin
       // 2. Loop through all sessions to update all TreeViews
       if Assigned(FSessions) then
       begin
-        for Idx := 0 to FSessions.Count - 1 do
+        for i := 0 to FSessions.Count - 1 do
         begin
-          Session := FSessions[Idx];
+          Session := FSessions[i];
           if Assigned(Session.TreeView) then
           begin
             Session.TreeView.Color := BgColor;
@@ -1521,8 +1525,8 @@ end;
 procedure TFormDextTestRunner.RunFailedTestsClick(Sender: TObject);
 var
   FailedTests: TList<string>;
-  Key: string;
   Info: TTestDetailInfo;
+  Key: string;
 begin
   FailedTests := TList<string>.Create;
   try
@@ -1612,13 +1616,13 @@ var
   HTMLReporter: THTMLReporter;
   JsonReporter: TJsonReporter;
   JUnitReporter: TJUnitReporter;
+  Key: string;
+  Parts: TArray<string>;
   SonarReporter: TSonarQubeReporter;
   SuiteName: string;
   TestDetailInfo: TTestDetailInfo;
   TestInfo: Dext.Testing.Integration.TTestInfo;
   XUnitReporter: TXUnitReporter;
-  Key: string;
-  Parts: TArray<string>;
 begin
   SuiteName := ExtractFileName(ChangeFileExt(FActiveProjectFile, ''));
   if SuiteName = '' then SuiteName := 'DextTests';
@@ -1839,16 +1843,16 @@ end;
 
 function GetProjectTargetInfo(const ADprojPath: string; out AIsPackage: Boolean; out AExeOutput: string; const APlatform: string = 'Win32'; const AConfig: string = 'Debug'): Boolean;
 var
-  LContent: string;
-  LMainSourceStart, LMainSourceEnd: Integer;
-  LMainSource: string;
-  LExeOutStart, LExeOutEnd: Integer;
-  LPlatformTag: string;
-  LPlatformGroupStart, LPlatformGroupEnd: Integer;
-  LPlatformGroup: string;
-  LOutStart, LOutEnd: Integer;
-  LBaseGroupStart, LBaseGroupEnd: Integer;
-  LBaseGroup: string;
+  BaseGroup: string;
+  BaseGroupStart, BaseGroupEnd: Integer;
+  Content: string;
+  ExeOutStart, ExeOutEnd: Integer;
+  MainSource: string;
+  MainSourceStart, MainSourceEnd: Integer;
+  OutStart, OutEnd: Integer;
+  PlatformGroup: string;
+  PlatformGroupStart, PlatformGroupEnd: Integer;
+  PlatformTag: string;
 begin
   Result := False;
   AIsPackage := False;
@@ -1856,18 +1860,18 @@ begin
   if not FileExists(ADprojPath) then Exit;
 
   try
-    LContent := TFile.ReadAllText(ADprojPath);
+    Content := TFile.ReadAllText(ADprojPath);
 
     // Check MainSource
-    LMainSourceStart := LContent.IndexOf('<MainSource>');
-    if LMainSourceStart >= 0 then
+    MainSourceStart := Content.IndexOf('<MainSource>');
+    if MainSourceStart >= 0 then
     begin
-      Inc(LMainSourceStart, Length('<MainSource>'));
-      LMainSourceEnd := LContent.IndexOf('</MainSource>', LMainSourceStart);
-      if LMainSourceEnd > LMainSourceStart then
+      Inc(MainSourceStart, Length('<MainSource>'));
+      MainSourceEnd := Content.IndexOf('</MainSource>', MainSourceStart);
+      if MainSourceEnd > MainSourceStart then
       begin
-        LMainSource := LContent.Substring(LMainSourceStart, LMainSourceEnd - LMainSourceStart).Trim;
-        if LMainSource.EndsWith('.dpk', True) then
+        MainSource := Content.Substring(MainSourceStart, MainSourceEnd - MainSourceStart).Trim;
+        if MainSource.EndsWith('.dpk', True) then
           AIsPackage := True;
       end;
     end;
@@ -1875,32 +1879,32 @@ begin
     // Check ProjectType
     if not AIsPackage then
     begin
-      if LContent.Contains('<Borland.ProjectType>Package</Borland.ProjectType>') then
+      if Content.Contains('<Borland.ProjectType>Package</Borland.ProjectType>') then
         AIsPackage := True;
     end;
 
     // 1. Try platform-specific base property group, e.g., Base_Win32
-    LPlatformTag := 'Base_' + APlatform;
-    LPlatformGroupStart := LContent.IndexOf('Condition="''$(' + LPlatformTag + ')''!=''''"');
-    if LPlatformGroupStart < 0 then
-      LPlatformGroupStart := LContent.IndexOf('Condition="''$(Platform)''==''' + APlatform + '''"');
+    PlatformTag := 'Base_' + APlatform;
+    PlatformGroupStart := Content.IndexOf('Condition="''$(' + PlatformTag + ')''!=''''"');
+    if PlatformGroupStart < 0 then
+      PlatformGroupStart := Content.IndexOf('Condition="''$(Platform)''==''' + APlatform + '''"');
 
-    if LPlatformGroupStart >= 0 then
+    if PlatformGroupStart >= 0 then
     begin
-      LPlatformGroupStart := LContent.LastIndexOf('<PropertyGroup', LPlatformGroupStart);
-      if LPlatformGroupStart >= 0 then
+      PlatformGroupStart := Content.LastIndexOf('<PropertyGroup', PlatformGroupStart);
+      if PlatformGroupStart >= 0 then
       begin
-        LPlatformGroupEnd := LContent.IndexOf('</PropertyGroup>', LPlatformGroupStart);
-        if LPlatformGroupEnd > LPlatformGroupStart then
+        PlatformGroupEnd := Content.IndexOf('</PropertyGroup>', PlatformGroupStart);
+        if PlatformGroupEnd > PlatformGroupStart then
         begin
-          LPlatformGroup := LContent.Substring(LPlatformGroupStart, LPlatformGroupEnd - LPlatformGroupStart);
-          LOutStart := LPlatformGroup.IndexOf('<DCC_ExeOutput>');
-          if LOutStart >= 0 then
+          PlatformGroup := Content.Substring(PlatformGroupStart, PlatformGroupEnd - PlatformGroupStart);
+          OutStart := PlatformGroup.IndexOf('<DCC_ExeOutput>');
+          if OutStart >= 0 then
           begin
-            Inc(LOutStart, Length('<DCC_ExeOutput>'));
-            LOutEnd := LPlatformGroup.IndexOf('</DCC_ExeOutput>', LOutStart);
-            if LOutEnd > LOutStart then
-              AExeOutput := LPlatformGroup.Substring(LOutStart, LOutEnd - LOutStart).Trim;
+            Inc(OutStart, Length('<DCC_ExeOutput>'));
+            OutEnd := PlatformGroup.IndexOf('</DCC_ExeOutput>', OutStart);
+            if OutEnd > OutStart then
+              AExeOutput := PlatformGroup.Substring(OutStart, OutEnd - OutStart).Trim;
           end;
         end;
       end;
@@ -1909,23 +1913,23 @@ begin
     // 2. Try base configurations
     if AExeOutput = '' then
     begin
-      LBaseGroupStart := LContent.IndexOf('Condition="''$(Base)''!=''''"');
-      if LBaseGroupStart >= 0 then
+      BaseGroupStart := Content.IndexOf('Condition="''$(Base)''!=''''"');
+      if BaseGroupStart >= 0 then
       begin
-        LBaseGroupStart := LContent.LastIndexOf('<PropertyGroup', LBaseGroupStart);
-        if LBaseGroupStart >= 0 then
+        BaseGroupStart := Content.LastIndexOf('<PropertyGroup', BaseGroupStart);
+        if BaseGroupStart >= 0 then
         begin
-          LBaseGroupEnd := LContent.IndexOf('</PropertyGroup>', LBaseGroupStart);
-          if LBaseGroupEnd > LBaseGroupStart then
+          BaseGroupEnd := Content.IndexOf('</PropertyGroup>', BaseGroupStart);
+          if BaseGroupEnd > BaseGroupStart then
           begin
-            LBaseGroup := LContent.Substring(LBaseGroupStart, LBaseGroupEnd - LBaseGroupStart);
-            LOutStart := LBaseGroup.IndexOf('<DCC_ExeOutput>');
-            if LOutStart >= 0 then
+            BaseGroup := Content.Substring(BaseGroupStart, BaseGroupEnd - BaseGroupStart);
+            OutStart := BaseGroup.IndexOf('<DCC_ExeOutput>');
+            if OutStart >= 0 then
             begin
-              Inc(LOutStart, Length('<DCC_ExeOutput>'));
-              LOutEnd := LBaseGroup.IndexOf('</DCC_ExeOutput>', LOutStart);
-              if LOutEnd > LOutStart then
-                AExeOutput := LBaseGroup.Substring(LOutStart, LOutEnd - LOutStart).Trim;
+              Inc(OutStart, Length('<DCC_ExeOutput>'));
+              OutEnd := BaseGroup.IndexOf('</DCC_ExeOutput>', OutStart);
+              if OutEnd > OutStart then
+                AExeOutput := BaseGroup.Substring(OutStart, OutEnd - OutStart).Trim;
             end;
           end;
         end;
@@ -1935,13 +1939,13 @@ begin
     // 3. Fallback to last occurrence
     if AExeOutput = '' then
     begin
-      LExeOutStart := LContent.LastIndexOf('<DCC_ExeOutput>');
-      if LExeOutStart >= 0 then
+      ExeOutStart := Content.LastIndexOf('<DCC_ExeOutput>');
+      if ExeOutStart >= 0 then
       begin
-        Inc(LExeOutStart, Length('<DCC_ExeOutput>'));
-        LExeOutEnd := LContent.IndexOf('</DCC_ExeOutput>', LExeOutStart);
-        if LExeOutEnd > LExeOutStart then
-          AExeOutput := LContent.Substring(LExeOutStart, LExeOutEnd - LExeOutStart).Trim;
+        Inc(ExeOutStart, Length('<DCC_ExeOutput>'));
+        ExeOutEnd := Content.IndexOf('</DCC_ExeOutput>', ExeOutStart);
+        if ExeOutEnd > ExeOutStart then
+          AExeOutput := Content.Substring(ExeOutStart, ExeOutEnd - ExeOutStart).Trim;
       end;
     end;
 
@@ -1953,92 +1957,92 @@ end;
 
 function ResolveExePath(const ADprojPath, AExeOutput: string; const APlatform: string = 'Win32'; const AConfig: string = 'Debug'): string;
 var
-  LProjectDir: string;
-  LOutputDir: string;
-  LProjectName: string;
+  ProjectDir: string;
+  OutputDir: string;
+  ProjectName: string;
 begin
-  LProjectDir := ExtractFilePath(ADprojPath);
-  LProjectName := ChangeFileExt(ExtractFileName(ADprojPath), '');
+  ProjectDir := ExtractFilePath(ADprojPath);
+  ProjectName := ChangeFileExt(ExtractFileName(ADprojPath), '');
 
   if AExeOutput <> '' then
   begin
-    LOutputDir := AExeOutput.Replace('$(Platform)', APlatform).Replace('$(Config)', AConfig);
-    if TPath.IsRelativePath(LOutputDir) then
-      LOutputDir := TPath.GetFullPath(TPath.Combine(LProjectDir, LOutputDir))
+    OutputDir := AExeOutput.Replace('$(Platform)', APlatform).Replace('$(Config)', AConfig);
+    if TPath.IsRelativePath(OutputDir) then
+      OutputDir := TPath.GetFullPath(TPath.Combine(ProjectDir, OutputDir))
     else
-      LOutputDir := LOutputDir;
+      OutputDir := OutputDir;
   end
   else
   begin
-    LOutputDir := TPath.Combine(LProjectDir, TPath.Combine(APlatform, AConfig));
+    OutputDir := TPath.Combine(ProjectDir, TPath.Combine(APlatform, AConfig));
   end;
 
-  Result := TPath.Combine(LOutputDir, LProjectName + '.exe');
+  Result := TPath.Combine(OutputDir, ProjectName + '.exe');
 end;
 
 procedure TFormDextTestRunner.RefreshProjects;
 var
-  LModuleServices: IOTAModuleServices;
-  LGroup: IOTAProjectGroup;
-  I: Integer;
-  LProj: IOTAProject;
-  LProjFile: string;
-  LIsPackage: Boolean;
-  LOutput: string;
-  LPrevSelectedFile: string;
-  LFoundIndex: Integer;
+  FoundIndex: Integer;
+  Group: IOTAProjectGroup;
+  i: Integer;
+  IsPackage: Boolean;
+  ModuleServices: IOTAModuleServices;
+  Output: string;
+  PrevSelectedFile: string;
+  Proj: IOTAProject;
+  ProjFile: string;
   ProjInfo: TDextProjectInfo;
 begin
-  LPrevSelectedFile := FActiveProjectFile;
+  PrevSelectedFile := FActiveProjectFile;
 
   // Clear existing items and free their TDextProjectInfo objects
-  for I := 0 to ProjectsComboBox.Items.Count - 1 do
-    ProjectsComboBox.Items.Objects[I].Free;
+  for i := 0 to ProjectsComboBox.Items.Count - 1 do
+    ProjectsComboBox.Items.Objects[i].Free;
   ProjectsComboBox.Items.Clear;
 
-  if not Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+  if not Supports(BorlandIDEServices, IOTAModuleServices, ModuleServices) then
     Exit;
 
-  LGroup := LModuleServices.MainProjectGroup;
-  if Assigned(LGroup) then
+  Group := ModuleServices.MainProjectGroup;
+  if Assigned(Group) then
   begin
-    for I := 0 to LGroup.ProjectCount - 1 do
+    for i := 0 to Group.ProjectCount - 1 do
     begin
-      LProj := LGroup.Projects[I];
-      if Assigned(LProj) then
+      Proj := Group.Projects[i];
+      if Assigned(Proj) then
       begin
-        LProjFile := LProj.FileName;
-        if (LProjFile.ToLower.Contains('test') or LProjFile.ToLower.Contains('tests')) and
-           SameText(ExtractFileExt(LProjFile), '.dproj') then
+        ProjFile := Proj.FileName;
+        if (ProjFile.ToLower.Contains('test') or ProjFile.ToLower.Contains('tests')) and
+           SameText(ExtractFileExt(ProjFile), '.dproj') then
         begin
-          LIsPackage := False;
-          LOutput := '';
-          if GetProjectTargetInfo(LProjFile, LIsPackage, LOutput) and LIsPackage then
+          IsPackage := False;
+          Output := '';
+          if GetProjectTargetInfo(ProjFile, IsPackage, Output) and IsPackage then
             Continue;
 
-          ProjectsComboBox.Items.AddObject(ExtractFileName(LProjFile), TDextProjectInfo.Create(LProjFile));
+          ProjectsComboBox.Items.AddObject(ExtractFileName(ProjFile), TDextProjectInfo.Create(ProjFile));
         end;
       end;
     end;
   end;
 
-  LFoundIndex := -1;
-  if LPrevSelectedFile <> '' then
+  FoundIndex := -1;
+  if PrevSelectedFile <> '' then
   begin
-    for I := 0 to ProjectsComboBox.Items.Count - 1 do
+    for i := 0 to ProjectsComboBox.Items.Count - 1 do
     begin
-      ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
-      if Assigned(ProjInfo) and SameText(ProjInfo.FileName, LPrevSelectedFile) then
+      ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[i]);
+      if Assigned(ProjInfo) and SameText(ProjInfo.FileName, PrevSelectedFile) then
       begin
-        LFoundIndex := I;
+        FoundIndex := i;
         Break;
       end;
     end;
   end;
 
-  if LFoundIndex <> -1 then
+  if FoundIndex <> -1 then
   begin
-    ProjectsComboBox.ItemIndex := LFoundIndex;
+    ProjectsComboBox.ItemIndex := FoundIndex;
     ProjectsComboBoxChange(ProjectsComboBox);
   end
   else if ProjectsComboBox.Items.Count > 0 then
@@ -2060,19 +2064,19 @@ end;
 
 procedure TFormDextTestRunner.ProjectsComboBoxChange(Sender: TObject);
 var
-  LProj: IOTAProject;
-  LProjInfo: TDextProjectInfo;
+  Proj: IOTAProject;
+  ProjInfo: TDextProjectInfo;
 begin
   UpdateSummaryCounts;
   if ProjectsComboBox.ItemIndex = -1 then Exit;
 
-  LProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[ProjectsComboBox.ItemIndex]);
-  if not Assigned(LProjInfo) then Exit;
+  ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[ProjectsComboBox.ItemIndex]);
+  if not Assigned(ProjInfo) then Exit;
 
-  LProj := GetProjectByFileName(LProjInfo.FileName);
-  if not Assigned(LProj) then Exit;
+  Proj := GetProjectByFileName(ProjInfo.FileName);
+  if not Assigned(Proj) then Exit;
 
-  FActiveProjectFile := LProj.FileName;
+  FActiveProjectFile := Proj.FileName;
   if FActiveSession <> nil then
     FActiveSession.ActiveProjectFile := FActiveProjectFile;
 
@@ -2089,9 +2093,9 @@ begin
   end;
 
   // Register notifier on new project
-  FActiveProjectForNotifier := LProj;
+  FActiveProjectForNotifier := Proj;
   try
-    FActiveProjectNotifierIndex := LProj.AddNotifier(TDextProjectNotifier.Create(Self, LProj.FileName));
+    FActiveProjectNotifierIndex := Proj.AddNotifier(TDextProjectNotifier.Create(Self, Proj.FileName));
   except
     FActiveProjectNotifierIndex := -1;
     FActiveProjectForNotifier := nil;
@@ -2102,7 +2106,7 @@ end;
 
 function TFormDextTestRunner.FindNodeByPath(const APath: string): TTreeNode;
 var
-  i, J: Integer;
+  i, j: Integer;
   Node: TTreeNode;
   Split: TArray<string>;
 
@@ -2157,11 +2161,11 @@ begin
         Node := TestsTreeView.Items[i];
         if (Node.Parent = nil) and SameText(GetNodeClassName(Node.Text), Split[0]) then
         begin
-          for J := 0 to Node.Count - 1 do
+          for j := 0 to Node.Count - 1 do
           begin
-            if SameText(Node.Item[J].Text, Split[1]) then
+            if SameText(Node.Item[j].Text, Split[1]) then
             begin
-              Result := Node.Item[J];
+              Result := Node.Item[j];
               Exit;
             end;
           end;
@@ -2184,9 +2188,9 @@ end;
 
 procedure TFormDextTestRunner.OnTestResultReceived(const AJSONData: string);
 var
-  Value: TJSONValue;
-  JSONArray: TJSONArray;
   i: Integer;
+  JSONArray: TJSONArray;
+  Value: TJSONValue;
 
   procedure ProcessSingleResult(ItemJson: TJSONObject);
   var
@@ -2463,10 +2467,10 @@ end;
 
 procedure TFormDextTestRunner.CollapseSuccessAndFocusFailures;
 var
-  Node: TTreeNode;
   Child: TTreeNode;
-  HasFailures: Boolean;
   FirstFailedNode: TTreeNode;
+  HasFailures: Boolean;
+  Node: TTreeNode;
 begin
   if TestsTreeView = nil then Exit;
 
@@ -2567,8 +2571,8 @@ end;
 procedure TFormDextTestRunner.UpdateTestNode(const ATestName, AStatus, AMessage, AStackTrace: string);
 var
   Node: TTreeNode;
-  Text: string;
   NodeRect: TRect;
+  Text: string;
 begin
   // ATestName is usually in the format: ClassName.MethodName or TClassName.MethodName
   Node := FindNodeByPath(ATestName);
@@ -2616,36 +2620,36 @@ end;
 
 procedure TFormDextTestRunner.TestsTreeViewChange(Sender: TObject; Node: TTreeNode);
 var
-  LKey: string;
-  LStopwatch: TStopwatch;
-  LRect: TRect;
+  Key: string;
+  Stopwatch: TStopwatch;
+  Rect: TRect;
 begin
   if not Assigned(Node) then Exit;
-  LStopwatch := TStopwatch.StartNew;
+  Stopwatch := TStopwatch.StartNew;
 
-  LKey := GetNodeFullTestName(Node);
-  UpdateTestInspector(LKey);
-  if (Node.Parent <> nil) and FTestDetails.ContainsKey(LKey) then
+  Key := GetNodeFullTestName(Node);
+  UpdateTestInspector(Key);
+  if (Node.Parent <> nil) and FTestDetails.ContainsKey(Key) then
   begin
     if DetailsPageControl.Visible then
       DetailsPageControl.ActivePage := InspectorTab;
   end;
-  LRect := Node.DisplayRect(True);
-  LRect.Right := TestsTreeView.ClientWidth;
-  InvalidateRect(TestsTreeView.Handle, @LRect, True);
-  if LStopwatch.Elapsed.TotalMilliseconds > 5 then
-    LogPerformance(Format('TestsTreeViewChange slow %.2f ms: %s', [LStopwatch.Elapsed.TotalMilliseconds, LKey]));
+  Rect := Node.DisplayRect(True);
+  Rect.Right := TestsTreeView.ClientWidth;
+  InvalidateRect(TestsTreeView.Handle, @Rect, True);
+  if Stopwatch.Elapsed.TotalMilliseconds > 5 then
+    LogPerformance(Format('TestsTreeViewChange slow %.2f ms: %s', [Stopwatch.Elapsed.TotalMilliseconds, Key]));
 end;
 
 procedure TFormDextTestRunner.UpdateTestInspector(const ATestName: string);
 var
   DetailInfo: TTestDetailInfo;
-  StatusText: string;
-  Node: TTreeNode;
   i: Integer;
-  TestLocation: TTestLocation;
-  Stopwatch: TStopwatch;
+  Node: TTreeNode;
   RealLine: Integer;
+  StatusText: string;
+  Stopwatch: TStopwatch;
+  TestLocation: TTestLocation;
 begin
   Stopwatch := TStopwatch.StartNew;
   if not Assigned(TestNameLabel) then Exit;
@@ -2725,8 +2729,8 @@ end;
 
 procedure TFormDextTestRunner.ClearTestStatus;
 var
-  I: Integer;
-  LNode: TTreeNode;
+  i: Integer;
+  Node: TTreeNode;
 begin
   if Assigned(FTestDetails) then
     FTestDetails.Clear;
@@ -2746,13 +2750,13 @@ begin
 
   TestsTreeView.Items.BeginUpdate;
   try
-    for I := 0 to TestsTreeView.Items.Count - 1 do
+    for i := 0 to TestsTreeView.Items.Count - 1 do
     begin
-      LNode := TestsTreeView.Items[I];
-      if LNode.ImageIndex in [1, 2] then
+      Node := TestsTreeView.Items[i];
+      if Node.ImageIndex in [1, 2] then
       begin
-        LNode.ImageIndex := 0;
-        LNode.SelectedIndex := 0;
+        Node.ImageIndex := 0;
+        Node.SelectedIndex := 0;
       end;
     end;
   finally
@@ -2839,31 +2843,31 @@ end;
 
 procedure TFormDextTestRunner.LaunchTestExe(const ATestFilter: string);
 var
-  LIsPackage: Boolean;
-  LOutput: string;
-  LExeFile: string;
-  LParams: string;
-  LCmdLine: string;
-  SI: TStartupInfo;
+  Checked: TArray<string>;
+  CmdLine: string;
+  Config: string;
+  Configs: IOTAProjectOptionsConfigurations;
+  CustomParams: string;
+  ExeFile: string;
+  i: Integer;
+  IsPackage: Boolean;
+  Json: string;
+  Output: string;
+  Params: string;
   PI: TProcessInformation;
   PlatformVal: string;
-  Config: string;
-  Proj: IOTAProject;
-  Configs: IOTAProjectOptionsConfigurations;
-  Checked: TArray<string>;
-  JSON: string;
-  Idx: Integer;
-  CustomParams: string;
   ProcessHandle: THandle;
+  Proj: IOTAProject;
+  SI: TStartupInfo;
 begin
-  LIsPackage := False;
-  LOutput := '';
+  IsPackage := False;
+  Output := '';
   PlatformVal := 'Win32';
   Config := 'Debug';
   Proj := GetProjectByFileName(FActiveProjectFile);
   if Assigned(Proj) then
   begin
-    LOutput := Proj.ProjectOptions.Values['OutputDir'];
+    Output := Proj.ProjectOptions.Values['OutputDir'];
     if Supports(Proj.ProjectOptions, IOTAProjectOptionsConfigurations, Configs) then
     begin
       PlatformVal := Configs.ActivePlatformName;
@@ -2871,20 +2875,20 @@ begin
         Config := Configs.ActiveConfiguration.Name;
     end;
   end;
-  if LOutput = '' then
-    GetProjectTargetInfo(FActiveProjectFile, LIsPackage, LOutput, PlatformVal, Config);
-  LExeFile := ResolveExePath(FActiveProjectFile, LOutput, PlatformVal, Config);
+  if Output = '' then
+    GetProjectTargetInfo(FActiveProjectFile, IsPackage, Output, PlatformVal, Config);
+  ExeFile := ResolveExePath(FActiveProjectFile, Output, PlatformVal, Config);
 
-  if not FileExists(LExeFile) then
+  if not FileExists(ExeFile) then
   begin
-    LogMsg('Error: Executable not found at ' + LExeFile);
+    LogMsg('Error: Executable not found at ' + ExeFile);
     TStopwatch(FStopwatch).Stop;
     UpdateTimingLabels;
     if Assigned(ProgressPanel) then ProgressPanel.Visible := False;
     Exit;
   end;
 
-  // Apply test filter to server selection JSON
+  // Apply test filter to server selection Json
   if ATestFilter <> '' then
     FServer.SelectedTestsJSON := '["' + ATestFilter + '"]'
   else
@@ -2892,14 +2896,14 @@ begin
     Checked := GetCheckedTests;
     if Length(Checked) > 0 then
     begin
-      JSON := '[';
-      for Idx := 0 to Length(Checked) - 1 do
+      Json := '[';
+      for i := 0 to Length(Checked) - 1 do
       begin
-        if Idx > 0 then JSON := JSON + ',';
-        JSON := JSON + '"' + Checked[Idx] + '"';
+        if i > 0 then Json := Json + ',';
+        Json := Json + '"' + Checked[i] + '"';
       end;
-      JSON := JSON + ']';
-      FServer.SelectedTestsJSON := JSON;
+      Json := Json + ']';
+      FServer.SelectedTestsJSON := Json;
     end
     else
       FServer.SelectedTestsJSON := '[]';
@@ -2917,19 +2921,19 @@ begin
   end;
   DetailsMemo.Update;
 
-  LParams := Format('--port %d -no-wait', [FServer.Port]);
+  Params := Format('--port %d -no-wait', [FServer.Port]);
   CustomParams := CustomParamsEdit.Text;
   if CustomParams <> '' then
-    LParams := LParams + ' ' + CustomParams;
+    Params := Params + ' ' + CustomParams;
 
   if ATestFilter <> '' then
   begin
     FServer.SelectedTestsJSON := '["' + ATestFilter + '"]';
   end;
 
-  LCmdLine := Format('"%s" %s', [LExeFile, LParams]);
-  LogMsg('Command Line: ' + LCmdLine);
-  UniqueString(LCmdLine);
+  CmdLine := Format('"%s" %s', [ExeFile, Params]);
+  LogMsg('Command Line: ' + CmdLine);
+  UniqueString(CmdLine);
 
   ZeroMemory(@SI, SizeOf(SI));
   SI.cb := SizeOf(SI);
@@ -2942,7 +2946,7 @@ begin
     FRunningProcessHandle := 0;
   end;
 
-  if CreateProcess(nil, PChar(LCmdLine), nil, nil, False, CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(LExeFile)), SI, PI) then
+  if CreateProcess(nil, PChar(CmdLine), nil, nil, False, CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(ExeFile)), SI, PI) then
   begin
     FRunningProcessHandle := PI.hProcess;
     CloseHandle(PI.hThread);
@@ -2959,34 +2963,41 @@ begin
       end).Start;
   end
   else
-    LogMsg('Failed to launch runner: ' + LExeFile);
+    LogMsg('Failed to launch runner: ' + ExeFile);
 end;
 
+{$IFDEF DEXT_TEST_EXPLORER_LOG_FILE_ENABLED}
 var
-  LLogLock: TObject = nil;
+  LogLock: TObject = nil;
 
 procedure LogToFile(const AMsg: string);
 var
-  LPath: string;
-  LWriter: TStreamWriter;
+  Path: string;
+  Writer: TStreamWriter;
 begin
-  if LLogLock = nil then Exit;
-  System.TMonitor.Enter(LLogLock);
+  if LogLock = nil then Exit;
+  System.TMonitor.Enter(LogLock);
   try
     try
-      LPath := TPath.Combine(TPath.GetTempPath, 'DextExpert.log');
-      LWriter := TFile.AppendText(LPath);
+      Path := TPath.Combine(TPath.GetTempPath, 'DextExpert.log');
+      Writer := TFile.AppendText(Path);
       try
-        LWriter.WriteLine(Format('[%s] %s', [FormatDateTime('yyyy-MM-dd hh:nn:ss.zzz', Now), AMsg]));
+        Writer.WriteLine(Format('[%s] %s', [FormatDateTime('yyyy-MM-dd hh:nn:ss.zzz', Now), AMsg]));
       finally
-        LWriter.Free;
+        Writer.Free;
       end;
     except
     end;
   finally
-    System.TMonitor.Exit(LLogLock);
+    System.TMonitor.Exit(LogLock);
   end;
 end;
+{$ELSE}
+procedure LogToFile(const AMsg: string);
+begin
+// log to file disabled, define DEXT_TEST_EXPLORER_LOG_FILE_ENABLED to enable
+end;
+{$ENDIF}
 
 procedure TFormDextTestRunner.LogMsg(const AMsg: string);
 begin
@@ -3027,62 +3038,62 @@ end;
 
 procedure TFormDextTestRunner.InitializeGroupSummaries;
 var
-  LIdx: Integer;
-  LTest: TTestLocation;
-  LKey: string;
-  LInfo: TGroupSummaryInfo;
+  i: Integer;
+  Info: TGroupSummaryInfo;
+  Key: string;
+  Test: TTestLocation;
 begin
   if not Assigned(FGroupSummaries) then Exit;
   FGroupSummaries.Clear;
-  for LIdx := 0 to FTestLocations.Count - 1 do
+  for i := 0 to FTestLocations.Count - 1 do
   begin
-    LTest := FTestLocations[LIdx];
-    LKey := LTest.ClassName;
-    if not FGroupSummaries.TryGetValue(LKey, LInfo) then
+    Test := FTestLocations[i];
+    Key := Test.ClassName;
+    if not FGroupSummaries.TryGetValue(Key, Info) then
     begin
-      LInfo.TotalCount := 0;
-      LInfo.PassedCount := 0;
-      LInfo.FailedCount := 0;
-      LInfo.DurationMs := 0;
+      Info.TotalCount := 0;
+      Info.PassedCount := 0;
+      Info.FailedCount := 0;
+      Info.DurationMs := 0;
     end;
-    Inc(LInfo.TotalCount);
-    FGroupSummaries.AddOrSetValue(LKey, LInfo);
+    Inc(Info.TotalCount);
+    FGroupSummaries.AddOrSetValue(Key, Info);
   end;
 end;
 
 procedure TFormDextTestRunner.UpdateGroupSummary(const ATestName, AStatus: string; ADurationMs: Double);
 var
-  LClassName: string;
-  LDotPos: Integer;
-  LInfo: TGroupSummaryInfo;
-  LIdx: Integer;
-  LTest: TTestLocation;
+  ClassName: string;
+  DotPos: Integer;
+  i: Integer;
+  Info: TGroupSummaryInfo;
+  TestLocation: TTestLocation;
 begin
   if not Assigned(FGroupSummaries) then Exit;
-  LDotPos := ATestName.IndexOf('.');
-  if LDotPos <= 0 then Exit;
-  LClassName := ATestName.Substring(0, LDotPos);
-  if not FGroupSummaries.TryGetValue(LClassName, LInfo) then
+  DotPos := ATestName.IndexOf('.');
+  if DotPos <= 0 then Exit;
+  ClassName := ATestName.Substring(0, DotPos);
+  if not FGroupSummaries.TryGetValue(ClassName, Info) then
   begin
-    LInfo.TotalCount := 0;
-    LInfo.PassedCount := 0;
-    LInfo.FailedCount := 0;
-    LInfo.DurationMs := 0;
+    Info.TotalCount := 0;
+    Info.PassedCount := 0;
+    Info.FailedCount := 0;
+    Info.DurationMs := 0;
 
-    for LIdx := 0 to FTestLocations.Count - 1 do
+    for i := 0 to FTestLocations.Count - 1 do
     begin
-      LTest := FTestLocations[LIdx];
-      if SameText(LTest.ClassName, LClassName) then
-        Inc(LInfo.TotalCount);
+      TestLocation := FTestLocations[i];
+      if SameText(TestLocation.ClassName, ClassName) then
+        Inc(Info.TotalCount);
     end;
   end;
 
   if SameText(AStatus, 'Passed') then
-    Inc(LInfo.PassedCount)
+    Inc(Info.PassedCount)
   else if SameText(AStatus, 'Failed') or SameText(AStatus, 'Error') then
-    Inc(LInfo.FailedCount);
-  LInfo.DurationMs := LInfo.DurationMs + ADurationMs;
-  FGroupSummaries.AddOrSetValue(LClassName, LInfo);
+    Inc(Info.FailedCount);
+  Info.DurationMs := Info.DurationMs + ADurationMs;
+  FGroupSummaries.AddOrSetValue(ClassName, Info);
 end;
 
 procedure TFormDextTestRunner.InvalidateGroupNode(const ATestName: string);
@@ -3169,21 +3180,21 @@ end;
 
 procedure TFormDextTestRunner.RunAllProjectsTests;
 var
-  I: Integer;
-  LProj: IOTAProject;
-  LProjFile: string;
-  LIsPackage: Boolean;
-  LOutput: string;
-  LExeFile: string;
-  LCmdLine: string;
-  LParams: string;
-  SI: TStartupInfo;
-  PI: TProcessInformation;
-  SaveServices: IOTAModuleServices;
-  ProjInfo: TDextProjectInfo;
-  PlatformVal: string;
+  CmdLine: string;
   Config: string;
   Configs: IOTAProjectOptionsConfigurations;
+  ExeFile: string;
+  i: Integer;
+  IsPackage: Boolean;
+  Output: string;
+  Params: string;
+  PI: TProcessInformation;
+  PlatformVal: string;
+  Proj: IOTAProject;
+  ProjFile: string;
+  ProjInfo: TDextProjectInfo;
+  SaveServices: IOTAModuleServices;
+  SI: TStartupInfo;
 begin
   FRunningTests := True;
   ClearTestStatus;
@@ -3210,61 +3221,61 @@ begin
     SaveServices.SaveAll;
   end;
 
-  for I := 0 to ProjectsComboBox.Items.Count - 1 do
+  for i := 0 to ProjectsComboBox.Items.Count - 1 do
   begin
-    ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
+    ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[i]);
     if Assigned(ProjInfo) then
     begin
-      LProj := GetProjectByFileName(ProjInfo.FileName);
-      if Assigned(LProj) then
+      Proj := GetProjectByFileName(ProjInfo.FileName);
+      if Assigned(Proj) then
       begin
-        LProjFile := LProj.FileName;
+        ProjFile := Proj.FileName;
         LogMsg('');
         LogMsg('----------------------------------------');
-        LogMsg('Compiling ' + ExtractFileName(LProjFile) + '...');
-        if not CompileProjectDirect(LProjFile) then
+        LogMsg('Compiling ' + ExtractFileName(ProjFile) + '...');
+        if not CompileProjectDirect(ProjFile) then
         begin
           LogMsg('Direct DCC compile failed, building via IDE make...');
-          LProj.ProjectBuilder.BuildProject(cmOTAMake, False, True);
+          Proj.ProjectBuilder.BuildProject(cmOTAMake, False, True);
         end;
 
-        LIsPackage := False;
-        LOutput := '';
+        IsPackage := False;
+        Output := '';
         PlatformVal := 'Win32';
         Config := 'Debug';
-        if Assigned(LProj) then
+        if Assigned(Proj) then
         begin
-          LOutput := LProj.ProjectOptions.Values['OutputDir'];
-          if Supports(LProj.ProjectOptions, IOTAProjectOptionsConfigurations, Configs) then
+          Output := Proj.ProjectOptions.Values['OutputDir'];
+          if Supports(Proj.ProjectOptions, IOTAProjectOptionsConfigurations, Configs) then
           begin
             PlatformVal := Configs.ActivePlatformName;
             if Assigned(Configs.ActiveConfiguration) then
               Config := Configs.ActiveConfiguration.Name;
           end;
         end;
-        if LOutput = '' then
-          GetProjectTargetInfo(LProjFile, LIsPackage, LOutput);
-        LExeFile := ResolveExePath(LProjFile, LOutput, PlatformVal, Config);
+        if Output = '' then
+          GetProjectTargetInfo(ProjFile, IsPackage, Output);
+        ExeFile := ResolveExePath(ProjFile, Output, PlatformVal, Config);
 
-        if FileExists(LExeFile) then
+        if FileExists(ExeFile) then
         begin
-          LogMsg('Executing ' + ExtractFileName(LExeFile) + '...');
+          LogMsg('Executing ' + ExtractFileName(ExeFile) + '...');
           FServer.SelectedTestsJSON := '[]';
-          LParams := Format('--port %d -no-wait', [FServer.Port]);
-          LCmdLine := Format('"%s" %s', [LExeFile, LParams]);
-          UniqueString(LCmdLine);
+          Params := Format('--port %d -no-wait', [FServer.Port]);
+          CmdLine := Format('"%s" %s', [ExeFile, Params]);
+          UniqueString(CmdLine);
 
           FillChar(SI, SizeOf(SI), 0);
           SI.cb := SizeOf(TStartupInfo);
           FillChar(PI, SizeOf(PI), 0);
-          if CreateProcess(nil, PChar(LCmdLine), nil, nil, False, CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(LExeFile)), SI, PI) then
+          if CreateProcess(nil, PChar(CmdLine), nil, nil, False, CREATE_NO_WINDOW, nil, PChar(ExtractFilePath(ExeFile)), SI, PI) then
           begin
             CloseHandle(PI.hProcess);
             CloseHandle(PI.hThread);
           end
           else
           begin
-            LogMsg('Failed to launch runner: ' + LExeFile);
+            LogMsg('Failed to launch runner: ' + ExeFile);
             TStopwatch(FStopwatch).Stop;
             UpdateTimingLabels;
           end;
@@ -3277,10 +3288,10 @@ end;
 
 procedure TFormDextTestRunner.RunSelectedButtonClick(Sender: TObject);
 var
-  LChecked: TArray<string>;
+  Checked: TArray<string>;
 begin
-  LChecked := GetCheckedTests;
-  if (Sender = RunSelectedButton) and (Length(LChecked) > 0) then
+  Checked := GetCheckedTests;
+  if (Sender = RunSelectedButton) and (Length(Checked) > 0) then
   begin
     RunActiveProjectTests('');
   end
@@ -3331,67 +3342,67 @@ end;
 
 function TFormDextTestRunner.FindMethodImplementationLine(const AFileName, AClassName, AMethodName: string; ADefaultLine: Integer): Integer;
 var
-  LStrings: TStringList;
-  I: Integer;
-  LSearchStr1, LSearchStr2: string;
-  LLine: string;
+  Strings: TStringList;
+  i: Integer;
+  SearchStr1, SearchStr2: string;
+  Line: string;
 begin
   Result := ADefaultLine;
   if not FileExists(AFileName) then Exit;
-  LStrings := TStringList.Create;
+  Strings := TStringList.Create;
   try
-    LStrings.LoadFromFile(AFileName);
-    LSearchStr1 := ('procedure ' + AClassName + '.' + AMethodName).ToLower;
-    LSearchStr2 := ('function ' + AClassName + '.' + AMethodName).ToLower;
-    for I := 0 to LStrings.Count - 1 do
+    Strings.LoadFromFile(AFileName);
+    SearchStr1 := ('procedure ' + AClassName + '.' + AMethodName).ToLower;
+    SearchStr2 := ('function ' + AClassName + '.' + AMethodName).ToLower;
+    for i := 0 to Strings.Count - 1 do
     begin
-      LLine := LStrings[I].ToLower.Trim;
-      if LLine.StartsWith(LSearchStr1) or LLine.StartsWith(LSearchStr2) then
+      Line := Strings[i].ToLower.Trim;
+      if Line.StartsWith(SearchStr1) or Line.StartsWith(SearchStr2) then
       begin
-        Result := I + 1;
+        Result := i + 1;
         Break;
       end;
     end;
   finally
-    LStrings.Free;
+    Strings.Free;
   end;
 end;
 
 procedure TFormDextTestRunner.TestsTreeViewDblClick(Sender: TObject);
 var
-  LNode: TTreeNode;
-  LIdx: Integer;
-  LLoc: TTestLocation;
-  LModuleServices: IOTAModuleServices;
-  LModule: IOTAModule;
-  LSourceEditor: IOTASourceEditor;
-  LView: IOTAEditView;
-  LTargetLine: Integer;
+  Node: TTreeNode;
+  i: Integer;
+  TestLocation: TTestLocation;
+  ModuleServices: IOTAModuleServices;
+  Module: IOTAModule;
+  SourceEditor: IOTASourceEditor;
+  EditView: IOTAEditView;
+  TargetLine: Integer;
 begin
-  LNode := TestsTreeView.Selected;
-  if not Assigned(LNode) or (LNode.Data = nil) then Exit;
+  Node := TestsTreeView.Selected;
+  if not Assigned(Node) or (Node.Data = nil) then Exit;
 
-  LIdx := Integer(LNode.Data) - 1;
-  if (LIdx < 0) or (LIdx >= FTestLocations.Count) then Exit;
+  i := Integer(Node.Data) - 1;
+  if (i < 0) or (i >= FTestLocations.Count) then Exit;
 
-  LLoc := FTestLocations[LIdx];
-  if LLoc.FileName = '' then Exit;
+  TestLocation := FTestLocations[i];
+  if TestLocation.FileName = '' then Exit;
 
-  LTargetLine := FindMethodImplementationLine(LLoc.FileName, LLoc.ClassName, LLoc.MethodName, LLoc.Line);
+  TargetLine := FindMethodImplementationLine(TestLocation.FileName, TestLocation.ClassName, TestLocation.MethodName, TestLocation.Line);
 
   // Navigate directly using the exact unit file path
-  if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) then
+  if Supports(BorlandIDEServices, IOTAModuleServices, ModuleServices) then
   begin
-    LModule := LModuleServices.OpenModule(LLoc.FileName);
-    if Assigned(LModule) then
+    Module := ModuleServices.OpenModule(TestLocation.FileName);
+    if Assigned(Module) then
     begin
-      LModule.Show;
-      if Supports(LModule.CurrentEditor, IOTASourceEditor, LSourceEditor) then
+      Module.Show;
+      if Supports(Module.CurrentEditor, IOTASourceEditor, SourceEditor) then
       begin
-        LView := LSourceEditor.GetEditView(0);
-        if Assigned(LView) then
+        EditView := SourceEditor.GetEditView(0);
+        if Assigned(EditView) then
         begin
-          LView.Position.Move(LTargetLine, 1);
+          EditView.Position.Move(TargetLine, 1);
         end;
       end;
     end;
@@ -3400,149 +3411,149 @@ end;
 
 function TFormDextTestRunner.GetCheckedTests: TArray<string>;
 var
-  I: Integer;
-  LNode: TTreeNode;
-  LList: TList<string>;
+  i: Integer;
+  Node: TTreeNode;
+  List: TList<string>;
 begin
-  LList := TList<string>.Create;
+  List := TList<string>.Create;
   try
-    for I := 0 to TestsTreeView.Items.Count - 1 do
+    for i := 0 to TestsTreeView.Items.Count - 1 do
     begin
-      LNode := TestsTreeView.Items[I];
-      if (LNode.Parent <> nil) and LNode.Checked then
+      Node := TestsTreeView.Items[i];
+      if (Node.Parent <> nil) and Node.Checked then
       begin
-        LList.Add(GetNodeFullTestName(LNode));
+        List.Add(GetNodeFullTestName(Node));
       end;
     end;
-    Result := LList.ToArray;
+    Result := List.ToArray;
   finally
-    LList.Free;
+    List.Free;
   end;
 end;
 
 function TFormDextTestRunner.GetRunButtonRect(ANode: TTreeNode): TRect;
 var
-  LTextRect: TRect;
-  LPPI: Integer;
-  LBtnWidth, LBtnHeight, LOffset: Integer;
+  TextRect: TRect;
+  PPI: Integer;
+  ButtonWidth, ButtonHeight, Offset: Integer;
 begin
-  LPPI := Self.CurrentPPI;
-  if LPPI = 0 then
-    LPPI := 96;
+  PPI := Self.CurrentPPI;
+  if PPI = 0 then
+    PPI := 96;
 
-  LBtnWidth := MulDiv(20, LPPI, 96);
-  LBtnHeight := MulDiv(13, LPPI, 96);
-  LOffset := MulDiv(8, LPPI, 96);
+  ButtonWidth := MulDiv(20, PPI, 96);
+  ButtonHeight := MulDiv(13, PPI, 96);
+  Offset := MulDiv(8, PPI, 96);
 
-  LTextRect := ANode.DisplayRect(True);
-  Result.Left := LTextRect.Right + LOffset;
-  Result.Top := LTextRect.Top + (LTextRect.Height - LBtnHeight) div 2;
-  Result.Right := Result.Left + LBtnWidth;
-  Result.Bottom := Result.Top + LBtnHeight;
+  TextRect := ANode.DisplayRect(True);
+  Result.Left := TextRect.Right + Offset;
+  Result.Top := TextRect.Top + (TextRect.Height - ButtonHeight) div 2;
+  Result.Right := Result.Left + ButtonWidth;
+  Result.Bottom := Result.Top + ButtonHeight;
 end;
 
 procedure TFormDextTestRunner.TestsTreeViewMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
 var
-  LTreeView: TTreeView;
-  LNode: TTreeNode;
-  LOldNode: TTreeNode;
-  LBtnRect: TRect;
-  LRect: TRect;
+  TreeView: TTreeView;
+  Node: TTreeNode;
+  OldNode: TTreeNode;
+  ButtonRect: TRect;
+  Rect: TRect;
 begin
-  LTreeView := Sender as TTreeView;
-  LNode := LTreeView.GetNodeAt(X, Y);
+  TreeView := Sender as TTreeView;
+  Node := TreeView.GetNodeAt(X, Y);
 
-  if LNode <> FHoverNode then
+  if Node <> FHoverNode then
   begin
-    LOldNode := FHoverNode;
-    FHoverNode := LNode;
+    OldNode := FHoverNode;
+    FHoverNode := Node;
 
-    if Assigned(LOldNode) then
+    if Assigned(OldNode) then
     begin
-      LRect := LOldNode.DisplayRect(False);
-      LRect.Right := LTreeView.ClientWidth;
-      InvalidateRect(LTreeView.Handle, @LRect, True);
+      Rect := OldNode.DisplayRect(False);
+      Rect.Right := TreeView.ClientWidth;
+      InvalidateRect(TreeView.Handle, @Rect, True);
     end;
 
     if Assigned(FHoverNode) then
     begin
-      LRect := FHoverNode.DisplayRect(False);
-      LRect.Right := LTreeView.ClientWidth;
-      InvalidateRect(LTreeView.Handle, @LRect, True);
+      Rect := FHoverNode.DisplayRect(False);
+      Rect.Right := TreeView.ClientWidth;
+      InvalidateRect(TreeView.Handle, @Rect, True);
     end;
   end;
 
   if Assigned(FHoverNode) and (FHoverNode.Parent <> nil) then
   begin
-    LBtnRect := GetRunButtonRect(FHoverNode);
-    if PtInRect(LBtnRect, Point(X, Y)) then
+    ButtonRect := GetRunButtonRect(FHoverNode);
+    if PtInRect(ButtonRect, Point(X, Y)) then
     begin
-      LTreeView.Cursor := crHandPoint;
+      TreeView.Cursor := crHandPoint;
       Exit;
     end;
   end;
 
-  LTreeView.Cursor := crDefault;
+  TreeView.Cursor := crDefault;
 end;
 
 procedure TFormDextTestRunner.TestsTreeViewMouseLeave(Sender: TObject);
 var
-  LTreeView: TTreeView;
-  LOldNode: TTreeNode;
-  LRect: TRect;
+  TreeView: TTreeView;
+  OldNode: TTreeNode;
+  Rect: TRect;
 begin
-  LTreeView := Sender as TTreeView;
+  TreeView := Sender as TTreeView;
   if Assigned(FHoverNode) then
   begin
-    LOldNode := FHoverNode;
+    OldNode := FHoverNode;
     FHoverNode := nil;
-    LRect := LOldNode.DisplayRect(False);
-    LRect.Right := LTreeView.ClientWidth;
-    InvalidateRect(LTreeView.Handle, @LRect, True);
+    Rect := OldNode.DisplayRect(False);
+    Rect.Right := TreeView.ClientWidth;
+    InvalidateRect(TreeView.Handle, @Rect, True);
   end;
 end;
 
 procedure TFormDextTestRunner.TestsTreeViewMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  LNode: TTreeNode;
-  LBtnRect: TRect;
-  LHitInfo: THitTests;
-  I: Integer;
+  Node: TTreeNode;
+  ButtonRect: TRect;
+  HitInfo: THitTests;
+  i: Integer;
 begin
   if Button = mbLeft then
   begin
-    LNode := TestsTreeView.GetNodeAt(X, Y);
-    if Assigned(LNode) then
+    Node := TestsTreeView.GetNodeAt(X, Y);
+    if Assigned(Node) then
     begin
-      LHitInfo := TestsTreeView.GetHitTestInfoAt(X, Y);
-      if htOnStateIcon in LHitInfo then
+      HitInfo := TestsTreeView.GetHitTestInfoAt(X, Y);
+      if htOnStateIcon in HitInfo then
       begin
         TThread.ForceQueue(nil, TThreadProcedure(procedure
           var
-            I: Integer;
-            LState: Boolean;
+            i: Integer;
+            NodeChecked: Boolean;
             ParentNode: TTreeNode;
             AnyChecked: Boolean;
           begin
-            if not Assigned(LNode) or not Assigned(TestsTreeView) then Exit;
-            LState := LNode.Checked;
-            if LNode.Parent = nil then
+            if not Assigned(Node) or not Assigned(TestsTreeView) then Exit;
+            NodeChecked := Node.Checked;
+            if Node.Parent = nil then
             begin
               TestsTreeView.Items.BeginUpdate;
               try
-                for I := 0 to LNode.Count - 1 do
-                  LNode.Item[I].Checked := LState;
+                for i := 0 to Node.Count - 1 do
+                  Node.Item[i].Checked := NodeChecked;
               finally
                 TestsTreeView.Items.EndUpdate;
               end;
             end
             else
             begin
-              ParentNode := LNode.Parent;
+              ParentNode := Node.Parent;
               AnyChecked := False;
-              for I := 0 to ParentNode.Count - 1 do
+              for i := 0 to ParentNode.Count - 1 do
               begin
-                if ParentNode.Item[I].Checked then
+                if ParentNode.Item[i].Checked then
                 begin
                   AnyChecked := True;
                   Break;
@@ -3555,27 +3566,27 @@ begin
           end));
       end;
 
-      if LNode.Parent <> nil then
+      if Node.Parent <> nil then
       begin
-        LBtnRect := GetRunButtonRect(LNode);
-        if PtInRect(LBtnRect, Point(X, Y)) then
+        ButtonRect := GetRunButtonRect(Node);
+        if PtInRect(ButtonRect, Point(X, Y)) then
         begin
-          TestsTreeView.Selected := LNode;
+          TestsTreeView.Selected := Node;
           
           TestsTreeView.Items.BeginUpdate;
           try
-            for I := 0 to TestsTreeView.Items.Count - 1 do
-              TestsTreeView.Items[I].Checked := False;
-            LNode.Checked := True;
-            if LNode.Parent <> nil then
-              LNode.Parent.Checked := True;
+            for i := 0 to TestsTreeView.Items.Count - 1 do
+              TestsTreeView.Items[i].Checked := False;
+            Node.Checked := True;
+            if Node.Parent <> nil then
+              Node.Parent.Checked := True;
           finally
             TestsTreeView.Items.EndUpdate;
           end;
           UpdateSummaryCounts;
           TestsTreeView.Invalidate;
 
-          RunActiveProjectTests(GetNodeFullTestName(LNode));
+          RunActiveProjectTests(GetNodeFullTestName(Node));
         end;
       end;
     end;
@@ -3584,43 +3595,43 @@ end;
 
 procedure TFormDextTestRunner.TestsTreeViewMouseUp(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 var
-  LNode: TTreeNode;
-  LHitInfo: THitTests;
+  Node: TTreeNode;
+  HitInfo: THitTests;
 begin
   if Button = mbLeft then
   begin
-    LNode := TestsTreeView.GetNodeAt(X, Y);
-    if Assigned(LNode) then
+    Node := TestsTreeView.GetNodeAt(X, Y);
+    if Assigned(Node) then
     begin
-      LHitInfo := TestsTreeView.GetHitTestInfoAt(X, Y);
-      if htOnStateIcon in LHitInfo then
+      HitInfo := TestsTreeView.GetHitTestInfoAt(X, Y);
+      if htOnStateIcon in HitInfo then
       begin
         TThread.ForceQueue(nil, TThreadProcedure(procedure
           var
-            I: Integer;
+            i: Integer;
             LState: Boolean;
             ParentNode: TTreeNode;
             AnyChecked: Boolean;
           begin
-            if not Assigned(LNode) or not Assigned(TestsTreeView) then Exit;
-            LState := LNode.Checked;
-            if LNode.Parent = nil then
+            if not Assigned(Node) or not Assigned(TestsTreeView) then Exit;
+            LState := Node.Checked;
+            if Node.Parent = nil then
             begin
               TestsTreeView.Items.BeginUpdate;
               try
-                for I := 0 to LNode.Count - 1 do
-                  LNode.Item[I].Checked := LState;
+                for i := 0 to Node.Count - 1 do
+                  Node.Item[i].Checked := LState;
               finally
                 TestsTreeView.Items.EndUpdate;
               end;
             end
             else
             begin
-              ParentNode := LNode.Parent;
+              ParentNode := Node.Parent;
               AnyChecked := False;
-              for I := 0 to ParentNode.Count - 1 do
+              for i := 0 to ParentNode.Count - 1 do
               begin
-                if ParentNode.Item[I].Checked then
+                if ParentNode.Item[i].Checked then
                 begin
                   AnyChecked := True;
                   Break;
@@ -3638,21 +3649,21 @@ end;
 
 function TFormDextTestRunner.GetNodeFullTestName(ANode: TTreeNode): string;
 var
-  LParentText: string;
-  LSpaceIdx: Integer;
-  LTestIndex: Integer;
-  LTestLocation: TTestLocation;
+  ParentText: string;
+  SpaceIndex: Integer;
+  TestIndex: Integer;
+  TestLocation: TTestLocation;
 begin
   Result := '';
   if not Assigned(ANode) then Exit;
 
   if (ANode.Data <> nil) and Assigned(FTestLocations) then
   begin
-    LTestIndex := Integer(ANode.Data) - 1;
-    if (LTestIndex >= 0) and (LTestIndex < FTestLocations.Count) then
+    TestIndex := Integer(ANode.Data) - 1;
+    if (TestIndex >= 0) and (TestIndex < FTestLocations.Count) then
     begin
-      LTestLocation := FTestLocations[LTestIndex];
-      Result := LTestLocation.ClassName + '.' + LTestLocation.MethodName;
+      TestLocation := FTestLocations[TestIndex];
+      Result := TestLocation.ClassName + '.' + TestLocation.MethodName;
       Exit;
     end;
   end;
@@ -3668,20 +3679,20 @@ begin
 
   if ANode.Parent = nil then
   begin
-    LParentText := ANode.Text;
-    LSpaceIdx := LParentText.IndexOf(' (');
-    if LSpaceIdx > 0 then
-      Result := LParentText.Substring(0, LSpaceIdx)
+    ParentText := ANode.Text;
+    SpaceIndex := ParentText.IndexOf(' (');
+    if SpaceIndex > 0 then
+      Result := ParentText.Substring(0, SpaceIndex)
     else
-      Result := LParentText;
+      Result := ParentText;
   end
   else
   begin
-    LParentText := ANode.Parent.Text;
-    LSpaceIdx := LParentText.IndexOf(' (');
-    if LSpaceIdx > 0 then
-      LParentText := LParentText.Substring(0, LSpaceIdx);
-    Result := LParentText + '.' + ANode.Text;
+    ParentText := ANode.Parent.Text;
+    SpaceIndex := ParentText.IndexOf(' (');
+    if SpaceIndex > 0 then
+      ParentText := ParentText.Substring(0, SpaceIndex);
+    Result := ParentText + '.' + ANode.Text;
   end;
 end;
 
@@ -3739,13 +3750,13 @@ end;
 
 procedure TFormDextTestRunner.ClearFilterButtonClick(Sender: TObject);
 var
-  LActiveFilter: TEdit;
+  ActiveFilter: TEdit;
 begin
-  LActiveFilter := ActiveFilterEdit;
-  if Assigned(LActiveFilter) then
+  ActiveFilter := ActiveFilterEdit;
+  if Assigned(ActiveFilter) then
   begin
-    LActiveFilter.Text := '';
-    LActiveFilter.SetFocus;
+    ActiveFilter.Text := '';
+    ActiveFilter.SetFocus;
   end;
 end;
 
@@ -3888,20 +3899,20 @@ end;
 
 procedure TFormDextTestRunner.RefreshTreeView;
 var
-  Filter: string;
-  i: Integer;
-  TestLocation: TTestLocation;
-  FixtureNode, MethodNode: TTreeNode;
-  ClassMatches: Boolean;
-  MethodMatches: Boolean;
-  FixtureTestsCount: TDictionary<string, Integer>;
   ActiveFilterEdit: TEdit;
-  FailedNode, PassedNode, SkippedNode, IdleNode: TTreeNode;
-  FullTestName: string;
+  ClassMatches: Boolean;
   DetailInfo: TTestDetailInfo;
+  FailedNode, PassedNode, SkippedNode, IdleNode: TTreeNode;
+  Filter: string;
+  FixtureNode, MethodNode: TTreeNode;
+  FixtureNodeCache: TDictionary<string, TTreeNode>;
+  FixtureTestsCount: TDictionary<string, Integer>;
+  FullTestName: string;
+  i: Integer;
+  MethodMatches: Boolean;
   Status: string;
   TargetRoot: TTreeNode;
-  FixtureNodeCache: TDictionary<string, TTreeNode>;
+  TestLocation: TTestLocation;
 begin
   TestsTreeView.Items.BeginUpdate;
   try
@@ -4076,20 +4087,20 @@ end;
 
 procedure TFormDextTestRunner.TestsTreeViewAdvancedCustomDrawItem(Sender: TCustomTreeView; Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage; var PaintImages, DefaultDraw: Boolean);
 var
-  LBtnRect: TRect;
-  LRect: TRect;
-  LTextX, LTextY: Integer;
-  LClassName: string;
-  LCountText: string;
-  LFailedCount: Integer;
-  LPassedCount: Integer;
-  LTotalDuration: Double;
-  LHasDuration: Boolean;
-  LFullTestName: string;
-  LInfo: TTestDetailInfo;
-  LDurText: string;
-  LErrText: string;
-  LSummary: TGroupSummaryInfo;
+  ButtonRect: TRect;
+  Rect: TRect;
+  TextX, TextY: Integer;
+  ClassName: string;
+  CountText: string;
+  FailedCount: Integer;
+  PassedCount: Integer;
+  TotalDuration: Double;
+  HasDuration: Boolean;
+  FullTestName: string;
+  Info: TTestDetailInfo;
+  DurText: string;
+  ErrText: string;
+  Summary: TGroupSummaryInfo;
 begin
   DefaultDraw := True;
 
@@ -4110,93 +4121,93 @@ begin
   if (Stage = cdPostPaint) and (Node <> nil) then
   begin
     Sender.Canvas.Brush.Style := bsClear;
-    LRect := Node.DisplayRect(True);
-    LTextX := LRect.Right + 6;
-    LTextY := LRect.Top + (LRect.Height - Sender.Canvas.TextHeight('W')) div 2;
+    Rect := Node.DisplayRect(True);
+    TextX := Rect.Right + 6;
+    TextY := Rect.Top + (Rect.Height - Sender.Canvas.TextHeight('W')) div 2;
 
     if Node.Parent = nil then
     begin
-      LClassName := Node.Text;
-      LFailedCount := 0;
-      LPassedCount := 0;
-      LTotalDuration := 0;
-      LHasDuration := False;
-      if Assigned(FGroupSummaries) and FGroupSummaries.TryGetValue(LClassName, LSummary) then
+      ClassName := Node.Text;
+      FailedCount := 0;
+      PassedCount := 0;
+      TotalDuration := 0;
+      HasDuration := False;
+      if Assigned(FGroupSummaries) and FGroupSummaries.TryGetValue(ClassName, Summary) then
       begin
-        LFailedCount := LSummary.FailedCount;
-        LPassedCount := LSummary.PassedCount;
-        LTotalDuration := LSummary.DurationMs;
-        LHasDuration := LSummary.DurationMs > 0;
+        FailedCount := Summary.FailedCount;
+        PassedCount := Summary.PassedCount;
+        TotalDuration := Summary.DurationMs;
+        HasDuration := Summary.DurationMs > 0;
       end;
 
       // Draw (N Tests in X ms) and execution status
       Sender.Canvas.Font.Color := clGrayText;
       Sender.Canvas.Font.Style := [];
 
-      if LHasDuration then
-        LCountText := ' (' + Node.Count.ToString + ' Tests in ' + Format('%.4f ms', [LTotalDuration]) + ')'
+      if HasDuration then
+        CountText := ' (' + Node.Count.ToString + ' Tests in ' + Format('%.4f ms', [TotalDuration]) + ')'
       else
-        LCountText := ' (' + Node.Count.ToString + ' Tests)';
-      Sender.Canvas.TextOut(LTextX, LTextY, LCountText);
-      LTextX := LTextX + Sender.Canvas.TextWidth(LCountText) + 6;
+        CountText := ' (' + Node.Count.ToString + ' Tests)';
+      Sender.Canvas.TextOut(TextX, TextY, CountText);
+      TextX := TextX + Sender.Canvas.TextWidth(CountText) + 6;
 
-      if LFailedCount > 0 then
+      if FailedCount > 0 then
       begin
         Sender.Canvas.Font.Color := TColor($4444EF); // Red BGR
-        Sender.Canvas.TextOut(LTextX, LTextY, 'Failed: ' + LFailedCount.ToString + ' tests failed');
+        Sender.Canvas.TextOut(TextX, TextY, 'Failed: ' + FailedCount.ToString + ' tests failed');
       end
-      else if (LPassedCount > 0) and (LPassedCount = Node.Count) then
+      else if (PassedCount > 0) and (PassedCount = Node.Count) then
       begin
         Sender.Canvas.Font.Color := TColor($5EC522); // Green BGR
-        Sender.Canvas.TextOut(LTextX, LTextY, 'Success');
+        Sender.Canvas.TextOut(TextX, TextY, 'Success');
       end;
     end
     else
     begin
-      LFullTestName := GetNodeFullTestName(Node);
-      if FTestDetails.TryGetValue(LFullTestName, LInfo) then
+      FullTestName := GetNodeFullTestName(Node);
+      if FTestDetails.TryGetValue(FullTestName, Info) then
       begin
-        if (LInfo.Status <> '') and not SameText(LInfo.Status, 'Idle') then
+        if (Info.Status <> '') and not SameText(Info.Status, 'Idle') then
         begin
-          if LInfo.DurationMs < 1.0 then
-            LDurText := Format('[%.3f ms]', [LInfo.DurationMs])
+          if Info.DurationMs < 1.0 then
+            DurText := Format('[%.3f ms]', [Info.DurationMs])
           else
-            LDurText := Format('[%.2f ms]', [LInfo.DurationMs]);
+            DurText := Format('[%.2f ms]', [Info.DurationMs]);
 
           Sender.Canvas.Font.Color := clGrayText;
           Sender.Canvas.Font.Style := [];
-          Sender.Canvas.TextOut(LTextX, LTextY, LDurText);
-          LTextX := LTextX + Sender.Canvas.TextWidth(LDurText) + 6;
+          Sender.Canvas.TextOut(TextX, TextY, DurText);
+          TextX := TextX + Sender.Canvas.TextWidth(DurText) + 6;
 
-          if SameText(LInfo.Status, 'Passed') then
+          if SameText(Info.Status, 'Passed') then
           begin
             Sender.Canvas.Font.Color := TColor($5EC522); // Green BGR
-            Sender.Canvas.TextOut(LTextX, LTextY, 'Success');
+            Sender.Canvas.TextOut(TextX, TextY, 'Success');
           end
-          else if SameText(LInfo.Status, 'Failed') or SameText(LInfo.Status, 'Error') then
+          else if SameText(Info.Status, 'Failed') or SameText(Info.Status, 'Error') then
           begin
             Sender.Canvas.Font.Color := TColor($4444EF); // Red BGR
-            LErrText := 'Failed';
-            if LInfo.ErrorMessage <> '' then
-              LErrText := 'Failed: ' + LInfo.ErrorMessage.Replace(#13, '').Replace(#10, ' ');
-            if Length(LErrText) > 60 then
-              LErrText := Copy(LErrText, 1, 57) + '...';
-            Sender.Canvas.TextOut(LTextX, LTextY, LErrText);
+            ErrText := 'Failed';
+            if Info.ErrorMessage <> '' then
+              ErrText := 'Failed: ' + Info.ErrorMessage.Replace(#13, '').Replace(#10, ' ');
+            if Length(ErrText) > 60 then
+              ErrText := Copy(ErrText, 1, 57) + '...';
+            Sender.Canvas.TextOut(TextX, TextY, ErrText);
           end;
         end;
       end;
 
       if Node = FHoverNode then
       begin
-        LBtnRect := GetRunButtonRect(Node);
+        ButtonRect := GetRunButtonRect(Node);
         Sender.Canvas.Brush.Color := TColor($E7FCDC); // Light Green BGR
         Sender.Canvas.Pen.Color := TColor($5EC522); // Green BGR
-        Sender.Canvas.RoundRect(LBtnRect.Left, LBtnRect.Top, LBtnRect.Right, LBtnRect.Bottom, 4, 4);
+        Sender.Canvas.RoundRect(ButtonRect.Left, ButtonRect.Top, ButtonRect.Right, ButtonRect.Bottom, 4, 4);
         Sender.Canvas.Font.Color := TColor($3D8015); // Dark Green BGR
         Sender.Canvas.Font.Size := 7;
         Sender.Canvas.Font.Style := [fsBold];
         Sender.Canvas.Brush.Style := bsClear;
-        DrawText(Sender.Canvas.Handle, #$25B6, -1, LBtnRect, DT_CENTER or DT_VCENTER or DT_SINGLELINE);
+        DrawText(Sender.Canvas.Handle, #$25B6, -1, ButtonRect, DT_CENTER or DT_VCENTER or DT_SINGLELINE);
       end;
     end;
   end;
@@ -4204,36 +4215,36 @@ end;
 
 procedure TFormDextTestRunner.DebugSelectedClick(Sender: TObject);
 var
-  LNode: TTreeNode;
-  LProj: IOTAProject;
-  LNTAServices: INTAServices;
-  LFoundAction: TContainedAction;
-  LParams: string;
-  LIsPackage: Boolean;
-  LOutput: string;
-  LExeFile: string;
-  LModuleServices: IOTAModuleServices;
-  LGroup: IOTAProjectGroup;
-  LProjInfo: TDextProjectInfo;
+  Node: TTreeNode;
+  Proj: IOTAProject;
+  NTAServices: INTAServices;
+  FoundAction: TContainedAction;
+  Params: string;
+  IsPackage: Boolean;
+  Output: string;
+  ExeFile: string;
+  ModuleServices: IOTAModuleServices;
+  Group: IOTAProjectGroup;
+  ProjInfo: TDextProjectInfo;
   SaveServices: IOTAModuleServices;
-  I: Integer;
+  i: Integer;
   Act: TContainedAction;
 begin
-  LNode := TestsTreeView.Selected;
-  if not Assigned(LNode) then Exit;
+  Node := TestsTreeView.Selected;
+  if not Assigned(Node) then Exit;
 
-  LProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[ProjectsComboBox.ItemIndex]);
-  if not Assigned(LProjInfo) then Exit;
-  LProj := GetProjectByFileName(LProjInfo.FileName);
-  if not Assigned(LProj) then Exit;
+  ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[ProjectsComboBox.ItemIndex]);
+  if not Assigned(ProjInfo) then Exit;
+  Proj := GetProjectByFileName(ProjInfo.FileName);
+  if not Assigned(Proj) then Exit;
 
   // Synchronize IDE Active Project
-  if Supports(BorlandIDEServices, IOTAModuleServices, LModuleServices) and Assigned(LModuleServices) then
+  if Supports(BorlandIDEServices, IOTAModuleServices, ModuleServices) and Assigned(ModuleServices) then
   begin
-    LGroup := LModuleServices.MainProjectGroup;
-    if Assigned(LGroup) and (LGroup.ActiveProject <> LProj) then
+    Group := ModuleServices.MainProjectGroup;
+    if Assigned(Group) and (Group.ActiveProject <> Proj) then
     begin
-      LGroup.ActiveProject := LProj;
+      Group.ActiveProject := Proj;
     end;
   end;
 
@@ -4260,52 +4271,52 @@ begin
     SaveServices.SaveAll;
   end;
 
-  LIsPackage := False;
-  LOutput := '';
-  GetProjectTargetInfo(FActiveProjectFile, LIsPackage, LOutput);
-  LExeFile := ResolveExePath(FActiveProjectFile, LOutput);
+  IsPackage := False;
+  Output := '';
+  GetProjectTargetInfo(FActiveProjectFile, IsPackage, Output);
+  ExeFile := ResolveExePath(FActiveProjectFile, Output);
 
   if not CompileProjectDirect(FActiveProjectFile) then
   begin
     LogMsg('Direct DCC compile failed or bypassed. Falling back to IDE make...');
-    LProj.ProjectBuilder.BuildProject(cmOTAMake, False, True);
+    Proj.ProjectBuilder.BuildProject(cmOTAMake, False, True);
   end;
 
-  if not FileExists(LExeFile) then
+  if not FileExists(ExeFile) then
   begin
-    LogMsg('Error: Executable not found at ' + LExeFile);
+    LogMsg('Error: Executable not found at ' + ExeFile);
     Exit;
   end;
 
-  LParams := Format('--port %d -no-wait', [FServer.Port]);
-  FServer.SelectedTestsJSON := '["' + GetNodeFullTestName(LNode) + '"]';
+  Params := Format('--port %d -no-wait', [FServer.Port]);
+  FServer.SelectedTestsJSON := '["' + GetNodeFullTestName(Node) + '"]';
 
-  LogMsg('Starting debugger with parameters: ' + LParams);
-  LProj.ProjectOptions.Values['RunParams'] := LParams;
+  LogMsg('Starting debugger with parameters: ' + Params);
+  Proj.ProjectOptions.Values['RunParams'] := Params;
 
-  LFoundAction := nil;
-  if Supports(BorlandIDEServices, INTAServices, LNTAServices) then
+  FoundAction := nil;
+  if Supports(BorlandIDEServices, INTAServices, NTAServices) then
   begin
-    if LNTAServices.ActionList <> nil then
+    if NTAServices.ActionList <> nil then
     begin
-      for I := 0 to LNTAServices.ActionList.ActionCount - 1 do
+      for i := 0 to NTAServices.ActionList.ActionCount - 1 do
       begin
-        Act := LNTAServices.ActionList.Actions[I];
+        Act := NTAServices.ActionList.Actions[i];
         if SameText(Act.Name, 'actRun') or SameText(Act.Name, 'actRunRun') or
            SameText(Act.Name, 'actRunProgram') or (Act.ShortCut = ShortCut(VK_F9, [])) then
         begin
-          LFoundAction := Act;
+          FoundAction := Act;
           Break;
         end;
       end;
     end;
   end;
 
-  if LFoundAction <> nil then
+  if FoundAction <> nil then
   begin
     TThread.Queue(nil, TThreadProcedure(procedure
       begin
-        LFoundAction.Execute;
+        FoundAction.Execute;
       end));
   end
   else
@@ -4322,9 +4333,9 @@ end;
 
 procedure TFormDextTestRunner.SetActiveSession(ASession: TTestSession);
 var
-  LThemingServices: IOTAIDEThemingServices;
+  ThemingServices: IOTAIDEThemingServices;
   ActiveIndex: Integer;
-  I: Integer;
+  i: Integer;
   ProjInfo: TDextProjectInfo;
 begin
   if ASession = nil then Exit;
@@ -4337,39 +4348,39 @@ begin
   if ProjectsComboBox.Items.Count > 0 then
   begin
     ActiveIndex := -1;
-    for I := 0 to ProjectsComboBox.Items.Count - 1 do
+    for i := 0 to ProjectsComboBox.Items.Count - 1 do
     begin
-      ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[I]);
+      ProjInfo := TDextProjectInfo(ProjectsComboBox.Items.Objects[i]);
       if Assigned(ProjInfo) and (ProjInfo.FileName = FActiveProjectFile) then
       begin
-        ActiveIndex := I;
+        ActiveIndex := i;
         Break;
       end;
     end;
     ProjectsComboBox.ItemIndex := ActiveIndex;
   end;
 
-  if Supports(BorlandIDEServices, IOTAIDEThemingServices, LThemingServices) then
+  if Supports(BorlandIDEServices, IOTAIDEThemingServices, ThemingServices) then
   begin
-    if LThemingServices.IDEThemingEnabled then
+    if ThemingServices.IDEThemingEnabled then
     begin
-      TestsTreeView.Color := LThemingServices.StyleServices.GetSystemColor(clWindow);
-      TestsTreeView.Font.Color := LThemingServices.StyleServices.GetSystemColor(clWindowText);
+      TestsTreeView.Color := ThemingServices.StyleServices.GetSystemColor(clWindow);
+      TestsTreeView.Font.Color := ThemingServices.StyleServices.GetSystemColor(clWindowText);
     end;
   end;
 end;
 
 procedure TFormDextTestRunner.SessionsPageControlChange(Sender: TObject);
 var
-  I: Integer;
+  i: Integer;
 begin
   if SessionsPageControl.ActivePage = nil then Exit;
 
-  for I := 0 to FSessions.Count - 1 do
+  for i := 0 to FSessions.Count - 1 do
   begin
-    if FSessions[I].TabSheet = SessionsPageControl.ActivePage then
+    if FSessions[i].TabSheet = SessionsPageControl.ActivePage then
     begin
-      SetActiveSession(FSessions[I]);
+      SetActiveSession(FSessions[i]);
       Break;
     end;
   end;
@@ -4377,25 +4388,25 @@ end;
 
 procedure TFormDextTestRunner.CreateNewSession(const AName: string);
 var
-  LSession: TTestSession;
+  Session: TTestSession;
 begin
-  LSession := TTestSession.Create(SessionsPageControl, AName);
+  Session := TTestSession.Create(SessionsPageControl, AName);
 
-  LSession.TreeView.Images := TestsTreeView.Images;
-  LSession.TreeView.Checkboxes := True;
-  LSession.TreeView.PopupMenu := TestsTreeView.PopupMenu;
-  LSession.TreeView.OnMouseMove := TestsTreeViewMouseMove;
-  LSession.TreeView.OnMouseLeave := TestsTreeViewMouseLeave;
-  LSession.TreeView.OnMouseDown := TestsTreeViewMouseDown;
-  LSession.TreeView.OnMouseUp := TestsTreeViewMouseUp;
-  LSession.TreeView.OnAdvancedCustomDrawItem := TestsTreeViewAdvancedCustomDrawItem;
-  LSession.TreeView.OnDblClick := TestsTreeViewDblClick;
-  LSession.TreeView.OnChange := TestsTreeViewChange;
+  Session.TreeView.Images := TestsTreeView.Images;
+  Session.TreeView.Checkboxes := True;
+  Session.TreeView.PopupMenu := TestsTreeView.PopupMenu;
+  Session.TreeView.OnMouseMove := TestsTreeViewMouseMove;
+  Session.TreeView.OnMouseLeave := TestsTreeViewMouseLeave;
+  Session.TreeView.OnMouseDown := TestsTreeViewMouseDown;
+  Session.TreeView.OnMouseUp := TestsTreeViewMouseUp;
+  Session.TreeView.OnAdvancedCustomDrawItem := TestsTreeViewAdvancedCustomDrawItem;
+  Session.TreeView.OnDblClick := TestsTreeViewDblClick;
+  Session.TreeView.OnChange := TestsTreeViewChange;
 
-  FSessions.Add(LSession);
+  FSessions.Add(Session);
 
-  SessionsPageControl.ActivePage := LSession.TabSheet;
-  SetActiveSession(LSession);
+  SessionsPageControl.ActivePage := Session.TabSheet;
+  SetActiveSession(Session);
 
   RefreshProjects;
   UpdateTabVisibility;
@@ -4424,20 +4435,20 @@ end;
 
 procedure TFormDextTestRunner.SessionTabContextPopup(Sender: TObject; MousePos: TPoint; var Handled: Boolean);
 var
-  LPageControl: TPageControl;
-  LTabIndex: Integer;
-  LPos: TPoint;
+  PageControl: TPageControl;
+  TabIndex: Integer;
+  Pos: TPoint;
   Menu: TPopupMenu;
   Item: TMenuItem;
 begin
-  LPageControl := Sender as TPageControl;
-  LPos := MousePos;
+  PageControl := Sender as TPageControl;
+  Pos := MousePos;
 
-  LTabIndex := LPageControl.IndexOfTabAt(LPos.X, LPos.Y);
-  if LTabIndex >= 0 then
+  TabIndex := PageControl.IndexOfTabAt(Pos.X, Pos.Y);
+  if TabIndex >= 0 then
   begin
-    LPageControl.ActivePage := LPageControl.Pages[LTabIndex];
-    SessionsPageControlChange(LPageControl);
+    PageControl.ActivePage := PageControl.Pages[TabIndex];
+    SessionsPageControlChange(PageControl);
 
     Menu := TPopupMenu.Create(Self);
     Item := TMenuItem.Create(Menu);
@@ -4445,8 +4456,8 @@ begin
     Item.OnClick := CloseActiveSessionClick;
     Menu.Items.Add(Item);
 
-    LPos := LPageControl.ClientToScreen(LPos);
-    Menu.Popup(LPos.X, LPos.Y);
+    Pos := PageControl.ClientToScreen(Pos);
+    Menu.Popup(Pos.X, Pos.Y);
     Handled := True;
   end;
 end;
@@ -4458,96 +4469,96 @@ end;
 
 function ExtractTagValue(const AContent, ATagName: string): string;
 var
-  LStart, LEnd: Integer;
+  TagStart, TagEnd: Integer;
 begin
   Result := '';
-  LStart := AContent.LastIndexOf('<' + ATagName + '>');
-  if LStart >= 0 then
+  TagStart := AContent.LastIndexOf('<' + ATagName + '>');
+  if TagStart >= 0 then
   begin
-    Inc(LStart, Length(ATagName) + 2);
-    LEnd := AContent.IndexOf('</' + ATagName + '>', LStart);
-    if LEnd > LStart then
-      Result := AContent.Substring(LStart, LEnd - LStart).Trim;
+    Inc(TagStart, Length(ATagName) + 2);
+    TagEnd := AContent.IndexOf('</' + ATagName + '>', TagStart);
+    if TagEnd > TagStart then
+      Result := AContent.Substring(TagStart, TagEnd - TagStart).Trim;
   end;
 end;
 
 function GetDelphiProductVersion: string;
 var
-  LBinDir: string;
-  LSplit: TArray<string>;
-  I: Integer;
+  BinDir: string;
+  Split: TArray<string>;
+  i: Integer;
 begin
-  LBinDir := ExtractFilePath(ParamStr(0));
-  LSplit := LBinDir.Split(['\']);
-  for I := 0 to Length(LSplit) - 1 do
+  BinDir := ExtractFilePath(ParamStr(0));
+  Split := BinDir.Split(['\']);
+  for i := 0 to Length(Split) - 1 do
   begin
-    if SameText(LSplit[I], 'Studio') and (I < Length(LSplit) - 1) then
-      Exit(LSplit[I + 1]);
+    if SameText(Split[i], 'Studio') and (i < Length(Split) - 1) then
+      Exit(Split[i + 1]);
   end;
   Result := '23.0';
 end;
 
 function ExecuteAndCapture(const ACommandLine, AWorkDir: string; out AOutput: string): Boolean;
 var
-  LSa: TSecurityAttributes;
-  LReadPipe, LWritePipe: THandle;
-  LSi: TStartUpInfo;
-  LPi: TProcessInformation;
-  LBuffer: array[0..4095] of AnsiChar;
-  LBytesRead: DWORD;
-  LSuccess: Boolean;
-  LCmdLine: string;
-  LExitCode: DWORD;
+  SecurityAttributes: TSecurityAttributes;
+  ReadPipe, WritePipe: THandle;
+  StartUpInfo: TStartUpInfo;
+  ProcessInfo: TProcessInformation;
+  Buffer: array[0..4095] of AnsiChar;
+  BytesRead: DWORD;
+  Success: Boolean;
+  CmdLine: string;
+  ExitCode: DWORD;
 begin
   Result := False;
   AOutput := '';
 
-  LSa.nLength := SizeOf(TSecurityAttributes);
-  LSa.bInheritHandle := True;
-  LSa.lpSecurityDescriptor := nil;
+  SecurityAttributes.nLength := SizeOf(TSecurityAttributes);
+  SecurityAttributes.bInheritHandle := True;
+  SecurityAttributes.lpSecurityDescriptor := nil;
 
-  if not CreatePipe(LReadPipe, LWritePipe, @LSa, 0) then Exit;
+  if not CreatePipe(ReadPipe, WritePipe, @SecurityAttributes, 0) then Exit;
 
   try
-    SetHandleInformation(LReadPipe, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(ReadPipe, HANDLE_FLAG_INHERIT, 0);
 
-    ZeroMemory(@LSi, SizeOf(TStartUpInfo));
-    LSi.cb := SizeOf(TStartUpInfo);
-    LSi.hStdOutput := LWritePipe;
-    LSi.hStdError := LWritePipe;
-    LSi.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
-    LSi.wShowWindow := SW_HIDE;
+    ZeroMemory(@StartUpInfo, SizeOf(TStartUpInfo));
+    StartUpInfo.cb := SizeOf(TStartUpInfo);
+    StartUpInfo.hStdOutput := WritePipe;
+    StartUpInfo.hStdError := WritePipe;
+    StartUpInfo.dwFlags := STARTF_USESTDHANDLES or STARTF_USESHOWWINDOW;
+    StartUpInfo.wShowWindow := SW_HIDE;
 
-    LCmdLine := ACommandLine;
-    UniqueString(LCmdLine);
+    CmdLine := ACommandLine;
+    UniqueString(CmdLine);
 
-    if CreateProcess(nil, PChar(LCmdLine), nil, nil, True, CREATE_NO_WINDOW, nil,
-      Pointer(AWorkDir), LSi, LPi) then
+    if CreateProcess(nil, PChar(CmdLine), nil, nil, True, CREATE_NO_WINDOW, nil,
+      Pointer(AWorkDir), StartUpInfo, ProcessInfo) then
     begin
-      CloseHandle(LWritePipe);
-      LWritePipe := 0;
+      CloseHandle(WritePipe);
+      WritePipe := 0;
 
       repeat
-        LSuccess := ReadFile(LReadPipe, LBuffer[0], SizeOf(LBuffer) - 1, LBytesRead, nil);
-        if LBytesRead > 0 then
+        Success := ReadFile(ReadPipe, Buffer[0], SizeOf(Buffer) - 1, BytesRead, nil);
+        if BytesRead > 0 then
         begin
-          LBuffer[LBytesRead] := #0;
-          AOutput := AOutput + string(AnsiString(LBuffer));
+          Buffer[BytesRead] := #0;
+          AOutput := AOutput + string(AnsiString(Buffer));
         end;
-      until not LSuccess or (LBytesRead = 0);
+      until not Success or (BytesRead = 0);
 
-      WaitForSingleObject(LPi.hProcess, INFINITE);
+      WaitForSingleObject(ProcessInfo.hProcess, INFINITE);
 
-      LExitCode := 0;
-      GetExitCodeProcess(LPi.hProcess, LExitCode);
-      Result := (LExitCode = 0);
+      ExitCode := 0;
+      GetExitCodeProcess(ProcessInfo.hProcess, ExitCode);
+      Result := (ExitCode = 0);
 
-      CloseHandle(LPi.hProcess);
-      CloseHandle(LPi.hThread);
+      CloseHandle(ProcessInfo.hProcess);
+      CloseHandle(ProcessInfo.hThread);
     end;
   finally
-    if LReadPipe <> 0 then CloseHandle(LReadPipe);
-    if LWritePipe <> 0 then CloseHandle(LWritePipe);
+    if ReadPipe <> 0 then CloseHandle(ReadPipe);
+    if WritePipe <> 0 then CloseHandle(WritePipe);
   end;
 end;
 
@@ -4693,34 +4704,34 @@ end;
 
 procedure TFormDextTestRunner.TryLoadCoverage;
 var
-  LCovPath: string;
-  LRoot: string;
-  LTestsDir: string;
-  LFiles: TArray<string>;
-  LFile: string;
+  CovPath: string;
+  Root: string;
+  TestsDir: string;
+  Files: TArray<string>;
+  CoverageFile: string;
 begin
-  LCovPath := TPath.Combine(ExtractFilePath(FActiveProjectFile), 'dext_coverage.xml');
-  if not FileExists(LCovPath) then
-    LCovPath := TPath.Combine(TPath.GetDirectoryName(ExtractFilePath(FActiveProjectFile)), 'dext_coverage.xml');
+  CovPath := TPath.Combine(ExtractFilePath(FActiveProjectFile), 'dext_coverage.xml');
+  if not FileExists(CovPath) then
+    CovPath := TPath.Combine(TPath.GetDirectoryName(ExtractFilePath(FActiveProjectFile)), 'dext_coverage.xml');
 
-  if not FileExists(LCovPath) then
+  if not FileExists(CovPath) then
   begin
-    LRoot := TPath.GetDirectoryName(TPath.GetDirectoryName(ExtractFilePath(FActiveProjectFile)));
-    LCovPath := TPath.Combine(TPath.Combine(LRoot, 'Tests'), 'test-results.xml');
+    Root := TPath.GetDirectoryName(TPath.GetDirectoryName(ExtractFilePath(FActiveProjectFile)));
+    CovPath := TPath.Combine(TPath.Combine(Root, 'Tests'), 'test-results.xml');
   end;
 
-  if not FileExists(LCovPath) then
+  if not FileExists(CovPath) then
   begin
-    LTestsDir := 'c:\dev\Dext\DextRepository\Tests\Output';
-    if TDirectory.Exists(LTestsDir) then
+    TestsDir := 'c:\dev\Dext\DextRepository\Tests\Output';
+    if TDirectory.Exists(TestsDir) then
     begin
-      LFiles := TDirectory.GetFiles(LTestsDir, '*.xml');
-      for LFile in LFiles do
+      Files := TDirectory.GetFiles(TestsDir, '*.xml');
+      for CoverageFile in Files do
       begin
         try
-          if TFile.ReadAllText(LFile).Contains('<coverage') then
+          if TFile.ReadAllText(CoverageFile).Contains('<coverage') then
           begin
-            LCovPath := LFile;
+            CovPath := CoverageFile;
             Break;
           end;
         except
@@ -4730,12 +4741,12 @@ begin
     end;
   end;
 
-  if FileExists(LCovPath) then
+  if FileExists(CovPath) then
   begin
-    LogMsg('Loading code coverage from: ' + LCovPath);
+    LogMsg('Loading code coverage from: ' + CovPath);
     TThread.Queue(nil, TThreadProcedure(procedure
       begin
-        TCoverageManager.GetInstance.LoadCoverageFromXML(LCovPath);
+        TCoverageManager.GetInstance.LoadCoverageFromXML(CovPath);
       end));
   end
   else
@@ -4746,20 +4757,20 @@ end;
 
 procedure TFormDextTestRunner.RunImpactedTests(const ATests: TArray<string>);
 var
-  LJSON: string;
-  I: Integer;
+  Json: string;
+  i: Integer;
 begin
   if Length(ATests) = 0 then Exit;
 
-  LJSON := '[';
-  for I := 0 to Length(ATests) - 1 do
+  Json := '[';
+  for i := 0 to Length(ATests) - 1 do
   begin
-    if I > 0 then LJSON := LJSON + ',';
-    LJSON := LJSON + '"' + ATests[I] + '"';
+    if i > 0 then Json := Json + ',';
+    Json := Json + '"' + ATests[i] + '"';
   end;
-  LJSON := LJSON + ']';
+  Json := Json + ']';
 
-  FServer.SelectedTestsJSON := LJSON;
+  FServer.SelectedTestsJSON := Json;
   RunActiveProjectTests('');
 end;
 
@@ -4780,15 +4791,14 @@ end;
 
 procedure TFormDextTestRunner.SaveTimerTimer(Sender: TObject);
 var
-  LTests: TList<TTestLocation>;
-  LTest: TTestLocation;
-  LIdx: Integer;
-  LNode: TTreeNode;
-  LFixtureNode: TTreeNode;
-  LMethodNode: TTreeNode;
-  LFile: string;
-  I: Integer;
+  CoverageFile: string;
+  FixtureNode: TTreeNode;
+  i, j: Integer;
+  MethodNode: TTreeNode;
+  Node: TTreeNode;
   ParentNode: TTreeNode;
+  TestLocation: TTestLocation;
+  Tests: TList<TTestLocation>;
 begin
   if not Assigned(FSaveTimer) then Exit;
   FSaveTimer.Enabled := False;
@@ -4797,53 +4807,53 @@ begin
 
   TestsTreeView.Items.BeginUpdate;
   try
-    for I := 0 to FPendingSaveFiles.Count - 1 do
+    for i := 0 to FPendingSaveFiles.Count - 1 do
     begin
-      LFile := FPendingSaveFiles[I];
-      LTests := nil;
-      if TTestASTScanner.ScanFile(LFile, LTests) then
+      CoverageFile := FPendingSaveFiles[i];
+      Tests := nil;
+      if TTestASTScanner.ScanFile(CoverageFile, Tests) then
       begin
         try
           // Remove existing tests in this file from our list and TreeView
-          for LIdx := FTestLocations.Count - 1 downto 0 do
+          for j := FTestLocations.Count - 1 downto 0 do
           begin
-            if SameText(FTestLocations[LIdx].FileName, LFile) then
+            if SameText(FTestLocations[j].FileName, CoverageFile) then
             begin
-              LNode := FindNodeByPath(FTestLocations[LIdx].ClassName + '.' + FTestLocations[LIdx].MethodName);
-              if not Assigned(LNode) then
-                LNode := FindNodeByPath(FTestLocations[LIdx].MethodName);
+              Node := FindNodeByPath(FTestLocations[j].ClassName + '.' + FTestLocations[j].MethodName);
+              if not Assigned(Node) then
+                Node := FindNodeByPath(FTestLocations[j].MethodName);
 
-              if Assigned(LNode) then
+              if Assigned(Node) then
               begin
-                ParentNode := LNode.Parent;
-                LNode.Free;
+                ParentNode := Node.Parent;
+                Node.Free;
                 if Assigned(ParentNode) and (ParentNode.Count = 0) then
                   ParentNode.Free;
               end;
-              FTestLocations.Delete(LIdx);
+              FTestLocations.Delete(j);
             end;
           end;
 
           // Add newly discovered tests
-          for LTest in LTests do
+          for TestLocation in Tests do
           begin
-            FTestLocations.Add(LTest);
+            FTestLocations.Add(TestLocation);
 
-            LFixtureNode := FindNodeByPath(LTest.ClassName);
-            if not Assigned(LFixtureNode) then
+            FixtureNode := FindNodeByPath(TestLocation.ClassName);
+            if not Assigned(FixtureNode) then
             begin
-              LFixtureNode := TestsTreeView.Items.AddChild(nil, LTest.ClassName);
-              LFixtureNode.ImageIndex := 3;
-              LFixtureNode.SelectedIndex := 3;
+              FixtureNode := TestsTreeView.Items.AddChild(nil, TestLocation.ClassName);
+              FixtureNode.ImageIndex := 3;
+              FixtureNode.SelectedIndex := 3;
             end;
 
-            LMethodNode := TestsTreeView.Items.AddChild(LFixtureNode, LTest.MethodName);
-            LMethodNode.Data := Pointer(FTestLocations.Count);
-            LMethodNode.ImageIndex := 0;
-            LMethodNode.SelectedIndex := 0;
+            MethodNode := TestsTreeView.Items.AddChild(FixtureNode, TestLocation.MethodName);
+            MethodNode.Data := Pointer(FTestLocations.Count);
+            MethodNode.ImageIndex := 0;
+            MethodNode.SelectedIndex := 0;
           end;
         finally
-          LTests.Free;
+          Tests.Free;
         end;
       end;
     end;
@@ -4872,44 +4882,44 @@ end;
 
 class procedure TTelemetryTracker.RecordTestResult(const AProjectFile, ATestName, AStatus: string; ADurationMs: Integer); // ADurationMs remains Integer for storage
 var
-  LDir, LFile: string;
-  LArray: TJSONArray;
-  LObj: TJSONObject;
-  LText: string;
+  Dir, HistoryFile: string;
+  JsonArray: TJSONArray;
+  Obj: TJSONObject;
+  Text: string;
 begin
   if AProjectFile = '' then Exit;
-  LDir := TPath.Combine(TPath.GetDirectoryName(AProjectFile), '.dext\testing');
+  Dir := TPath.Combine(TPath.GetDirectoryName(AProjectFile), '.dext\testing');
   try
-    ForceDirectories(LDir);
-    LFile := TPath.Combine(LDir, 'history.json');
+    ForceDirectories(Dir);
+    HistoryFile := TPath.Combine(Dir, 'history.json');
 
-    LArray := nil;
-    if FileExists(LFile) then
+    JsonArray := nil;
+    if FileExists(HistoryFile) then
     begin
       try
-        LText := TFile.ReadAllText(LFile, TEncoding.UTF8);
-        LArray := TJSONObject.ParseJSONValue(LText) as TJSONArray;
+        Text := TFile.ReadAllText(HistoryFile, TEncoding.UTF8);
+        JsonArray := TJSONObject.ParseJSONValue(Text) as TJSONArray;
       except
         // ignore parsing errors
       end;
     end;
 
-    if LArray = nil then
-      LArray := TJSONArray.Create;
+    if JsonArray = nil then
+      JsonArray := TJSONArray.Create;
 
-    LObj := TJSONObject.Create;
-    LObj.AddPair('testName', ATestName);
-    LObj.AddPair('status', AStatus);
-    LObj.AddPair('durationMs', TJSONNumber.Create(ADurationMs));
-    LObj.AddPair('timestamp', DateTimeToStr(Now));
-    LArray.AddElement(LObj);
+    Obj := TJSONObject.Create;
+    Obj.AddPair('testName', ATestName);
+    Obj.AddPair('status', AStatus);
+    Obj.AddPair('durationMs', TJSONNumber.Create(ADurationMs));
+    Obj.AddPair('timestamp', DateTimeToStr(Now));
+    JsonArray.AddElement(Obj);
 
     // Limit to last 1000 runs
-    while LArray.Count > 1000 do
-      LArray.Remove(0).Free;
+    while JsonArray.Count > 1000 do
+      JsonArray.Remove(0).Free;
 
-    TFile.WriteAllText(LFile, LArray.ToJSON, TEncoding.UTF8);
-    LArray.Free;
+    TFile.WriteAllText(HistoryFile, JsonArray.ToJSON, TEncoding.UTF8);
+    JsonArray.Free;
   except
     // ignore filesystem errors
   end;
@@ -4936,7 +4946,7 @@ var
   StatusesList: TList<string>;
   Sum: Integer;
   TestDurations: TDictionary<string, TList<Integer>>;
-  TestName, LStatus: string;
+  TestName, Status: string;
   TestStatuses: TDictionary<string, TList<string>>;
   Text: string;
   Value: TJSONValue;
@@ -4965,7 +4975,7 @@ begin
             JsonObj := TJSONObject(Value);
             if JsonObj.TryGetValue<string>('testName', TestName) then
             begin
-              JsonObj.TryGetValue<string>('status', LStatus);
+              JsonObj.TryGetValue<string>('status', Status);
               JsonObj.TryGetValue<Integer>('durationMs', DurationMs);
 
               if not TestDurations.TryGetValue(TestName, DurList) then
@@ -4981,7 +4991,7 @@ begin
                 StatList := TList<string>.Create;
                 TestStatuses.Add(TestName, StatList);
               end;
-              StatList.Add(LStatus);
+              StatList.Add(Status);
             end;
           end;
         end;
@@ -5103,14 +5113,18 @@ begin
 end;
 
 initialization
-  LLogLock := TObject.Create;
+{$IFDEF DEXT_TEST_EXPLORER_LOG_FILE_ENABLED}
+  LogLock := TObject.Create;
+{$ENDIF}
 {$IFDEF DEXT_TEST_EXPLORER_PERF_LOG}
   PerfLogLock := TObject.Create;
 {$ENDIF}
   RegisterDockableForm;
 
 finalization
-  FreeAndNil(LLogLock);
+{$IFDEF DEXT_TEST_EXPLORER_LOG_FILE_ENABLED}
+  FreeAndNil(LogLock);
+{$ENDIF}
 {$IFDEF DEXT_TEST_EXPLORER_PERF_LOG}
   PerfLogLock.Free;
 {$ENDIF}

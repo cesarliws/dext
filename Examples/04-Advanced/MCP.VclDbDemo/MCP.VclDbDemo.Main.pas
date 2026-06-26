@@ -273,18 +273,22 @@ begin
     Qry.Open('SELECT id, nome, email, sorteado FROM participantes');
     
     JA := TJSONArray.Create;
-    while not Qry.Eof do
-    begin
-      JA.Add(TJSONObject.Create
-        .AddPair('id', Qry.FieldByName('id').AsInteger)
-        .AddPair('nome', Qry.FieldByName('nome').AsString)
-        .AddPair('email', Qry.FieldByName('email').AsString)
-        .AddPair('sorteado', Qry.FieldByName('sorteado').AsBoolean)
-      );
-      Qry.Next;
+    try
+      while not Qry.Eof do
+      begin
+        JA.Add(TJSONObject.Create
+          .AddPair('id', Qry.FieldByName('id').AsInteger)
+          .AddPair('nome', Qry.FieldByName('nome').AsString)
+          .AddPair('email', Qry.FieldByName('email').AsString)
+          .AddPair('sorteado', Qry.FieldByName('sorteado').AsBoolean)
+        );
+        Qry.Next;
+      end;
+      
+      Result := TMCPToolResult.Text(JA.ToJSON);
+    finally
+      JA.Free;
     end;
-    
-    Result := TMCPToolResult.Text(JA.ToJSON);
     LogMsg('Lista de participantes retornada com sucesso.');
   finally
     Qry.Free;
@@ -351,31 +355,35 @@ begin
     begin
       Qry.Open;
       JA := TJSONArray.Create;
-      while not Qry.Eof do
-      begin
-        var JO := TJSONObject.Create;
-        for I := 0 to Qry.FieldCount - 1 do
+      try
+        while not Qry.Eof do
         begin
-          if Qry.Fields[I].IsNull then
-            JO.AddPair(Qry.Fields[I].FieldName, TJSONNull.Create)
-          else
+          var JO := TJSONObject.Create;
+          for I := 0 to Qry.FieldCount - 1 do
           begin
-            case Qry.Fields[I].DataType of
-              ftInteger, ftSmallint, ftWord, ftLargeint:
-                JO.AddPair(Qry.Fields[I].FieldName, TJSONNumber.Create(Qry.Fields[I].AsLargeInt));
-              ftFloat, ftCurrency, ftBCD, ftFMTBcd:
-                JO.AddPair(Qry.Fields[I].FieldName, TJSONNumber.Create(Qry.Fields[I].AsFloat));
-              ftBoolean:
-                JO.AddPair(Qry.Fields[I].FieldName, TJSONBool.Create(Qry.Fields[I].AsBoolean));
-              else
-                JO.AddPair(Qry.Fields[I].FieldName, Qry.Fields[I].AsString);
+            if Qry.Fields[I].IsNull then
+              JO.AddPair(Qry.Fields[I].FieldName, TJSONNull.Create)
+            else
+            begin
+              case Qry.Fields[I].DataType of
+                ftInteger, ftSmallint, ftWord, ftLargeint:
+                  JO.AddPair(Qry.Fields[I].FieldName, TJSONNumber.Create(Qry.Fields[I].AsLargeInt));
+                ftFloat, ftCurrency, ftBCD, ftFMTBcd:
+                  JO.AddPair(Qry.Fields[I].FieldName, TJSONNumber.Create(Qry.Fields[I].AsFloat));
+                ftBoolean:
+                  JO.AddPair(Qry.Fields[I].FieldName, TJSONBool.Create(Qry.Fields[I].AsBoolean));
+                else
+                  JO.AddPair(Qry.Fields[I].FieldName, Qry.Fields[I].AsString);
+              end;
             end;
           end;
+          JA.Add(JO);
+          Qry.Next;
         end;
-        JA.Add(JO);
-        Qry.Next;
+        Result := TMCPToolResult.Text(JA.ToJSON);
+      finally
+        JA.Free;
       end;
-      Result := TMCPToolResult.Text(JA.ToJSON);
       LogMsg('SQL SELECT executado com sucesso.');
     end
     else

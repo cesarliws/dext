@@ -293,10 +293,9 @@ end;
 class procedure TMCPServer.AddCORSHeaders(const Response: IHttpResponse);
 begin
   Response.AddHeader('Access-Control-Allow-Origin', '*');
-  Response.AddHeader('Access-Control-Allow-Methods',
-    'GET, POST, DELETE, OPTIONS');
-  Response.AddHeader('Access-Control-Allow-Headers',
-    'Content-Type, Mcp-Session-Id');
+  Response.AddHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  Response.AddHeader('Access-Control-Allow-Headers', 'Content-Type, Mcp-Session-Id');
+  Response.AddHeader('Access-Control-Expose-Headers', 'Mcp-Session-Id');
 end;
 
 procedure TMCPServer.LogDebug(const AMsg: string);
