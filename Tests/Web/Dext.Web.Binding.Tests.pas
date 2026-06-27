@@ -64,10 +64,12 @@ type
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
   end;
 
   { Test Models }
 
+  {$RTTI EXPLICIT FIELDS([vcPrivate..vcPublic]) PROPERTIES([vcPrivate..vcPublic])}
   TTestRecord = record
     [DefaultValue('John Doe')]
     Name: string;
@@ -134,6 +136,9 @@ type
 
     [Test]
     procedure Test_BindBodyPrimitive_Array_Direct;
+
+    [Test]
+    procedure Test_BindBodyPrimitive_Array_Malformed;
   end;
 
 implementation
@@ -185,6 +190,12 @@ function TMockHttpContext.GetUser: IClaimsPrincipal; begin Result := nil; end;
 procedure TMockHttpContext.SetResponse(const AValue: IHttpResponse); begin end;
 procedure TMockHttpContext.SetUser(const AValue: IClaimsPrincipal); begin end;
 procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin end;
+
+procedure TMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
+begin
+  if FRequest is TMockHttpRequest then
+    TMockHttpRequest(FRequest).FRouteParams := AParams;
+end;
 
 { TDummyController }
 
@@ -409,6 +420,25 @@ begin
   Should(ArrStr[0]).Be('One');
   Should(ArrStr[1]).Be('Two');
   Should(ArrStr[2]).Be('Three');
+end;
+
+procedure TWebBindingTests.Test_BindBodyPrimitive_Array_Malformed;
+var
+  Context: IHttpContext;
+  Ctx: TRttiContext;
+  Meth: TRttiMethod;
+  Param: TRttiParameter;
+begin
+  Context := CreateMockContextWithBody('["One", "Two"');
+  Meth := Ctx.GetType(TDummyController).GetMethod('ArrayAction');
+  Param := Meth.GetParameters[0];
+  Assert.WillRaise(
+    procedure
+    begin
+      FBinder.BindParameter(Param, Context);
+    end,
+    EBindingException
+  );
 end;
 
 end.

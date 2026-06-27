@@ -410,13 +410,13 @@ EEventBusException <|-- EEventDispatchAggregate
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>record TPublishResult</h3><a name="TPublishResult"></a><div class="description">Carries the result of a Publish<T> call. HandlersInvoked counts all handlers that were started, including those that raised — use HandlersFailed to distinguish successes.</div></div>
+<h3>record TPublishResult</h3><a name="TPublishResult"></a><div class="description">Carries the result of a Publish<T> call. HandlersInvoked counts all handlers that were started, including those that raised - use HandlersFailed to distinguish successes.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function HandlersSucceeded: Integer</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventHandler</h3><a name="IEventHandler"></a><div class="description">Marker base interface for all event handlers. Internal — implement IEventHandler<T> in application code.</div></div>
+<h3>interface IEventHandler</h3><a name="IEventHandler"></a><div class="description">Marker base interface for all event handlers. Internal - implement IEventHandler<T> in application code.</div></div>
 <hr>
 <div class="class-header">
 <h3>interface IEventHandler&lt;T&gt;</h3><a name="IEventHandler_lt_T_gt_"></a><div class="ancestor">Inherits from: IEventHandler</div><div class="description">Typed event handler. Implement this interface to react to the event type T. Handlers are resolved via DI on each publish, allowing dependency injection.</div></div>
@@ -425,13 +425,13 @@ EEventBusException <|-- EEventDispatchAggregate
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventBehavior</h3><a name="IEventBehavior"></a><div class="description">Cross-cutting behavior applied around every handler invocation. Behaviors form an ordered pipeline — each must call ANext() to continue. Registered globally (all events) or per event type. Register via Services.AddEventBehavior&lt;TBehavior&gt;() (global) or Services.AddEventBehaviorFor&lt;TEvent, TBehavior&gt;() (per-event).  Named Intercept (not Handle) to clearly distinguish middleware from the final IEventHandler&lt;T&gt;.Handle call.</div></div>
+<h3>interface IEventBehavior</h3><a name="IEventBehavior"></a><div class="description">Cross-cutting behavior applied around every handler invocation. Behaviors form an ordered pipeline - each must call ANext() to continue. Registered globally (all events) or per event type. Register via Services.AddEventBehavior&lt;TBehavior&gt;() (global) or Services.AddEventBehaviorFor&lt;TEvent, TBehavior&gt;() (per-event).  Named Intercept (not Handle) to clearly distinguish middleware from the final IEventHandler&lt;T&gt;.Handle call.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">procedure Intercept(AEventType: PTypeInfo; const const: TValue; const const: TEventNextDelegate)</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventPublisher&lt;T&gt;</h3><a name="IEventPublisher_lt_T_gt_"></a><div class="description">Facade for publishing a single type of event. Follows the Interface Segregation Principle (ISP) — inject IEventPublisher&lt;T&gt; instead of IEventBus in components that only publish a specific type of event.</div></div>
+<h3>interface IEventPublisher&lt;T&gt;</h3><a name="IEventPublisher_lt_T_gt_"></a><div class="description">Facade for publishing a single type of event. Follows the Interface Segregation Principle (ISP) - inject IEventPublisher&lt;T&gt; instead of IEventBus in components that only publish a specific type of event.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Publish(const const: T): TPublishResult</div><div class="description">Publishes the event synchronously and waits for all handlers to process.</div></div>
 <div class="api-item">
@@ -450,7 +450,7 @@ EEventBusException <|-- EEventDispatchAggregate
 <h3>record THandlerEntry</h3><a name="THandlerEntry"></a></div>
 <hr>
 <div class="class-header">
-<h3>interface IEventHandlerRegistry</h3><a name="IEventHandlerRegistry"></a><div class="description">Internal registry: maps event TypeInfo to handler entry lists and manages global + per-event behavior factory lists. Populated at startup by AddEventHandler/AddEventBehavior. Do not consume directly — use IEventBus.</div></div>
+<h3>interface IEventHandlerRegistry</h3><a name="IEventHandlerRegistry"></a><div class="description">Internal registry: maps event TypeInfo to handler entry lists and manages global + per-event behavior factory lists. Populated at startup by AddEventHandler/AddEventBehavior. Do not consume directly - use IEventBus.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">procedure RegisterHandler(AEventType: PTypeInfo; AHandlerClass: TClass; const const: TFunc)</div></div>
 <div class="api-item">
@@ -466,7 +466,7 @@ EEventBusException <|-- EEventDispatchAggregate
 </div>
 <hr>
 <div class="class-header">
-<h3>record TEventBusExtensions</h3><a name="TEventBusExtensions"></a><div class="description">Typed call-site sugar over IEventBus. Delphi E2535 prevents generic methods on interfaces, so these static helpers box the event to TValue and delegate to IEventBus.Dispatch. Defined here (not on the DI helper) to avoid the naming conflict with TEventBusDIExtensions in Dext.Events.Extensions.  Usage: <code> // FBus: IEventBus (injected) TEventBusExtensions.Publish&lt;TOrderPlacedEvent&gt;(FBus, Event); // or inject the narrow IEventPublisher&lt;T&gt; (preferred — ISP): FPublisher.Publish(Event); </code></div></div>
+<h3>record TEventBusExtensions</h3><a name="TEventBusExtensions"></a><div class="description">Typed call-site sugar over IEventBus. Delphi E2535 prevents generic methods on interfaces, so these static helpers box the event to TValue and delegate to IEventBus.Dispatch. Defined here (not on the DI helper) to avoid the naming conflict with TEventBusDIExtensions in Dext.Events.Extensions.  Usage: <code> // FBus: IEventBus (injected) TEventBusExtensions.Publish&lt;TOrderPlacedEvent&gt;(FBus, Event); // or inject the narrow IEventPublisher&lt;T&gt; (preferred - ISP): FPublisher.Publish(Event); </code></div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Publish&lt;T&gt;(const const: IEventBus; const const: T): TPublishResult</div></div>
 <div class="api-item">

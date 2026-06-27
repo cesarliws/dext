@@ -34,6 +34,7 @@ uses
   System.Classes,
   System.SysUtils,
   System.SyncObjs,
+  System.Generics.Defaults,
   Winapi.Windows,
   Winapi.WinSock2,
   Dext.Server.Engine.Types,
@@ -87,6 +88,11 @@ type
     function UpgradeToWebSocket: IDextWebSocketConnection;
   end;
 
+  TDextReadOnlyBytesStream = class(TCustomMemoryStream)
+  public
+    constructor Create(const ABytes: TBytes; AOffset, ALen: Integer);
+  end;
+
   /// <summary>
   ///   Raw request implementation wrapper for IOCP socket connection.
   /// </summary>
@@ -95,8 +101,10 @@ type
     FMethod: string;
     FPath: string;
     FQuery: string;
-    FHeaders: TDictionary<string, string>;
-    FBodyStream: TMemoryStream;
+    FBuffer: TBytes;
+    FHeaderSegments: THeaderSegments;
+    FResolvedHeaders: TDictionary<string, string>;
+    FBodyStream: TCustomMemoryStream;
     FContentLength: Int64;
     function GetMethod: string;
     function GetPath: string;
@@ -105,19 +113,20 @@ type
     procedure PopulateHeaders(ADict: TDictionary<string, string>);
     function GetContentLength: Int64;
     function GetBodyStream: TStream;
+    function ResolveHeader(const AName: string): string;
   public
     /// <summary>Initializes the raw IOCP request wrapper.</summary>
     /// <param name="AMethod">The HTTP method.</param>
     /// <param name="APath">The request path.</param>
     /// <param name="AQuery">The raw query string.</param>
-    /// <param name="AHeaders">The headers dictionary.</param>
+    /// <param name="AHeaderSegments">The header segments array.</param>
     /// <param name="ABody">The raw body buffer.</param>
     /// <param name="ABodyOffset">Offset in the buffer where the body starts.</param>
     /// <param name="ABodyLen">Length of the body data in the buffer.</param>
     /// <param name="AContentLength">The content length header value.</param>
     constructor Create(
       const AMethod, APath, AQuery: string;
-      AHeaders: TDictionary<string, string>;
+      const AHeaderSegments: THeaderSegments;
       ABody: TBytes;
       ABodyOffset, ABodyLen: Integer;
       AContentLength: Int64
@@ -337,11 +346,22 @@ begin
   Result := nil; // WebSocket upgrade handled in S40
 end;
 
+{ TDextReadOnlyBytesStream }
+
+constructor TDextReadOnlyBytesStream.Create(const ABytes: TBytes; AOffset, ALen: Integer);
+begin
+  inherited Create;
+  if ALen > 0 then
+    SetPointer(@ABytes[AOffset], ALen)
+  else
+    SetPointer(nil, 0);
+end;
+
 { TDextIocpRequest }
 
 constructor TDextIocpRequest.Create(
   const AMethod, APath, AQuery: string;
-  AHeaders: TDictionary<string, string>;
+  const AHeaderSegments: THeaderSegments;
   ABody: TBytes;
   ABodyOffset, ABodyLen: Integer;
   AContentLength: Int64
@@ -351,17 +371,21 @@ begin
   FMethod := AMethod;
   FPath := APath;
   FQuery := AQuery;
-  FHeaders := AHeaders;
+  FHeaderSegments := AHeaderSegments;
   FContentLength := AContentLength;
-  FBodyStream := TMemoryStream.Create;
-  if ABodyLen > 0 then
-    FBodyStream.WriteBuffer(ABody[ABodyOffset], ABodyLen);
-  FBodyStream.Position := 0;
+
+  // Cópia restrita aos bytes úteis do request para thread-safety
+  FBuffer := Copy(ABody, 0, ABodyOffset + ABodyLen);
+
+  FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
+
+  // Stream que lê diretamente do buffer sem cópia adicional
+  FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen);
 end;
 
 destructor TDextIocpRequest.Destroy;
 begin
-  FHeaders.Free;
+  FResolvedHeaders.Free;
   FBodyStream.Free;
   inherited;
 end;
@@ -376,18 +400,47 @@ begin
   Result := FContentLength;
 end;
 
+function TDextIocpRequest.ResolveHeader(const AName: string): string;
+var
+  I: Integer;
+  Seg: THeaderSegment;
+begin
+  if FResolvedHeaders.TryGetValue(AName, Result) then Exit;
+
+  for I := 0 to Length(FHeaderSegments) - 1 do
+  begin
+    Seg := FHeaderSegments[I];
+    if TDextIocpHttpParser.CompareBytesCI(FBuffer, Seg.KeyStart, Seg.KeyLen, AName) then
+    begin
+      Result := TEncoding.UTF8.GetString(FBuffer, Seg.ValueStart, Seg.ValueLen).Trim;
+      FResolvedHeaders.Add(AName, Result);
+      Exit;
+    end;
+  end;
+
+  // Cacheia cabeçalhos não encontrados
+  Result := '';
+  FResolvedHeaders.Add(AName, '');
+end;
+
 function TDextIocpRequest.GetHeader(const AName: string): string;
 begin
-  if not FHeaders.TryGetValue(AName, Result) then
-    Result := '';
+  Result := ResolveHeader(AName);
 end;
 
 procedure TDextIocpRequest.PopulateHeaders(ADict: TDictionary<string, string>);
 var
-  Pair: TPair<string, string>;
+  I: Integer;
+  Seg: THeaderSegment;
+  Key, Value: string;
 begin
-  for Pair in FHeaders do
-    ADict.AddOrSetValue(Pair.Key, Pair.Value);
+  for I := 0 to Length(FHeaderSegments) - 1 do
+  begin
+    Seg := FHeaderSegments[I];
+    Key := TEncoding.UTF8.GetString(FBuffer, Seg.KeyStart, Seg.KeyLen).Trim.ToLower;
+    Value := ResolveHeader(Key);
+    ADict.AddOrSetValue(Key, Value);
+  end;
 end;
 
 function TDextIocpRequest.GetMethod: string;
@@ -436,29 +489,38 @@ end;
 
 procedure TDextIocpResponse.SendHeaders;
 var
-  HeaderStr: string;
-  HeaderBytes: TBytes;
+  SB: TStringBuilder;
   Pair: TPair<string, string>;
   WsaBuf: TWsaBuf;
   BytesSent: DWORD;
+  HeaderBytes: TBytes;
 begin
   if FHeadersSent then Exit;
 
-  HeaderStr := Format('HTTP/1.1 %d %s'#13#10, [FStatusCode, FReason]);
-  
-  if not FHeaders.ContainsKey('Content-Type') then
-    FHeaders.Add('Content-Type', 'text/plain');
+  SB := TStringBuilder.Create;
+  try
+    SB.Append('HTTP/1.1 ').Append(FStatusCode).Append(' ').Append(FReason).Append(#13#10);
+    
+    if not FHeaders.ContainsKey('Content-Type') then
+      FHeaders.Add('Content-Type', 'text/plain');
 
-  for Pair in FHeaders do
-    HeaderStr := HeaderStr + Format('%s: %s'#13#10, [Pair.Key, Pair.Value]);
+    for Pair in FHeaders do
+      SB.Append(Pair.Key).Append(': ').Append(Pair.Value).Append(#13#10);
 
-  HeaderStr := HeaderStr + #13#10;
-  HeaderBytes := TEncoding.UTF8.GetBytes(HeaderStr);
+    SB.Append(#13#10);
+    HeaderBytes := TEncoding.UTF8.GetBytes(SB.ToString);
+  finally
+    SB.Free;
+  end;
 
   WsaBuf.len := Length(HeaderBytes);
   WsaBuf.buf := @HeaderBytes[0];
 
+  {$IF CompilerVersion >= 35.0}
   WSASend(FSocket, @WsaBuf, 1, @BytesSent, 0, nil, nil);
+  {$ELSE}
+  WSASend(FSocket, @WsaBuf, 1, BytesSent, 0, nil, nil);
+  {$IFEND}
 
   FHeadersSent := True;
 end;
@@ -494,7 +556,11 @@ begin
   WsaBuf.len := ACount;
   WsaBuf.buf := @ABuffer[AOffset];
 
+  {$IF CompilerVersion >= 35.0}
   WSASend(FSocket, @WsaBuf, 1, @BytesSent, 0, nil, nil);
+  {$ELSE}
+  WSASend(FSocket, @WsaBuf, 1, BytesSent, 0, nil, nil);
+  {$IFEND}
 end;
 
 { TDextIocpWorker }
@@ -519,8 +585,8 @@ var
   RemoteAddress: string;
   LocalPort, RemotePort: Word;
   Buffer: TBytes;
-  Method, Path, Query, Version: string;
-  Headers: TDictionary<string, string>;
+  Method, Path, Query: string;
+  HeaderSegments: THeaderSegments;
   BodyOffset: Integer;
   ContentLength: Int64;
   Connection: IDextServerConnection;
@@ -597,8 +663,7 @@ begin
             Method,
             Path,
             Query,
-            Version,
-            Headers,
+            HeaderSegments,
             BodyOffset,
             ContentLength
           ) then
@@ -606,7 +671,7 @@ begin
             TInterlocked.Increment(FEngine.FTotalRequests);
 
             Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
-            RawRequest := TDextIocpRequest.Create(Method, Path, Query, Headers, Buffer, BodyOffset, RecvRet - BodyOffset, ContentLength);
+            RawRequest := TDextIocpRequest.Create(Method, Path, Query, HeaderSegments, Buffer, BodyOffset, RecvRet - BodyOffset, ContentLength);
             RawResponse := TDextIocpResponse.Create(IocpOverlapped.Socket);
 
             try

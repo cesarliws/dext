@@ -349,6 +349,11 @@ type
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
     
+    /// <summary>
+    ///   Injects the route parameters resolved by the router into the request.
+    /// </summary>
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
+    
     /// <summary>Access to the underlying network connection.</summary>
     property Connection: IDextServerConnection read GetConnection;
     /// <summary>Access to the incoming request data.</summary>

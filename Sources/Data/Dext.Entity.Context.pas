@@ -208,6 +208,7 @@ type
     FLastAppliedTenantId: string;
     FOnLog: TProc<string>;
     FProxies: IList<TObject>;
+    FBulkBatchSize: Integer;
     procedure SetOnLog(const AValue: TProc<string>);
     function GetOnLog: TProc<string>;
     procedure ApplyTenantConfig(ACreateSchema: Boolean = False);
@@ -256,6 +257,8 @@ type
     function NamingStrategy: INamingStrategy;
     function ModelBuilder: TModelBuilder; // Expose ModelBuilder
     function GetTenantProvider: ITenantProvider;
+    function BulkBatchSize: Integer;
+    procedure SetBulkBatchSize(const AValue: Integer);
     
     /// <summary>
     ///   Starts an explicit transaction on the current connection.
@@ -478,6 +481,7 @@ begin
   FTenantProvider := ATenantProvider;
   FTenantConfigApplied := False;
   FProxies := TCollections.CreateList<TObject>(True);
+  FBulkBatchSize := 100;
   
   // Model Caching Logic
   FModelLock.BeginRead;
@@ -518,6 +522,7 @@ begin
   
   Self.Create(AOptions.BuildConnection, AOptions.BuildDialect, AOptions.BuildNamingStrategy, ATenantProvider);
   Self.OnLog := AOptions.OnLog;
+  Self.FBulkBatchSize := AOptions.BulkBatchSize;
 end;
 
 procedure TDbContext.OnConfiguring(Options: TDbContextOptions);
@@ -606,6 +611,16 @@ end;
 function TDbContext.GetTenantProvider: ITenantProvider;
 begin
   Result := FTenantProvider;
+end;
+
+function TDbContext.BulkBatchSize: Integer;
+begin
+  Result := FBulkBatchSize;
+end;
+
+procedure TDbContext.SetBulkBatchSize(const AValue: Integer);
+begin
+  FBulkBatchSize := AValue;
 end;
 
 procedure TDbContext.OnModelCreating(Builder: TModelBuilder);

@@ -414,7 +414,7 @@ IEventBus <|.. TEventBus
 <h3>record TDispatchSnapshot</h3><a name="TDispatchSnapshot"></a><div class="description">Frozen dispatch snapshot for one event type. BehaviorFactories holds the pre-merged global + per-event behaviors. Immutable once built and safe to read concurrently.</div></div>
 <hr>
 <div class="class-header">
-<h3>class TEventHandlerRegistry</h3><a name="TEventHandlerRegistry"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Thread-safe registry. Write-once at startup, read-many during dispatch. FBehaviors uses the concrete TList<T> type for record-based enumeration (TListEnumerator<T> — no ARC per element access).</div></div>
+<h3>class TEventHandlerRegistry</h3><a name="TEventHandlerRegistry"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Thread-safe registry. Write-once at startup, read-many during dispatch. FBehaviors uses the concrete TList<T> type for record-based enumeration (TListEnumerator<T> - no ARC per element access).</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create</div></div>
 <div class="api-item">

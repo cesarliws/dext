@@ -394,6 +394,7 @@ class TDbContextOptions {    +SetConnectionString()
     +UseNamingStrategy()
     +UseSnakeCaseNamingConvention()
     +LogTo()
+    +WithBulkBatchSize()
     +DriverName
     +ConnectionString
     +ConnectionDefName
@@ -407,6 +408,7 @@ class TDbContextOptions {    +SetConnectionString()
     +NamingStrategy
     +Naming
     +OnLog
+    +BulkBatchSize
 }
 TObject <|-- TDbContextOptions
 class TDbContextOptionsBuilder {    +Create()
@@ -461,6 +463,8 @@ TObject <|-- TDbContextOptionsBuilder
 <div class="api-item">
 <div class="api-signature">function LogTo(AProc: TProc): TDbContextOptions</div></div>
 <div class="api-item">
+<div class="api-signature">function WithBulkBatchSize(ASize: Integer): TDbContextOptions</div></div>
+<div class="api-item">
 <div class="api-signature">property DriverName: </div></div>
 <div class="api-item">
 <div class="api-signature">property ConnectionString: </div></div>
@@ -486,6 +490,8 @@ TObject <|-- TDbContextOptionsBuilder
 <div class="api-signature">property Naming: </div></div>
 <div class="api-item">
 <div class="api-signature">property OnLog: </div></div>
+<div class="api-item">
+<div class="api-signature">property BulkBatchSize: </div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">procedure SetConnectionString(const const: string)</div></div>

@@ -455,6 +455,8 @@ class TList~T~ {    +GetCount()
     +SetItem()
     +GetOwnsObjects()
     +SetOwnsObjects()
+    +GetCapacity()
+    +SetCapacity()
     +Notify()
     +GetInterfaceEnumerator()
     +GetEnumerator()
@@ -489,6 +491,7 @@ class TList~T~ {    +GetCount()
     +Count
     +Items
     +OwnsObjects
+    +Capacity
 }
 TListBase <|-- TList~T~
 IList <|.. TList~T~
@@ -766,6 +769,8 @@ TObject <|-- TCollections
 <div class="api-signature">property Items: </div><div class="description">Indexed access to elements.</div></div>
 <div class="api-item">
 <div class="api-signature">property OwnsObjects: </div><div class="description">If True, automatically frees objects (TObject) on Delete/Clear.</div></div>
+<div class="api-item">
+<div class="api-signature">property Capacity: </div><div class="description">Capacity of the list.</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">procedure Notify(Sender: TObject; const const: T; Action: TCollectionNotification)</div></div>
@@ -780,6 +785,10 @@ TObject <|-- TCollections
 <div class="api-signature">function GetOwnsObjects: Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetOwnsObjects(Value: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCapacity: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetCapacity(Value: Integer)</div></div>
 </div>
 <hr>
 <div class="class-header">

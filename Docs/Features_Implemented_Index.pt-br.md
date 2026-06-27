@@ -386,7 +386,7 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 - Conversores automáticos para GUID, Enums, JSONB e UUID v7.
 - **Stored Procedures** — Execução declarativa via `[StoredProcedure]` e `[DbParam]`.
 - **Multi-Tenancy** — Banco Compartilhado (TenantId), Isolamento por Schema (`search_path`), Tenant per Database.
-- **Operações em Lote / Bulk** — APIs em lote de alta performance: `AddRange`, `UpdateRange`, e `RemoveRange` com suporte a coleções genéricas brutas (`TArray<T>`, `IEnumerable<T>`) para persistência em massa em uma única transação de contexto.
+- **Operações em Lote / Bulk** — APIs em lote de alta performance: `AddRange`, `UpdateRange`, e `RemoveRange` com suporte a coleções genéricas brutas (`TArray<T>`, `IEnumerable<T>`) para persistência em massa em uma única transação de contexto, incluindo fatiamento automático configurável (com padrão de 100 registros, customizável via `WithBulkBatchSize` no `TDbContextOptions`) para otimizar pacotes de rede e respeitar limites de parâmetros do driver (ex: FireDAC).
 - **Database Sequence Generators & HiLo** (`Dext.Entity.Sequences`) — Mapeamento declarativo de sequences através do atributo `[Sequence('name', allocationSize)]` ou via fluent `UseSequence`. Utiliza um `TSequenceManager` thread-safe com otimizador Pooled-lo para pré-alocar blocos de chaves na memória, ativando inserções em lote (bulk) de alta performance para chaves primárias sequenciadas. Suporte a SQLite emulado via tabela dedicada (`dext_sequences`).
 
 ### 4.12 Filtros Dinâmicos de Query (`Dext.Entity.DbSet`, `Dext.Specifications.SQL.Generator`)

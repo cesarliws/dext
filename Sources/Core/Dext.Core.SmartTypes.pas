@@ -105,6 +105,29 @@ type
   end;
 
   /// <summary>
+  ///   Internal, non-generic factory/evaluator backing the Prop&lt;T&gt;
+  ///   expression generation and runtime evaluation to avoid code bloat and recursions.
+  ///   It is declared here, in the interface, because a method of a generic type
+  ///   cannot reference an implementation-local symbol (Delphi E2506).
+  /// </summary>
+  TPropExpressionBuilder = record
+    // Arithmetic
+    class function Expr(const ALeft, ARight: IExpression; AOp: TArithmeticOperator): IExpression; static;
+    class function Lit(const AValue: TValue): IExpression; static;
+    class function Compute(const A, B: Variant; AOp: TArithmeticOperator): Variant; static;
+
+    // Comparisons
+    class function CompareExpr(const ALeft, ARight: IExpression; AOp: TBinaryOperator): IExpression; static;
+    class function CompareExprLit(const ALeft: IExpression; const ARight: TValue; AOp: TBinaryOperator): IExpression; static;
+    class function CompareExprProp(const ALeftName: string; AOp: TBinaryOperator; const ARight: TValue): IExpression; static;
+
+    // Unary & Logical
+    class function UnaryExpr(const AExpr: IExpression; AOp: TUnaryOperator): IExpression; static;
+    class function UnaryExprProp(const APropertyName: string; AOp: TUnaryOperator): IExpression; static;
+    class function LogicalExpr(const ALeft, ARight: IExpression; AOp: TLogicalOperator): IExpression; static;
+  end;
+
+  /// <summary>
   ///   Generic property wrapper that enables operator overloading for queries.
   ///   In "Query Mode", it generates expression trees (AST). In "Runtime Mode", it performs normal comparisons.
   /// </summary>
@@ -115,113 +138,114 @@ type
     FValue: T;
     FInfo: IPropInfo;
     FExpression: IExpression;
-    function GetColumnName: string;
-    function GetPropertyName: string;
-    function GetExpression: IExpression;
+    function GetColumnName: string; inline;
+    function GetPropertyName: string; inline;
+    function GetExpression: IExpression; inline;
   public
-    function IsQueryMode: Boolean;
-    class operator Implicit(const Value: T): Prop<T>;
-    class operator Implicit(const Value: Prop<T>): T;
-    class operator Implicit(const Value: Prop<T>): BooleanExpression;
-    class operator Implicit(const Value: Prop<T>): IExpression;
-    class operator Implicit(const Value: Prop<T>): IPropInfo;
+    function IsQueryMode: Boolean; inline;
+    class operator Implicit(const Value: T): Prop<T>; inline;
+    class operator Implicit(const Value: Prop<T>): T; inline;
+    class operator Implicit(const Value: Prop<T>): BooleanExpression; inline;
+    class operator Implicit(const Value: Prop<T>): IExpression; inline;
+    class operator Implicit(const Value: Prop<T>): IPropInfo; inline;
 
     // Nullable<T> interop
-    class operator Implicit(const Value: Prop<T>): Nullable<T>;
-    class operator Implicit(const Value: Nullable<T>): Prop<T>;
+    class operator Implicit(const Value: Prop<T>): Nullable<T>; inline;
+    class operator Implicit(const Value: Nullable<T>): Prop<T>; inline;
 
     // Variant interop
-    class operator Implicit(const Value: Variant): Prop<T>;
-    class operator Implicit(const Value: Prop<T>): Variant;
+    class operator Implicit(const Value: Variant): Prop<T>; inline;
+    class operator Implicit(const Value: Prop<T>): Variant; inline;
     
     // Explicit operators for safe casting (avoiding binary hardcasts)
-    class operator Explicit(const Value: Prop<T>): string;
-    class operator Explicit(const Value: Prop<T>): Integer;
-    class operator Explicit(const Value: Prop<T>): Int64;
-    class operator Explicit(const Value: Prop<T>): Double;
-    class operator Explicit(const Value: Prop<T>): Currency;
-    class operator Explicit(const Value: Prop<T>): Boolean;
-    class operator Explicit(const Value: Prop<T>): TDateTime;
+    class operator Explicit(const Value: Prop<T>): string; inline;
+    class operator Explicit(const Value: Prop<T>): Integer; inline;
+    class operator Explicit(const Value: Prop<T>): Int64; inline;
+    class operator Explicit(const Value: Prop<T>): Double; inline;
+    class operator Explicit(const Value: Prop<T>): Currency; inline;
+    class operator Explicit(const Value: Prop<T>): Boolean; inline;
+    class operator Explicit(const Value: Prop<T>): TDateTime; inline;
 
     // Fluent conversion methods
-    function AsString: string;
-    function ToString: string;
-    function AsInteger: Integer;
-    function AsInt64: Int64;
-    function AsDouble: Double;
-    function AsCurrency: Currency;
-    function AsBoolean: Boolean;
-    function AsDateTime: TDateTime;
-    function AsType<TResult>: TResult;
+    function AsString: string; inline;
+    function ToString: string; inline;
+    function AsInteger: Integer; inline;
+    function AsInt64: Int64; inline;
+    function AsDouble: Double; inline;
+    function AsCurrency: Currency; inline;
+    function AsBoolean: Boolean; inline;
+    function AsDateTime: TDateTime; inline;
+    function AsType<TResult>: TResult; inline;
     function ConvertTo<TResult>: TResult; inline;
     // Factory for calculated properties
-    class function FromExpression(const AExpr: IExpression): Prop<T>; static;
+    class function FromExpression(const AExpr: IExpression): Prop<T>; static; inline;
+    class function FromInfo(const AInfo: IPropInfo): Prop<T>; static; inline;
 
     // Comparison operators
-    class operator Equal(const LHS: Prop<T>; const RHS: T): BooleanExpression;
-    class operator Equal(const LHS: T; const RHS: Prop<T>): BooleanExpression;
-    class operator NotEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression;
-    class operator NotEqual(const LHS: T; const RHS: Prop<T>): BooleanExpression;
-    class operator GreaterThan(const LHS: Prop<T>; const RHS: T): BooleanExpression;
-    class operator GreaterThan(const LHS: T; const RHS: Prop<T>): BooleanExpression;
-    class operator GreaterThanOrEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression;
-    class operator GreaterThanOrEqual(const LHS: T; const RHS: Prop<T>): BooleanExpression;
-    class operator LessThan(const LHS: Prop<T>; const RHS: T): BooleanExpression;
-    class operator LessThan(const LHS: T; const RHS: Prop<T>): BooleanExpression;
-    class operator LessThanOrEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression;
-    class operator LessThanOrEqual(const LHS: T; const RHS: Prop<T>): BooleanExpression;
+    class operator Equal(const LHS: Prop<T>; const RHS: T): BooleanExpression; inline;
+    class operator Equal(const LHS: T; const RHS: Prop<T>): BooleanExpression; inline;
+    class operator NotEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression; inline;
+    class operator NotEqual(const LHS: T; const RHS: Prop<T>): BooleanExpression; inline;
+    class operator GreaterThan(const LHS: Prop<T>; const RHS: T): BooleanExpression; inline;
+    class operator GreaterThan(const LHS: T; const RHS: Prop<T>): BooleanExpression; inline;
+    class operator GreaterThanOrEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression; inline;
+    class operator GreaterThanOrEqual(const LHS: T; const RHS: Prop<T>): BooleanExpression; inline;
+    class operator LessThan(const LHS: Prop<T>; const RHS: T): BooleanExpression; inline;
+    class operator LessThan(const LHS: T; const RHS: Prop<T>): BooleanExpression; inline;
+    class operator LessThanOrEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression; inline;
+    class operator LessThanOrEqual(const LHS: T; const RHS: Prop<T>): BooleanExpression; inline;
 
     // Prop<T> vs Prop<T> comparison
-    class operator Equal(const LHS, RHS: Prop<T>): BooleanExpression;
-    class operator NotEqual(const LHS, RHS: Prop<T>): BooleanExpression;
-    class operator GreaterThan(const LHS, RHS: Prop<T>): BooleanExpression;
-    class operator GreaterThanOrEqual(const LHS, RHS: Prop<T>): BooleanExpression;
-    class operator LessThan(const LHS, RHS: Prop<T>): BooleanExpression;
-    class operator LessThanOrEqual(const LHS, RHS: Prop<T>): BooleanExpression;
+    class operator Equal(const LHS, RHS: Prop<T>): BooleanExpression; inline;
+    class operator NotEqual(const LHS, RHS: Prop<T>): BooleanExpression; inline;
+    class operator GreaterThan(const LHS, RHS: Prop<T>): BooleanExpression; inline;
+    class operator GreaterThanOrEqual(const LHS, RHS: Prop<T>): BooleanExpression; inline;
+    class operator LessThan(const LHS, RHS: Prop<T>): BooleanExpression; inline;
+    class operator LessThanOrEqual(const LHS, RHS: Prop<T>): BooleanExpression; inline;
 
     // Logical Operators (primarily for BoolType)
-    class operator LogicalNot(const Value: Prop<T>): BooleanExpression;
-    class operator LogicalAnd(const LHS: Prop<T>; const RHS: Boolean): BooleanExpression;
-    class operator LogicalOr(const LHS: Prop<T>; const RHS: Boolean): BooleanExpression;
+    class operator LogicalNot(const Value: Prop<T>): BooleanExpression; inline;
+    class operator LogicalAnd(const LHS: Prop<T>; const RHS: Boolean): BooleanExpression; inline;
+    class operator LogicalOr(const LHS: Prop<T>; const RHS: Boolean): BooleanExpression; inline;
 
     // Unary Operators
-    class operator Negative(const Value: Prop<T>): Prop<T>;
-    class operator Positive(const Value: Prop<T>): Prop<T>;
+    class operator Negative(const Value: Prop<T>): Prop<T>; inline;
+    class operator Positive(const Value: Prop<T>): Prop<T>; inline;
 
     // Arithmetic Operators
-    class operator Add(const LHS: Prop<T>; const RHS: T): Prop<T>;
-    class operator Add(const LHS: T; const RHS: Prop<T>): Prop<T>;
-    class operator Add(const LHS, RHS: Prop<T>): Prop<T>;
-    class operator Subtract(const LHS: Prop<T>; const RHS: T): Prop<T>;
-    class operator Subtract(const LHS: T; const RHS: Prop<T>): Prop<T>;
-    class operator Subtract(const LHS, RHS: Prop<T>): Prop<T>;
-    class operator Multiply(const LHS: Prop<T>; const RHS: T): Prop<T>;
-    class operator Multiply(const LHS: T; const RHS: Prop<T>): Prop<T>;
-    class operator Multiply(const LHS, RHS: Prop<T>): Prop<T>;
-    class operator Divide(const LHS: Prop<T>; const RHS: T): Prop<T>;
-    class operator Divide(const LHS: T; const RHS: Prop<T>): Prop<T>;
-    class operator Divide(const LHS, RHS: Prop<T>): Prop<T>;
+    class operator Add(const LHS: Prop<T>; const RHS: T): Prop<T>; inline;
+    class operator Add(const LHS: T; const RHS: Prop<T>): Prop<T>; inline;
+    class operator Add(const LHS, RHS: Prop<T>): Prop<T>; inline;
+    class operator Subtract(const LHS: Prop<T>; const RHS: T): Prop<T>; inline;
+    class operator Subtract(const LHS: T; const RHS: Prop<T>): Prop<T>; inline;
+    class operator Subtract(const LHS, RHS: Prop<T>): Prop<T>; inline;
+    class operator Multiply(const LHS: Prop<T>; const RHS: T): Prop<T>; inline;
+    class operator Multiply(const LHS: T; const RHS: Prop<T>): Prop<T>; inline;
+    class operator Multiply(const LHS, RHS: Prop<T>): Prop<T>; inline;
+    class operator Divide(const LHS: Prop<T>; const RHS: T): Prop<T>; inline;
+    class operator Divide(const LHS: T; const RHS: Prop<T>): Prop<T>; inline;
+    class operator Divide(const LHS, RHS: Prop<T>): Prop<T>; inline;
 
     // String-specific methods
-    function Like(const Pattern: string): BooleanExpression;
-    function StartsWith(const Value: string): BooleanExpression;
-    function EndsWith(const Value: string): BooleanExpression;
-    function Contains(const Value: string): BooleanExpression;
+    function Like(const Pattern: string): BooleanExpression; inline;
+    function StartsWith(const Value: string): BooleanExpression; inline;
+    function EndsWith(const Value: string): BooleanExpression; inline;
+    function Contains(const Value: string): BooleanExpression; inline;
 
     // Collection methods
-    function &In(const Values: TArray<T>): BooleanExpression;
-    function NotIn(const Values: TArray<T>): BooleanExpression;
+    function &In(const Values: TArray<T>): BooleanExpression; inline;
+    function NotIn(const Values: TArray<T>): BooleanExpression; inline;
 
     // Null handling
-    function IsNull: BooleanExpression;
-    function IsNotNull: BooleanExpression;
+    function IsNull: BooleanExpression; inline;
+    function IsNotNull: BooleanExpression; inline;
 
     // Range
-    function Between(const Lower, Upper: T): BooleanExpression;
+    function Between(const Lower, Upper: T): BooleanExpression; inline;
 
     // Order By Support
-    function Asc: IOrderBy;
-    function Desc: IOrderBy;
+    function Asc: IOrderBy; inline;
+    function Desc: IOrderBy; inline;
 
     property Name: string read GetPropertyName;
     property Value: T read FValue write FValue;
@@ -510,6 +534,13 @@ begin
   Result.FValue := Default(T);
 end;
 
+class function Prop<T>.FromInfo(const AInfo: IPropInfo): Prop<T>;
+begin
+  Result.FExpression := nil;
+  Result.FInfo := AInfo;
+  Result.FValue := Default(T);
+end;
+
 function Prop<T>.IsQueryMode: Boolean;
 begin
   Result := (FInfo <> nil) or (FExpression <> nil);
@@ -670,7 +701,7 @@ end;
 class operator Prop<T>.Equal(const LHS: Prop<T>; const RHS: T): BooleanExpression;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), boEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(LHS.GetExpression, TValue.From<T>(RHS), boEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS) = 0);
 end;
@@ -683,7 +714,7 @@ end;
 class operator Prop<T>.NotEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), boNotEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(LHS.GetExpression, TValue.From<T>(RHS), boNotEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS) <> 0);
 end;
@@ -696,7 +727,7 @@ end;
 class operator Prop<T>.GreaterThan(const LHS: Prop<T>; const RHS: T): BooleanExpression;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), boGreaterThan))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(LHS.GetExpression, TValue.From<T>(RHS), boGreaterThan))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS) > 0);
 end;
@@ -709,7 +740,7 @@ end;
 class operator Prop<T>.GreaterThanOrEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), boGreaterThanOrEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(LHS.GetExpression, TValue.From<T>(RHS), boGreaterThanOrEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS) >= 0);
 end;
@@ -722,7 +753,7 @@ end;
 class operator Prop<T>.LessThan(const LHS: Prop<T>; const RHS: T): BooleanExpression;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), boLessThan))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(LHS.GetExpression, TValue.From<T>(RHS), boLessThan))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS) < 0);
 end;
@@ -735,7 +766,7 @@ end;
 class operator Prop<T>.LessThanOrEqual(const LHS: Prop<T>; const RHS: T): BooleanExpression;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), boLessThanOrEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(LHS.GetExpression, TValue.From<T>(RHS), boLessThanOrEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS) <= 0);
 end;
@@ -748,7 +779,7 @@ end;
 class operator Prop<T>.Equal(const LHS, RHS: Prop<T>): BooleanExpression;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, RHS.GetExpression, boEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExpr(LHS.GetExpression, RHS.GetExpression, boEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS.FValue) = 0);
 end;
@@ -756,7 +787,7 @@ end;
 class operator Prop<T>.NotEqual(const LHS, RHS: Prop<T>): BooleanExpression;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, RHS.GetExpression, boNotEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExpr(LHS.GetExpression, RHS.GetExpression, boNotEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS.FValue) <> 0);
 end;
@@ -764,7 +795,7 @@ end;
 class operator Prop<T>.GreaterThan(const LHS: Prop<T>; const RHS: Prop<T>): BooleanExpression;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, RHS.GetExpression, boGreaterThan))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExpr(LHS.GetExpression, RHS.GetExpression, boGreaterThan))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS.FValue) > 0);
 end;
@@ -772,7 +803,7 @@ end;
 class operator Prop<T>.GreaterThanOrEqual(const LHS, RHS: Prop<T>): BooleanExpression;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, RHS.GetExpression, boGreaterThanOrEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExpr(LHS.GetExpression, RHS.GetExpression, boGreaterThanOrEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS.FValue) >= 0);
 end;
@@ -780,7 +811,7 @@ end;
 class operator Prop<T>.LessThan(const LHS, RHS: Prop<T>): BooleanExpression;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, RHS.GetExpression, boLessThan))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExpr(LHS.GetExpression, RHS.GetExpression, boLessThan))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS.FValue) < 0);
 end;
@@ -788,7 +819,7 @@ end;
 class operator Prop<T>.LessThanOrEqual(const LHS, RHS: Prop<T>): BooleanExpression;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(LHS.GetExpression, RHS.GetExpression, boLessThanOrEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExpr(LHS.GetExpression, RHS.GetExpression, boLessThanOrEqual))
   else
     Result := BooleanExpression.FromRuntime(TComparer<T>.Default.Compare(LHS.FValue, RHS.FValue) <= 0);
 end;
@@ -798,7 +829,7 @@ var
   B: Boolean;
 begin
   if Value.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TBinaryExpression.Create(Value.GetExpression, TLiteralExpression.Create(TValue.From<Boolean>(False)), boEqual))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.CompareExprLit(Value.GetExpression, TValue.From<Boolean>(False), boEqual))
   else
   begin
     if TValue.From<T>(Value.FValue).TryAsType<Boolean>(B) then
@@ -813,7 +844,7 @@ var
   B: Boolean;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TLogicalExpression.Create(LHS.GetExpression, TConstantExpression.Create(RHS), loAnd))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.LogicalExpr(LHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<Boolean>(RHS)), loAnd))
   else
   begin
     if TValue.From<T>(LHS.FValue).TryAsType<Boolean>(B) then
@@ -828,14 +859,77 @@ var
   B: Boolean;
 begin
   if LHS.IsQueryMode then
-    Result := BooleanExpression.FromQuery(TLogicalExpression.Create(LHS.GetExpression, TConstantExpression.Create(RHS), loOr))
+    Result := BooleanExpression.FromQuery(TPropExpressionBuilder.LogicalExpr(LHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<Boolean>(RHS)), loOr))
   else
   begin
     if TValue.From<T>(LHS.FValue).TryAsType<Boolean>(B) then
       Result := BooleanExpression.FromRuntime(B or RHS)
     else
-      Result := BooleanExpression.FromRuntime(True); // False or True is True? No, this branch is if conversion fails.
+      Result := BooleanExpression.FromRuntime(True);
   end;
+end;
+
+// ===========================================================================
+//  Prop<T> arithmetic / unary operators
+//  ---------------------------------------------------------------------------
+//  Each operator keeps two behaviours: in "query mode" it builds an
+//  expression-tree node (TArithmeticExpression); in "runtime mode" it evaluates
+//  the operation through Variant arithmetic.
+//
+//  Both the expression-tree construction and the Variant evaluation are
+//  delegated to the NON-generic helper TPropExpressionBuilder below, and the query-mode
+//  result is produced by assigning Result's fields directly. This keeps every generic
+//  operator and helper body minimal, avoiding code bloat.
+// ===========================================================================
+class function TPropExpressionBuilder.Expr(const ALeft, ARight: IExpression; AOp: TArithmeticOperator): IExpression;
+begin
+  Result := TArithmeticExpression.Create(ALeft, ARight, AOp);
+end;
+
+class function TPropExpressionBuilder.Lit(const AValue: TValue): IExpression;
+begin
+  Result := TLiteralExpression.Create(AValue);
+end;
+
+class function TPropExpressionBuilder.Compute(const A, B: Variant; AOp: TArithmeticOperator): Variant;
+begin
+  case AOp of
+    aoSubtract: Result := A - B;
+    aoMultiply: Result := A * B;
+    aoDivide:   Result := A / B;
+  else
+    Result := A + B; // aoAdd
+  end;
+end;
+
+class function TPropExpressionBuilder.CompareExpr(const ALeft, ARight: IExpression; AOp: TBinaryOperator): IExpression;
+begin
+  Result := TBinaryExpression.Create(ALeft, ARight, AOp);
+end;
+
+class function TPropExpressionBuilder.CompareExprLit(const ALeft: IExpression; const ARight: TValue; AOp: TBinaryOperator): IExpression;
+begin
+  Result := TBinaryExpression.Create(ALeft, TLiteralExpression.Create(ARight), AOp);
+end;
+
+class function TPropExpressionBuilder.CompareExprProp(const ALeftName: string; AOp: TBinaryOperator; const ARight: TValue): IExpression;
+begin
+  Result := TBinaryExpression.Create(ALeftName, AOp, ARight);
+end;
+
+class function TPropExpressionBuilder.UnaryExpr(const AExpr: IExpression; AOp: TUnaryOperator): IExpression;
+begin
+  Result := TUnaryExpression.Create(AExpr, AOp);
+end;
+
+class function TPropExpressionBuilder.UnaryExprProp(const APropertyName: string; AOp: TUnaryOperator): IExpression;
+begin
+  Result := TUnaryExpression.Create(APropertyName, AOp);
+end;
+
+class function TPropExpressionBuilder.LogicalExpr(const ALeft, ARight: IExpression; AOp: TLogicalOperator): IExpression;
+begin
+  Result := TLogicalExpression.Create(ALeft, ARight, AOp);
 end;
 
 class operator Prop<T>.Negative(const Value: Prop<T>): Prop<T>;
@@ -843,12 +937,18 @@ var
   V: Variant;
 begin
   if Value.IsQueryMode then
-    // Unary minus would need TUnaryExpression to support aoNegative? 
-    // For now, multiply by -1
-    Result := Value * TValue.From<Integer>(-1).AsType<T>
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    // Equivalent to the previous "Value * (-1)", built directly to avoid
+    // recursing through the Multiply operator.
+    Result.FExpression := TPropExpressionBuilder.Expr(
+      Value.GetExpression,
+      TPropExpressionBuilder.Lit(TValue.From<T>(TValue.From<Integer>(-1).AsType<T>)),
+      aoMultiply);
+  end
   else
   begin
-    // Runtime math using variants
     Result := Default(Prop<T>);
     V := TValue.From<T>(Value.FValue).AsVariant;
     Result.FValue := TValue.FromVariant(-V).AsType<T>;
@@ -857,7 +957,6 @@ end;
 
 class operator Prop<T>.Positive(const Value: Prop<T>): Prop<T>;
 begin
-  Result := Default(Prop<T>);
   Result := Value;
 end;
 
@@ -866,13 +965,17 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), aoAdd))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<T>(RHS)), aoAdd);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 + V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoAdd)).AsType<T>;
   end;
 end;
 
@@ -881,19 +984,38 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, RHS.GetExpression, aoAdd))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, RHS.GetExpression, aoAdd);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS.FValue).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 + V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoAdd)).AsType<T>;
   end;
 end;
 
 class operator Prop<T>.Add(const LHS: T; const RHS: Prop<T>): Prop<T>;
+var
+  V1, V2: Variant;
 begin
-  Result := RHS + LHS;
+  // Commutative: equivalent to RHS + LHS, built directly (no operator recursion).
+  if RHS.IsQueryMode then
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(RHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<T>(LHS)), aoAdd);
+  end
+  else
+  begin
+    Result := Default(Prop<T>);
+    V1 := TValue.From<T>(RHS.FValue).AsVariant;
+    V2 := TValue.From<T>(LHS).AsVariant;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoAdd)).AsType<T>;
+  end;
 end;
 
 class operator Prop<T>.Subtract(const LHS: Prop<T>; const RHS: T): Prop<T>;
@@ -901,13 +1023,17 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), aoSubtract))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<T>(RHS)), aoSubtract);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 - V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoSubtract)).AsType<T>;
   end;
 end;
 
@@ -916,13 +1042,17 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, RHS.GetExpression, aoSubtract))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, RHS.GetExpression, aoSubtract);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS.FValue).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 - V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoSubtract)).AsType<T>;
   end;
 end;
 
@@ -930,14 +1060,19 @@ class operator Prop<T>.Subtract(const LHS: T; const RHS: Prop<T>): Prop<T>;
 var
   V1, V2: Variant;
 begin
+  // Non-commutative: literal goes on the left of the expression.
   if RHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(TLiteralExpression.Create(TValue.From<T>(LHS)), RHS.GetExpression, aoSubtract))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(TPropExpressionBuilder.Lit(TValue.From<T>(LHS)), RHS.GetExpression, aoSubtract);
+  end
   else
   begin
+    Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS).AsVariant;
     V2 := TValue.From<T>(RHS.FValue).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 - V2).AsType<T>;
-    Result.FInfo := nil;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoSubtract)).AsType<T>;
   end;
 end;
 
@@ -946,13 +1081,17 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), aoMultiply))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<T>(RHS)), aoMultiply);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 * V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoMultiply)).AsType<T>;
   end;
 end;
 
@@ -961,19 +1100,38 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, RHS.GetExpression, aoMultiply))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, RHS.GetExpression, aoMultiply);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS.FValue).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 * V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoMultiply)).AsType<T>;
   end;
 end;
 
 class operator Prop<T>.Multiply(const LHS: T; const RHS: Prop<T>): Prop<T>;
+var
+  V1, V2: Variant;
 begin
-  Result := RHS * LHS;
+  // Commutative: equivalent to RHS * LHS, built directly (no operator recursion).
+  if RHS.IsQueryMode then
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(RHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<T>(LHS)), aoMultiply);
+  end
+  else
+  begin
+    Result := Default(Prop<T>);
+    V1 := TValue.From<T>(RHS.FValue).AsVariant;
+    V2 := TValue.From<T>(LHS).AsVariant;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoMultiply)).AsType<T>;
+  end;
 end;
 
 class operator Prop<T>.Divide(const LHS: Prop<T>; const RHS: T): Prop<T>;
@@ -981,13 +1139,17 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, TLiteralExpression.Create(TValue.From<T>(RHS)), aoDivide))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, TPropExpressionBuilder.Lit(TValue.From<T>(RHS)), aoDivide);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 / V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoDivide)).AsType<T>;
   end;
 end;
 
@@ -996,13 +1158,17 @@ var
   V1, V2: Variant;
 begin
   if LHS.IsQueryMode or RHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(LHS.GetExpression, RHS.GetExpression, aoDivide))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(LHS.GetExpression, RHS.GetExpression, aoDivide);
+  end
   else
   begin
     Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS.FValue).AsVariant;
     V2 := TValue.From<T>(RHS.FValue).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 / V2).AsType<T>;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoDivide)).AsType<T>;
   end;
 end;
 
@@ -1010,14 +1176,19 @@ class operator Prop<T>.Divide(const LHS: T; const RHS: Prop<T>): Prop<T>;
 var
   V1, V2: Variant;
 begin
+  // Non-commutative: literal goes on the left of the expression.
   if RHS.IsQueryMode then
-    Result := Prop<T>.FromExpression(TArithmeticExpression.Create(TLiteralExpression.Create(TValue.From<T>(LHS)), RHS.GetExpression, aoDivide))
+  begin
+    Result.FInfo := nil;
+    Result.FValue := Default(T);
+    Result.FExpression := TPropExpressionBuilder.Expr(TPropExpressionBuilder.Lit(TValue.From<T>(LHS)), RHS.GetExpression, aoDivide);
+  end
   else
   begin
+    Result := Default(Prop<T>);
     V1 := TValue.From<T>(LHS).AsVariant;
     V2 := TValue.From<T>(RHS.FValue).AsVariant;
-    Result.FValue := TValue.FromVariant(V1 / V2).AsType<T>;
-    Result.FInfo := nil;
+    Result.FValue := TValue.FromVariant(TPropExpressionBuilder.Compute(V1, V2, aoDivide)).AsType<T>;
   end;
 end;
 
@@ -1027,7 +1198,7 @@ var
 begin
   if IsQueryMode then
     Result := BooleanExpression.FromQuery(
-      TBinaryExpression.Create(GetColumnName, boLike, Pattern))
+      TPropExpressionBuilder.CompareExprProp(GetColumnName, boLike, TValue.From<string>(Pattern)))
   else
   begin
     StrVal := TValue.From<T>(FValue).ToString;
@@ -1060,7 +1231,7 @@ begin
   begin
     V := TValue.From<TArray<T>>(Values);
     Result := BooleanExpression.FromQuery(
-      TBinaryExpression.Create(GetColumnName, boIn, V));
+      TPropExpressionBuilder.CompareExprProp(GetColumnName, boIn, V));
   end
   else
   begin
@@ -1079,7 +1250,7 @@ begin
   Check := &In(Values);
   if Check.FExpression <> nil then
     Result := BooleanExpression.FromQuery(
-      TBinaryExpression.Create(GetColumnName, boNotIn, TValue.From<TArray<T>>(Values)))
+      TPropExpressionBuilder.CompareExprProp(GetColumnName, boNotIn, TValue.From<TArray<T>>(Values)))
   else
     Result := BooleanExpression.FromRuntime(not Check.FRuntimeValue);
 end;
@@ -1090,7 +1261,7 @@ var
 begin
   if IsQueryMode then
     Result := BooleanExpression.FromQuery(
-      TUnaryExpression.Create(GetColumnName, uoIsNull))
+      TPropExpressionBuilder.UnaryExprProp(GetColumnName, uoIsNull))
   else if TReflection.GetMetadata(TypeInfo(T)).IsNullable then
   begin
     Meta := TReflection.GetMetadata(TypeInfo(T));
@@ -1109,7 +1280,7 @@ var
 begin
   if IsQueryMode then
     Result := BooleanExpression.FromQuery(
-      TUnaryExpression.Create(GetColumnName, uoIsNotNull))
+      TPropExpressionBuilder.UnaryExprProp(GetColumnName, uoIsNotNull))
   else if TReflection.GetMetadata(TypeInfo(T)).IsNullable then
   begin
     Meta := TReflection.GetMetadata(TypeInfo(T));

@@ -412,7 +412,7 @@ class TMCPPromptResult {    +Create()
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>record TMCPContent</h3><a name="TMCPContent"></a><div class="description">A single content item — used inside TMCPToolResult and TMCPPromptMessage.  Use the class factory methods to construct: TMCPContent.Text('hello') TMCPContent.Image(base64, 'image/png') TMCPContent.Audio(base64, 'audio/mpeg') TMCPContent.Resource('file:///doc.txt', 'contents...')</div></div>
+<h3>record TMCPContent</h3><a name="TMCPContent"></a><div class="description">A single content item - used inside TMCPToolResult and TMCPPromptMessage.  Use the class factory methods to construct: TMCPContent.Text('hello') TMCPContent.Image(base64, 'image/png') TMCPContent.Audio(base64, 'audio/mpeg') TMCPContent.Resource('file:///doc.txt', 'contents...')</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Text(const const: string): TMCPContent</div></div>
 <div class="api-item">
@@ -440,7 +440,7 @@ class TMCPPromptResult {    +Create()
 </div>
 <hr>
 <div class="class-header">
-<h3>record TMCPToolResult</h3><a name="TMCPToolResult"></a><div class="description">Result returned by MCP tool callbacks.  Factory methods: TMCPToolResult.Text('plain text')          — success, one text item TMCPToolResult.Error('something failed')   — error result TMCPToolResult.Image(b64, 'image/png')     — success, one image item TMCPToolResult.Audio(b64, 'audio/mpeg')    — success, one audio item TMCPToolResult.Resource(uri, text)         — success, embedded resource  Multiple content items: var R := TMCPToolResult.Text('caption'); R.AddContent(TMCPContent.Image(b64, 'image/png'));</div></div>
+<h3>record TMCPToolResult</h3><a name="TMCPToolResult"></a><div class="description">Result returned by MCP tool callbacks.  Factory methods: TMCPToolResult.Text('plain text')          - success, one text item TMCPToolResult.Error('something failed')   - error result TMCPToolResult.Image(b64, 'image/png')     - success, one image item TMCPToolResult.Audio(b64, 'audio/mpeg')    - success, one audio item TMCPToolResult.Resource(uri, text)         - success, embedded resource  Multiple content items: var R := TMCPToolResult.Text('caption'); R.AddContent(TMCPContent.Image(b64, 'image/png'));</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Text(const const: string): TMCPToolResult</div></div>
 <div class="api-item">
@@ -493,11 +493,11 @@ class TMCPPromptResult {    +Create()
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TMCPContentType = enumeration</div><div class="enum-values">Values: mctText, mctImage, mctAudio, mctResource</div><div class="description">Discriminated type tag for MCP content items.</div></div>
 <div class="api-item">
-<div class="api-signature">type TMCPToolResultCallback = Type</div><div class="description">Rich tool callback — return TMCPToolResult instead of a plain string. Preferred over TMCPToolCallback for multi-content and error signalling.</div></div>
+<div class="api-signature">type TMCPToolResultCallback = Type</div><div class="description">Rich tool callback - return TMCPToolResult instead of a plain string. Preferred over TMCPToolCallback for multi-content and error signalling.</div></div>
 <div class="api-item">
-<div class="api-signature">type TMCPResourceReadCallback = Type</div><div class="description">Callback invoked on resources/read — receives URI, returns contents.</div></div>
+<div class="api-signature">type TMCPResourceReadCallback = Type</div><div class="description">Callback invoked on resources/read - receives URI, returns contents.</div></div>
 <div class="api-item">
-<div class="api-signature">type TMCPPromptGetCallback = Type</div><div class="description">Callback invoked on prompts/get — receives template arguments.</div></div>
+<div class="api-signature">type TMCPPromptGetCallback = Type</div><div class="description">Callback invoked on prompts/get - receives template arguments.</div></div>
 </div>
 
         </div>

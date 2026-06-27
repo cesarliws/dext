@@ -172,6 +172,10 @@ type
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
+    /// <summary>
+    ///   Sets the route parameters for the request.
+    /// </summary>
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
     property Connection: IDextServerConnection read GetConnection;
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
@@ -702,6 +706,12 @@ end;
 function TDextWebBrokerContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
+end;
+
+procedure TDextWebBrokerContext.SetRouteParams(const AParams: TRouteValueDictionary);
+begin
+  if FRequest is TDextWebBrokerRequest then
+    TDextWebBrokerRequest(FRequest).FRouteParams := AParams;
 end;
 
 function TDextWebBrokerContext.GetSession: IStreamableSession;

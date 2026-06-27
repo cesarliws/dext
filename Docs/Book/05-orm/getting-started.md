@@ -144,6 +144,21 @@ end;
 > [!WARNING]
 > **Connection Pooling**: Web APIs are multithreaded. **ALWAYS** enable pooling via `.WithPooling(True)` to avoid connection exhaustion.
 
+### 3.3. Bulk Batch Size
+
+By default, bulk operations (`PersistAddRange`, `PersistUpdateRange`, and `PersistRemoveRange`) are chunked in batches of 100 records at a time to avoid exceeding database driver parameter limits (e.g. FireDAC) or excessive network packet size. You can customize this size to suit your environment:
+
+```pascal
+procedure TStartup.ConfigureDatabase(Options: TDbContextOptions);
+begin
+  Options
+    .UsePostgreSQL(Configuration.Get('ConnectionStrings:Default'))
+    .WithBulkBatchSize(250) // Sets the bulk batch size to 250 records
+    .WithPooling(True);
+end;
+```
+
+
 ## 4. Create Tables
 
 ```pascal

@@ -96,7 +96,7 @@
       color: var(--text-muted);
     }
 
-    input, textarea {
+    input, textarea, select {
       background: rgba(10, 15, 30, 0.8);
       border: 1px solid var(--border);
       border-radius: 12px;
@@ -107,7 +107,7 @@
       transition: all 0.2s;
     }
 
-    input:focus, textarea:focus {
+    input:focus, textarea:focus, select:focus {
       outline: none;
       border-color: var(--primary);
       box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
@@ -238,6 +238,15 @@
         <label for="serverUrl">Dext MCP Server URL</label>
         <input type="text" id="serverUrl" value="http://localhost:3031/mcp">
       </div>
+      <div class="input-group">
+        <label for="protocolVersion">MCP Protocol Version</label>
+        <select id="protocolVersion">
+          <option value="2025-11-25">2025-11-25 (Latest Stable)</option>
+          <option value="2025-06-18">2025-06-18 (Stable)</option>
+          <option value="2025-03-26">2025-03-26 (HTTP Streamable)</option>
+          <option value="2024-11-05">2024-11-05 (Legacy)</option>
+        </select>
+      </div>
     </div>
 
     <div class="actions">
@@ -265,6 +274,7 @@
     let mcpTools = [];
     const apiKeyInput = document.getElementById('apiKey');
     const serverUrlInput = document.getElementById('serverUrl');
+    const protocolVersionSelect = document.getElementById('protocolVersion');
     const promptInput = document.getElementById('promptInput');
     const btnConnect = document.getElementById('btnConnect');
     const btnSubmit = document.getElementById('btnSubmit');
@@ -295,6 +305,7 @@
     async function connectMCP() {
       const url = serverUrlInput.value.trim();
       const apiKey = apiKeyInput.value.trim();
+      const selectedVersion = protocolVersionSelect.value;
 
       if (!apiKey) {
         alert('Por favor, informe a Gemini API Key.');
@@ -312,12 +323,12 @@
           id: 1,
           method: "initialize",
           params: {
-            protocolVersion: "2025-03-26",
+            protocolVersion: selectedVersion,
             clientInfo: { name: "GeminiWebClient", version: "1.0.0" }
           }
         };
 
-        addLog('Client', `Enviando initialize...`);
+        addLog('Client', `Enviando initialize (Solicitando Protocolo: ${selectedVersion})...`);
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -330,7 +341,7 @@
 
         mcpSessionId = res.headers.get('Mcp-Session-Id');
         const initData = await res.json();
-        addLog('Server', `Conectado! Protocolo: ${initData.result.protocolVersion}, Session-Id: ${mcpSessionId}`);
+        addLog('Server', `Conectado! Protocolo Negociado: ${initData.result.protocolVersion}, Session-Id: ${mcpSessionId}`);
 
         // 2. Fetch tools list
         const toolsPayload = {

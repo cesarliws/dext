@@ -408,6 +408,7 @@ type
     function Connection: IDbConnection;
     function Dialect: ISQLDialect;
     function NamingStrategy: INamingStrategy;
+    function BulkBatchSize: Integer;
     
     // Transaction Management
     procedure BeginTransaction;

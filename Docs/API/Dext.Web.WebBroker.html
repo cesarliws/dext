@@ -441,6 +441,7 @@ class TDextWebBrokerContext {    +Create()
     +SetUser()
     +GetItems()
     +GetSession()
+    +SetRouteParams()
     +Connection
     +Request
     +Response
@@ -615,6 +616,8 @@ TWebModule <|-- TDextWebModule
 <div class="api-signature">function GetItems: IDictionary</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSession: IStreamableSession</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetRouteParams(const const: TRouteValueDictionary)</div><div class="description">Sets the route parameters for the request.</div></div>
 <div class="api-item">
 <div class="api-signature">property Connection: </div></div>
 <div class="api-item">

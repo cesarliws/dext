@@ -402,7 +402,7 @@ TObject <|-- TJsonRpc
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Success(const const: TJSONValue; const const: string): string</div><div class="description">Builds a success response. ResultJson is a raw JSON string that will be embedded as the "result" value.</div></div>
 <div class="api-item">
-<div class="api-signature">function Success(const const: TJSONValue; const const: TJSONValue): string</div><div class="description">Builds a success response from an already-parsed TJSONValue. The value is cloned — caller retains ownership of ResultObj.</div></div>
+<div class="api-signature">function Success(const const: TJSONValue; const const: TJSONValue): string</div><div class="description">Builds a success response from an already-parsed TJSONValue. The value is cloned - caller retains ownership of ResultObj.</div></div>
 <div class="api-item">
 <div class="api-signature">function Error(const const: TJSONValue; Code: Integer; const const: string): string</div><div class="description">Builds an error response.</div></div>
 <div class="api-item">
@@ -413,7 +413,7 @@ TObject <|-- TJsonRpc
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TMCPParamType = enumeration</div><div class="enum-values">Values: ptString, ptInteger, ptNumber, ptBoolean, ptObject, ptArray</div><div class="description">Supported JSON schema types for tool parameters.</div></div>
 <div class="api-item">
-<div class="api-signature">type TMCPToolCallback = Type</div><div class="description">Legacy tool handler callback — returns a plain string. The string can be plain text or a JSON payload; it is sent as text content. New code should prefer TMCPToolResultCallback (rich content + error flag).</div></div>
+<div class="api-signature">type TMCPToolCallback = Type</div><div class="description">Legacy tool handler callback - returns a plain string. The string can be plain text or a JSON payload; it is sent as text content. New code should prefer TMCPToolResultCallback (rich content + error flag).</div></div>
 </div>
 
         </div>

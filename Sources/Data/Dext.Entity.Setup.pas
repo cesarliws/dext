@@ -34,6 +34,7 @@ type
     FNamingStrategy: INamingStrategy;
     FNaming: string;
     FOnLog: TProc<string>;
+    FBulkBatchSize: Integer;
     procedure SetConnectionString(const AValue: string);
   public
     constructor Create;
@@ -52,6 +53,7 @@ type
     property NamingStrategy: INamingStrategy read FNamingStrategy write FNamingStrategy;
     property Naming: string read FNaming write FNaming;
     property OnLog: TProc<string> read FOnLog write FOnLog;
+    property BulkBatchSize: Integer read FBulkBatchSize write FBulkBatchSize;
 
     function BuildConnection: IDbConnection;
     function BuildDialect: ISQLDialect;
@@ -73,6 +75,7 @@ type
     function UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptions;
     function UseSnakeCaseNamingConvention: TDbContextOptions;
     function LogTo(AProc: TProc<string>): TDbContextOptions;
+    function WithBulkBatchSize(ASize: Integer): TDbContextOptions;
   end;
 
   /// <summary>
@@ -96,6 +99,7 @@ begin
   FParams := TCollections.CreateDictionary<string, string>;
   FPooling := False;
   FPoolMax := 50;
+  FBulkBatchSize := 100;
   // Default legacy optimization behavior (Matches original hardcoded logic)
   FOptimizations := [optDisableMacros, optDisableEscapes, optDirectExecute];
 end;
@@ -194,6 +198,12 @@ end;
 function TDbContextOptions.LogTo(AProc: TProc<string>): TDbContextOptions;
 begin
   FOnLog := AProc;
+  Result := Self;
+end;
+
+function TDbContextOptions.WithBulkBatchSize(ASize: Integer): TDbContextOptions;
+begin
+  FBulkBatchSize := ASize;
   Result := Self;
 end;
 

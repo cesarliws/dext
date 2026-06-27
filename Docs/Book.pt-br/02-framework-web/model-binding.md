@@ -352,6 +352,12 @@ JSON:
 }
 ```
 
+## Tratamento de Erros de Payload Malformado
+
+Se um payload JSON enviado para um parâmetro do tipo array dinâmico (`TArray<T>`) ou primitivo estiver estruturalmente malformado (por exemplo, faltando parênteses ou delimitadores JSON), o Model Binder do Dext disparará uma exceção `EBindingException` em vez de silenciar o erro. 
+
+Isso resulta em um retorno automático de status HTTP `400 Bad Request` informando o erro de parser correspondente, ajudando no diagnóstico de payloads inválidos por parte do cliente da API.
+
 ## Boas Práticas
 
 1. **Use Records** para DTOs de requisição (tipos por valor, sem gerenciamento de memória)

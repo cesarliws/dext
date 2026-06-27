@@ -373,7 +373,10 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
+class TColumnHydrationItem {}
+class THydrationPlan {}
 class TDbSet~T~ {    +CreateGenerator()
+    +BuildHydrationPlan()
     +Hydrate()
     +ExtractForeignKeys()
     +HandleTimestamps()
@@ -461,6 +464,12 @@ TQueryIterator <|-- TStreamingViewIterator~T~
 </div>
 </details>
 <h2>API Details</h2>
+<div class="class-header">
+<h3>record TColumnHydrationItem</h3><a name="TColumnHydrationItem"></a></div>
+<hr>
+<div class="class-header">
+<h3>record THydrationPlan</h3><a name="THydrationPlan"></a></div>
+<hr>
 <div class="class-header">
 <h3>class TDbSet&lt;T&gt;</h3><a name="TDbSet_lt_T_gt_"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Concrete implementation of an entity set (DbSet), providing query and persistence operations.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
@@ -636,13 +645,15 @@ TQueryIterator <|-- TStreamingViewIterator~T~
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function CreateGenerator: TSqlGenerator</div></div>
 <div class="api-item">
-<div class="api-signature">function Hydrate(const const: IDbReader; const const: Boolean): T</div></div>
+<div class="api-signature">function BuildHydrationPlan(const const: IDbReader): THydrationPlan</div></div>
+<div class="api-item">
+<div class="api-signature">function Hydrate(const const: IDbReader; const const: THydrationPlan; const const: Boolean): T</div></div>
 <div class="api-item">
 <div class="api-signature">procedure ExtractForeignKeys(const const: IList; PropertyToCheck: string; out out: IList; out out: IDictionary)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure HandleTimestamps(const const: TObject; AIsInsert: Boolean)</div></div>
 <div class="api-item">
-<div class="api-signature">procedure HydrateTarget(const const: IDbReader; Target: T)</div></div>
+<div class="api-signature">procedure HydrateTarget(const const: IDbReader; Target: T; const const: THydrationPlan)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure LoadAndAssign(const const: IList; const const: string)</div></div>
 <div class="api-item">

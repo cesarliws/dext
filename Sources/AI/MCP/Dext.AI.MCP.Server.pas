@@ -370,6 +370,7 @@ function TMCPServer.HandleInitialize(const Id: TJSONValue;
 var
   ResultObj, ServerInfo, Caps: TJSONObject;
   ToolsCap, ResourcesCap, PromptsCap: TJSONObject;
+  ClientProtoVer, AgreedProtoVer: string;
 begin
   // Create a session for this client
   ANewSessionId := FSessions.CreateSession.Id;
@@ -377,6 +378,24 @@ begin
   ServerInfo := TJSONObject.Create;
   ServerInfo.AddPair('name', FName);
   ServerInfo.AddPair('version', FVersion);
+
+  // Negotiate protocol version dynamically
+  AgreedProtoVer := '2025-11-25'; // Default to latest stable
+  if Params <> nil then
+  begin
+    ClientProtoVer := Params.GetValue<string>('protocolVersion', '');
+    if ClientProtoVer <> '' then
+    begin
+      // Support all official stable versions: 2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05
+      if (ClientProtoVer = '2025-11-25') or 
+         (ClientProtoVer = '2025-06-18') or 
+         (ClientProtoVer = '2025-03-26') or 
+         (ClientProtoVer = '2024-11-05') then
+      begin
+        AgreedProtoVer := ClientProtoVer;
+      end;
+    end;
+  end;
 
   // Advertise capabilities based on what is registered
   ToolsCap := TJSONObject.Create;
@@ -401,7 +420,7 @@ begin
   end;
 
   ResultObj := TJSONObject.Create;
-  ResultObj.AddPair('protocolVersion', MCP_PROTOCOL_VERSION);
+  ResultObj.AddPair('protocolVersion', AgreedProtoVer);
   ResultObj.AddPair('capabilities', Caps);
   ResultObj.AddPair('serverInfo', ServerInfo);
 

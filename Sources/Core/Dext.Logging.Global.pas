@@ -14,8 +14,7 @@ uses
   Dext.Logging.Sinks,
   Dext.Logging.Sinks.Sidecar,
   Dext.Logging.Telemetry,
-  Dext.Options,
-  Dext;
+  Dext.Options;
 
 type
   /// <summary>
@@ -79,7 +78,8 @@ implementation
 
 uses
   System.Net.HttpClient,
-  Dext.Utils;
+  Dext.Utils,
+  Dext;
 
 { Log }
 

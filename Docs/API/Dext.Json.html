@@ -411,7 +411,13 @@ class TDextJson {    +GetProvider()
     +Provider
 }
 TObject <|-- TDextJson
-class TDextSerializer {    +CreateInstanceForDeserialization()
+class TSerializationPlanItem {}
+class TSerializationPlan {}
+class TDextSerializer {    +Create()
+    +Destroy()
+    +CreateInstanceForDeserialization()
+    +GetOrBuildPlan()
+    +SerializeObjectWithPlan()
     +GetFieldName()
     +GetRecordName()
     +SerializeRecord()
@@ -432,7 +438,6 @@ class TDextSerializer {    +CreateInstanceForDeserialization()
     +GetDictionaryValueType()
     +DeserializeDictionary()
     +ApplyCaseStyle()
-    +Create()
     +Deserialize~T~()
     +DeserializeRecord()
     +DeserializeObject()
@@ -542,6 +547,12 @@ TObject <|-- TJsonBuilder
 </div>
 <hr>
 <div class="class-header">
+<h3>record TSerializationPlanItem</h3><a name="TSerializationPlanItem"></a><div class="description">Pre-computed serialization metadata for a single property. Built once per type, reused across all instances.</div></div>
+<hr>
+<div class="class-header">
+<h3>record TSerializationPlan</h3><a name="TSerializationPlan"></a><div class="description">Complete serialization plan for a class type. Built once per PTypeInfo, cached globally for reuse.</div></div>
+<hr>
+<div class="class-header">
 <h3>class TDextSerializer</h3><a name="TDextSerializer"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Internal class responsible for complex conversion logic. Manages type mapping, RTTI, attributes, and List/Dictionary conversion.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(const const: TJsonSettings)</div></div>
@@ -600,7 +611,15 @@ TObject <|-- TJsonBuilder
 <div class="api-signature">function ApplyCaseStyle(const const: string): string</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
 <div class="api-signature">function CreateInstanceForDeserialization(AType: PTypeInfo): TValue</div></div>
+<div class="api-item">
+<div class="api-signature">function GetOrBuildPlan(AType: PTypeInfo): PSerializationPlan</div></div>
+<div class="api-item">
+<div class="api-signature">function SerializeObjectWithPlan(Obj: TObject; const const: TSerializationPlan): IDextJsonObject</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -665,6 +684,10 @@ TObject <|-- TJsonBuilder
 <div class="api-signature">type TDextDateFormat = Type</div><div class="description">Deprecated alias for TDateFormat.</div></div>
 <div class="api-item">
 <div class="api-signature">type TDextSettings = Type</div><div class="description">Deprecated alias for TJsonSettings.</div></div>
+<div class="api-item">
+<div class="api-signature">type TSerializeKind = enumeration</div><div class="enum-values">Values: skInteger, skFloat, skDateTime, skString, skBoolean, skEnumAsString, skEnumAsNumber, skRecord, skRecordGUID, skRecordUUID, skClass, skList, skDynArray, skInterface, skUnknown</div><div class="description">Classification of how a property should be serialized. Pre-computed once per type to avoid repeated RTTI dispatch.</div></div>
+<div class="api-item">
+<div class="api-signature">type PSerializationPlan = pointer</div></div>
 </div>
 
         </div>

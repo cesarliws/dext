@@ -144,6 +144,21 @@ end;
 > [!WARNING]
 > **Connection Pooling**: APIs Web são multithreaded. **SEMPRE** habilite pooling via `.WithPooling(True)` para evitar exaustão de conexões.
 
+### 3.3. Tamanho do Lote de Operações em Massa (Bulk Batch Size)
+
+Por padrão, operações em massa (`PersistAddRange`, `PersistUpdateRange`, e `PersistRemoveRange`) são fatiadas (chunking) em lotes de 100 registros por vez para evitar ultrapassar limites de parâmetros do driver de banco de dados (por exemplo, FireDAC) ou consumo excessivo de rede. Você pode personalizar esse tamanho conforme a necessidade do seu ambiente:
+
+```pascal
+procedure TStartup.ConfigureDatabase(Options: TDbContextOptions);
+begin
+  Options
+    .UsePostgreSQL(Configuration.Get('ConnectionStrings:Default'))
+    .WithBulkBatchSize(250) // Define o tamanho do lote para 250 registros
+    .WithPooling(True);
+end;
+```
+
+
 ## 4. Criar Tabelas
 
 ```pascal

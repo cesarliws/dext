@@ -1,4 +1,4 @@
-﻿program Dext.Entity.UnitTests;
+program Dext.Entity.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -31,6 +31,7 @@ uses
   Dext.Entity.FormatSettings.Tests in 'Dext.Entity.FormatSettings.Tests.pas',
   Dext.Entity.SoftDelete.Tests in 'Dext.Entity.SoftDelete.Tests.pas',
   Dext.Entity.Validation.Tests in 'Dext.Entity.Validation.Tests.pas',
+  Dext.Entity.BulkBatchSize.Tests in 'Dext.Entity.BulkBatchSize.Tests.pas',
   Dext.Entity.DynamicQueryFilter.Tests in 'Dext.Entity.DynamicQueryFilter.Tests.pas';
 
 begin
@@ -44,6 +45,7 @@ begin
     RunTests(ConfigureTests
       .VeryVerbose
       .RegisterFixtures([
+        TBulkBatchSizeTests,
         TCalculatedFieldsTests,
         TDataSetSmartTypesTests,
         TEntityDataSetAutomationTests,

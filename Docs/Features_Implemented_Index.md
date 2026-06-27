@@ -386,7 +386,7 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 - Automatic converters for GUID, Enums, JSONB, and UUID v7.
 - **Stored Procedures** — Declarative execution via `[StoredProcedure]` and `[DbParam]`.
 - **Multi-Tenancy** — Shared Database (TenantId), Schema Isolation (`search_path`), Tenant per Database.
-- **Bulk / Batch Operations** — High-performance batch APIs: `AddRange`, `UpdateRange`, and `RemoveRange` supporting raw generic collections (`TArray<T>`, `IEnumerable<T>`) for bulk database operations in a single context transaction.
+- **Bulk / Batch Operations** — High-performance batch APIs: `AddRange`, `UpdateRange`, and `RemoveRange` supporting raw generic collections (`TArray<T>`, `IEnumerable<T>`) for bulk database operations in a single context transaction, featuring configurable automatic chunking (defaulting to 100 records, customizable via `WithBulkBatchSize` in `TDbContextOptions`) to optimize network packets and satisfy parameter limit boundaries of DB drivers (e.g. FireDAC).
 - **Database Sequence Generators & HiLo** (`Dext.Entity.Sequences`) — Declarative mapping of sequences via `[Sequence('name', allocationSize)]` attribute or fluent `UseSequence`. Leverages a thread-safe `TSequenceManager` with a Pooled-lo range optimizer to pre-allocate key ranges in memory, enabling high-performance bulk inserts for entities with sequenced primary keys. SQLite support is emulated via a specialized table (`dext_sequences`).
 
 ### 4.12 Dynamic Query Filters (`Dext.Entity.DbSet`, `Dext.Specifications.SQL.Generator`)

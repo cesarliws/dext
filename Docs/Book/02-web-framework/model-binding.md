@@ -352,6 +352,12 @@ JSON:
 }
 ```
 
+## Handling Malformed Payloads
+
+If a JSON payload bound to a dynamic array (`TArray<T>`) or a primitive parameter is structurally malformed (e.g., missing brackets or other JSON syntax errors), Dext's Model Binder raises an `EBindingException` instead of swallowing the error. 
+
+This results in an automatic HTTP `400 Bad Request` response detailing the parser error, improving diagnostics for API clients sending invalid payloads.
+
 ## Best Practices
 
 1. **Use Records** for request DTOs (value types, no memory management)

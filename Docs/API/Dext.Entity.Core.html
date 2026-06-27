@@ -530,6 +530,7 @@ class IEntityDataProvider {    +GetEntities()
 class IDbContext {    +Connection()
     +Dialect()
     +NamingStrategy()
+    +BulkBatchSize()
     +BeginTransaction()
     +Commit()
     +Rollback()
@@ -698,7 +699,7 @@ class IDbContext {    +Connection()
 <div class="api-item">
 <div class="api-signature">function Where(const const: IExpression): TFluentQuery</div></div>
 <div class="api-item">
-<div class="api-signature">function FromSql(const const: string; const const: array): TFluentQuery</div><div class="description">Creates a LINQ query based on a raw SQL query. If the SQL is a stored procedure, you cannot compose over it (Where, OrderBy won't work). If the SQL is a SELECT statement, depending on the provider, you might be able to compose. Parameters are bound in declaration order (first placeholder in the SQL matches AParams[0]), e.g. <c>WHERE id = :UserId</c> with <c>[TValue.From(42)]</c> — not by names like <c>p0</c>.</div></div>
+<div class="api-signature">function FromSql(const const: string; const const: array): TFluentQuery</div><div class="description">Creates a LINQ query based on a raw SQL query. If the SQL is a stored procedure, you cannot compose over it (Where, OrderBy won't work). If the SQL is a SELECT statement, depending on the provider, you might be able to compose. Parameters are bound in declaration order (first placeholder in the SQL matches AParams[0]), e.g. <c>WHERE id = :UserId</c> with <c>[TValue.From(42)]</c> - not by names like <c>p0</c>.</div></div>
 <div class="api-item">
 <div class="api-signature">function FromSql(const const: string): TFluentQuery</div></div>
 <div class="api-item">
@@ -941,6 +942,8 @@ class IDbContext {    +Connection()
 <div class="api-signature">function Dialect: ISQLDialect</div></div>
 <div class="api-item">
 <div class="api-signature">function NamingStrategy: INamingStrategy</div></div>
+<div class="api-item">
+<div class="api-signature">function BulkBatchSize: Integer</div></div>
 <div class="api-item">
 <div class="api-signature">procedure BeginTransaction</div></div>
 <div class="api-item">

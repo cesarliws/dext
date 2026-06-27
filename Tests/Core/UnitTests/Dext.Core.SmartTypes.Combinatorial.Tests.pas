@@ -47,6 +47,14 @@ type
     procedure Test_Nullable_Interop;
     [Test]
     procedure Test_Variant_Interop;
+    [Test]
+    procedure Test_All_Arithmetic_Operators;
+    [Test]
+    procedure Test_All_Comparison_Operators;
+    [Test]
+    procedure Test_Logical_Operators;
+    [Test]
+    procedure Test_Helper_Methods;
   end;
 
 implementation
@@ -158,19 +166,18 @@ end;
 procedure TSmartTypesCombinatorialTests.Test_QueryMode_Expression_Generation;
 var
   P: Prop<Integer>;
-  Expr: ISpecification;
+  Expr: BooleanExpression;
 begin
   // Create a pseudo-query mode prop
-  P := Default(Prop<Integer>);
-  TValue.From<IPropInfo>(TPropInfo.Create('Age')).ExtractRawData(@P.FInfo); // Injected via RTTI/Hack for testing
+  P := Prop<Integer>.FromInfo(TPropInfo.Create('Age'));
   
   Should(P.IsQueryMode).BeTrue;
   Should(P.Name).Be('Age');
   
   Expr := P > 18;
   Should(Expr.Expression).NotBeNil;
-  Should(Expr.Expression.Kind).Be(ekBinary);
-  Should(TBinaryExpression(Expr.Expression).Operator).Be(boGreaterThan);
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boGreaterThan);
 end;
 
 procedure TSmartTypesCombinatorialTests.Test_Arithmetic_Operations;
@@ -207,6 +214,172 @@ begin
   V := 'NewVibe';
   P := V;
   Should(P.Value).Be('NewVibe');
+end;
+
+procedure TSmartTypesCombinatorialTests.Test_All_Arithmetic_Operators;
+var
+  A, B: Prop<Double>;
+  Expr: Prop<Double>;
+begin
+  // Runtime Mode
+  A := 20.0;
+  B := 5.0;
+  Should((A - B).Value).Be(15.0);
+  Should((A * B).Value).Be(100.0);
+  Should((A / B).Value).Be(4.0);
+  Should((-B).Value).Be(-5.0);
+  Should((+B).Value).Be(5.0);
+  Should((100.0 - B).Value).Be(95.0);
+  Should((100.0 / B).Value).Be(20.0);
+  Should((100.0 * B).Value).Be(500.0);
+
+  // Query Mode
+  A := Prop<Double>.FromInfo(TPropInfo.Create('Age'));
+  B := Prop<Double>.FromInfo(TPropInfo.Create('Salary'));
+
+  Expr := A - B;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TArithmeticExpression).BeTrue;
+  Should(TArithmeticExpression(Expr.Expression).ArithmeticOperator).Be(aoSubtract);
+
+  Expr := A * 10;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TArithmeticExpression).BeTrue;
+  Should(TArithmeticExpression(Expr.Expression).ArithmeticOperator).Be(aoMultiply);
+
+  Expr := 100 / A;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TArithmeticExpression).BeTrue;
+  Should(TArithmeticExpression(Expr.Expression).ArithmeticOperator).Be(aoDivide);
+
+  Expr := -A;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TArithmeticExpression).BeTrue;
+  Should(TArithmeticExpression(Expr.Expression).ArithmeticOperator).Be(aoMultiply); // mapped as A * -1
+end;
+
+procedure TSmartTypesCombinatorialTests.Test_All_Comparison_Operators;
+var
+  A, B: Prop<Integer>;
+  Expr: BooleanExpression;
+begin
+  // Runtime Mode
+  A := 10;
+  B := 20;
+  Should(A = 10).BeTrue;
+  Should(A <> 10).BeFalse;
+  Should(A < B).BeTrue;
+  Should(A <= 10).BeTrue;
+  Should(B > A).BeTrue;
+  Should(B >= 20).BeTrue;
+
+  // Query Mode
+  A := Prop<Integer>.FromInfo(TPropInfo.Create('Age'));
+  B := Prop<Integer>.FromInfo(TPropInfo.Create('Salary'));
+
+  Expr := A = B;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boEqual);
+
+  Expr := A <> 18;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boNotEqual);
+
+  Expr := A >= 21;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boGreaterThanOrEqual);
+
+  Expr := 16 < A;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boGreaterThan); // 16 < A is equivalent to A > 16
+end;
+
+procedure TSmartTypesCombinatorialTests.Test_Logical_Operators;
+var
+  A, B: Prop<Boolean>;
+  Expr: BooleanExpression;
+begin
+  // Runtime Mode
+  A := True;
+  B := False;
+  Should(Boolean(not A)).BeFalse;
+  Should(Boolean(A and B)).BeFalse;
+  Should(Boolean(A or B)).BeTrue;
+
+  // Query Mode
+  A := Prop<Boolean>.FromInfo(TPropInfo.Create('IsActive'));
+
+  Expr := not A;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boEqual); // not A maps to A = False
+
+  Expr := A and True;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TLogicalExpression).BeTrue;
+  Should(TLogicalExpression(Expr.Expression).LogicalOperator).Be(loAnd);
+end;
+
+procedure TSmartTypesCombinatorialTests.Test_Helper_Methods;
+var
+  StrProp: Prop<string>;
+  IntProp: Prop<Integer>;
+  Expr: BooleanExpression;
+  Arr: TArray<Integer>;
+  Order: IOrderBy;
+begin
+  // Runtime Mode
+  StrProp := 'Cesar Romero';
+  Should(Boolean(StrProp.StartsWith('Cesar'))).BeTrue;
+  Should(Boolean(StrProp.Contains('Romero'))).BeTrue;
+  Should(Boolean(StrProp.EndsWith('o'))).BeTrue;
+  Should(Boolean(StrProp.Like('%Romero%'))).BeTrue;
+
+  IntProp := 10;
+  SetLength(Arr, 3);
+  Arr[0] := 5; Arr[1] := 10; Arr[2] := 15;
+  Should(Boolean(IntProp.&In(Arr))).BeTrue;
+  Should(Boolean(IntProp.NotIn(Arr))).BeFalse;
+  Should(Boolean(IntProp.Between(5, 15))).BeTrue;
+  Should(Boolean(IntProp.IsNull)).BeFalse;
+  Should(Boolean(IntProp.IsNotNull)).BeTrue;
+
+  // Query Mode
+  StrProp := Prop<string>.FromInfo(TPropInfo.Create('Name'));
+  IntProp := Prop<Integer>.FromInfo(TPropInfo.Create('Age'));
+
+  Expr := StrProp.StartsWith('Cesar');
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boLike);
+
+  Expr := IntProp.&In(Arr);
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TBinaryExpression).BeTrue;
+  Should(TBinaryExpression(Expr.Expression).BinaryOperator).Be(boIn);
+
+  Expr := IntProp.IsNull;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TUnaryExpression).BeTrue;
+  Should(TUnaryExpression(Expr.Expression).UnaryOperator).Be(uoIsNull);
+
+  Expr := IntProp.IsNotNull;
+  Should(Expr.Expression).NotBeNil;
+  Should(Expr.Expression is TUnaryExpression).BeTrue;
+  Should(TUnaryExpression(Expr.Expression).UnaryOperator).Be(uoIsNotNull);
+
+  Order := IntProp.Asc;
+  Should(Order).NotBeNil;
+  Should(Order.GetPropertyName).Be('Age');
+  Should(Order.GetAscending).BeTrue;
+
+  Order := IntProp.Desc;
+  Should(Order).NotBeNil;
+  Should(Order.GetAscending).BeFalse;
 end;
 
 initialization

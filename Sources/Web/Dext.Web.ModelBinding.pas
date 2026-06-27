@@ -372,7 +372,7 @@ begin
       on E: Exception do
       begin
         if AParam.ParamType.Handle.Kind = tkDynArray then
-          Result := TReflection.GetDefaultValue(nil, AParam.ParamType.Handle)
+          raise EBindingException.CreateFmt('Error binding parameter "%s": %s', [AParam.Name, E.Message])
         else if (Length(BodyJsonStr) >= 2) and (BodyJsonStr[1] = '"') and (BodyJsonStr[Length(BodyJsonStr)] = '"') then
           Result := TReflection.CastFromString(Copy(BodyJsonStr, 2, Length(BodyJsonStr) - 2), AParam.ParamType.Handle)
         else

@@ -380,6 +380,7 @@ class TServerEngineOptionsHelper {    +WithIoThreads()
     +WithMaxConnections()
     +WithShutdownTimeout()
     +WithKeepAlive()
+    +WithBindAddress()
 }
 </div>
 </div>
@@ -403,6 +404,8 @@ class TServerEngineOptionsHelper {    +WithIoThreads()
 <div class="api-signature">function WithShutdownTimeout(ATimeoutMs: Integer): TServerEngineOptions</div><div class="description">Configures the graceful shutdown timeout.</div></div>
 <div class="api-item">
 <div class="api-signature">function WithKeepAlive(AEnable: Boolean; ATimeoutSec: Integer): TServerEngineOptions</div><div class="description">Configures keep-alive socket configuration.</div></div>
+<div class="api-item">
+<div class="api-signature">function WithBindAddress(const const: string): TServerEngineOptions</div><div class="description">Configures the server bind address (e.g. '0.0.0.0', '127.0.0.1', or '+').</div></div>
 </div>
 <hr>
 

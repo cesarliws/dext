@@ -425,7 +425,7 @@ TObject <|-- TMCPServer
 <div class="api-item">
 <div class="api-signature">function Prompt(const const: string; const const: string): IMCPPromptBuilder</div><div class="description">Fluent builder for a new prompt template.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Run(ATransport: TMCPTransport; const const: string)</div><div class="description">Starts the server. mtStreamable — non-blocking HTTP (recommended, MCP 2025-03-26) mtSSE        — non-blocking HTTP (legacy) mtStdio      — blocking stdin loop</div></div>
+<div class="api-signature">procedure Run(ATransport: TMCPTransport; const const: string)</div><div class="description">Starts the server. mtStreamable - non-blocking HTTP (recommended, MCP 2025-03-26) mtSSE        - non-blocking HTTP (legacy) mtStdio      - blocking stdin loop</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Stop</div><div class="description">Stops the HTTP server. No-op for stdio.</div></div>
 <div class="api-item">
@@ -479,7 +479,7 @@ TObject <|-- TMCPServer
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TMCPTransport = enumeration</div><div class="enum-values">Values: mtStreamable, mtSSE, mtStdio</div><div class="description">MCP transport selection. mtStreamable — HTTP Streamable, recommended for MCP 2025-03-26. mtSSE        — Legacy SSE transport (older Claude Desktop / agents). mtStdio      — stdin/stdout for Claude Desktop process launch.</div></div>
+<div class="api-signature">type TMCPTransport = enumeration</div><div class="enum-values">Values: mtStreamable, mtSSE, mtStdio</div><div class="description">MCP transport selection. mtStreamable - HTTP Streamable, recommended for MCP 2025-03-26. mtSSE        - Legacy SSE transport (older Claude Desktop / agents). mtStdio      - stdin/stdout for Claude Desktop process launch.</div></div>
 </div>
 
         </div>

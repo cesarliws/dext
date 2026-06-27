@@ -53,7 +53,7 @@ type
 implementation
 
 uses
-  System.Rtti, System.SysUtils, Dext.Web.Indy;
+  System.Rtti, System.SysUtils;
 
 { TRoutingMiddleware }
 
@@ -73,7 +73,6 @@ var
   Handler: TRequestDelegate;
   RouteParams: TRouteValueDictionary;
   Metadata: TEndpointMetadata;
-  IndyContext: TDextIndyHttpContext;
   Path: string;
   Method: string;
   Scheme: string;
@@ -86,10 +85,9 @@ begin
   begin
     try
       // Inject route parameters if found
-      if (RouteParams.Count > 0) and (AContext is TDextIndyHttpContext) then
+      if RouteParams.Count > 0 then
       begin
-        IndyContext := TDextIndyHttpContext(AContext);
-        IndyContext.SetRouteParams(RouteParams);
+        AContext.SetRouteParams(RouteParams);
       end;
 
       // Store Metadata in Context.Items if available for other middlewares (e.g. Auth)

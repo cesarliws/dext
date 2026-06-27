@@ -221,6 +221,10 @@ type
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
+    /// <summary>
+    ///   Sets the route parameters for the request.
+    /// </summary>
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
@@ -785,6 +789,12 @@ end;
 function TDextDCSContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
+end;
+
+procedure TDextDCSContext.SetRouteParams(const AParams: TRouteValueDictionary);
+begin
+  if FRequest is TDextDCSRequest then
+    TDextDCSRequest(FRequest).FRouteParams := AParams;
 end;
 
 { TDextDCSServer }

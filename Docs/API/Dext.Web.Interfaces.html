@@ -491,6 +491,7 @@ class IHttpContext {    +GetConnection()
     +SetUser()
     +GetItems()
     +GetSession()
+    +SetRouteParams()
     +Connection
     +Request
     +Response
@@ -819,7 +820,7 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-item">
 <div class="api-signature">procedure DestroySession(const const: string)</div></div>
 <div class="api-item">
-<div class="api-signature">procedure StartScavenger(AIntervalSeconds: Integer; ATimeoutMinutes: Integer; const const: ICancellationToken)</div><div class="description">Starts the background GC scavenger. AStoppingToken: optional host ApplicationStopping token — when cancelled, the scavenger exits without waiting for the full interval.</div></div>
+<div class="api-signature">procedure StartScavenger(AIntervalSeconds: Integer; ATimeoutMinutes: Integer; const const: ICancellationToken)</div><div class="description">Starts the background GC scavenger. AStoppingToken: optional host ApplicationStopping token - when cancelled, the scavenger exits without waiting for the full interval.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure StopScavenger</div></div>
 </div>
@@ -846,6 +847,8 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">function GetItems: IDictionary</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSession: IStreamableSession</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetRouteParams(const const: TRouteValueDictionary)</div><div class="description">Injects the route parameters resolved by the router into the request.</div></div>
 <div class="api-item">
 <div class="api-signature">property Connection: </div><div class="description">Access to the underlying network connection.</div></div>
 <div class="api-item">

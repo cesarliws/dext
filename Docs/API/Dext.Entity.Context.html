@@ -434,6 +434,8 @@ class TDbContext {    +SetOnLog()
     +NamingStrategy()
     +ModelBuilder()
     +GetTenantProvider()
+    +BulkBatchSize()
+    +SetBulkBatchSize()
     +BeginTransaction()
     +Commit()
     +Rollback()
@@ -561,6 +563,10 @@ IDbContext <|.. TDbContext
 <div class="api-signature">function ModelBuilder: TModelBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function GetTenantProvider: ITenantProvider</div></div>
+<div class="api-item">
+<div class="api-signature">function BulkBatchSize: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetBulkBatchSize(const const: Integer)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure BeginTransaction</div><div class="description">Starts an explicit transaction on the current connection.</div></div>
 <div class="api-item">

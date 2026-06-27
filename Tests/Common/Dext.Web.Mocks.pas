@@ -111,6 +111,7 @@ type
     procedure SetResponse(const AValue: IHttpResponse);
     procedure SetServices(const AValue: IServiceProvider);
     procedure SetUser(const AValue: IClaimsPrincipal);
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
     property Items: IDictionary<string, TValue> read GetItems;
 
     property Connection: IDextServerConnection read GetConnection;
@@ -397,6 +398,11 @@ end;
 function TStatefulMockHttpContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
+end;
+
+procedure TStatefulMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
+begin
+  // Stateful mock context for testing - SetRouteParams is a no-op
 end;
 
 { TMockFactory }

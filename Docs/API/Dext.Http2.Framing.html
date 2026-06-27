@@ -406,15 +406,15 @@ TObject <|-- TDextHttp2FrameCodec
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>record THttp2Frame</h3><a name="THttp2Frame"></a><div class="description">Parsed representation of an HTTP/2 frame header + reference to the payload bytes. The Payload field is a direct reference into the caller's buffer — zero copy.</div></div>
+<h3>record THttp2Frame</h3><a name="THttp2Frame"></a><div class="description">Parsed representation of an HTTP/2 frame header + reference to the payload bytes. The Payload field is a direct reference into the caller's buffer - zero copy.</div></div>
 <hr>
 <div class="class-header">
 <h3>record THttp2Setting</h3><a name="THttp2Setting"></a><div class="description">A single SETTINGS parameter key/value pair.</div></div>
 <hr>
 <div class="class-header">
-<h3>class TDextHttp2FrameCodec</h3><a name="TDextHttp2FrameCodec"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Provides zero-copy HTTP/2 frame parsing and type-safe write helpers. All methods are class-level — no instance needed.</div></div>
+<h3>class TDextHttp2FrameCodec</h3><a name="TDextHttp2FrameCodec"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Provides zero-copy HTTP/2 frame parsing and type-safe write helpers. All methods are class-level - no instance needed.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function TryReadFrame(ABuffer: PByte; AAvail: Integer; AMaxFrameSize: Cardinal; out out: THttp2Frame; out out: Integer): Boolean</div><div class="description">Attempts to parse a single HTTP/2 frame from the given byte buffer. Returns False and sets ABytesConsumed to 0 if the buffer does not yet hold a complete frame (incremental — safe for stream reassembly).</div></div>
+<div class="api-signature">function TryReadFrame(ABuffer: PByte; AAvail: Integer; AMaxFrameSize: Cardinal; out out: THttp2Frame; out out: Integer): Boolean</div><div class="description">Attempts to parse a single HTTP/2 frame from the given byte buffer. Returns False and sets ABytesConsumed to 0 if the buffer does not yet hold a complete frame (incremental - safe for stream reassembly).</div></div>
 <div class="api-item">
 <div class="api-signature">function HasEndStream(const const: THttp2Frame): Boolean</div><div class="description">Returns True if the END_STREAM flag is set in AFrame.</div></div>
 <div class="api-item">
@@ -424,9 +424,9 @@ TObject <|-- TDextHttp2FrameCodec
 <div class="api-item">
 <div class="api-signature">function HasPadded(const const: THttp2Frame): Boolean</div><div class="description">Returns True if the PADDED flag is set.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetHeaderBlockFragment(const const: THttp2Frame; out out: PByte; out out: Integer): Boolean</div><div class="description">Extracts the HEADERS payload: strips padding and PRIORITY prefix if present. Returns a pointer and length into the original frame payload — zero copy.</div></div>
+<div class="api-signature">function GetHeaderBlockFragment(const const: THttp2Frame; out out: PByte; out out: Integer): Boolean</div><div class="description">Extracts the HEADERS payload: strips padding and PRIORITY prefix if present. Returns a pointer and length into the original frame payload - zero copy.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetDataPayload(const const: THttp2Frame; out out: PByte; out out: Integer): Boolean</div><div class="description">Extracts the DATA payload: strips the padding prefix/suffix if present. Returns a pointer and length into the original frame payload — zero copy.</div></div>
+<div class="api-signature">function GetDataPayload(const const: THttp2Frame; out out: PByte; out out: Integer): Boolean</div><div class="description">Extracts the DATA payload: strips the padding prefix/suffix if present. Returns a pointer and length into the original frame payload - zero copy.</div></div>
 <div class="api-item">
 <div class="api-signature">function GetRstStreamError(const const: THttp2Frame; out out: Cardinal): Boolean</div><div class="description">Parses the RST_STREAM error code from the frame payload.</div></div>
 <div class="api-item">

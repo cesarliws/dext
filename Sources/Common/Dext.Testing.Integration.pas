@@ -125,14 +125,14 @@ end;
 
 class function TTestRunnerRegistry.TryExecuteActiveHook(const ARunProc: TProc): Boolean;
 var
-  I: Integer;
+  i: Integer;
   Intf: IInterface;
   Hook: ITestExecutionHook;
 begin
   Result := False;
-  for I := 0 to GetExecutionHooks.Count - 1 do
+  for i := 0 to GetExecutionHooks.Count - 1 do
   begin
-    Intf := GetExecutionHooks[I];
+    Intf := GetExecutionHooks[i];
     if Supports(Intf, ITestExecutionHook, Hook) then
     begin
       if Hook.IsActive then
@@ -146,14 +146,14 @@ end;
 
 class function TTestRunnerRegistry.IsAnyHookActive: Boolean;
 var
-  I: Integer;
+  i: Integer;
   Intf: IInterface;
   Hook: ITestExecutionHook;
 begin
   Result := False;
-  for I := 0 to GetExecutionHooks.Count - 1 do
+  for i := 0 to GetExecutionHooks.Count - 1 do
   begin
-    Intf := GetExecutionHooks[I];
+    Intf := GetExecutionHooks[i];
     if Supports(Intf, ITestExecutionHook, Hook) then
     begin
       if Hook.IsActive then
