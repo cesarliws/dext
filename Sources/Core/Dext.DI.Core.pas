@@ -32,7 +32,7 @@ interface
 
 uses
   System.SysUtils, System.SyncObjs,
-  Dext.Collections, Dext.Collections.Dict, Dext.DI.Interfaces;
+  Dext.Collections, Dext.Collections.Dict, Dext.DI.Interfaces, Dext.DI.Comparers;
 
 type
   TDextServiceScope = class;
@@ -46,12 +46,12 @@ type
     FDescriptors: IList<TServiceDescriptor>;
     
     // Class-based service storage (DI owns and frees these)
-    FSingletons: IDictionary<string, TObject>;
-    FScopedInstances: IDictionary<string, TObject>;
+    FSingletons: IDictionary<TServiceType, TObject>;
+    FScopedInstances: IDictionary<TServiceType, TObject>;
     
     // Interface-based service storage (ARC manages these)
-    FSingletonInterfaces: IDictionary<string, IInterface>;
-    FScopedInterfaces: IDictionary<string, IInterface>;
+    FSingletonInterfaces: IDictionary<TServiceType, IInterface>;
+    FScopedInterfaces: IDictionary<TServiceType, IInterface>;
     
     FIsRootProvider: Boolean;
     FParentProvider: IServiceProvider;
@@ -258,12 +258,12 @@ begin
   FOwnsDescriptors := True;
 
   // Class-based storage (DI owns these objects)
-  FSingletons := TCollections.CreateDictionary<string, TObject>;
-  FScopedInstances := TCollections.CreateDictionary<string, TObject>;
+  FSingletons := TDictionary<TServiceType, TObject>.Create(TServiceTypeComparer.Create);
+  FScopedInstances := TDictionary<TServiceType, TObject>.Create(TServiceTypeComparer.Create);
   
   // Interface-based storage (ARC owns these objects)
-  FSingletonInterfaces := TCollections.CreateDictionary<string, IInterface>;
-  FScopedInterfaces := TCollections.CreateDictionary<string, IInterface>;
+  FSingletonInterfaces := TDictionary<TServiceType, IInterface>.Create(TServiceTypeComparer.Create);
+  FScopedInterfaces := TDictionary<TServiceType, IInterface>.Create(TServiceTypeComparer.Create);
   
   FLock := TCriticalSection.Create;
   FIsRootProvider := True;
@@ -286,8 +286,8 @@ begin
   FSingletonInterfaces := nil;
   
   // But they do manage scoped instances
-  FScopedInstances := TCollections.CreateDictionary<string, TObject>;
-  FScopedInterfaces := TCollections.CreateDictionary<string, IInterface>;
+  FScopedInstances := TDictionary<TServiceType, TObject>.Create(TServiceTypeComparer.Create);
+  FScopedInterfaces := TDictionary<TServiceType, IInterface>.Create(TServiceTypeComparer.Create);
   
   FLock := TCriticalSection.Create;
   FIsRootProvider := False;
@@ -296,7 +296,7 @@ end;
 
 destructor TDextServiceProvider.Destroy;
 var
-  Pair: TPair<string, TObject>;
+  Pair: TPair<TServiceType, TObject>;
 begin
   // === SINGLETON CLEANUP (only for root provider) ===
   if FIsRootProvider then
@@ -368,7 +368,6 @@ end;
 function TDextServiceProvider.GetService(const AServiceType: TServiceType): TObject;
 var
   Descriptor: TServiceDescriptor;
-  Key: string;
   Instance: TObject;
   Intf: IInterface;
 begin
@@ -380,8 +379,6 @@ begin
   if not Assigned(Descriptor) then
     Exit(nil);
 
-  Key := AServiceType.ToString;
-
   FLock.Enter;
   try
     case Descriptor.Lifetime of
@@ -392,7 +389,7 @@ begin
           // Determine storage based on registration type (Class vs Interface)
           if Descriptor.IsInterfaceService then
           begin
-            if FSingletonInterfaces.TryGetValue(Key, Intf) then
+            if FSingletonInterfaces.TryGetValue(AServiceType, Intf) then
             begin
                Result := Intf as TObject;
                Exit;
@@ -400,7 +397,7 @@ begin
           end
           else
           begin
-            if FSingletons.TryGetValue(Key, Instance) then
+            if FSingletons.TryGetValue(AServiceType, Instance) then
               Exit(Instance);
           end;
 
@@ -411,10 +408,10 @@ begin
           if Descriptor.IsInterfaceService then
           begin
             if Supports(Instance, IInterface, Intf) then
-              FSingletonInterfaces.Add(Key, Intf);
+              FSingletonInterfaces.Add(AServiceType, Intf);
           end
           else
-            FSingletons.Add(Key, Instance);
+            FSingletons.Add(AServiceType, Instance);
           
           Result := Instance;
         end
@@ -427,7 +424,7 @@ begin
         // Similar check for Scoped
         if Descriptor.IsInterfaceService then
         begin
-          if FScopedInterfaces.TryGetValue(Key, Intf) then
+          if FScopedInterfaces.TryGetValue(AServiceType, Intf) then
           begin
             Result := Intf as TObject;
             Exit;
@@ -435,7 +432,7 @@ begin
         end
         else
         begin
-          if FScopedInstances.TryGetValue(Key, Instance) then
+          if FScopedInstances.TryGetValue(AServiceType, Instance) then
             Exit(Instance);
         end;
 
@@ -444,10 +441,10 @@ begin
         if Descriptor.IsInterfaceService then
         begin
           if Supports(Instance, IInterface, Intf) then
-            FScopedInterfaces.Add(Key, Intf);
+            FScopedInterfaces.Add(AServiceType, Intf);
         end
         else
-          FScopedInstances.Add(Key, Instance);
+          FScopedInstances.Add(AServiceType, Instance);
         Result := Instance;
       end;
 
@@ -464,7 +461,6 @@ end;
 function TDextServiceProvider.GetServiceAsInterface(const AServiceType: TServiceType): IInterface;
 var
   Descriptor: TServiceDescriptor;
-  Key: string;
   Intf: IInterface;
   Obj: TObject;
   ServiceGuid: TGUID;
@@ -478,7 +474,6 @@ begin
   if not Assigned(Descriptor) then
     Exit(nil);
 
-  Key := AServiceType.ToString;
   ServiceGuid := AServiceType.AsInterface;
 
   FLock.Enter;
@@ -488,7 +483,7 @@ begin
       begin
         if FIsRootProvider then
         begin
-          if not FSingletonInterfaces.TryGetValue(Key, Intf) then
+          if not FSingletonInterfaces.TryGetValue(AServiceType, Intf) then
           begin
             Obj := CreateInstance(Descriptor);
             if not IsEqualGUID(ServiceGuid, TGUID.Empty) then
@@ -500,7 +495,7 @@ begin
               Obj.Free;
               raise EDextDIException.CreateFmt('Service %s does not implement IInterface', [Obj.ClassName]);
             end;
-            FSingletonInterfaces.Add(Key, Intf);
+            FSingletonInterfaces.Add(AServiceType, Intf);
             // Note: The object is now owned by ARC via the interface reference
           end;
           Result := Intf;
@@ -511,7 +506,7 @@ begin
 
       TServiceLifetime.Scoped:
       begin
-        if not FScopedInterfaces.TryGetValue(Key, Intf) then
+        if not FScopedInterfaces.TryGetValue(AServiceType, Intf) then
         begin
           Obj := CreateInstance(Descriptor);
           if not IsEqualGUID(ServiceGuid, TGUID.Empty) then
@@ -523,7 +518,7 @@ begin
             Obj.Free;
             raise EDextDIException.CreateFmt('Service %s does not implement IInterface', [Obj.ClassName]);
           end;
-          FScopedInterfaces.Add(Key, Intf);
+          FScopedInterfaces.Add(AServiceType, Intf);
         end;
         Result := Intf;
       end;

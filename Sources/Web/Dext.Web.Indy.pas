@@ -816,6 +816,9 @@ begin
 end;
 
 procedure TDextIndyHttpResponse.Write(const AContent: string);
+var
+  LBytes: TBytes;
+  LStream: TMemoryStream;
 begin
   { In streaming mode the response is delivered via chunked transfer-encoding
     (see BeginStreamingResponse/Flush/EndStreamingResponse). ismBuffering
@@ -833,17 +836,30 @@ begin
       calls accumulate correctly (e.g., TSSEWriter writes 'event:' then 'data:'
       in separate calls). Single-call handlers are unaffected because appending
       to an empty ContentText is equivalent to assignment. }
-    FResponseInfo.ContentText := FResponseInfo.ContentText + AContent;
-    if FResponseInfo.CharSet = '' then
-      FResponseInfo.CharSet := 'utf-8';
-    if FResponseInfo.ContentType = '' then
-      FResponseInfo.ContentType := 'text/plain';
+    if Assigned(FResponseInfo.ContentStream) and (FResponseInfo.ContentStream is TMemoryStream) then
+    begin
+      LBytes := TEncoding.UTF8.GetBytes(AContent);
+      LStream := TMemoryStream(FResponseInfo.ContentStream);
+      LStream.Seek(0, soFromEnd);
+      if Length(LBytes) > 0 then
+        LStream.WriteBuffer(LBytes[0], Length(LBytes));
+      LStream.Position := 0;
+    end
+    else
+    begin
+      FResponseInfo.ContentText := FResponseInfo.ContentText + AContent;
+      if FResponseInfo.CharSet = '' then
+        FResponseInfo.CharSet := 'utf-8';
+      if FResponseInfo.ContentType = '' then
+        FResponseInfo.ContentType := 'text/plain';
+    end;
   end;
 end;
 
 procedure TDextIndyHttpResponse.Write(const ABuffer: TBytes);
 var
   Stream: TMemoryStream;
+  TextBytes: TBytes;
 begin
   if FStreamMode in [ismBuffering, ismChunking] then
   begin
@@ -852,24 +868,51 @@ begin
     Exit;
   end;
 
-  Stream := TMemoryStream.Create;
-  if Length(ABuffer) > 0 then
-    Stream.WriteBuffer(ABuffer[0], Length(ABuffer));
-  Stream.Position := 0;
+  if FResponseInfo.ContentText <> '' then
+  begin
+    Stream := TMemoryStream.Create;
+    TextBytes := TEncoding.UTF8.GetBytes(FResponseInfo.ContentText);
+    if Length(TextBytes) > 0 then
+      Stream.WriteBuffer(TextBytes[0], Length(TextBytes));
+    FResponseInfo.ContentText := '';
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
 
-  FResponseInfo.ContentStream := Stream;
-  FResponseInfo.FreeContentStream := True; // Indy will free the stream
+  if Assigned(FResponseInfo.ContentStream) and (FResponseInfo.ContentStream is TMemoryStream) then
+  begin
+    Stream := TMemoryStream(FResponseInfo.ContentStream);
+    Stream.Seek(0, soFromEnd);
+    if Length(ABuffer) > 0 then
+      Stream.WriteBuffer(ABuffer[0], Length(ABuffer));
+    Stream.Position := 0;
+  end
+  else
+  begin
+    Stream := TMemoryStream.Create;
+    if Length(ABuffer) > 0 then
+      Stream.WriteBuffer(ABuffer[0], Length(ABuffer));
+    Stream.Position := 0;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True; // Indy will free the stream
+  end;
 end;
 
 procedure TDextIndyHttpResponse.Write(const AStream: TStream);
 var
   MemStream: TMemoryStream;
   Raw: TBytes;
+  TextBytes: TBytes;
 begin
   if FStreamMode in [ismBuffering, ismChunking] then
   begin
     MemStream := TMemoryStream.Create;
     try
+      try
+        AStream.Position := 0;
+      except
+        // ignore
+      end;
       MemStream.CopyFrom(AStream, 0);
       SetLength(Raw, MemStream.Size);
       if MemStream.Size > 0 then
@@ -881,11 +924,42 @@ begin
     Exit;
   end;
 
-  MemStream := TMemoryStream.Create;
-  MemStream.CopyFrom(AStream, 0);
-  MemStream.Position := 0;
-  FResponseInfo.ContentStream := MemStream;
-  FResponseInfo.FreeContentStream := True;
+  if FResponseInfo.ContentText <> '' then
+  begin
+    MemStream := TMemoryStream.Create;
+    TextBytes := TEncoding.UTF8.GetBytes(FResponseInfo.ContentText);
+    if Length(TextBytes) > 0 then
+      MemStream.WriteBuffer(TextBytes[0], Length(TextBytes));
+    FResponseInfo.ContentText := '';
+    FResponseInfo.ContentStream := MemStream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+
+  if Assigned(FResponseInfo.ContentStream) and (FResponseInfo.ContentStream is TMemoryStream) then
+  begin
+    MemStream := TMemoryStream(FResponseInfo.ContentStream);
+    MemStream.Seek(0, soFromEnd);
+    try
+      AStream.Position := 0;
+    except
+      // ignore
+    end;
+    MemStream.CopyFrom(AStream, 0);
+    MemStream.Position := 0;
+  end
+  else
+  begin
+    MemStream := TMemoryStream.Create;
+    try
+      AStream.Position := 0;
+    except
+      // ignore
+    end;
+    MemStream.CopyFrom(AStream, 0);
+    MemStream.Position := 0;
+    FResponseInfo.ContentStream := MemStream;
+    FResponseInfo.FreeContentStream := True;
+  end;
 end;
 
 procedure TDextIndyHttpResponse.Json(const AJson: string);

@@ -171,41 +171,41 @@ type
     property Collection: IServiceCollection read FServices;
 
     // Generic Overloads for Interface + Implementation pairs
-    function AddSingleton<TService: IInterface; TImplementation: class>: TDextServices; overload;
-    function AddSingleton<TService: IInterface; TImplementation: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload;
+    function AddSingleton<TService: IInterface; TImplementation: class>: TDextServices; overload; inline;
+    function AddSingleton<TService: IInterface; TImplementation: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload; inline;
     
-    function AddTransient<TService: IInterface; TImplementation: class>: TDextServices; overload;
-    function AddTransient<TService: IInterface; TImplementation: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload;
+    function AddTransient<TService: IInterface; TImplementation: class>: TDextServices; overload; inline;
+    function AddTransient<TService: IInterface; TImplementation: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload; inline;
     
-    function AddScoped<TService: IInterface; TImplementation: class>: TDextServices; overload;
-    function AddScoped<TService: IInterface; TImplementation: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload;
+    function AddScoped<TService: IInterface; TImplementation: class>: TDextServices; overload; inline;
+    function AddScoped<TService: IInterface; TImplementation: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload; inline;
 
     // Generic Overloads for Instance registration
-    function AddSingleton<T: IInterface>(const AInstance: T): TDextServices; overload;
-    function AddSingletonInstance<T: class>(const AInstance: T): TDextServices; overload;
+    function AddSingleton<T: IInterface>(const AInstance: T): TDextServices; overload; inline;
+    function AddSingletonInstance<T: class>(const AInstance: T): TDextServices; overload; inline;
 
     // Generic Overloads for Class-only registration (no interface)
-    function AddSingleton<T: class>: TDextServices; overload;
-    function AddSingleton<T: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload;
+    function AddSingleton<T: class>: TDextServices; overload; inline;
+    function AddSingleton<T: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload; inline;
     
-    function AddTransient<T: class>: TDextServices; overload;
-    function AddTransient<T: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload;
+    function AddTransient<T: class>: TDextServices; overload; inline;
+    function AddTransient<T: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload; inline;
     
-    function AddScoped<T: class>: TDextServices; overload;
-    function AddScoped<T: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload;
+    function AddScoped<T: class>: TDextServices; overload; inline;
+    function AddScoped<T: class>(const AFactory: TFunc<IServiceProvider, TObject>): TDextServices; overload; inline;
 
     // Non-generic forwarding
-    function AddSingleton(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload;
-    function AddTransient(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload;
-    function AddScoped(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload;
+    function AddSingleton(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload; inline;
+    function AddTransient(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload; inline;
+    function AddScoped(const AServiceType: TServiceType; const AImplementationClass: TClass; const AFactory: TFunc<IServiceProvider, TObject> = nil): TDextServices; overload; inline;
 
-    function BuildServiceProvider: IServiceProvider;
+    function BuildServiceProvider: IServiceProvider; inline;
 
     // Resolution Extensions (v2)
-    class function GetServiceObject<T: class>(const AProvider: IServiceProvider): T; static;
-    class function GetRequiredServiceObject<T: class>(const AProvider: IServiceProvider): T; static;
-    class function GetService<T: IInterface>(const AProvider: IServiceProvider): T; static;
-    class function GetRequiredService<T: IInterface>(const AProvider: IServiceProvider): T; static;
+    class function GetServiceObject<T: class>(const AProvider: IServiceProvider): T; static; inline;
+    class function GetRequiredServiceObject<T: class>(const AProvider: IServiceProvider): T; static; inline;
+    class function GetService<T: IInterface>(const AProvider: IServiceProvider): T; static; inline;
+    class function GetRequiredService<T: IInterface>(const AProvider: IServiceProvider): T; static; inline;
   end;
 
   TDextDIFactory = class

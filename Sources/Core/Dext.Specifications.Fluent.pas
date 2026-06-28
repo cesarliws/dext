@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -45,17 +45,17 @@ type
     function GetExpression: IExpression;
     function SpecObj: TSpecification<T>; inline;
   public
-    class operator Implicit(const Value: TSpecificationBuilder<T>): ISpecification<T>;
+    class operator Implicit(const Value: TSpecificationBuilder<T>): ISpecification<T>; inline;
 
     // Fluent methods
-    function Where(const AExpression: IExpression): TSpecificationBuilder<T>;
-    function OrderBy(const AProp: TPropExpression; AAscending: Boolean = True): TSpecificationBuilder<T>; overload;
-    function OrderBy(const AOrderBy: IOrderBy): TSpecificationBuilder<T>; overload;
-    function Skip(ACount: Integer): TSpecificationBuilder<T>;
-    function Take(ACount: Integer): TSpecificationBuilder<T>;
-    function Include(const AProp: TPropExpression): TSpecificationBuilder<T>; overload;
+    function Where(const AExpression: IExpression): TSpecificationBuilder<T>; inline;
+    function OrderBy(const AProp: TPropExpression; AAscending: Boolean = True): TSpecificationBuilder<T>; overload; inline;
+    function OrderBy(const AOrderBy: IOrderBy): TSpecificationBuilder<T>; overload; inline;
+    function Skip(ACount: Integer): TSpecificationBuilder<T>; inline;
+    function Take(ACount: Integer): TSpecificationBuilder<T>; inline;
+    function Include(const AProp: TPropExpression): TSpecificationBuilder<T>; overload; inline;
     function Include(const AProps: array of TPropExpression): TSpecificationBuilder<T>; overload;
-    function Select(const AProp: TPropExpression): TSpecificationBuilder<T>; overload;
+    function Select(const AProp: TPropExpression): TSpecificationBuilder<T>; overload; inline;
     function Select(const AProps: array of TPropExpression): TSpecificationBuilder<T>; overload;
     function Select(const AColumns: TArray<string>): TSpecificationBuilder<T>; overload;
     
@@ -67,9 +67,9 @@ type
   ///   Static factory for creating specification builders
   /// </summary>
   Specification = record
-    class function Where<T: class>(const AExpression: IExpression): TSpecificationBuilder<T>; static;
-    class function OrderBy<T: class>(const APropertyName: string; AAscending: Boolean = True): TSpecificationBuilder<T>; static;
-    class function All<T: class>: TSpecificationBuilder<T>; static;
+    class function Where<T: class>(const AExpression: IExpression): TSpecificationBuilder<T>; static; inline;
+    class function OrderBy<T: class>(const APropertyName: string; AAscending: Boolean = True): TSpecificationBuilder<T>; static; inline;
+    class function All<T: class>: TSpecificationBuilder<T>; static; inline;
   end;
 
 implementation

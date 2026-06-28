@@ -40,6 +40,9 @@ type
 
     [Test('Should stream response using chunked transfer encoding and SSE pattern')]
     procedure TestChunkedResponseAndSSE;
+
+    [Test('Should return binary response correctly without hanging')]
+    procedure TestBinaryResponseStream;
   end;
 
 implementation
@@ -303,6 +306,62 @@ begin
     Should(Resp.StatusCode).Be(200);
     Should(Resp.ContentString).Be('event: test'#10'data: hello'#10#10'event: test'#10'data: world'#10#10);
     Should(Resp.GetHeader('Transfer-Encoding')).Be('chunked');
+  finally
+    Host.Stop;
+  end;
+end;
+
+procedure TWebFeaturesTests.TestBinaryResponseStream;
+var
+  Builder: IWebHostBuilder;
+  Host: IWebHost;
+  Resp: IRestResponse;
+  BinaryData: TBytes;
+  I: Integer;
+begin
+  SetLength(BinaryData, 32000);
+  for I := 0 to High(BinaryData) do
+    BinaryData[I] := I mod 256;
+
+  Builder := TWebHost.CreateDefaultBuilder
+    .UseUrls('http://localhost:0');
+
+  Builder.Configure(procedure(App: IApplicationBuilder)
+    begin
+      App.MapGet('/binary-test',
+        procedure(Ctx: IHttpContext)
+        var
+          Chunk1, Chunk2: TBytes;
+        begin
+          SetLength(Chunk1, 16000);
+          Move(BinaryData[0], Chunk1[0], 16000);
+          SetLength(Chunk2, 16000);
+          Move(BinaryData[16000], Chunk2[0], 16000);
+          
+          Ctx.Response.SetContentType('application/octet-stream');
+          Ctx.Response.SetContentLength(Length(BinaryData));
+          Ctx.Response.Write(Chunk1);
+          Ctx.Response.Write(Chunk2);
+        end
+      );
+    end);
+
+  Host := Builder.Build;
+  Host.Start;
+  try
+    Resp := RestClient('http://localhost:' + Host.Port.ToString)
+      .Get('/binary-test')
+      .Await;
+      
+    Should(Resp.StatusCode).Be(200);
+    Should(Resp.ContentStream.Size).Be(Length(BinaryData));
+    
+    var ReceivedBytes: TBytes;
+    SetLength(ReceivedBytes, Resp.ContentStream.Size);
+    Resp.ContentStream.Position := 0;
+    if Length(ReceivedBytes) > 0 then
+      Resp.ContentStream.ReadBuffer(ReceivedBytes[0], Length(ReceivedBytes));
+    Should(CompareMem(@ReceivedBytes[0], @BinaryData[0], Length(BinaryData))).BeTrue;
   finally
     Host.Stop;
   end;

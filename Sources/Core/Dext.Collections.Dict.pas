@@ -162,6 +162,8 @@ type
     constructor Create(AOwnsValues: Boolean; ACapacity: Integer = 0); overload;
     /// <summary>Creates the dictionary with advanced options for case sensitivity and capacity.</summary>
     constructor Create(AIgnoreCase: Boolean; AOwnsValues: Boolean; ACapacity: Integer); overload;
+    /// <summary>Creates the dictionary with a custom equality comparer.</summary>
+    constructor Create(const AComparer: IEqualityComparer<K>; ACapacity: Integer = 0); overload;
     destructor Destroy; override;
 
     /// <summary>Returns a Record-based enumerator for high performance in for-in loops.</summary>
@@ -313,6 +315,35 @@ end;
 constructor TDictionary<K, V>.Create(AOwnsValues: Boolean; ACapacity: Integer);
 begin
   Create(False, AOwnsValues, ACapacity);
+end;
+
+constructor TDictionary<K, V>.Create(const AComparer: IEqualityComparer<K>; ACapacity: Integer);
+var
+  HF: TRawHashFunc;
+  EF: TRawEqualFunc;
+  Comp: IEqualityComparer<K>;
+begin
+  inherited Create;
+  FOwnsValues := False;
+  Comp := AComparer;
+  if Comp = nil then
+    Comp := TEqualityComparer<K>.Default;
+
+  HF := function(Key: Pointer; KeySize: Integer): Cardinal
+        begin
+          Result := Cardinal(Comp.GetHashCode(P_K(Key)^));
+        end;
+  EF := function(A, B: Pointer; KeySize: Integer): Boolean
+        begin
+          Result := Comp.Equals(P_K(A)^, P_K(B)^);
+        end;
+
+  FCore := TRawDictionary.Create(
+    SizeOf(K), SizeOf(V),
+    System.TypeInfo(K), System.TypeInfo(V),
+    HF, EF,
+    ACapacity
+  );
 end;
 
 constructor TDictionary<K, V>.Create(AIgnoreCase: Boolean; AOwnsValues: Boolean; ACapacity: Integer);

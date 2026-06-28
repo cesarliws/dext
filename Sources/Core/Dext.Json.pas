@@ -256,6 +256,28 @@ type
     /// <summary>PTypeInfo of the property value type (after SmartProp unwrap).</summary>
     ValueTypeInfo: PTypeInfo;
   end;
+  PSerializationPlanItem = ^TSerializationPlanItem;
+
+  TRecordPlanItem = record
+    OriginalFieldName: string;
+    CustomName: string;
+    ResolvedNames: array[TCaseStyle, Boolean] of string;
+    Field: TRttiField;
+    Kind: TSerializeKind;
+    IsSmartProp: Boolean;
+    HasCustomFormat: Boolean;
+    CustomFormat: string;
+    ForceString: Boolean;
+    ForceNumber: Boolean;
+    FieldTypeInfo: PTypeInfo;
+  end;
+  PRecordPlanItem = ^TRecordPlanItem;
+
+  TRecordPlan = record
+    Items: TArray<TRecordPlanItem>;
+    Count: Integer;
+  end;
+  PRecordPlan = ^TRecordPlan;
 
   /// <summary>
   ///   Complete serialization plan for a class type.
@@ -275,12 +297,16 @@ type
   private
     class var FPlanCache: TObject;  // TObjectDictionary<PTypeInfo, TObject> wrapping TSerializationPlan
     class var FPlanLock: TObject;   // TCriticalSection for thread-safe plan creation
+    class var FRecordPlanCache: TObject; // TObjectDictionary<PTypeInfo, TObject> wrapping TRecordPlan
+    class var FRecordPlanLock: TObject;  // TCriticalSection for thread-safe record plan creation
     class constructor Create;
     class destructor Destroy;
   private
     FSettings: TJsonSettings;
     function CreateInstanceForDeserialization(AType: PTypeInfo): TValue;
     function GetOrBuildPlan(AType: PTypeInfo): PSerializationPlan;
+    function GetOrBuildRecordPlan(AType: PTypeInfo): PRecordPlan;
+    function ResolveFieldName(Item: PRecordPlanItem): string;
     function SerializeObjectWithPlan(Obj: TObject; const Plan: TSerializationPlan): IDextJsonObject;
   protected
     function GetFieldName(AField: TRttiField): string;
@@ -408,6 +434,23 @@ uses
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
   Dext.Json.Driver.DextJsonDataObjects; // Default driver
+
+type
+  TRecordCacheEntry = record
+    TypeInfo: PTypeInfo;
+    Plan: PRecordPlan;
+  end;
+
+  TClassCacheEntry = record
+    TypeInfo: PTypeInfo;
+    Plan: PSerializationPlan;
+  end;
+
+var
+  GRecordPlanCache: array[0..15] of TRecordCacheEntry;
+  GClassPlanCache: array[0..15] of TClassCacheEntry;
+  GRecordCacheIdx: Integer = 0;
+  GClassCacheIdx: Integer = 0;
 
 const
   ValueField = 'value';
@@ -687,16 +730,25 @@ type
     Plan: TSerializationPlan;
   end;
 
+  TRecordPlanHolder = class
+  public
+    Plan: TRecordPlan;
+  end;
+
 class constructor TDextSerializer.Create;
 begin
   FPlanCache := TObjectDictionary<PTypeInfo, TSerializationPlanHolder>.Create([doOwnsValues]);
   FPlanLock := TCriticalSection.Create;
+  FRecordPlanCache := TObjectDictionary<PTypeInfo, TRecordPlanHolder>.Create([doOwnsValues]);
+  FRecordPlanLock := TCriticalSection.Create;
 end;
 
 class destructor TDextSerializer.Destroy;
 begin
   FreeAndNil(FPlanCache);
   FreeAndNil(FPlanLock);
+  FreeAndNil(FRecordPlanCache);
+  FreeAndNil(FRecordPlanLock);
 end;
 
 function TDextSerializer.GetOrBuildPlan(AType: PTypeInfo): PSerializationPlan;
@@ -714,7 +766,15 @@ var
   LTypeInfo: PTypeInfo;
   LTypeKind: TTypeKind;
   Item: TSerializationPlanItem;
+  Idx: Integer;
 begin
+  // Lock-free slot cache lookup
+  for I := 0 to 15 do
+  begin
+    if GClassPlanCache[I].TypeInfo = AType then
+      Exit(GClassPlanCache[I].Plan);
+  end;
+
   Cache := TObjectDictionary<PTypeInfo, TSerializationPlanHolder>(FPlanCache);
   Lock := TCriticalSection(FPlanLock);
 
@@ -724,6 +784,12 @@ begin
     if Cache.TryGetValue(AType, Holder) then
     begin
       Result := @Holder.Plan;
+      
+      // Update lock-free cache slot
+      Idx := TInterlocked.Increment(GClassCacheIdx) and 15;
+      GClassPlanCache[Idx].TypeInfo := AType;
+      GClassPlanCache[Idx].Plan := Result;
+      
       Exit;
     end;
   finally
@@ -883,12 +949,240 @@ begin
   end;
 
   Result := @Holder.Plan;
+  Idx := TInterlocked.Increment(GClassCacheIdx) and 15;
+  GClassPlanCache[Idx].TypeInfo := AType;
+  GClassPlanCache[Idx].Plan := Result;
+end;
+
+function TDextSerializer.ResolveFieldName(Item: PRecordPlanItem): string;
+begin
+  if Item^.CustomName <> '' then
+    Exit(Item^.CustomName);
+
+  Result := Item^.ResolvedNames[FSettings.CaseStyle, FSettings.FSmartRecordMapping];
+end;
+
+function TDextSerializer.GetOrBuildRecordPlan(AType: PTypeInfo): PRecordPlan;
+var
+  Cache: TObjectDictionary<PTypeInfo, TRecordPlanHolder>;
+  Lock: TCriticalSection;
+  Holder: TRecordPlanHolder;
+  RttiType: TRttiType;
+  Fields: TArray<TRttiField>;
+  Field: TRttiField;
+  Attr: TCustomAttribute;
+  I, ItemCount: Integer;
+  LTypeInfo: PTypeInfo;
+  LTypeKind: TTypeKind;
+  Item: TRecordPlanItem;
+  ShouldSkip: Boolean;
+  Style: TCaseStyle;
+  SmartMap: Boolean;
+  NameStr: string;
+  Idx: Integer;
+begin
+  // Lock-free slot cache lookup
+  for I := 0 to 15 do
+  begin
+    if GRecordPlanCache[I].TypeInfo = AType then
+      Exit(GRecordPlanCache[I].Plan);
+  end;
+
+  Cache := TObjectDictionary<PTypeInfo, TRecordPlanHolder>(FRecordPlanCache);
+  Lock := TCriticalSection(FRecordPlanLock);
+
+  // Fast path
+  Lock.Enter;
+  try
+    if Cache.TryGetValue(AType, Holder) then
+    begin
+      Result := @Holder.Plan;
+      
+      // Update lock-free cache slot
+      Idx := TInterlocked.Increment(GRecordCacheIdx) and 15;
+      GRecordPlanCache[Idx].TypeInfo := AType;
+      GRecordPlanCache[Idx].Plan := Result;
+      
+      Exit;
+    end;
+  finally
+    Lock.Leave;
+  end;
+
+  // Slow path
+  RttiType := TReflection.GetMetadata(AType).RttiType;
+  Fields := RttiType.GetFields;
+
+  Holder := TRecordPlanHolder.Create;
+  SetLength(Holder.Plan.Items, Length(Fields));
+  ItemCount := 0;
+
+  for I := 0 to High(Fields) do
+  begin
+    Field := Fields[I];
+
+    // Check if has JsonIgnore attribute
+    ShouldSkip := False;
+    for Attr in Field.GetAttributes do
+    begin
+      if (Attr is JsonIgnoreAttribute) or (Attr.ClassName = 'NotMappedAttribute') then
+      begin
+        ShouldSkip := True;
+        Break;
+      end;
+    end;
+    if ShouldSkip then
+      Continue;
+
+    Item := Default(TRecordPlanItem);
+    Item.OriginalFieldName := Field.Name;
+    Item.Field := Field;
+    Item.CustomName := '';
+    Item.ForceString := False;
+    Item.ForceNumber := False;
+    Item.HasCustomFormat := False;
+    Item.CustomFormat := '';
+
+    for Attr in Field.GetAttributes do
+    begin
+      if Attr is JsonNameAttribute then
+      begin
+        Item.CustomName := JsonNameAttribute(Attr).Name;
+      end
+      else if Attr is JsonFormatAttribute then
+      begin
+        Item.HasCustomFormat := True;
+        Item.CustomFormat := JsonFormatAttribute(Attr).Format;
+      end
+      else if Attr is JsonStringAttribute then
+      begin
+        Item.ForceString := True;
+      end
+      else if Attr is JsonNumberAttribute then
+      begin
+        Item.ForceNumber := True;
+      end;
+    end;
+
+    // Pre-resolve names for all case styles and smart mapping flags
+    if Item.CustomName = '' then
+    begin
+      for Style := Low(TCaseStyle) to High(TCaseStyle) do
+      begin
+        for SmartMap := False to True do
+        begin
+          NameStr := Item.OriginalFieldName;
+          if SmartMap and (NameStr.Length > 1) and (NameStr.Chars[0] = 'F') then
+            NameStr := NameStr.Substring(1);
+          
+          Item.ResolvedNames[Style, SmartMap] := TJsonUtils.ApplyCaseStyle(NameStr, Style);
+        end;
+      end;
+    end;
+
+    if Field.FieldType <> nil then
+    begin
+      LTypeInfo := Field.FieldType.Handle;
+      LTypeKind := Field.FieldType.TypeKind;
+    end
+    else
+    begin
+      LTypeInfo := nil;
+      LTypeKind := tkUnknown;
+    end;
+
+    // Check for SmartProp
+    Item.IsSmartProp := (LTypeKind = tkRecord) and (LTypeInfo <> nil) and
+                         TReflection.IsSmartProp(LTypeInfo);
+
+    if Item.IsSmartProp then
+    begin
+      LTypeInfo := TReflection.GetUnderlyingType(LTypeInfo);
+      if LTypeInfo <> nil then
+        LTypeKind := LTypeInfo.Kind
+      else
+        LTypeKind := tkUnknown;
+    end;
+
+    Item.FieldTypeInfo := LTypeInfo;
+
+    // Classify serialization kind
+    case LTypeKind of
+      tkInteger, tkInt64:
+        Item.Kind := skInteger;
+      tkFloat:
+        begin
+          if (LTypeInfo = TypeInfo(TDateTime)) or (LTypeInfo = TypeInfo(TDate)) or
+             (LTypeInfo = TypeInfo(TTime)) then
+            Item.Kind := skDateTime
+          else
+            Item.Kind := skFloat;
+        end;
+      tkString, tkLString, tkWString, tkUString:
+        Item.Kind := skString;
+      tkEnumeration:
+        begin
+          if LTypeInfo = TypeInfo(Boolean) then
+            Item.Kind := skBoolean
+          else
+            Item.Kind := skEnumAsString;
+        end;
+      tkRecord:
+        begin
+          if LTypeInfo = TypeInfo(TGUID) then
+            Item.Kind := skRecordGUID
+          else if LTypeInfo = TypeInfo(TUUID) then
+            Item.Kind := skRecordUUID
+          else
+            Item.Kind := skRecord;
+        end;
+      tkClass, tkInterface:
+        begin
+          if IsListType(LTypeInfo) then
+            Item.Kind := skList
+          else if (LTypeKind = tkClass) then
+            Item.Kind := skClass
+          else
+            Item.Kind := skInterface;
+        end;
+      tkDynArray:
+        Item.Kind := skDynArray;
+    else
+      Item.Kind := skUnknown;
+    end;
+
+    Holder.Plan.Items[ItemCount] := Item;
+    Inc(ItemCount);
+  end;
+
+  Holder.Plan.Count := ItemCount;
+  SetLength(Holder.Plan.Items, ItemCount);
+
+  // Store in cache
+  Lock.Enter;
+  try
+    if not Cache.ContainsKey(AType) then
+      Cache.Add(AType, Holder)
+    else
+    begin
+      // Another thread built it first
+      Holder.Free;
+      Cache.TryGetValue(AType, Holder);
+    end;
+  finally
+    Lock.Leave;
+  end;
+
+  Result := @Holder.Plan;
+  Idx := TInterlocked.Increment(GRecordCacheIdx) and 15;
+  GRecordPlanCache[Idx].TypeInfo := AType;
+  GRecordPlanCache[Idx].Plan := Result;
 end;
 
 function TDextSerializer.SerializeObjectWithPlan(Obj: TObject; const Plan: TSerializationPlan): IDextJsonObject;
 var
   I: Integer;
-  Item: TSerializationPlanItem;
+  Item: PSerializationPlanItem;
   PropValue: TValue;
   Unwrapped: TValue;
 begin
@@ -897,16 +1191,16 @@ begin
 
   for I := 0 to Plan.Count - 1 do
   begin
-    Item := Plan.Items[I];
+    Item := @Plan.Items[I];
 
     // Get property value (handler is faster than RTTI GetProperty)
-    if Item.Handler <> nil then
-      PropValue := (Item.Handler as IPropertyHandler).GetValue(Pointer(Obj))
+    if Item^.Handler <> nil then
+      PropValue := (Item^.Handler as IPropertyHandler).GetValue(Pointer(Obj))
     else
-      PropValue := Item.Prop.GetValue(Pointer(Obj));
+      PropValue := Item^.Prop.GetValue(Pointer(Obj));
 
     // Unwrap SmartProp if needed
-    if Item.IsSmartProp then
+    if Item^.IsSmartProp then
     begin
       if TReflection.TryUnwrapProp(PropValue, Unwrapped) then
         PropValue := Unwrapped;
@@ -916,45 +1210,45 @@ begin
     if PropValue.IsEmpty then
     begin
       if not FSettings.FIgnoreNullValues then
-        Result.SetNull(Item.JsonName);
+        Result.SetNull(Item^.JsonName);
       Continue;
     end;
 
     // Dispatch based on pre-computed kind
-    case Item.Kind of
+    case Item^.Kind of
       skInteger:
-        Result.SetInt64(Item.JsonName, PropValue.AsInt64);
+        Result.SetInt64(Item^.JsonName, PropValue.AsInt64);
       skFloat:
-        Result.SetDouble(Item.JsonName, PropValue.AsExtended);
+        Result.SetDouble(Item^.JsonName, PropValue.AsExtended);
       skDateTime:
-        Result.SetString(Item.JsonName, FormatDateTime(FSettings.DateFormat, PropValue.AsExtended));
+        Result.SetString(Item^.JsonName, FormatDateTime(FSettings.DateFormat, PropValue.AsExtended));
       skString:
-        Result.SetString(Item.JsonName, PropValue.AsString);
+        Result.SetString(Item^.JsonName, PropValue.AsString);
       skBoolean:
-        Result.SetBoolean(Item.JsonName, PropValue.AsBoolean);
+        Result.SetBoolean(Item^.JsonName, PropValue.AsBoolean);
       skEnumAsString:
-        Result.SetString(Item.JsonName, GetEnumName(Item.ValueTypeInfo, PropValue.AsOrdinal));
+        Result.SetString(Item^.JsonName, GetEnumName(Item^.ValueTypeInfo, PropValue.AsOrdinal));
       skEnumAsNumber:
-        Result.SetInt64(Item.JsonName, PropValue.AsOrdinal);
+        Result.SetInt64(Item^.JsonName, PropValue.AsOrdinal);
       skRecordGUID:
-        Result.SetString(Item.JsonName, GetGUIDString(PropValue));
+        Result.SetString(Item^.JsonName, GetGUIDString(PropValue));
       skRecordUUID:
-        Result.SetString(Item.JsonName, GetUUIDString(PropValue));
+        Result.SetString(Item^.JsonName, GetUUIDString(PropValue));
       skRecord:
-        Result.SetObject(Item.JsonName, SerializeRecord(PropValue));
+        Result.SetObject(Item^.JsonName, SerializeRecord(PropValue));
       skClass:
         begin
           if PropValue.AsObject = nil then
-            Result.SetNull(Item.JsonName)
+            Result.SetNull(Item^.JsonName)
           else
-            Result.SetObject(Item.JsonName, SerializeObject(PropValue));
+            Result.SetObject(Item^.JsonName, SerializeObject(PropValue));
         end;
       skList:
-        Result.SetArray(Item.JsonName, SerializeList(PropValue));
+        Result.SetArray(Item^.JsonName, SerializeList(PropValue));
       skDynArray:
-        Result.SetArray(Item.JsonName, SerializeArray(PropValue));
+        Result.SetArray(Item^.JsonName, SerializeArray(PropValue));
       skInterface:
-        Result.SetNull(Item.JsonName);
+        Result.SetNull(Item^.JsonName);
     end;
   end;
 end;
@@ -1174,13 +1468,15 @@ end;
 
 function TDextSerializer.DeserializeRecord(AJson: IDextJsonObject; AType: PTypeInfo): TValue;
 var
-  Field: TRttiField;
-  FieldName: string;
-  I: Integer;
+  Plan: PRecordPlan;
+  I, J: Integer;
+  Item: PRecordPlanItem;
   Node: IDextJsonNode;
-  RttiType: TRttiType;
   Val: TValue;
   FieldPtr: ^IInterface;
+  ActualName: string;
+  LowerFieldName: string;
+  FieldName: string;
 begin
   if AType = TypeInfo(TGUID) then
     Exit(TValue.From<TGUID>(StringToGUID(AJson.GetString(ValueField))));
@@ -1188,24 +1484,25 @@ begin
     Exit(TValue.From<TUUID>(TUUID.FromString(AJson.GetString(ValueField))));
 
   TValue.Make(nil, AType, Result);
-  RttiType := TReflection.GetMetadata(AType).RttiType;
+  Plan := GetOrBuildRecordPlan(AType);
 
-  for Field in RttiType.GetFields do
+  for I := 0 to Plan.Count - 1 do
   begin
-    if ShouldSkipField(Field, Result) then
-      Continue;
+    Item := @Plan.Items[I];
 
-    FieldName := GetFieldName(Field);
+    FieldName := ResolveFieldName(Item);
     Node := AJson.GetNode(FieldName);
 
     // Case-insensitive fallback for records:
     if ((Node = nil) or Node.IsNull) and (FSettings.FCaseInsensitive or FSettings.FSmartRecordMapping) then
     begin
-      for I := 0 to AJson.GetCount - 1 do
+      LowerFieldName := LowerCase(FieldName);
+      for J := 0 to AJson.GetCount - 1 do
       begin
-        if SameText(AJson.GetName(I), FieldName) then
+        ActualName := AJson.GetName(J);
+        if LowerCase(ActualName) = LowerFieldName then
         begin
-          Node := AJson.GetNode(AJson.GetName(I));
+          Node := AJson.GetNode(ActualName);
           Break;
         end;
       end;
@@ -1220,9 +1517,9 @@ begin
       jntString: Val := TValue.From<string>(Node.AsString);
       jntNumber:
         begin
-          if (Field.FieldType.Handle = TypeInfo(Integer)) then
+          if (Item^.FieldTypeInfo = TypeInfo(Integer)) then
             Val := TValue.From<Integer>(Node.AsInteger)
-          else if (Field.FieldType.Handle = TypeInfo(Int64)) then
+          else if (Item^.FieldTypeInfo = TypeInfo(Int64)) then
             Val := TValue.From<Int64>(Node.AsInt64)
           else
             Val := TValue.From<Double>(Node.AsDouble);
@@ -1231,21 +1528,21 @@ begin
       jntNull: Val := TValue.Empty;
       jntObject:
         begin
-          if (Field.FieldType.TypeKind = tkClass) then
-            Val := DeserializeObject(Node as IDextJsonObject, Field.FieldType.Handle)
-          else if (Field.FieldType.TypeKind = tkRecord) then
-            Val := DeserializeRecord(Node as IDextJsonObject, Field.FieldType.Handle)
-          else if (Field.FieldType.TypeKind = tkInterface) then
-            Val := DeserializeObject(Node as IDextJsonObject, Field.FieldType.Handle)
+          if (Item^.Kind = skClass) or (Item^.Kind = skList) then
+            Val := DeserializeObject(Node as IDextJsonObject, Item^.FieldTypeInfo)
+          else if (Item^.Kind = skRecord) then
+            Val := DeserializeRecord(Node as IDextJsonObject, Item^.FieldTypeInfo)
+          else if (Item^.Kind = skInterface) then
+            Val := DeserializeObject(Node as IDextJsonObject, Item^.FieldTypeInfo)
           else
             Val := TValue.Empty;
         end;
       jntArray:
         begin
-          if IsArrayType(Field.FieldType.Handle) then
-            Val := DeserializeArray(Node as IDextJsonArray, Field.FieldType.Handle)
-          else if IsListType(Field.FieldType.Handle) then
-            Val := DeserializeList(Node as IDextJsonArray, Field.FieldType.Handle)
+          if IsArrayType(Item^.FieldTypeInfo) then
+            Val := DeserializeArray(Node as IDextJsonArray, Item^.FieldTypeInfo)
+          else if IsListType(Item^.FieldTypeInfo) then
+            Val := DeserializeList(Node as IDextJsonArray, Item^.FieldTypeInfo)
           else
             Val := TValue.Empty;
         end;
@@ -1254,13 +1551,13 @@ begin
 
     if not Val.IsEmpty then
     begin
-      if (Field.FieldType <> nil) and (Field.FieldType.TypeKind = tkInterface) then
+      if (Item^.Kind = skInterface) then
       begin
-        FieldPtr := Pointer(PByte(Result.GetReferenceToRawData) + Field.Offset);
+        FieldPtr := Pointer(PByte(Result.GetReferenceToRawData) + Item^.Field.Offset);
         FieldPtr^ := Val.AsInterface;
       end
       else
-        TReflection.SetValue(Result.GetReferenceToRawData, Field, Val);
+        TReflection.SetValue(Result.GetReferenceToRawData, Item^.Field, Val);
     end;
   end;
 end;
@@ -1434,18 +1731,14 @@ end;
 
 function TDextSerializer.SerializeRecord(const AValue: TValue): IDextJsonObject;
 var
-  Attr: TCustomAttribute;
-  CustomFormat: string;
-  Field: TRttiField;
-  FieldName: string;
+  Plan: PRecordPlan;
+  I: Integer;
+  Item: PRecordPlanItem;
   FieldValue: TValue;
-  ForceNumber: Boolean;
-  ForceString: Boolean;
-  HasCustomFormat: Boolean;
+  Unwrapped: TValue;
   NestedRecord: IDextJsonObject;
   NumValue: Double;
-  RttiType: TRttiType;
-  Unwrapped: TValue;
+  FieldName: string;
 begin
   if AValue.TypeInfo = TypeInfo(TGUID) then
   begin
@@ -1462,19 +1755,17 @@ begin
   end;
 
   Result := TDextJson.Provider.CreateObject;
-  RttiType := TReflection.GetMetadata(AValue.TypeInfo).RttiType;
+  Plan := GetOrBuildRecordPlan(AValue.TypeInfo);
 
-  for Field in RttiType.GetFields do
+  for I := 0 to Plan.Count - 1 do
   begin
-    if ShouldSkipField(Field, AValue) then
-      Continue;
+    Item := @Plan.Items[I];
 
-    FieldName := GetFieldName(Field);
-    FieldValue := Field.GetValue(AValue.GetReferenceToRawData);
+    FieldName := ResolveFieldName(Item);
+    FieldValue := Item^.Field.GetValue(AValue.GetReferenceToRawData);
 
     // Smart Properties Support: Unwrap Prop<T>
-    if (FieldValue.Kind = tkRecord) and (FieldValue.TypeInfo <> nil) and
-       TReflection.IsSmartProp(FieldValue.TypeInfo) then
+    if Item^.IsSmartProp then
     begin
       if TReflection.TryUnwrapProp(FieldValue, Unwrapped) then
         FieldValue := Unwrapped;
@@ -1488,97 +1779,53 @@ begin
       Continue;
     end;
 
-    HasCustomFormat := False;
-    CustomFormat := '';
-
-    for Attr in Field.GetAttributes do
-    begin
-      if Attr is JsonFormatAttribute then
-      begin
-        HasCustomFormat := True;
-        CustomFormat := JsonFormatAttribute(Attr).Format;
-        Break;
-      end;
-    end;
-
-    if (Field.FieldType.Handle = TypeInfo(TGUID)) or (FieldValue.TypeInfo = TypeInfo(TGUID)) then
+    if (Item^.FieldTypeInfo = TypeInfo(TGUID)) then
     begin
       Result.SetString(FieldName, GetGUIDString(FieldValue));
       Continue;
     end;
 
-    if (Field.FieldType.Handle = TypeInfo(TUUID)) or (FieldValue.TypeInfo = TypeInfo(TUUID)) then
+    if (Item^.FieldTypeInfo = TypeInfo(TUUID)) then
     begin
       Result.SetString(FieldName, GetUUIDString(FieldValue));
       Continue;
     end;
 
-    if (FieldValue.TypeInfo.Kind = tkEnumeration) and
-       (FieldValue.TypeInfo <> TypeInfo(Boolean)) then
-    begin
-      case FSettings.EnumStyle of
-        TEnumStyle.AsString:
-          Result.SetString(FieldName, GetEnumName(FieldValue.TypeInfo, FieldValue.AsOrdinal));
-        TEnumStyle.AsNumber:
-          Result.SetInteger(FieldName, FieldValue.AsOrdinal);
-      end;
-      Continue;
-    end;
-
-    case FieldValue.TypeInfo.Kind of
-      tkInteger, tkInt64:
+    case Item^.Kind of
+      skInteger:
         begin
-          ForceString := False;
-          for Attr in Field.GetAttributes do
-            if Attr is JsonStringAttribute then
-              ForceString := True;
-
-          if ForceString then
+          if Item^.ForceString then
             Result.SetString(FieldName, IntToJsonString(FieldValue.AsInt64))
           else
             Result.SetInt64(FieldName, FieldValue.AsInt64);
         end;
 
-      tkFloat:
+      skDateTime:
         begin
-        if (FieldValue.TypeInfo = TypeInfo(TDateTime)) or
-           (FieldValue.TypeInfo = TypeInfo(TDate)) or
-           (FieldValue.TypeInfo = TypeInfo(TTime)) then
-          begin
-            if HasCustomFormat then
-              Result.SetString(FieldName, FormatDateTime(CustomFormat, FieldValue.AsExtended))
-            else
-              case FSettings.DateFormatStyle of
-                TDateFormat.ISO8601:
-                  Result.SetString(FieldName, FormatDateTime(FSettings.DateFormat, FieldValue.AsExtended));
-                TDateFormat.UnixTimestamp:
-                  Result.SetInt64(FieldName, DateTimeToUnix(FieldValue.AsExtended));
-                TDateFormat.CustomFormat:
-                  Result.SetString(FieldName, FormatDateTime(FSettings.DateFormat, FieldValue.AsExtended));
-              end;
-          end
+          if Item^.HasCustomFormat then
+            Result.SetString(FieldName, FormatDateTime(Item^.CustomFormat, FieldValue.AsExtended))
           else
-          begin
-            ForceString := False;
-            for Attr in Field.GetAttributes do
-              if Attr is JsonStringAttribute then
-                ForceString := True;
-
-            if ForceString then
-              Result.SetString(FieldName, FloatToJsonString(FieldValue.AsExtended))
-            else
-              Result.SetDouble(FieldName, FieldValue.AsExtended);
-          end;
+            case FSettings.DateFormatStyle of
+              TDateFormat.ISO8601:
+                Result.SetString(FieldName, FormatDateTime(FSettings.DateFormat, FieldValue.AsExtended));
+              TDateFormat.UnixTimestamp:
+                Result.SetInt64(FieldName, DateTimeToUnix(FieldValue.AsExtended));
+              TDateFormat.CustomFormat:
+                Result.SetString(FieldName, FormatDateTime(FSettings.DateFormat, FieldValue.AsExtended));
+            end;
         end;
 
-      tkString, tkLString, tkWString, tkUString:
+      skFloat:
         begin
-          ForceNumber := False;
-          for Attr in Field.GetAttributes do
-            if Attr is JsonNumberAttribute then
-              ForceNumber := True;
+          if Item^.ForceString then
+            Result.SetString(FieldName, FloatToJsonString(FieldValue.AsExtended))
+          else
+            Result.SetDouble(FieldName, FieldValue.AsExtended);
+        end;
 
-          if ForceNumber then
+      skString:
+        begin
+          if Item^.ForceNumber then
           begin
             NumValue := JsonStringToFloat(FieldValue.AsString);
             Result.SetDouble(FieldName, NumValue);
@@ -1589,45 +1836,38 @@ begin
           end;
         end;
 
-      tkEnumeration:
+      skBoolean:
         begin
-          if FieldValue.TypeInfo = TypeInfo(Boolean) then
-          begin
-            ForceString := False;
-            for Attr in Field.GetAttributes do
-              if Attr is JsonStringAttribute then
-                ForceString := True;
-
-            if ForceString then
-              Result.SetString(FieldName, BoolToStr(FieldValue.AsBoolean, True).ToLower)
-            else
-              Result.SetBoolean(FieldName, FieldValue.AsBoolean);
-          end
+          if Item^.ForceString then
+            Result.SetString(FieldName, BoolToStr(FieldValue.AsBoolean, True).ToLower)
           else
-            Result.SetString(FieldName, GetEnumName(FieldValue.TypeInfo, FieldValue.AsOrdinal));
+            Result.SetBoolean(FieldName, FieldValue.AsBoolean);
         end;
 
-      tkRecord:
+      skEnumAsString, skEnumAsNumber:
+        begin
+          case FSettings.EnumStyle of
+            TEnumStyle.AsString:
+              Result.SetString(FieldName, GetEnumName(Item^.FieldTypeInfo, FieldValue.AsOrdinal));
+            TEnumStyle.AsNumber:
+              Result.SetInteger(FieldName, FieldValue.AsOrdinal);
+          end;
+        end;
+
+      skRecord:
         begin
           NestedRecord := SerializeRecord(FieldValue);
           Result.SetObject(FieldName, NestedRecord);
         end;
 
-      tkInterface, tkClass:
-        begin
-          if IsListType(Field.FieldType.Handle) then
-            Result.SetArray(FieldName, SerializeList(FieldValue))
-          else if (Field.FieldType.Handle.Kind = tkClass) then
-            Result.SetObject(FieldName, SerializeObject(FieldValue))
-          else
-            // Fallback for other interfaces or complex types
-            Result.SetObject(FieldName, SerializeObject(FieldValue));
-        end;
+      skList:
+        Result.SetArray(FieldName, SerializeList(FieldValue));
 
-      tkDynArray:
-        begin
-          Result.SetArray(FieldName, SerializeArray(FieldValue));
-        end;
+      skDynArray:
+        Result.SetArray(FieldName, SerializeArray(FieldValue));
+
+      skClass, skInterface:
+        Result.SetObject(FieldName, SerializeObject(FieldValue));
     end;
   end;
 end;

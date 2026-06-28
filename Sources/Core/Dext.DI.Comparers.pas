@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -52,14 +52,13 @@ end;
 
 function TServiceTypeComparer.GetHashCode(const Value: TServiceType): Integer;
 var
-  GuidStr: string;
   ClassPtr: Pointer;
+  Guid: TGUID;
 begin
   if Value.IsInterface then
   begin
-    // Para interfaces, usar hash do GUID como string
-    GuidStr := GUIDToString(Value.AsInterface);
-    Result := THashBobJenkins.GetHashValue(GuidStr);
+    Guid := Value.AsInterface;
+    Result := THashBobJenkins.GetHashValue(Guid, SizeOf(TGUID));
   end
   else
   begin

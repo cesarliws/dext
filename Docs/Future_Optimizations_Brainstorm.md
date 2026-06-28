@@ -41,3 +41,21 @@ O parser e serializador JSON lidam com loops complexos inspecionando propriedade
 ### Oportunidade
 - Métodos genéricos utilitários de serialização de tipos primitivos (como números, datas e moedas) podem ser inlinizados. 
 - A extração de campos em records genéricos pode ser otimizada utilizando *desacopladores estáticos não-genéricos* para cachear o layout de memória de records uma única vez, acelerando drasticamente o throughput de serialização de APIs.
+
+---
+
+## 5. Diretrizes e Cuidados com a Diretiva `inline`
+
+O uso indiscriminado da diretiva `inline` pode prejudicar o projeto de várias formas (gerando acoplamento circular, binary bloat e falhas de compilação incremental). Devemos seguir as seguintes regras arquiteturais:
+
+### Quando usar `inline`:
+1. **Métodos Folha Simples (Accessors)**: Métodos que apenas retornam ou alteram campos de classe/record (`getters` e `setters` sem ramificações lógicas complexas ou inicializações de objetos).
+2. **Métodos de Encaminhamento Direto**: Métodos que apenas repassam parâmetros para outra rotina interna sem adicionar lógica estrutural (ex: `LHS + RHS` chamando `RHS + LHS`).
+3. **Loops Apertados (SIMD / Vetores)**: Funções críticas de aritmética vetorial ou operações de bytes que são chamadas repetidamente e se beneficiam do uso direto de registradores da CPU.
+
+### Quando EVITAR `inline`:
+1. **Instanciação de Objetos**: Métodos que chamam construtores, alocam memória ou instanciam classes de AST (como `TPropertyExpression.Create`).
+2. **Lógica Condicional Complexa**: Métodos com múltiplos caminhos de código (`if/else`), pois aumentam drasticamente a dispersão de cache L1 na CPU (Instruction Cache Misses).
+3. **Conversões complexas e Variant**: Rotinas que envolvem manipulação de `Variant` ou conversões genéricas dinâmicas via `TValue`.
+4. **Dependências em cascata**: Métodos que geram hints de unidades ausentes (Hint H2443). Se a rotina exige unidades no uses que o consumidor não tem, a diretiva deve ser removida.
+

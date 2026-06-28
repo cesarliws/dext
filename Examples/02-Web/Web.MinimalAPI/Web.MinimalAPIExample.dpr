@@ -1,4 +1,4 @@
-﻿// Examples/MinimalAPI/MinimalAPIExample.pas
+// Examples/MinimalAPI/MinimalAPIExample.pas
 program Web.MinimalAPIExample;
 
 {$APPTYPE CONSOLE}
@@ -18,12 +18,14 @@ program Web.MinimalAPIExample;
 uses
   Dext.MM,
   Dext.Utils,
+  System.Classes,
   System.DateUtils,
   System.SysUtils,
   Dext.WebHost,
   Dext.DI.Interfaces,
   Dext.Web.Interfaces,
   Dext.Web.Results,
+  Dext.Web.StaticFiles,
   Dext.Web;
 
 type
@@ -72,6 +74,7 @@ begin
       procedure(App: IApplicationBuilder)
       begin
         App.UseMiddleware(TRequestLoggingMiddleware);
+        TApplicationBuilderStaticFilesExtensions.UseStaticFiles(App);
 
         // GET /hello - Uses DI to resolve service
         App.MapGet('/hello',
@@ -120,6 +123,29 @@ begin
           procedure(Context: IHttpContext)
           begin
             Context.Response.Json('{"status": "healthy"}');
+          end);
+
+        // GET /test.wav - Binary stream response reproduction
+        App.MapGet('/test.wav',
+          procedure(Context: IHttpContext)
+          var
+            Stream: TMemoryStream;
+            BinaryData: TBytes;
+            I: Integer;
+          begin
+            SetLength(BinaryData, 32044);
+            for I := 0 to High(BinaryData) do
+              BinaryData[I] := I mod 256;
+            Stream := TMemoryStream.Create;
+            try
+              Stream.WriteBuffer(BinaryData[0], Length(BinaryData));
+              Stream.Position := 0;
+              Context.Response.SetContentType('audio/wav');
+              Context.Response.SetContentLength(Length(BinaryData));
+              Context.Response.Write(Stream);
+            finally
+              Stream.Free;
+            end;
           end);
 
         WriteLn;
