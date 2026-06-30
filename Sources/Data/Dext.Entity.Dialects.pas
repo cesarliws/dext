@@ -47,6 +47,7 @@ type
     ddSQLite,
     ddPostgreSQL,
     ddMySQL,
+    ddMariaDB,
     ddSQLServer,
     ddFirebird,
     ddInterbase,
@@ -301,6 +302,16 @@ type
   end;
 
   /// <summary>
+  ///   MariaDB (10.3+) Dialect implementation.
+  /// </summary>
+  TMariaDBDialect = class(TMySQLDialect)
+  public
+    function GetDialect: TDatabaseDialect; override;
+    function GetSequenceExistsSQL(const ASequenceName: string): string; override;
+    function GetCreateSequenceSQL(const ASequenceName: string; AAllocationSize: Integer = 1): string; override;
+  end;
+
+  /// <summary>
   ///   Oracle (12c+) Dialect implementation.
   /// </summary>
   TOracleDialect = class(TBaseDialect)
@@ -342,6 +353,7 @@ begin
     ddSQLite: Result := TSQLiteDialect.Create;
     ddPostgreSQL: Result := TPostgreSQLDialect.Create;
     ddMySQL: Result := TMySQLDialect.Create;
+    ddMariaDB: Result := TMariaDBDialect.Create;
     ddSQLServer: Result := TSQLServerDialect.Create;
     ddFirebird: Result := TFirebirdDialect.Create;
     ddInterbase: Result := TInterBaseDialect.Create;
@@ -368,7 +380,9 @@ begin
     Result := ddSQLServer
   else if LDriver.Contains('ora') or LDriver.Contains('oracle') then
     Result := ddOracle
-  else if LDriver.Contains('mysql') or LDriver.Contains('maria') then
+  else if LDriver.Contains('maria') then
+    Result := ddMariaDB
+  else if LDriver.Contains('mysql') then
     Result := ddMySQL
   else if LDriver.Contains('ib') or LDriver.Contains('interbase') then
     Result := ddInterbase
@@ -1511,6 +1525,30 @@ end;
 function TMySQLDialect.GetSequenceNextValSQL(const ASequenceName: string; AAllocationSize: Integer): string;
 begin
   Result := Format('SELECT NEXTVAL(%s)', [ASequenceName]);
+end;
+
+{ TMariaDBDialect }
+
+function TMariaDBDialect.GetDialect: TDatabaseDialect;
+begin
+  Result := ddMariaDB;
+end;
+
+function TMariaDBDialect.GetCreateSequenceSQL(const ASequenceName: string; AAllocationSize: Integer): string;
+begin
+  if AAllocationSize > 1 then
+    Result := Format('CREATE SEQUENCE %s INCREMENT BY %d START WITH %d',
+      [ASequenceName, AAllocationSize, AAllocationSize])
+  else
+    Result := Format('CREATE SEQUENCE %s', [ASequenceName]);
+end;
+
+function TMariaDBDialect.GetSequenceExistsSQL(const ASequenceName: string): string;
+begin
+  Result := Format(
+    'SELECT 1 FROM information_schema.TABLES ' +
+    'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ''%s'' ' +
+    'AND TABLE_TYPE = ''SEQUENCE''', [ASequenceName]);
 end;
 
 { TOracleDialect }

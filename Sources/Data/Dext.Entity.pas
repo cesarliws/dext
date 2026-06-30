@@ -1,4 +1,4 @@
-﻿unit Dext.Entity;
+unit Dext.Entity;
 
 {$IFDEF FPC}
   {$MODE DELPHI}
@@ -163,6 +163,7 @@ type
   TFirebirdDialect = Dext.Entity.Dialects.TFirebirdDialect;
   TSQLServerDialect = Dext.Entity.Dialects.TSQLServerDialect;
   TMySQLDialect = Dext.Entity.Dialects.TMySQLDialect;
+  TMariaDBDialect = Dext.Entity.Dialects.TMariaDBDialect;
   TOracleDialect = Dext.Entity.Dialects.TOracleDialect;
   TInterBaseDialect = Dext.Entity.Dialects.TInterBaseDialect;
 
@@ -366,6 +367,7 @@ const
   ddSQLite = Dext.Entity.Dialects.ddSQLite;
   ddPostgreSQL = Dext.Entity.Dialects.ddPostgreSQL;
   ddMySQL = Dext.Entity.Dialects.ddMySQL;
+  ddMariaDB = Dext.Entity.Dialects.ddMariaDB;
   ddSQLServer = Dext.Entity.Dialects.ddSQLServer;
   ddFirebird = Dext.Entity.Dialects.ddFirebird;
   ddInterbase = Dext.Entity.Dialects.ddInterbase;
