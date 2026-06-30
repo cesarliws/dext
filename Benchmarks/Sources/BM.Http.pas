@@ -1,4 +1,4 @@
-﻿unit BM.Http;
+unit BM.Http;
 
 interface
 
@@ -103,6 +103,7 @@ type
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
   end;
 
 var
@@ -218,6 +219,12 @@ begin
   if FItems = nil then
     FItems := TCollections.CreateDictionary<string, TValue>;
   Result := FItems;
+end;
+
+procedure TMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
+begin
+  if FRequest is TMockHttpRequest then
+    TMockHttpRequest(FRequest).FRouteParams := AParams;
 end;
 
 { Start/Stop servers }
