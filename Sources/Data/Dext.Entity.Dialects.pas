@@ -1549,7 +1549,7 @@ function TMariaDBDialect.GetSequenceExistsSQL(const ASequenceName: string): stri
 begin
   Result := Format(
     'SELECT 1 FROM information_schema.TABLES ' +
-    'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ''%s'' ' +
+    'WHERE TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = LOWER(''%s'') ' +
     'AND TABLE_TYPE = ''SEQUENCE''', [ASequenceName]);
 end;
 

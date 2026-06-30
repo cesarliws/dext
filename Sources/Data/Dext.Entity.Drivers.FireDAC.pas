@@ -1398,6 +1398,8 @@ procedure TFireDACConnection.DetectDialect;
 var
   DriverID: string;
   Def: IFDStanConnectionDef;
+  Query: TFDQuery;
+  VerStr: string;
 begin
   if FDialect <> ddUnknown then Exit;
 
@@ -1413,12 +1415,35 @@ begin
   end;
      
   FDialect := TDialectFactory.DetectDialect(DriverID.ToLower);
+  
+  if (FDialect = ddMySQL) and FConnection.Connected then
+  begin
+    Query := TFDQuery.Create(nil);
+    try
+      Query.Connection := FConnection;
+      Query.SQL.Text := 'SELECT VERSION()';
+      Query.Open;
+      if not Query.IsEmpty then
+      begin
+        VerStr := Query.Fields[0].AsString;
+        if VerStr.ToLower.Contains('mariadb') then
+          FDialect := ddMariaDB;
+      end;
+    finally
+      Query.Free;
+    end;
+  end;
 end;
 
 function TFireDACConnection.GetDialect: TDatabaseDialect;
 begin
   if FDialect = ddUnknown then
+    DetectDialect
+  else if (FDialect = ddMySQL) and FConnection.Connected then
+  begin
+    FDialect := ddUnknown;
     DetectDialect;
+  end;
   Result := FDialect;
 end;
 
