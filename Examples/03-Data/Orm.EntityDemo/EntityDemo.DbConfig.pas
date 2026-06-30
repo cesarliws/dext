@@ -8,6 +8,7 @@ uses
   System.SysUtils,
   FireDAC.Comp.Client,
   FireDAC.Stan.Def,
+  {$IFDEF DEXT_ENABLE_DB_MYSQL} FireDAC.Phys.MySQL, {$ENDIF}
   Dext.Entity.Drivers.FireDAC.Links,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Drivers.FireDAC,

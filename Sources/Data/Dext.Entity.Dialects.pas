@@ -1341,6 +1341,8 @@ begin
   // In SQL Server, "Schema" usually refers to the database if used for tenancy, 
   // or actual schemas within a database. 
   // If it's a database change:
+  if SameText(ASchemaName, 'dbo') then
+    Exit('');
   Result := Format('USE %s;', [QuoteIdentifier(ASchemaName)]);
   // Note: For actual schema switching within a DB, SQL Server doesn't have a 
   // session-level SET SCHEMA. Prefixing is required.

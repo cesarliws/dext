@@ -84,10 +84,10 @@ begin
     end;
 
   // String predicate in ON clause (simple "left = right" parser):
-  // products.id = oi.product_id
+  // products.Id = oi.product_id
   Products := FContext.Entities<TProduct>
     .AsNoTracking
-    .Join('order_items', 'oi', 'products.id = oi.product_id', jtInner)
+    .Join('order_items', 'oi', 'products.Id = oi.product_id', jtInner)
     .OrderBy(TProductType.Name.Asc)
     .ToList;
 

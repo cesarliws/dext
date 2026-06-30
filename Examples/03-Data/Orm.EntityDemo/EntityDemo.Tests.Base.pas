@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.Base;
+unit EntityDemo.Tests.Base;
 
 interface
 
@@ -191,6 +191,7 @@ begin
 
   // 1. Create connection using TDbConfig
   DbConnection := TDbConfig.CreateConnection;
+  DbConnection.Connect;
   Dialect := TDbConfig.CreateDialect;
 
   // Get the underlying TFDConnection for raw SQL operations
