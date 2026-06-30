@@ -213,8 +213,12 @@
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
+<a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
+<a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
+<a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
 <a href="Dext.OpenAPI.Extensions.html" class="nav-item">Dext.OpenAPI.Extensions</a>
 <a href="Dext.OpenAPI.Fluent.html" class="nav-item">Dext.OpenAPI.Fluent</a>
@@ -276,6 +280,7 @@
 <a href="Dext.Text.Escaping.html" class="nav-item">Dext.Text.Escaping</a>
 <a href="Dext.Threading.Async.html" class="nav-item">Dext.Threading.Async</a>
 <a href="Dext.Threading.CancellationToken.html" class="nav-item">Dext.Threading.CancellationToken</a>
+<a href="Dext.Threading.ProcessorGroups.html" class="nav-item">Dext.Threading.ProcessorGroups</a>
 <a href="Dext.Threading.Sync.html" class="nav-item">Dext.Threading.Sync</a>
 <a href="Dext.Types.Lazy.html" class="nav-item">Dext.Types.Lazy</a>
 <a href="Dext.Types.Nullable.html" class="nav-item">Dext.Types.Nullable</a>
@@ -373,6 +378,20 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
+class IDextTransportConnection {    +GetConnectionId()
+    +GetRemoteAddress()
+    +GetRemotePort()
+    +Send()
+    +Close()
+    +ConnectionId
+    +RemoteAddress
+    +RemotePort
+}
+class IConnectionHandler {    +OnConnect()
+    +OnDisconnect()
+    +OnData()
+    +OnError()
+}
 class IDextRawRequest {    +GetMethod()
     +GetPath()
     +GetQueryString()
@@ -423,6 +442,7 @@ class IDextServerEngine {    +Bind()
     +SetOnDisconnection()
     +SetOnRequest()
     +SetOnUpgrade()
+    +SetConnectionHandler()
     +ListenPort
     +ActiveConnections
     +TotalRequests
@@ -431,6 +451,40 @@ class IDextServerEngine {    +Bind()
 </div>
 </details>
 <h2>API Details</h2>
+<div class="class-header">
+<h3>interface IDextTransportConnection</h3><a name="IDextTransportConnection"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function GetConnectionId: UInt64</div></div>
+<div class="api-item">
+<div class="api-signature">function GetRemoteAddress: string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetRemotePort: Word</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Send(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Send(const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Close</div></div>
+<div class="api-item">
+<div class="api-signature">property ConnectionId: </div></div>
+<div class="api-item">
+<div class="api-signature">property RemoteAddress: </div></div>
+<div class="api-item">
+<div class="api-signature">property RemotePort: </div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>interface IConnectionHandler</h3><a name="IConnectionHandler"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure OnConnect(const const: IDextTransportConnection)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure OnDisconnect(const const: IDextTransportConnection)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure OnData(const const: IDextTransportConnection; const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure OnError(const const: IDextTransportConnection; AException: Exception)</div></div>
+</div>
+<hr>
 <div class="class-header">
 <h3>interface IDextRawRequest</h3><a name="IDextRawRequest"></a><div class="description">Represents a low-level, high-performance raw HTTP request.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
@@ -542,6 +596,8 @@ class IDextServerEngine {    +Bind()
 <div class="api-item">
 <div class="api-signature">procedure SetOnUpgrade(const const: TUpgradeEventHandler)</div><div class="description">Sets the callback handler invoked to evaluate WebSocket upgrades.</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SetConnectionHandler(const const: IConnectionHandler)</div><div class="description">Sets the custom connection handler for non-HTTP raw protocol execution.</div></div>
+<div class="api-item">
 <div class="api-signature">property ListenPort: </div></div>
 <div class="api-item">
 <div class="api-signature">property ActiveConnections: </div></div>
@@ -564,6 +620,10 @@ class IDextServerEngine {    +Bind()
 <div class="api-signature">type IDextRawResponse = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type IDextWebSocketConnection = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type IDextTransportConnection = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type IConnectionHandler = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type TConnectionEventHandler = Type</div><div class="description">Event raised when a connection is established or closed.</div></div>
 <div class="api-item">

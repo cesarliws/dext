@@ -4,10 +4,11 @@ Welcome to Dext! This section will get you up and running in minutes.
 
 ## Chapters
 
-1. [Installation](installation.md) - Get up and running
-2. [Hello World](hello-world.md) - Your first Dext application
-3. [Project Structure](project-structure.md) - Folder layout and organization
-4. [Application Startup](application-startup.md) - The Startup Class pattern
+1. [Where to Start?](where-to-start.md) - Choosing your learning path
+2. [Installation](installation.md) - Getting started with Dext
+3. [Hello World](hello-world.md) - Your first application
+4. [Project Structure](project-structure.md) - Folder layout and organization
+5. [Application Startup](application-startup.md) - The Startup Class pattern
 
 ## Quick Start
 

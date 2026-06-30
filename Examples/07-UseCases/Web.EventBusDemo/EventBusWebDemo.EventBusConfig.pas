@@ -12,7 +12,7 @@ unit EventBusWebDemo.EventBusConfig;
 interface
 
 uses
-  Dext;
+  Dext, Dext.DI.Interfaces;
 
 procedure ConfigureEventBus(const Services: TDextServices);
 

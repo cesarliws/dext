@@ -33,8 +33,6 @@ uses
   System.SyncObjs,
   System.SysUtils,
   System.Variants,
-  Dext.Collections,
-  Dext.Collections.Dict,
   Dext.Entity.Dialects,
   Dext.Entity.Drivers.Interfaces;
 
@@ -51,6 +49,11 @@ type
     function NextId(out AId: Int64): Boolean;
   end;
 
+  TSequenceRangeRecord = record
+    SequenceName: string;
+    Range: TSequenceRange;
+  end;
+
   /// <summary>
   ///   Thread-safe manager for DB sequence HiLo/Pooled allocation ranges.
   /// </summary>
@@ -58,13 +61,12 @@ type
   private
     class var FInstance: TSequenceManager;
   private
-    FCurrentRanges: IDictionary<string, TSequenceRange>;
+    FCurrentRanges: TArray<TSequenceRangeRecord>;
     FLock: TCriticalSection;
     FInitializedSQLite: Boolean;
     procedure EnsureSQLiteTable(const AConnection: IDbConnection);
     function FetchNextRangeFromDb(const ASeqName: string; AAllocSize: Integer; const AConnection: IDbConnection; const ADialect: ISQLDialect): TSequenceRange;
-    class constructor Create;
-    class destructor Destroy;
+    function FindRangeIndex(const ASeqName: string): Integer;
   public
     constructor Create;
     destructor Destroy; override;
@@ -103,38 +105,38 @@ end;
 
 { TSequenceManager }
 
-class constructor TSequenceManager.Create;
-begin
-  FInstance := TSequenceManager.Create;
-end;
-
-class destructor TSequenceManager.Destroy;
-begin
-  FreeAndNil(FInstance);
-end;
-
 constructor TSequenceManager.Create;
 begin
   inherited Create;
-  FCurrentRanges := TCollections.CreateDictionaryIgnoreCase<string, TSequenceRange>(True);
+  FCurrentRanges := nil;
   FLock := TCriticalSection.Create;
   FInitializedSQLite := False;
 end;
 
 destructor TSequenceManager.Destroy;
 var
-  Pair: TPair<string, TSequenceRange>;
+  i: Integer;
 begin
-  FLock.Acquire;
-  try
-    for Pair in FCurrentRanges do
-      Pair.Value.Free;
-    FCurrentRanges := nil;
-  finally
-    FLock.Release;
-  end;
-  FLock.Free;
+  for i := 0 to High(FCurrentRanges) do
+    FCurrentRanges[i].Range.Free;
+  FCurrentRanges := nil;
+  FreeAndNil(FLock);
   inherited;
+end;
+
+function TSequenceManager.FindRangeIndex(const ASeqName: string): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to High(FCurrentRanges) do
+  begin
+    if SameText(FCurrentRanges[i].SequenceName, ASeqName) then
+    begin
+      Result := i;
+      Break;
+    end;
+  end;
 end;
 
 procedure TSequenceManager.EnsureSQLiteTable(const AConnection: IDbConnection);
@@ -222,23 +224,37 @@ function TSequenceManager.GenerateId(const ASequenceName: string; AAllocationSiz
   const AConnection: IDbConnection; const ADialect: ISQLDialect): Int64;
 var
   Range: TSequenceRange;
+  OldRange: TSequenceRange;
   GotId: Boolean;
+  Idx: Integer;
 begin
   FLock.Acquire;
   try
-    if not FCurrentRanges.TryGetValue(ASequenceName, Range) then
+    Idx := FindRangeIndex(ASequenceName);
+    if Idx < 0 then
     begin
       Range := FetchNextRangeFromDb(ASequenceName, AAllocationSize, AConnection, ADialect);
-      FCurrentRanges.Add(ASequenceName, Range);
+      SetLength(FCurrentRanges, Length(FCurrentRanges) + 1);
+      FCurrentRanges[High(FCurrentRanges)].SequenceName := ASequenceName;
+      FCurrentRanges[High(FCurrentRanges)].Range := Range;
+    end
+    else
+    begin
+      Range := FCurrentRanges[Idx].Range;
     end;
 
     GotId := Range.NextId(Result);
     if not GotId then
     begin
       // Range exhausted, fetch next block
-      Range.Free;
+      OldRange := Range;
       Range := FetchNextRangeFromDb(ASequenceName, AAllocationSize, AConnection, ADialect);
-      FCurrentRanges.AddOrSetValue(ASequenceName, Range);
+      
+      Idx := FindRangeIndex(ASequenceName);
+      if Idx >= 0 then
+        FCurrentRanges[Idx].Range := Range;
+        
+      OldRange.Free;
       if not Range.NextId(Result) then
         raise Exception.CreateFmt('Failed to generate next ID for sequence %s', [ASequenceName]);
     end;
@@ -246,5 +262,11 @@ begin
     FLock.Release;
   end;
 end;
+
+initialization
+  TSequenceManager.FInstance := TSequenceManager.Create;
+
+finalization
+  FreeAndNil(TSequenceManager.FInstance);
 
 end.

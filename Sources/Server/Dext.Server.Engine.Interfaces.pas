@@ -33,13 +33,16 @@ uses
   System.Classes,
   System.SysUtils,
   Dext.Collections.Dict,
-  Dext.Server.Engine.Types;
+  Dext.Server.Engine.Types,
+  Dext.Core.Span;
 
 type
   IDextServerConnection = interface;
   IDextRawRequest = interface;
   IDextRawResponse = interface;
   IDextWebSocketConnection = interface;
+  IDextTransportConnection = interface;
+  IConnectionHandler = interface;
 
   /// <summary>Event raised when a connection is established or closed.</summary>
   TConnectionEventHandler = reference to procedure(const AConnection: IDextServerConnection);
@@ -51,6 +54,27 @@ type
   /// <summary>Event raised to evaluate if a connection upgrade to WebSockets is accepted.</summary>
   TUpgradeEventHandler = reference to procedure(const AConnection: IDextServerConnection;
     var AAccepted: Boolean);
+
+  IDextTransportConnection = interface
+    ['{C3F54B78-C392-4AEB-B410-6C2A9B890F12}']
+    function GetConnectionId: UInt64;
+    function GetRemoteAddress: string;
+    function GetRemotePort: Word;
+    procedure Send(const ABuffer: TBytes); overload;
+    procedure Send(const ASpan: TByteSpan); overload;
+    procedure Close;
+    property ConnectionId: UInt64 read GetConnectionId;
+    property RemoteAddress: string read GetRemoteAddress;
+    property RemotePort: Word read GetRemotePort;
+  end;
+
+  IConnectionHandler = interface
+    ['{A672F8B0-4A0B-4712-A3DF-8BFCE48FA472}']
+    procedure OnConnect(const AConnection: IDextTransportConnection);
+    procedure OnDisconnect(const AConnection: IDextTransportConnection);
+    procedure OnData(const AConnection: IDextTransportConnection; const ASpan: TByteSpan);
+    procedure OnError(const AConnection: IDextTransportConnection; AException: Exception);
+  end;
 
   /// <summary>
   ///   Represents a low-level, high-performance raw HTTP request.
@@ -190,6 +214,8 @@ type
     procedure SetOnRequest(const AHandler: TRequestEventHandler);
     /// <summary>Sets the callback handler invoked to evaluate WebSocket upgrades.</summary>
     procedure SetOnUpgrade(const AHandler: TUpgradeEventHandler);
+    /// <summary>Sets the custom connection handler for non-HTTP raw protocol execution.</summary>
+    procedure SetConnectionHandler(const AHandler: IConnectionHandler);
 
     property ListenPort: Word read GetListenPort;
     property ActiveConnections: Integer read GetActiveConnections;

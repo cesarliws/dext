@@ -213,8 +213,12 @@
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
+<a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
+<a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
+<a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
 <a href="Dext.OpenAPI.Extensions.html" class="nav-item">Dext.OpenAPI.Extensions</a>
 <a href="Dext.OpenAPI.Fluent.html" class="nav-item">Dext.OpenAPI.Fluent</a>
@@ -276,6 +280,7 @@
 <a href="Dext.Text.Escaping.html" class="nav-item">Dext.Text.Escaping</a>
 <a href="Dext.Threading.Async.html" class="nav-item">Dext.Threading.Async</a>
 <a href="Dext.Threading.CancellationToken.html" class="nav-item">Dext.Threading.CancellationToken</a>
+<a href="Dext.Threading.ProcessorGroups.html" class="nav-item">Dext.Threading.ProcessorGroups</a>
 <a href="Dext.Threading.Sync.html" class="nav-item">Dext.Threading.Sync</a>
 <a href="Dext.Types.Lazy.html" class="nav-item">Dext.Types.Lazy</a>
 <a href="Dext.Types.Nullable.html" class="nav-item">Dext.Types.Nullable</a>
@@ -398,6 +403,8 @@ class ISQLDialect {    +QuoteIdentifier()
     +GetLockingSQL()
     +GenerateSeedData()
     +GetSequenceNextValSQL()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
 }
 class TDialectFactory {    +CreateDialect()
     +DetectDialect()
@@ -439,6 +446,8 @@ class TBaseDialect {    +GenerateCreateTable()
     +GetDialect()
     +GetJsonValueSQL()
     +GetSequenceNextValSQL()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
 }
 TInterfacedObject <|-- TBaseDialect
 ISQLDialect <|.. TBaseDialect
@@ -469,6 +478,8 @@ class TPostgreSQLDialect {    +QuoteIdentifier()
     +GetLockingSQL()
     +UseSchemaPrefix()
     +GetSequenceNextValSQL()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
 }
 TBaseDialect <|-- TPostgreSQLDialect
 class TFirebirdDialect {    +QuoteIdentifier()
@@ -481,6 +492,8 @@ class TFirebirdDialect {    +QuoteIdentifier()
     +GetReturningSQL()
     +GetDialect()
     +GetSequenceNextValSQL()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
 }
 TBaseDialect <|-- TFirebirdDialect
 class TSQLServerDialect {    +QuoteIdentifier()
@@ -501,6 +514,9 @@ class TSQLServerDialect {    +QuoteIdentifier()
     +GenerateProcedureCallSQL()
     +GetLockingSQL()
     +GetColumnTypeForField()
+    +GetSequenceNextValSQL()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
 }
 TBaseDialect <|-- TSQLServerDialect
 class TMySQLDialect {    +QuoteIdentifier()
@@ -529,6 +545,8 @@ class TOracleDialect {    +QuoteIdentifier()
     +GenerateProcedureCallSQL()
     +GetLockingSQL()
     +GetSequenceNextValSQL()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
 }
 TBaseDialect <|-- TOracleDialect
 class TInterBaseDialect {    +BooleanToSQL()
@@ -592,6 +610,10 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GenerateSeedData(AOp: TSeedDataOperation): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div><div class="description">Generates the SQL statement to fetch the next value from a database sequence.</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -652,6 +674,10 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">function GenerateCreateTable(AOp: TCreateTableOperation): string</div></div>
@@ -735,6 +761,10 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function UseSchemaPrefix: Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -759,6 +789,10 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -799,6 +833,12 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -855,6 +895,10 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">

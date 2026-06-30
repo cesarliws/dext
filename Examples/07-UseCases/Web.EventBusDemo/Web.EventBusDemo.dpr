@@ -22,7 +22,7 @@ uses
   Dext.MM,
   Dext.Utils,
   System.SysUtils,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   EventBusWebDemo.Events         in 'EventBusWebDemo.Events.pas',
   EventBusWebDemo.Controller     in 'EventBusWebDemo.Controller.pas',

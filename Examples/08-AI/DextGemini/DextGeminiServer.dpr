@@ -9,7 +9,7 @@ uses
   Dext.Collections,
   Dext.Net.RestClient,
   Dext.Options,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   Dext.Utils,
   Gemini.Models in 'Gemini.Models.pas';

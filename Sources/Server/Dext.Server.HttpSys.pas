@@ -35,6 +35,7 @@ uses
   System.SyncObjs,
   Dext.Collections.Dict,
   Winapi.Windows,
+  Dext.Threading.ProcessorGroups,
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces,
   Dext.Server.HttpSys.Api,
@@ -230,13 +231,14 @@ type
   private
     FEngine: TDextHttpSysEngine;
     FReqQueue: THandle;
+    FAffinity: TDextProcessorGroupAffinity;
   protected
     procedure Execute; override;
   public
     /// <summary>Initializes the http.sys worker thread.</summary>
     /// <param name="AEngine">The http.sys engine instance.</param>
     /// <param name="AReqQueue">Handle to the request queue.</param>
-    constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle);
+    constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle; const AAffinity: TDextProcessorGroupAffinity);
   end;
 
   /// <summary>
@@ -301,6 +303,8 @@ type
     procedure SetOnRequest(const AHandler: TRequestEventHandler);
     /// <summary>Sets the socket upgrade event handler.</summary>
     procedure SetOnUpgrade(const AHandler: TUpgradeEventHandler);
+    /// <summary>Sets the custom connection handler (unsupported for HTTP.sys).</summary>
+    procedure SetConnectionHandler(const AHandler: IConnectionHandler);
 
     /// <summary>Static factory method for creating and registering the http.sys web host.</summary>
     class function Factory(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost; static;
@@ -1460,11 +1464,12 @@ end;
 
 { TDextHttpSysWorker }
 
-constructor TDextHttpSysWorker.Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle);
+constructor TDextHttpSysWorker.Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle; const AAffinity: TDextProcessorGroupAffinity);
 begin
   inherited Create(True);
   FEngine := AEngine;
   FReqQueue := AReqQueue;
+  FAffinity := AAffinity;
   FreeOnTerminate := False;
 end;
 
@@ -1479,6 +1484,8 @@ var
   RawResponse: IDextRawResponse;
   Connection: IDextServerConnection;
 begin
+  ApplyGroupAffinityToThread(GetCurrentThread, FAffinity);
+
   SetLength(ReqBuffer, 16384); // 16KB Request Buffer
   Request := PHTTP_REQUEST(@ReqBuffer[0]);
   RequestId := 0;
@@ -1631,10 +1638,11 @@ procedure TDextHttpSysEngine.Start;
 var
   UrlPrefix: string;
   Ret: ULONG;
-  I: Integer;
+  i: Integer;
   ThreadCount: Integer;
   Worker: TDextHttpSysWorker;
   Err: EOSError;
+  Affinity: TDextProcessorGroupAffinity;
 begin
   if FRunning then Exit;
 
@@ -1675,13 +1683,14 @@ begin
   ThreadCount := FOptions.IoThreadCount;
   if ThreadCount <= 0 then
   begin
-    // Auto detect CPU count
-    ThreadCount := CPUCount;
+    // Auto detect CPU count across all Windows processor groups.
+    ThreadCount := GetSystemLogicalProcessorCount;
   end;
 
-  for I := 1 to ThreadCount do
+  for i := 0 to ThreadCount - 1 do
   begin
-    Worker := TDextHttpSysWorker.Create(Self, FReqQueue);
+    GetProcessorGroupAffinityForWorker(i, Affinity);
+    Worker := TDextHttpSysWorker.Create(Self, FReqQueue, Affinity);
     FWorkers.Add(Worker);
     Worker.Start;
   end;
@@ -1764,6 +1773,11 @@ end;
 procedure TDextHttpSysEngine.SetOnUpgrade(const AHandler: TUpgradeEventHandler);
 begin
   FOnUpgrade := AHandler;
+end;
+
+procedure TDextHttpSysEngine.SetConnectionHandler(const AHandler: IConnectionHandler);
+begin
+  // HTTP.sys is a kernel-mode HTTP listener and does not support raw connection handlers
 end;
 
 class function TDextHttpSysEngine.Factory(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost;

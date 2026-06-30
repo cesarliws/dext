@@ -5,7 +5,7 @@ program Web.ControllerExample;
 uses
   Dext.MM,
   System.SysUtils,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   Dext.Utils,
   Dext.Web.Middleware.Logging,

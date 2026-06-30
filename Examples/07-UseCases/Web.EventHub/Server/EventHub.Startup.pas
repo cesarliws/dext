@@ -13,7 +13,7 @@ interface
 uses
   // 1. Delphi Units
   System.SysUtils,
-  // 2. Dext Specialized Units
+  // 2. Dext, Dext.DI.Interfaces Specialized Units
   Dext.Auth.Middleware,
   Dext.Caching,
   Dext.Entity.Core,
@@ -22,8 +22,8 @@ uses
   Dext.RateLimiting.Policy,
   Dext.Core.SmartTypes,
   Dext.Collections,
-  // 3. Dext Facades (ALWAYS LAST in Dext Group)
-  Dext,
+  // 3. Dext, Dext.DI.Interfaces Facades (ALWAYS LAST in Dext, Dext.DI.Interfaces Group)
+  Dext, Dext.DI.Interfaces,
   Dext.Entity,
   Dext.Web;
 

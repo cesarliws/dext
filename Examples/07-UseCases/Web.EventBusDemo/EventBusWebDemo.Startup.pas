@@ -22,7 +22,7 @@ interface
 
 uses
   System.SysUtils,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   EventBusWebDemo.EventBusConfig,
   EventBusWebDemo.Controller;

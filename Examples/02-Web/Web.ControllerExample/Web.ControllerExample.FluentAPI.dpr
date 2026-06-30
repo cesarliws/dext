@@ -4,7 +4,7 @@ program Web.ControllerExample.FluentAPI;
 
 uses
   System.SysUtils,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   Dext.Utils,
   ControllerExample.Setup in 'ControllerExample.Setup.pas',

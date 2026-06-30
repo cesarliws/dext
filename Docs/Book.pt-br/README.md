@@ -6,6 +6,7 @@
 
 ## Links Rápidos
 
+- [Por Onde Começar?](01-primeiros-passos/por-onde-comecar.md) - Escolhendo seu caminho de aprendizado
 - [Primeiros Passos](01-primeiros-passos/README.md) - Instalação & Hello World
 - [Framework Web](02-framework-web/README.md) - Minimal APIs & Controllers
 - [ORM](05-orm/README.md) - Acesso a banco de dados
@@ -18,6 +19,7 @@
 
 #### [1. Primeiros Passos](01-primeiros-passos/README.md)
 
+- [Por Onde Começar?](01-primeiros-passos/por-onde-comecar.md)
 - [Instalação](01-primeiros-passos/instalacao.md)
 - [Hello World](01-primeiros-passos/hello-world.md)
 - [Estrutura do Projeto](01-primeiros-passos/estrutura-projeto.md)
@@ -107,6 +109,8 @@
 #### [12. Networking (Dext.Net)](12-networking/rest-client.md) ⭐ NOVO
 
 - [Cliente REST](12-networking/rest-client.md) - Cliente HTTP Fluente
+- [Servidores TCP/UDP](12-networking/low-level-sockets.md) - Exposição e controle de sockets de baixo nível
+- [Cliente e Broker MQTT](12-networking/mqtt.md) - Roteamento de mensagens e protocolo MQTT v3.1.1
 
 #### [13. Assistentes de IA & MCP](13-ai-assistants/README.md) ⭐ NOVO
 

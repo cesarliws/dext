@@ -213,8 +213,12 @@
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
+<a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
+<a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
+<a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
 <a href="Dext.OpenAPI.Extensions.html" class="nav-item">Dext.OpenAPI.Extensions</a>
 <a href="Dext.OpenAPI.Fluent.html" class="nav-item">Dext.OpenAPI.Fluent</a>
@@ -276,6 +280,7 @@
 <a href="Dext.Text.Escaping.html" class="nav-item">Dext.Text.Escaping</a>
 <a href="Dext.Threading.Async.html" class="nav-item">Dext.Threading.Async</a>
 <a href="Dext.Threading.CancellationToken.html" class="nav-item">Dext.Threading.CancellationToken</a>
+<a href="Dext.Threading.ProcessorGroups.html" class="nav-item">Dext.Threading.ProcessorGroups</a>
 <a href="Dext.Threading.Sync.html" class="nav-item">Dext.Threading.Sync</a>
 <a href="Dext.Types.Lazy.html" class="nav-item">Dext.Types.Lazy</a>
 <a href="Dext.Types.Nullable.html" class="nav-item">Dext.Types.Nullable</a>
@@ -381,11 +386,16 @@ class TDextIocpConnection {    +Create()
     +GetLocalPort()
     +IsSecure()
     +Close()
+    +Send()
     +SupportsUpgrade()
     +UpgradeToWebSocket()
 }
 TInterfacedObject <|-- TDextIocpConnection
 IDextServerConnection <|.. TDextIocpConnection
+IDextTransportConnection <|.. TDextIocpConnection
+class TDextReadOnlyBytesStream {    +Create()
+}
+TCustomMemoryStream <|-- TDextReadOnlyBytesStream
 class TDextIocpRequest {    +GetMethod()
     +GetPath()
     +GetQueryString()
@@ -393,6 +403,7 @@ class TDextIocpRequest {    +GetMethod()
     +PopulateHeaders()
     +GetContentLength()
     +GetBodyStream()
+    +ResolveHeader()
     +Create()
     +Destroy()
 }
@@ -428,6 +439,7 @@ class TDextIocpEngine {    +LoadExtensions()
     +SetOnDisconnection()
     +SetOnRequest()
     +SetOnUpgrade()
+    +SetConnectionHandler()
 }
 TInterfacedObject <|-- TDextIocpEngine
 IDextServerEngine <|.. TDextIocpEngine
@@ -454,15 +466,25 @@ IDextServerEngine <|.. TDextIocpEngine
 <div class="api-item">
 <div class="api-signature">procedure Close</div><div class="description">Closes the connection.</div></div>
 <div class="api-item">
+<div class="api-signature">procedure Send(const const: TBytes)</div><div class="description">Sends a byte array to the client.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Send(const const: TByteSpan)</div><div class="description">Sends a span of bytes to the client.</div></div>
+<div class="api-item">
 <div class="api-signature">function SupportsUpgrade: Boolean</div><div class="description">Checks if connection upgrade is supported.</div></div>
 <div class="api-item">
 <div class="api-signature">function UpgradeToWebSocket: IDextWebSocketConnection</div><div class="description">Upgrades the active connection to WebSockets.</div></div>
 </div>
 <hr>
 <div class="class-header">
+<h3>class TDextReadOnlyBytesStream</h3><a name="TDextReadOnlyBytesStream"></a><div class="ancestor">Inherits from: TCustomMemoryStream</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: TBytes; AOffset: Integer; ALen: Integer)</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class TDextIocpRequest</h3><a name="TDextIocpRequest"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Raw request implementation wrapper for IOCP socket connection.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: string; const const: string; AHeaders: TDictionary; ABody: TBytes; ABodyOffset: Integer; ABodyLen: Integer; AContentLength: Int64)</div><div class="description">Initializes the raw IOCP request wrapper.</div></div>
+<div class="api-signature">constructor Create(const const: string; const const: string; const const: string; const const: THeaderSegments; ABody: TBytes; ABodyOffset: Integer; ABodyLen: Integer; AContentLength: Int64)</div><div class="description">Initializes the raw IOCP request wrapper.</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Cleans up request resources.</div></div>
 </div>
@@ -480,6 +502,8 @@ IDextServerEngine <|.. TDextIocpEngine
 <div class="api-signature">function GetContentLength: Int64</div></div>
 <div class="api-item">
 <div class="api-signature">function GetBodyStream: TStream</div></div>
+<div class="api-item">
+<div class="api-signature">function ResolveHeader(const const: string): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -508,7 +532,7 @@ IDextServerEngine <|.. TDextIocpEngine
 <div class="class-header">
 <h3>class TDextIocpWorker</h3><a name="TDextIocpWorker"></a><div class="ancestor">Inherits from: TThread</div><div class="description">Worker thread running GetQueuedCompletionStatus event loop.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(AEngine: TDextIocpEngine; AIocp: THandle)</div><div class="description">Initializes a new IOCP worker thread.</div></div>
+<div class="api-signature">constructor Create(AEngine: TDextIocpEngine; AIocp: THandle; const const: TDextProcessorGroupAffinity)</div><div class="description">Initializes a new IOCP worker thread.</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">procedure Execute</div></div>
@@ -540,6 +564,8 @@ IDextServerEngine <|.. TDextIocpEngine
 <div class="api-signature">procedure SetOnRequest(const const: TRequestEventHandler)</div><div class="description">Sets the request event handler.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetOnUpgrade(const const: TUpgradeEventHandler)</div><div class="description">Sets the socket upgrade event handler.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetConnectionHandler(const const: IConnectionHandler)</div><div class="description">Sets the custom connection handler.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">procedure LoadExtensions</div></div>

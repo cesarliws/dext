@@ -213,8 +213,12 @@
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
+<a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
+<a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
+<a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
 <a href="Dext.OpenAPI.Extensions.html" class="nav-item">Dext.OpenAPI.Extensions</a>
 <a href="Dext.OpenAPI.Fluent.html" class="nav-item">Dext.OpenAPI.Fluent</a>
@@ -276,6 +280,7 @@
 <a href="Dext.Text.Escaping.html" class="nav-item">Dext.Text.Escaping</a>
 <a href="Dext.Threading.Async.html" class="nav-item">Dext.Threading.Async</a>
 <a href="Dext.Threading.CancellationToken.html" class="nav-item">Dext.Threading.CancellationToken</a>
+<a href="Dext.Threading.ProcessorGroups.html" class="nav-item">Dext.Threading.ProcessorGroups</a>
 <a href="Dext.Threading.Sync.html" class="nav-item">Dext.Threading.Sync</a>
 <a href="Dext.Types.Lazy.html" class="nav-item">Dext.Types.Lazy</a>
 <a href="Dext.Types.Nullable.html" class="nav-item">Dext.Types.Nullable</a>
@@ -376,7 +381,9 @@ classDiagram
 class THeaderSegment {}
 class TDextIocpHttpParser {    +FindByte()
     +FindCRLF()
+    +GetMethodString()
     +TryParseRequest()
+    +CompareBytesCI()
 }
 </div>
 </div>
@@ -388,14 +395,22 @@ class TDextIocpHttpParser {    +FindByte()
 <div class="class-header">
 <h3>record TDextIocpHttpParser</h3><a name="TDextIocpHttpParser"></a><div class="description">Zero-allocation (on structural parsing) incremental HTTP/1.1 parser.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function TryParseRequest(const const: TBytes; ALength: Integer; out out: string; out out: string; out out: string; out out: string; out out: TDictionary; out out: Integer; out out: Int64): Boolean</div><div class="description">Attempts to parse HTTP/1.1 request headers from a byte buffer. Returns True if headers are complete and parsed successfully. On success, returns the index where the body begins (ABodyOffset).</div></div>
+<div class="api-signature">function TryParseRequest(const const: TBytes; ALength: Integer; out out: string; out out: string; out out: string; out out: THeaderSegments; out out: Integer; out out: Int64): Boolean</div><div class="description">Attempts to parse HTTP/1.1 request headers from a byte buffer. Returns True if headers are complete and parsed successfully. On success, returns the index where the body begins (ABodyOffset).</div></div>
+<div class="api-item">
+<div class="api-signature">function CompareBytesCI(const const: TBytes; AStart: Integer; ALen: Integer; const const: string): Boolean</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function FindByte(const const: TBytes; AStart: Integer; AEnd: Integer; AByte: Byte): Integer</div></div>
 <div class="api-item">
 <div class="api-signature">function FindCRLF(const const: TBytes; AStart: Integer; AEnd: Integer): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function GetMethodString(const const: TBytes; AStart: Integer; ALen: Integer): string</div></div>
 </div>
 <hr>
+<h2>Types</h2>
+<div class="visibility-group"><div class="api-item">
+<div class="api-signature">type THeaderSegments = Type</div></div>
+</div>
 
         </div>
     </div>

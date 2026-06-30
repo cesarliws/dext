@@ -4,10 +4,11 @@ Bem-vindo ao Dext! Esta seção vai te colocar para rodar em minutos.
 
 ## Capítulos
 
-1. [Instalação](instalacao.md) - Começando com o Dext
-2. [Hello World](hello-world.md) - Sua primeira aplicação
-3. [Estrutura do Projeto](estrutura-projeto.md) - Layout de pastas e organização
-4. [Inicialização da Aplicação](inicializacao-aplicacao.md) - O padrão Startup Class
+1. [Por Onde Começar?](por-onde-comecar.md) - Escolhendo seu caminho de aprendizado
+2. [Instalação](instalacao.md) - Começando com o Dext
+3. [Hello World](hello-world.md) - Sua primeira aplicação
+4. [Estrutura do Projeto](estrutura-projeto.md) - Layout de pastas e organização
+5. [Inicialização da Aplicação](inicializacao-aplicacao.md) - O padrão Startup Class
 
 ## Início Rápido
 

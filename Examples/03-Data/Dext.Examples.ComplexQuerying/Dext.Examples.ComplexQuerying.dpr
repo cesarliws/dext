@@ -9,7 +9,7 @@ uses
   Dext.Utils,
   System.SysUtils,
   System.Classes,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   Dext.Entity,
   Dext.Json,

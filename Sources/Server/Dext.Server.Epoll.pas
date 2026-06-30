@@ -37,7 +37,8 @@ uses
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces,
   Dext.Server.Iocp.HttpParser,
-  Dext.Collections.Dict;
+  Dext.Collections.Dict,
+  Dext.Core.Span;
 
 type
   {$IFDEF LINUX}
@@ -82,6 +83,8 @@ type
     FWriteBuffer: TBytes;
     FWriteOffset: Integer;
     FWriteLen: Integer;
+
+    FConnection: IDextTransportConnection;
     
     constructor Create(AFd: Integer; AEpollFd: Integer);
   end;
@@ -89,7 +92,7 @@ type
   /// <summary>
   ///   Raw connection implementation wrapper for epoll sockets.
   /// </summary>
-  TDextEpollConnection = class(TInterfacedObject, IDextServerConnection)
+  TDextEpollConnection = class(TInterfacedObject, IDextServerConnection, IDextTransportConnection)
   private
     FSocket: Integer;
     FConnectionId: UInt64;
@@ -113,6 +116,11 @@ type
     /// <summary>Closes the connection.</summary>
     procedure Close;
  
+    /// <summary>Sends a byte array to the client.</summary>
+    procedure Send(const ABuffer: TBytes); overload;
+    /// <summary>Sends a span of bytes to the client.</summary>
+    procedure Send(const ASpan: TByteSpan); overload;
+
     /// <summary>Checks if connection upgrade is supported.</summary>
     function SupportsUpgrade: Boolean;
     /// <summary>Upgrades the active connection to WebSockets.</summary>
@@ -243,6 +251,7 @@ type
     FOnDisconnection: TConnectionEventHandler;
     FOnRequest: TRequestEventHandler;
     FOnUpgrade: TUpgradeEventHandler;
+    FConnectionHandler: IConnectionHandler;
 
     FActiveConnections: Integer;
     FTotalRequests: Int64;
@@ -281,6 +290,8 @@ type
     procedure SetOnRequest(const AHandler: TRequestEventHandler);
     /// <summary>Sets the socket upgrade event handler.</summary>
     procedure SetOnUpgrade(const AHandler: TUpgradeEventHandler);
+    /// <summary>Sets the custom connection handler.</summary>
+    procedure SetConnectionHandler(const AHandler: IConnectionHandler);
   end;
 
   {$ELSE}
@@ -313,6 +324,8 @@ type
     procedure SetOnRequest(const AHandler: TRequestEventHandler);
     /// <summary>Stub SetOnUpgrade implementation.</summary>
     procedure SetOnUpgrade(const AHandler: TUpgradeEventHandler);
+    /// <summary>Stub SetConnectionHandler implementation.</summary>
+    procedure SetConnectionHandler(const AHandler: IConnectionHandler);
   end;
   {$ENDIF}
 
@@ -597,6 +610,18 @@ begin
     __close(FSocket);
     FSocket := -1;
   end;
+end;
+
+procedure TDextEpollConnection.Send(const ABuffer: TBytes);
+begin
+  if Length(ABuffer) > 0 then
+    Posix.SysSocket.send(FSocket, ABuffer[0], Length(ABuffer), 0);
+end;
+
+procedure TDextEpollConnection.Send(const ASpan: TByteSpan);
+begin
+  if ASpan.Length > 0 then
+    Posix.SysSocket.send(FSocket, ASpan.Data^, ASpan.Length, 0);
 end;
 
 function TDextEpollConnection.GetConnectionId: UInt64;
@@ -1156,6 +1181,17 @@ begin
             // Cria o contexto da conexão
             Context := TDextEpollContext.Create(ClientFd, FEpollFd);
 
+            if Assigned(FEngine.FConnectionHandler) then
+            begin
+              Context.FConnection := TDextEpollConnection.Create(ClientFd);
+              try
+                FEngine.FConnectionHandler.OnConnect(Context.FConnection);
+              except
+                on E: Exception do
+                  FEngine.FConnectionHandler.OnError(Context.FConnection, E);
+              end;
+            end;
+
             // Edge Triggered + One Shot
             Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
             Event.data.ptr := Context;
@@ -1213,6 +1249,58 @@ begin
           end;
 
           // Evento de Leitura (EPOLLIN)
+          if Assigned(FEngine.FConnectionHandler) then
+          begin
+            ReadFailedOrClosed := False;
+            while True do
+            begin
+              RecvRet := recv(Context.FFd, Context.FReadBuffer[0], Length(Context.FReadBuffer), 0);
+              if RecvRet > 0 then
+              begin
+                try
+                  FEngine.FConnectionHandler.OnData(Context.FConnection, TByteSpan.Create(@Context.FReadBuffer[0], RecvRet));
+                except
+                  on E: Exception do
+                    FEngine.FConnectionHandler.OnError(Context.FConnection, E);
+                end;
+              end
+              else if RecvRet = 0 then
+              begin
+                ReadFailedOrClosed := True;
+                Break;
+              end
+              else
+              begin
+                if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
+                  Break;
+                ReadFailedOrClosed := True;
+                Break;
+              end;
+            end;
+
+            if ReadFailedOrClosed then
+            begin
+              if Context.FConnection <> nil then
+              begin
+                try
+                  FEngine.FConnectionHandler.OnDisconnect(Context.FConnection);
+                except
+                end;
+              end;
+              __close(Context.FFd);
+              Context.Free;
+              TInterlocked.Decrement(FEngine.FActiveConnections);
+              Continue;
+            end;
+
+            // Se incompleto, rearma no Epoll para leitura
+            FillChar(Event, SizeOf(Event), 0);
+            Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+            Event.data.ptr := Context;
+            epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
+            Continue;
+          end;
+
           ReadFailedOrClosed := False;
           while True do
           begin
@@ -1406,6 +1494,11 @@ begin
   FOnUpgrade := AHandler;
 end;
 
+procedure TDextEpollEngine.SetConnectionHandler(const AHandler: IConnectionHandler);
+begin
+  FConnectionHandler := AHandler;
+end;
+
 {$ELSE}
 
 { TDextEpollEngine - Stub }
@@ -1460,6 +1553,10 @@ begin
 end;
 
 procedure TDextEpollEngine.SetOnUpgrade(const AHandler: TUpgradeEventHandler);
+begin
+end;
+
+procedure TDextEpollEngine.SetConnectionHandler(const AHandler: IConnectionHandler);
 begin
 end;
 {$ENDIF}

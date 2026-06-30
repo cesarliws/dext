@@ -6,7 +6,7 @@ uses
   System.TypInfo,
   System.Rtti,
   System.SysUtils,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Collections,
   Dext.Entity,           // Facade para ORM (TDbContext, TSnakeCaseNamingStrategy)
   Dext.Entity.Core,      // Explicitly needed for IDbSet<T>

@@ -13,7 +13,7 @@ interface
 uses
   // 1. Delphi Units
   System.SysUtils,
-  // 3. Dext Specialized Units
+  // 3. Dext, Dext.DI.Interfaces Specialized Units
   Dext.Auth.Middleware,
   Dext.Caching,
   Dext.Entity.Core,
@@ -23,8 +23,8 @@ uses
   Dext.Web.DataApi,
   Dext.Core.SmartTypes,
   Dext.Collections,
-  // 4. Dext Facades Last to ensure precedence and valid helpers
-  Dext,
+  // 4. Dext, Dext.DI.Interfaces Facades Last to ensure precedence and valid helpers
+  Dext, Dext.DI.Interfaces,
   Dext.Entity,
   Dext.Web;
 

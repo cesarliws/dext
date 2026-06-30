@@ -1,4 +1,4 @@
-﻿package Dext.Net.Core;
+package Dext.Net.Core;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -41,6 +41,10 @@ contains
   Dext.Net.ConnectionPool in '..\..\Sources\Net\Dext.Net.ConnectionPool.pas',
   Dext.Net.RestClient in '..\..\Sources\Net\Dext.Net.RestClient.pas',
   Dext.Net.RestRequest in '..\..\Sources\Net\Dext.Net.RestRequest.pas',
-  Dext.Logging.Sinks.APM in '..\..\Sources\Net\Dext.Logging.Sinks.APM.pas';
+  Dext.Logging.Sinks.APM in '..\..\Sources\Net\Dext.Logging.Sinks.APM.pas',
+  Dext.Net.Tcp in '..\..\Sources\Net\Dext.Net.Tcp.pas',
+  Dext.Net.Udp in '..\..\Sources\Net\Dext.Net.Udp.pas',
+  Dext.Net.Mqtt.Parser in '..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas',
+  Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas';
 
 end.

@@ -1,11 +1,11 @@
 ---
 name: dext-networking
-description: Make HTTP requests from Delphi using the Dext REST client with fluent API, async/await, connection pooling, and authentication providers. Use when consuming external APIs or microservices from a Dext application.
+description: Make HTTP, REST, TCP, UDP and MQTT connections from Delphi using the Dext NET client/server stack. Use when implementing low-level socket communication, custom protocols, or MQTT messaging.
 ---
 
-# Dext Networking (REST Client)
+# Dext Networking (REST, Sockets, and MQTT)
 
-Fluent, async HTTP client with built-in connection pooling and automatic JSON serialization.
+Fluent REST client, high-performance low-level TCP/UDP sockets, and native MQTT v3.1.1 messaging.
 
 ## Core Import
 
@@ -208,5 +208,80 @@ Services.AddSingleton<IExternalApiClient, TExternalApiClient>(
       TRestClient.Create('https://api.external.com'));
   end);
 ```
+
+## Low-Level Sockets (TCP & UDP)
+
+For low-level socket protocol implementation, use native non-blocking server and client modules.
+
+### TCP Server and Client
+
+```pascal
+uses
+  Dext.Net.Tcp,
+  Dext.Core.Span;
+
+// Server
+var Server := TDextTcpServer.Create;
+Server.OnDataSpan := procedure(const Connection: ITcpConnection; const Data: TByteSpan)
+  begin
+    Connection.Send(Data); // Echo
+  end;
+Server.Bind('0.0.0.0', 8080);
+Server.Start;
+
+// Client
+var Client := TDextTcpClient.Create;
+Client.Connect('127.0.0.1', 8080);
+Client.Send(TBytes.Create($01, $02));
+var Buffer: TBytes;
+SetLength(Buffer, 1024);
+var ReadLen := Client.Receive(Buffer, 2000);
+```
+
+### Protocol Decoupling (IConnectionHandler)
+
+Implement `IConnectionHandler` to decouple raw network operations from HTTP processing inside the core IOCP/Epoll engine:
+
+```pascal
+uses
+  Dext.Server.Engine.Interfaces,
+  Dext.Core.Span;
+
+type
+  TCustomProtoHandler = class(TInterfacedObject, IConnectionHandler)
+  public
+    procedure OnConnect(const Connection: IDextTransportConnection);
+    procedure OnDisconnect(const Connection: IDextTransportConnection);
+    procedure OnData(const Connection: IDextTransportConnection; const Span: TByteSpan);
+    procedure OnError(const Connection: IDextTransportConnection; Ex: Exception);
+  end;
+```
+
+---
+
+## Native MQTT v3.1.1 (Client & Broker)
+
+`Dext.Net` includes a native pub/sub message router, client, and broker server.
+
+```pascal
+uses
+  Dext.Net.Mqtt;
+
+// Broker Server
+var Broker := TDextMqttServer.Create;
+Broker.Bind('0.0.0.0', 1883);
+Broker.Start;
+
+// Client
+var Client := TDextMqttClient.Create;
+Client.Connect('127.0.0.1', 1883, 'MyDelphiClient');
+Client.OnMessageReceived := procedure(const Msg: TMqttMessage)
+  begin
+    WriteLn('Received: ', Msg.Topic, ' - ', Length(Msg.Payload), ' bytes');
+  end;
+Client.Subscribe('sensors/+/status');
+Client.Publish('sensors/kitchen/status', TEncoding.UTF8.GetBytes('online'));
+```
+
 
 

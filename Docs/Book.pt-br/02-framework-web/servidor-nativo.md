@@ -66,6 +66,17 @@ begin
 end;
 ```
 
+## Escalonamento de Windows Processor Groups
+
+Em máquinas Windows com alta contagem de núcleos (mais de 64 processadores lógicos), o sistema operacional divide os núcleos da CPU em **Processor Groups** (máximo de 64 núcleos por grupo). Por padrão, um processo é atribuído a apenas um grupo inicial, fazendo com que todos os outros grupos de núcleos fiquem ociosos.
+
+O motor de servidor nativo do Dext resolve esse gargalo implementando o **Agendamento Ciente de Grupos de Processadores** (através da unit `Dext.Threading.ProcessorGroups`):
+1. **Descoberta de Topologia**: Detecta automaticamente todos os grupos ativos e o número total de núcleos do sistema através da função `GetSystemLogicalProcessorCount`.
+2. **Provisionamento Dinâmico**: Inicializa uma quantidade de threads de trabalho que condiz com o total real de núcleos da máquina (ex. 96 workers em um sistema com 2 grupos de 48 cores) em vez de se limitar ao grupo inicial.
+3. **Balanceamento de Afinidade**: Distribui as threads de trabalho de E/S uniformemente em modo Round-Robin entre os grupos e núcleos disponíveis por meio do `SetThreadGroupAffinity` antes do início do loop de processamento.
+
+Isso garante linearidade de escalabilidade e 100% de uso de CPU em todos os grupos de processadores e nós NUMA da máquina.
+
 > [!WARNING]
 > No Windows, a execução do servidor através do `http.sys` exige permissões de reserva de URL adequadas. Se você vincular o servidor a todas as interfaces (`0.0.0.0`), o Dext registrará o prefixo curinga forte `http://+:porta/`, que exige a execução da aplicação como Administrador ou a reserva correspondente no namespace de URLs via:
 > ```cmd

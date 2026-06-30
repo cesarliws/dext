@@ -1361,6 +1361,8 @@ var
   Props: IList<TPair<TRttiProperty, string>>;
   Sql: string;
   Val: TValue;
+  PropMap: TPropertyMap;
+  Converter: ITypeConverter;
 begin
   if Length(AEntities) = 0 then Exit;
   SetLength(EntitiesT, Length(AEntities));
@@ -1381,9 +1383,19 @@ begin
       begin
         Prop := Pair.Key;
         ParamName := Pair.Value;
+        
+        PropMap := nil;
+        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        
+        Converter := nil;
+        if PropMap <> nil then Converter := PropMap.Converter;
+        if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
+        if (Converter = nil) and (PropMap <> nil) and PropMap.IsJsonColumn then
+          Converter := TJsonConverter.Create(PropMap.UseJsonB);
+
         for i := 0 to High(EntitiesT) do
         begin
-          Val := Prop.GetValue(Pointer(EntitiesT[i]));
+          Val := Prop.GetValue(TObject(EntitiesT[i]));
           if IsNullable(Val.TypeInfo) then
           begin
              Helper := TNullableHelper.Create(Val.TypeInfo);
@@ -1394,6 +1406,11 @@ begin
           end
           else
              ParamValues[i] := Val;
+
+          TReflection.TryUnwrapProp(ParamValues[i], ParamValues[i]);
+
+          if Converter <> nil then
+            ParamValues[i] := Converter.ToDatabase(ParamValues[i], Generator.GetDialectEnum);
         end;
         Cmd.SetParamArray(ParamName, ParamValues);
       end;

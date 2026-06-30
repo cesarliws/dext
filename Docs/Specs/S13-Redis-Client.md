@@ -15,7 +15,7 @@ Existing Delphi Redis clients often rely on blocking Indy components or lack mod
 
 ### 2. High-Performance Core
 - **Async/Await**: Native integration with `Dext.Threading.Async`. No blocking calls in the main execution path.
-- **Socket Engine**: Optimization using OS-native features where possible (IOCP/EPOLL) or high-performance abstraction layers, moving away from legacy blocking models.
+- **Socket Engine**: Built directly on top of the raw TCP socket transport layer exposed in **Spec S47** (`TDextTcpClient`), utilizing the framework's native non-blocking IOCP (Windows) and epoll (Linux) backend drivers instead of legacy blocking models.
 - **Connection Pooling**: Integrated with `Dext.Net.ConnectionPool` for efficient resource management.
 
 ### 3. Key Features

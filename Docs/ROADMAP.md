@@ -57,6 +57,8 @@ Status | Task | Spec | Description
 ✅ | **APM & Telemetry Sinks** | [S35](Specs/S35-APM-Log-Sinks.md) | Asynchronous batch-oriented telemetry sinks targeting Seq and OpenTelemetry (OTLP) collectors.
 ✅ | **Indy HTTP Fallback** | [S37](Specs/S37-Http-Engine-Indy-Fallback.md) | Abstract HTTP Client layer to support Indy fallback on older Delphi versions.
 ✅ | **Delphi Hub Client** | [S42](Specs/S42-Delphi-Hub-Client.md) | Native Delphi client connection library for Dext Hubs (WebSocket/SSE).
+✅ | **Processor Groups** | [S48](Specs/S48-Processor-Groups.md) | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
+✅ | **Expose TCP/UDP & MQTT** | [S47](Specs/S47-Network-Exposing.md) | Decouple core IOCP/Epoll engine for raw sockets and native MQTT client/broker.
 
 ## 🔮 Future / Post-V1
 - [ ] **OData Support**: Full OData query support.
@@ -115,6 +117,8 @@ Status | Tarefa | Spec | Descrição
 ✅ | **APM & Telemetry Sinks** | [S35](Specs/S35-APM-Log-Sinks.md) | Envio assíncrono em lotes de telemetria e logs para Seq e coletores OpenTelemetry (OTLP).
 ✅ | **Indy HTTP Fallback** | [S37](Specs/S37-Http-Engine-Indy-Fallback.md) | Abstração do cliente HTTP para suporte a fallback com Indy em versões antigas.
 ✅ | **Cliente Hub Delphi** | [S42](Specs/S42-Delphi-Hub-Client.md) | Biblioteca cliente nativa em Delphi para conexão com Dext Hubs (WebSocket/SSE).
+✅ | **Processor Groups** | [S48](Specs/S48-Processor-Groups.md) | Otimização de Windows Processor Groups (escala NUMA-Aware) para >64 cores lógicos.
+✅ | **Expor TCP/UDP & MQTT** | [S47](Specs/S47-Network-Exposing.md) | Desacoplar motor core IOCP/Epoll para sockets puros e client/broker MQTT nativo.
 
 ## 🔮 Futuro / Pós-V1
 - [ ] **Suporte a OData**: Suporte completo a queries OData.

@@ -32,7 +32,8 @@ uses
   Dext.Entity.SoftDelete.Tests in 'Dext.Entity.SoftDelete.Tests.pas',
   Dext.Entity.Validation.Tests in 'Dext.Entity.Validation.Tests.pas',
   Dext.Entity.BulkBatchSize.Tests in 'Dext.Entity.BulkBatchSize.Tests.pas',
-  Dext.Entity.DynamicQueryFilter.Tests in 'Dext.Entity.DynamicQueryFilter.Tests.pas';
+  Dext.Entity.DynamicQueryFilter.Tests in 'Dext.Entity.DynamicQueryFilter.Tests.pas',
+  Dext.Entity.Sequences.Tests in 'Dext.Entity.Sequences.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -76,7 +77,8 @@ begin
         TEntityValidationTests,
         TFluentQueryTests,
         TDynamicQueryFilterUnitTests,
-        TDynamicQueryFilterIntegrationTests
+        TDynamicQueryFilterIntegrationTests,
+        TEntitySequencesTests
       ]));
   except
     on E: Exception do

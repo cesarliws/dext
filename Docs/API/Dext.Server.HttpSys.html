@@ -213,8 +213,12 @@
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
+<a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
+<a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
+<a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
 <a href="Dext.OpenAPI.Extensions.html" class="nav-item">Dext.OpenAPI.Extensions</a>
 <a href="Dext.OpenAPI.Fluent.html" class="nav-item">Dext.OpenAPI.Fluent</a>
@@ -276,6 +280,7 @@
 <a href="Dext.Text.Escaping.html" class="nav-item">Dext.Text.Escaping</a>
 <a href="Dext.Threading.Async.html" class="nav-item">Dext.Threading.Async</a>
 <a href="Dext.Threading.CancellationToken.html" class="nav-item">Dext.Threading.CancellationToken</a>
+<a href="Dext.Threading.ProcessorGroups.html" class="nav-item">Dext.Threading.ProcessorGroups</a>
 <a href="Dext.Threading.Sync.html" class="nav-item">Dext.Threading.Sync</a>
 <a href="Dext.Types.Lazy.html" class="nav-item">Dext.Types.Lazy</a>
 <a href="Dext.Types.Nullable.html" class="nav-item">Dext.Types.Nullable</a>
@@ -463,6 +468,7 @@ class TDextHttpSysEngine {    +InitializeHttpSys()
     +SetOnDisconnection()
     +SetOnRequest()
     +SetOnUpgrade()
+    +SetConnectionHandler()
     +Factory()
     +BufferPool
 }
@@ -607,7 +613,7 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="class-header">
 <h3>class TDextHttpSysWorker</h3><a name="TDextHttpSysWorker"></a><div class="ancestor">Inherits from: TThread</div><div class="description">Worker thread for processing request queue events.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle)</div><div class="description">Initializes the http.sys worker thread.</div></div>
+<div class="api-signature">constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle; const const: TDextProcessorGroupAffinity)</div><div class="description">Initializes the http.sys worker thread.</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">procedure Execute</div></div>
@@ -639,6 +645,8 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-signature">procedure SetOnRequest(const const: TRequestEventHandler)</div><div class="description">Sets the request event handler.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetOnUpgrade(const const: TUpgradeEventHandler)</div><div class="description">Sets the socket upgrade event handler.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetConnectionHandler(const const: IConnectionHandler)</div><div class="description">Sets the custom connection handler (unsupported for HTTP.sys).</div></div>
 <div class="api-item">
 <div class="api-signature">function Factory(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost</div><div class="description">Static factory method for creating and registering the http.sys web host.</div></div>
 <div class="api-item">

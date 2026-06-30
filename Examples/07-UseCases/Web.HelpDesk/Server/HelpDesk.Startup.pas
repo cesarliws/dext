@@ -16,7 +16,7 @@ uses
   Dext.Logging,         // HttpLogging
   Dext.RateLimiting,
   Dext.RateLimiting.Policy,
-  Dext,        // Facade
+  Dext, Dext.DI.Interfaces,        // Facade
   Dext.Web,    // Facade
   Dext.Entity; // Facade
 

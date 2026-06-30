@@ -234,6 +234,7 @@
         <DCCReference Include="..\..\Sources\Core\Base\Dext.Logging.Telemetry.pas"/>
         <DCCReference Include="..\..\Sources\Core\Base\Dext.Logging.Tracing.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Threading.Sync.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Threading.ProcessorGroups.pas"/>
         <DCCReference Include="..\..\Sources\Core\Base\Dext.Telemetry.Metrics.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.BackgroundJobs.Intf.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.BackgroundJobs.Storage.InMemory.pas"/>

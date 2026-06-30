@@ -52,6 +52,8 @@ ID | Title | Status | Goal
 **S44** | [HTTP/3 & QUIC Transport Engine](S44-Http3-Quic.md) | 📝 Draft | Native UDP-based QUIC transport and HTTP/3 protocol mapping.
 **S45** | [Advanced Kernel I/O (io_uring & kqueue)](S45-Kernel-Io.md) | 📝 Draft | High-performance OS I/O drivers: io_uring for Linux and kqueue for macOS/BSD.
 **S46** | [Database Sequence Generators & HiLo](S46-Sequence-Generators.md) | ✅ Finalized | Database sequence mapping and HiLo pre-allocation.
+**S47** | [Expose TCP/UDP & MQTT Server/Client](S47-Network-Exposing.md) | ✅ Finalized | Decouple IOCP/Epoll engine to expose raw TCP/UDP sockets and implement MQTT protocol stack.
+**S48** | [Processor Groups](S48-Processor-Groups.md) | ✅ Finalized | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
 
 ---
 

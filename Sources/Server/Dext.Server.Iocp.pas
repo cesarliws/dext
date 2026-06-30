@@ -37,10 +37,12 @@ uses
   System.Generics.Defaults,
   Winapi.Windows,
   Winapi.WinSock2,
+  Dext.Threading.ProcessorGroups,
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces,
   Dext.Server.Iocp.HttpParser,
-  Dext.Collections.Dict;
+  Dext.Collections.Dict,
+  Dext.Core.Span;
 
 
 type
@@ -52,7 +54,7 @@ type
   /// <summary>
   ///   Raw connection implementation wrapper for IOCP sockets.
   /// </summary>
-  TDextIocpConnection = class(TInterfacedObject, IDextServerConnection)
+  TDextIocpConnection = class(TInterfacedObject, IDextServerConnection, IDextTransportConnection)
   private
     FConnectionId: UInt64;
     FSocket: TSocket;
@@ -81,6 +83,11 @@ type
     function IsSecure: Boolean;
     /// <summary>Closes the connection.</summary>
     procedure Close;
+
+    /// <summary>Sends a byte array to the client.</summary>
+    procedure Send(const ABuffer: TBytes); overload;
+    /// <summary>Sends a span of bytes to the client.</summary>
+    procedure Send(const ASpan: TByteSpan); overload;
 
     /// <summary>Checks if connection upgrade is supported.</summary>
     function SupportsUpgrade: Boolean;
@@ -206,13 +213,14 @@ type
   private
     FEngine: TDextIocpEngine;
     FIocp: THandle;
+    FAffinity: TDextProcessorGroupAffinity;
   protected
     procedure Execute; override;
   public
     /// <summary>Initializes a new IOCP worker thread.</summary>
     /// <param name="AEngine">The IOCP engine instance.</param>
     /// <param name="AIocp">The IOCP port handle.</param>
-    constructor Create(AEngine: TDextIocpEngine; AIocp: THandle);
+    constructor Create(AEngine: TDextIocpEngine; AIocp: THandle; const AAffinity: TDextProcessorGroupAffinity);
   end;
 
   /// <summary>
@@ -234,6 +242,7 @@ type
     FOnDisconnection: TConnectionEventHandler;
     FOnRequest: TRequestEventHandler;
     FOnUpgrade: TUpgradeEventHandler;
+    FConnectionHandler: IConnectionHandler;
 
     FActiveConnections: Integer;
     FTotalRequests: Int64;
@@ -273,6 +282,8 @@ type
     procedure SetOnRequest(const AHandler: TRequestEventHandler);
     /// <summary>Sets the socket upgrade event handler.</summary>
     procedure SetOnUpgrade(const AHandler: TUpgradeEventHandler);
+    /// <summary>Sets the custom connection handler.</summary>
+    procedure SetConnectionHandler(const AHandler: IConnectionHandler);
   end;
 {$ENDIF}
 
@@ -309,6 +320,18 @@ begin
     closesocket(FSocket);
     FSocket := INVALID_SOCKET;
   end;
+end;
+
+procedure TDextIocpConnection.Send(const ABuffer: TBytes);
+begin
+  if Length(ABuffer) > 0 then
+    Winapi.WinSock2.send(FSocket, ABuffer[0], Length(ABuffer), 0);
+end;
+
+procedure TDextIocpConnection.Send(const ASpan: TByteSpan);
+begin
+  if ASpan.Length > 0 then
+    Winapi.WinSock2.send(FSocket, ASpan.Data^, ASpan.Length, 0);
 end;
 
 function TDextIocpConnection.GetConnectionId: UInt64;
@@ -565,11 +588,12 @@ end;
 
 { TDextIocpWorker }
 
-constructor TDextIocpWorker.Create(AEngine: TDextIocpEngine; AIocp: THandle);
+constructor TDextIocpWorker.Create(AEngine: TDextIocpEngine; AIocp: THandle; const AAffinity: TDextProcessorGroupAffinity);
 begin
   inherited Create(True);
   FEngine := AEngine;
   FIocp := AIocp;
+  FAffinity := AAffinity;
   FreeOnTerminate := False;
 end;
 
@@ -593,6 +617,8 @@ var
   RawRequest: IDextRawRequest;
   RawResponse: IDextRawResponse;
 begin
+  ApplyGroupAffinityToThread(GetCurrentThread, FAffinity);
+
   IocpOverlapped := nil;
 
   while not Terminated and FEngine.FRunning do
@@ -655,40 +681,77 @@ begin
         // For simplicity in Phase 3, we execute synchronous recv
         SetLength(Buffer, 8192);
         RecvRet := recv(IocpOverlapped.Socket, Buffer[0], Length(Buffer), 0);
-        if RecvRet > 0 then
+        
+        if Assigned(FEngine.FConnectionHandler) then
         begin
-          if TDextIocpHttpParser.TryParseRequest(
-            Buffer,
-            RecvRet,
-            Method,
-            Path,
-            Query,
-            HeaderSegments,
-            BodyOffset,
-            ContentLength
-          ) then
-          begin
-            TInterlocked.Increment(FEngine.FTotalRequests);
-
-            Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
-            RawRequest := TDextIocpRequest.Create(Method, Path, Query, HeaderSegments, Buffer, BodyOffset, RecvRet - BodyOffset, ContentLength);
-            RawResponse := TDextIocpResponse.Create(IocpOverlapped.Socket);
-
+          Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
+          try
             try
-              if Assigned(FEngine.FOnRequest) then
-                FEngine.FOnRequest(Connection, RawRequest, RawResponse);
-            finally
-              RawResponse.Close;
-              RawResponse := nil;
-              RawRequest := nil;
-              Connection := nil;
+              FEngine.FConnectionHandler.OnConnect(Connection as IDextTransportConnection);
+              
+              if RecvRet > 0 then
+                FEngine.FConnectionHandler.OnData(Connection as IDextTransportConnection, TByteSpan.Create(@Buffer[0], RecvRet));
+
+              while FEngine.FRunning do
+              begin
+                RecvRet := recv(IocpOverlapped.Socket, Buffer[0], Length(Buffer), 0);
+                if RecvRet <= 0 then
+                  Break;
+                FEngine.FConnectionHandler.OnData(Connection as IDextTransportConnection, TByteSpan.Create(@Buffer[0], RecvRet));
+              end;
+            except
+              on E: Exception do
+              begin
+                FEngine.FConnectionHandler.OnError(Connection as IDextTransportConnection, E);
+              end;
+            end;
+          finally
+            try
+              FEngine.FConnectionHandler.OnDisconnect(Connection as IDextTransportConnection);
+            except
+            end;
+            closesocket(IocpOverlapped.Socket);
+            TInterlocked.Decrement(FEngine.FActiveConnections);
+            Dispose(IocpOverlapped);
+          end;
+        end
+        else
+        begin
+          if RecvRet > 0 then
+          begin
+            if TDextIocpHttpParser.TryParseRequest(
+              Buffer,
+              RecvRet,
+              Method,
+              Path,
+              Query,
+              HeaderSegments,
+              BodyOffset,
+              ContentLength
+            ) then
+            begin
+              TInterlocked.Increment(FEngine.FTotalRequests);
+
+              Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
+              RawRequest := TDextIocpRequest.Create(Method, Path, Query, HeaderSegments, Buffer, BodyOffset, RecvRet - BodyOffset, ContentLength);
+              RawResponse := TDextIocpResponse.Create(IocpOverlapped.Socket);
+
+              try
+                if Assigned(FEngine.FOnRequest) then
+                  FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+              finally
+                RawResponse.Close;
+                RawResponse := nil;
+                RawRequest := nil;
+                Connection := nil;
+              end;
             end;
           end;
-        end;
 
-        closesocket(IocpOverlapped.Socket);
-        TInterlocked.Decrement(FEngine.FActiveConnections);
-        Dispose(IocpOverlapped);
+          closesocket(IocpOverlapped.Socket);
+          TInterlocked.Decrement(FEngine.FActiveConnections);
+          Dispose(IocpOverlapped);
+        end;
       end;
     end;
   end;
@@ -779,9 +842,10 @@ end;
 procedure TDextIocpEngine.Start;
 var
   Addr: TSockAddrIn;
-  I: Integer;
+  i: Integer;
   ThreadCount: Integer;
   Worker: TDextIocpWorker;
+  Affinity: TDextProcessorGroupAffinity;
 begin
   if FRunning then Exit;
 
@@ -815,17 +879,18 @@ begin
   FRunning := True;
 
   // Queue initial accept operations
-  for I := 1 to 10 do
+  for i := 1 to 10 do
     QueueAccept;
 
   // Start Worker Threads
   ThreadCount := FOptions.IoThreadCount;
   if ThreadCount <= 0 then
-    ThreadCount := CPUCount;
+    ThreadCount := GetSystemLogicalProcessorCount;
 
-  for I := 1 to ThreadCount do
+  for i := 0 to ThreadCount - 1 do
   begin
-    Worker := TDextIocpWorker.Create(Self, FIocp);
+    GetProcessorGroupAffinityForWorker(i, Affinity);
+    Worker := TDextIocpWorker.Create(Self, FIocp, Affinity);
     FWorkers.Add(Worker);
     Worker.Start;
   end;
@@ -908,6 +973,11 @@ end;
 procedure TDextIocpEngine.SetOnUpgrade(const AHandler: TUpgradeEventHandler);
 begin
   FOnUpgrade := AHandler;
+end;
+
+procedure TDextIocpEngine.SetConnectionHandler(const AHandler: IConnectionHandler);
+begin
+  FConnectionHandler := AHandler;
 end;
 
 {$ENDIF}

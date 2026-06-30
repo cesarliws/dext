@@ -102,6 +102,11 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **Nullable\<T\> Interop** — Implicit bidirectional conversion between `Prop<T>` and `Nullable<T>`.
 - **Variant Interop** — Implicit bidirectional conversion between `Prop<T>` and `Variant`.
 
+### 1.6c Windows Processor Groups & CPU Topology (`Dext.Threading.ProcessorGroups`)
+- **Windows Processor Groups** — Native support for Windows machines with >64 logical cores. Automatically detects multiple processor groups and binds worker threads using `SetThreadGroupAffinity` to scale and balance workloads.
+- **GetSystemLogicalProcessorCount** — Helper that queries system-wide processor topology across all groups on Windows (falling back to standard `CPUCount` on other platforms) to prevent under-provisioning of server IO workers.
+- **Round-Robin Group Affinity** — Auto-allocator that distributes worker threads evenly across available NUMA nodes and processor groups.
+
 ### 1.7 Value Converter Engine (`Dext.Core.ValueConverters`)
 - **TValueConverterRegistry** — Global converter registry with 3-level lookup: (1) Exact Match by `PTypeInfo` pair, (2) Kind Match by `TTypeKind` pair, (3) Fallback for `tkVariant` source.
 - **TValueConverter** — Execution engine orchestrating conversions, with automatic handling of Smart Types (`Prop<T>`) and `Nullable<T>` (detected via `TReflection.GetMetadata`).
@@ -715,6 +720,201 @@ The framework embeds a premium, high-performance, asynchronous observability sui
 - **HTMX Fragment Swap** — Endpoints serving dynamic HTML fragments (e.g. `/sidecar/fragments/metrics`), allowing live DOM updates via HTMX without writing any client-side JavaScript.
 
 ## 🌐 20. HTTP/2 Framing & HPACK Transport (S41) (`Sources\Server`)
+---
+
+## 🎨 8. Dext Template Engine (`Sources\Core\Base\Dext.Templating`)
+
+### 8.1 Core Architecture
+- **ITemplateEngine** — Main interface: `Render(template, context)` and `RenderTemplate(name, context)`.
+- **TDextTemplateEngine** — Complete implementation with AST (Abstract Syntax Tree) parser. Each directive is compiled into a node (`TTemplateNode`) with a `Render` method.
+- **ITemplateContext** — Hierarchical context with string values, objects, and lists. `CreateChildScope` for nested scoping.
+
+### 8.2 Template Loader
+- **ITemplateLoader** — Pluggable interface for loading templates. Implementations: FileSystem and In-Memory.
+
+### 8.3 Node Types (AST)
+- `TTextNode` (literal text), `TExpressionNode` (interpolation `{{ var }}`), `TIfNode`/`TElseIfNode`/`TElseNode` (conditionals), `TForEachNode` (iteration with `@index`, `@first`, `@last`), `TBlockNode` (named blocks), `TExtendsNode` (layout inheritance), `TSectionNode` (sections), `TMacroNode` (reusable macros), `TBreakNode`/`TContinueNode` (loop flow control).
+
+### 8.4 Expression Engine
+- Expression parser with support for arithmetic, comparison, and logical operators (`and`, `or`, `not`).
+- **Chained Filters** — `{{ value | upper | truncate(10) }}` with filter pipeline.
+- **Filter Registry** (`ITemplateFilterRegistry`) — `RegisterFilter(name, func)` for custom filters.
+- **Built-in Filters** — `upper`, `lower`, `capitalize`, `truncate`, `default`, `date`, `html_escape`, etc.
+
+### 8.5 Advanced Features
+- **Layout Inheritance** — `{% extends "base.html" %}` with block overrides.
+- **Whitespace Control** — `{%- -%}` for whitespace control in directives.
+- **HTML Mode** — `IsHtmlMode` for automatic output escaping.
+- **Source Position Tracking** — `TSourcePos` with line, column, and filename for precise error reporting.
+- **ETemplateException** — Exceptions with position and template snippet for debugging.
+
+---
+
+## ✅ 9. Dext Validation Engine (`Dext.Validation`)
+
+- **Attribute-Based Validation** — RTTI decorators: `[Required]`, `[StringLength(min, max)]`, `[Range(min, max)]`, `[RegularExpression(pattern)]`, `[EmailAddress]`, `[Url]`.
+- **Fluent Validation API** — Strongly-typed validation base class `TAbstractValidator<T>` implementing `IValidator<T>` as a modern C# FluentValidation-like alternative.
+- **Fluent Rule Builder** — Memory-efficient record `TValidationRuleBuilder<T>` that avoids heap allocations while building chained validation rules (`Required`, `Length`, `Range`, `EmailAddress`, `Matches`, `MatchesPattern`, `Must`, `When`).
+- **Smart Property Integration** — Concrete `RuleFor` overloads for standard `Prop<T>` smart properties (e.g., `Prop<string>`, `Prop<Integer>`, `Prop<Boolean>`, etc.) to automatically extract property names from Prototype ghost entities without magic strings or compiler casting issues.
+- **Pattern Registry** — `TValidationPatterns` registry mapping keys to locale-specific regular expressions (e.g. Pt-BR or En-US phone numbers and zipcodes).
+- **TValidator** — Non-generic helper: `Validate(obj)` returns `TValidationResult` with a list of `TValidationError` (field + message).
+- **TValidator\<T\>** — Typed generic version.
+- **Custom Validators** — Inherit from `ValidationAttribute` for custom business rules.
+- **Web Integration** — Automatic resolution of registered validators (`IValidator<T>`) from the Dependency Injection (DI) container inside the web model binding pipeline (`THandlerInvoker.Validate`), raising `TWebValidationException` to yield structured error JSON/HTMX payloads.
+
+---
+
+## 🔄 10. Dext Mapper (`Dext.Mapper`)
+
+- **TMapper** — AutoMapper-like for DTO↔Entity transformation.
+- **CreateMap\<TSource, TDest\>** — Mapping registration with automatic property reflection by name.
+- **ForMember** — Mapping override for specific properties with custom lambda expressions.
+- **Map\<TSource, TDest\>** — Mapping execution with automatic destination instance creation.
+- **Collection Mapping** — Automatic mapping of lists and arrays.
+
+---
+
+## 🏢 11. Dext Multi-Tenancy (`Dext.MultiTenancy`)
+
+- **ITenantProvider** — Abstraction for current tenant identification.
+- **ITenantConnectionStringProvider** — Dynamic connection string resolution per tenant.
+- **Strategies** — Shared Database (TenantId discriminator), Schema Isolation (`search_path` in PostgreSQL), Database per Tenant.
+- **DI Integration** — Registered as a Scoped service for resolution per request.
+
+---
+
+## 🖥️ 12. Desktop UI & Design-Time (`Sources\UI`, `Sources\Design`)
+
+### 12.1 Navigator Framework (Flutter-style)
+- **ISimpleNavigator** — Push/Pop/Replace/PopUntil navigation with `TValue` data passing.
+- **3 Adapters** — `TCustomContainerAdapter` (embed frames in panel), `TPageControlAdapter` (tabs), `TMDIAdapter` (child windows).
+- **Middleware Pipeline** — `TLoggingMiddleware`, `TAuthMiddleware`, `TRoleMiddleware` — same architecture as the Web pipeline.
+- **Lifecycle Hooks** — `INavigationAware` with `OnNavigatedTo(Context)` and `OnNavigatedFrom`.
+- **DI Integration** — Navigator registered as a Singleton service in the container.
+
+### 12.2 Magic Binding (`Dext.UI.Binding`)
+- **Two-Way Attribute-Based Binding** — `[BindEdit('Name')]`, `[BindCheckBox('Active')]`, `[BindText('ErrorMessage')]`.
+- **Nested Properties** — `[BindEdit('Customer.Address.City')]` with dot notation.
+- **Message Dispatch** — `[OnClickMsg(TSaveMsg)]` eliminates manual `OnClick` handlers.
+- **Custom Converters** — `IValueConverter` with `Convert`/`ConvertBack` for complex types (e.g., `TCurrencyConverter`).
+- **TBindingEngine** — Central engine automatically synchronizing ViewModel ↔ UI.
+
+### 12.3 MVVM Patterns
+- Clean architecture with ViewModel + Controller + DI.
+- **Validation Integration** — `FViewModel.Validate` with errors automatically reflected in the UI via binding.
+
+### 12.4 Infrastructure
+- **Interception Engine** — Proxy engine for method interception, base for Mocks and AOP (Aspect-Oriented Programming) features.
+- **Design-Time Experts** — IDE Grid Data Preview and specialized metadata property editors.
+
+### 12.5 Design-Time Scaffolding Experts (`Dext.EF.Design.Scaffolding`)
+- **TSelectionEditor Integration** — Non-invasive context menu integration for `TFDConnection` and `TDataSet` (FireDAC and Generic). Dext menus coexist with native IDE menus.
+- **TTableSelectionForm** — Advanced selection UI with real-time filtering, "Select All/None" shortcuts, and live table/selection counters.
+- **Live Scaffolding Preview** — High-fidelity preview window with real-time code generation, statistics (Entities/Metadata/Lines), and style switching (POCO vs. Smart).
+- **Smart PascalCase Engine** — Acronym-aware naming logic (`EmployeeID` → `EmployeeId`, `ReportsTo` preserved) with support for `snake_case` and `ALL_CAPS` normalization.
+- **Enhanced Meta-Inference** — Precise AutoInc detection via RTTI and `ftAutoInc`, ensuring 1:1 parity with database schema.
+- **IOTA Automation** — Seamless creation of new units in memory and automatic association with the active Delphi project.
+
+---
+
+## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding`)
+
+- **Dext CLI (S01)** — Unified CLI engine (`dext.exe`) for project management.
+- **Advanced Scaffolding** — Project and file generation via smart templates: `dext new` (projects), `dext add` (controllers, entities, middlewares).
+- **Template Logic** — Direct integration with **Dext.Templating** for complex logic within scaffolding templates.
+- **Dext Doc** — Automated technical project documentation generation.
+- **`dext test`** — CLI-based test execution and coverage report generation.
+- **`dext ui`** — Web dashboard for real-time test monitoring.
+
+---
+
+## 🔍 14. Observability & Telemetry (`Sources\Core\Base`)
+
+- **TDiagnosticSource (S03)** — Centralized event publisher based on JSON payloads, ensuring decoupling between producers (ORM, Web) and consumers.
+- **Telemetry Bridge** (`Dext.Logging.Telemetry`) — Automatic `ILogger` integration, enabling HTTP and SQL telemetry visualization in console or log files.
+- **SQL Capture** — ORM native SQL instruction extraction and formatting for real-time auditing.
+- **HTTP Lifecycle** — Latency, status codes, and web framework route tracing.
+- **Stack Trace Extraction** (`Dext.Core.Debug`) — Precise and detailed stack trace extraction at the point of exception. Critical for debugging highly integrated frameworks with dynamic execution flows.
+
+---
+
+## 🤖 15. AI Skills & Developer Experience (`Docs\ai-agents`)
+
+- **Native AI Skills** — Modular instruction files (`dext-web.md`, `dext-orm.md`, `dext-auth.md`) teaching AI assistants (Cursor, Antigravity, Copilot, Claude) to generate idiomatic Dext code.
+- **3 Integration Modes** — Direct copy to `.agents/skills/`, global custom configuration, or symlinks.
+- **Modular by Design** — Atomic skills to save context tokens; load only relevant modules for the current feature.
+- **Compatibility** — Claude Code, Cursor, Antigravity, Cline, OpenCode, GitHub Copilot.
+
+---
+
+## 🌐 16. SSR & View Engines — Advanced Features
+
+### 16.1 HTMX Integration
+- **Auto-Detection** — The pipeline automatically detects `HX-Request` headers and **suppresses the global layout** on compatible endpoints.
+- **Partial Rendering** — `Results.View<T>('fragment', Query).WithLayout('')` for partial fragment rendering without layout.
+- **Full-Stack SPA Feel** — Combines server-side SSR with dynamic HTMX swapping for highly responsive apps without heavy JavaScript.
+
+### 16.2 Flyweight Iterators (Streaming SSR)
+- **O(1) Memory** — `TStreamingViewIterator<T>` iterates on demand during template `@foreach`. 10.000 records rendered using memory equivalent to **a single object**.
+- **No `ToList`** — Pass `Db.Customers.QueryAll` directly to `Results.View<T>('customers', Query)` and the framework automatically engages streaming.
+- **Smart Properties in Templates** — `@(Prop(item.Name))` for automatic `Prop<T>` unwrapping inside HTML templates.
+
+### 16.3 Web Stencils (Delphi 12.2+)
+- **Native Provider** — `Services.AddWebStencils(...)` with entity whitelisting via `TWebStencilsProcessor.Whitelist.Configure`.
+- **Agnostic** — Same `IViewEngine` interface for Dext Template Engine and Web Stencils; switch without changing code.
+
+---
+
+## 🧪 17. Quality & Testing (Scale and Rigor)
+
+Dext is continuously validated by a massive testing infrastructure to ensure integrity across its subsystems:
+
+- **Engineering Statistics** — The project exceeds **200,000 lines of pure Pascal code** (excluding templates and documentation), reflecting a massive investment in stability and high-level abstractions.
+- **Massive Coverage** — Hundreds of test suites with thousands of individual assertions validating everything from the Core (Memory, Collections) to complex Web and ORM integrations.
+- **Multi-DB Matrix (ORM)** — The persistence engine is exhaustively tested across a real matrix of 5 databases: PostgreSQL, SQL Server, MySQL, SQLite, and Firebird.
+- **Stress & Concurrency Testing** — Validation of concurrent collections, channels, and async tasks under high load to ensure no Race Conditions.
+- **Anti-Leak Policies** — Rigorous memory monitoring in every suite; test failures are triggered if object leaks are detected.
+- **Field Evidence** — Framework validated in real-world projects deployed on **AWS and Azure**, with fiscal management systems processing peaks of **~800,000 daily requests**.
+- **CI/CD Quality Gates** — Native integration with Azure DevOps and GitHub Actions, enforcing coverage thresholds and snapshot approval.
+
+---
+
+## 🤖 18. MCP Server (Model Context Protocol) (`Sources\MCP`)
+
+The framework provides a native, zero-dependency implementation of the **MCP 2025-03-26** specification, enabling Dext applications to expose tools, resources, and prompts to AI agents (like Claude Desktop and Claude Code).
+
+- **Supported Transports** — `HTTP Streamable` (Synchronous POST with Sessions), `SSE` (Legacy Server-Sent Events), and `Stdio`.
+- **Declarative RTTI API** — `TMCPToolProvider` with `[MCPTool]`, `[MCPParam]`, `[MCPResource]`, and `[MCPPrompt]` attributes for frictionless endpoint registration.
+- **Fluent Builder API** — Chainable registration: `Server.Tool('name').Description('...').OnCall(...)`.
+- **Rich Content Types** — Built-in support for `TMCPContent` (Text, Image, Audio, Embedded Resources) and `TMCPToolResult` returning multiple blocks and error states.
+- **Integration** — Runs natively on top of Dext's `TWebHostBuilder` allowing MCP and REST endpoints to coexist non-blocking in the same process.
+
+---
+
+## 📊 19. Dext Observability Suite & Telemetry (S23 — S27) (`Sources\Core\Base`, `Sources\Dashboard`)
+
+The framework embeds a premium, high-performance, asynchronous observability suite designed to gather, persist, and visualize structured logs, distributed spans, system health metrics, and detailed database query and external network profiling.
+
+### 19.1 Distributed Tracing & Structured Logging (S24)
+- **Asynchronous Ring Buffer** — Log entries and spans are collected into a high-performance in-memory ring buffer (capped at 1000 items), eliminating disk I/O bottlenecks in critical request-handling threads.
+- **Asynchronous Persistence** — A dedicated background worker (`TDashboardSaveTimer`) periodically flushes traces to `telemetry.json` every 30 seconds in a non-blocking manner.
+- **Hierarchical Gantt Tree** — The Dashboard renders visual span nodes nested under their parent trace contexts (`TraceId`/`SpanId`) in real time, making latency and processing bottlenecks simple to analyze.
+
+### 19.2 System Metrics & Throughput (S25)
+- **RED Metrics Dashboard** — Real-time visual graphs in the Dashboard tracking HTTP RPS (Requests per Second), SQL QPS (Queries per Second), HTTP Errors, and average latency.
+- **System Health Monitor** — Operating system resource sampling: CPU usage (%), physical memory (Working Set in MB), active thread count, and active DB connections.
+- **Non-Blocking Persistence** — Serialized metrics are appended to a ring buffer and written to `metrics.json` every 30s via the async background timer.
+
+### 19.3 Database & Outbound HTTP Profiler (S27)
+- **FireDAC Auto-Instrumentation** — Zero-coupling interception inside the DB driver layers (`Dext.Entity.Drivers.FireDAC.pas`), automatically capturing raw SQL queries (`db.statement`), query parameters (`db.params`), query elapsed execution times, and routing database exceptions.
+- **Outbound HTTP Auto-Instrumentation** — Network call interception inside the Rest Client (`Dext.Net.RestClient.pas`), capturing target URLs, HTTP methods, response elapsed timings, HTTP status codes, and exceptions.
+- **Context Inspector Drawer** — A sliding overlay panel in the Dashboard triggered by clicking any span node in the tree. Displays pretty-printed SQL statements, structured query parameters, copied cURL commands, and generic metadata tags.
+
+### 19.4 Streamable Sessions & HTMX (S23)
+- **IStreamableSessionManager** — SSE channel manager with automatic garbage collection (runs every 60s, evicting idle sessions after 30 minutes).
+- **HTMX Fragment Swap** — Endpoints serving dynamic HTML fragments (e.g. `/sidecar/fragments/metrics`), allowing live DOM updates via HTMX without writing any client-side JavaScript.
+
+## 🌐 20. HTTP/2 Framing & HPACK Transport (S41) (`Sources\Server`)
 
 - **THpackDecoder & THpackEncoder** — HPACK header compressor (RFC 7541). Includes support for the 61-entry static table, dynamic table ring-buffer with FIFO size-bound eviction, and client Huffman decoding via FSM.
 - **TDextHttp2FrameCodec** — Complete parser and serializer for all 10 HTTP/2 frame types. Zero-allocation parsing via `TByteSpan` and direct buffer writers.
@@ -724,4 +924,22 @@ The framework embeds a premium, high-performance, asynchronous observability sui
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: June 18, 2026).*
+## 📡 21. Sockets Exposing & Native MQTT Protocol (S47) (`Sources\Net`, `Tests\Net`)
+
+The framework includes support for network transport decoupling inside the IOCP/Epoll server to expose raw TCP/UDP sockets, alongside a native implementation of the MQTT v3.1.1 protocol (client and broker) for asynchronous pub/sub messaging.
+
+### 21.1 Transport Layer Decoupling (IConnectionHandler)
+- **Engine Decoupling** — Abstraction of physical connections (`IDextTransportConnection`) and custom handlers (`IConnectionHandler`) allowing raw TCP/UDP streams to bypass the HTTP parser layer completely directly at the IOCP/Epoll worker threads.
+
+### 21.2 TCP & UDP Sockets
+- **TDextTcpServer & TDextTcpClient** — Concurrent, asynchronous TCP server and lightweight TCP client supporting configurable read/write timeouts.
+- **TDextUdpServer & TDextUdpClient** — Low-level UDP communication components supporting raw byte spans and non-blocking receive callbacks.
+
+### 21.3 Native MQTT v3.1.1 Protocol Stack
+- **Binary Frame Encoder/Decoder** — High-performance packet encoder and decoder supporting variable-byte Remaining Length representation and all standard MQTT control frames (CONNECT, CONNACK, PUBLISH, PUBACK, SUBSCRIBE, SUBACK, UNSUBSCRIBE, UNSUBACK, PINGREQ, PINGRESP, DISCONNECT).
+- **Trie Tree Route Router** — Highly optimized Trie tree data structure for wildcards and topic subscription matching, with full support for single-level (`+`) and multi-level (`#`) wildcards.
+- **Broker Server & Client** — Multi-session concurrent MQTT broker supporting subscription states and clean sessions, alongside a non-blocking MQTT client with background keep-alive ping loop.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: June 29, 2026).*

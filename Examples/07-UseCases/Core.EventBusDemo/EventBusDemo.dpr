@@ -21,7 +21,7 @@ program EventBusDemo;
 uses
   System.SysUtils,
   System.Threading,
-  Dext,                    // TDextServices, IServiceProvider
+  Dext, Dext.DI.Interfaces,                    // TDextServices, IServiceProvider
   Dext.Utils,
   Dext.Events,             // facade
   Dext.Events.Extensions,  // AddEventBus, AddEventHandler, etc.

@@ -358,6 +358,7 @@ The Native Server Engine is a zero-dependency high-performance HTTP server engin
 - **Zero-Allocation HTTP Parsing**: Uses `TDextIocpHttpParser` for lightning-fast parsing of HTTP/1.1 headers without intermediate heap allocations.
 - **Kernel-level Caching (Windows)**: `http.sys` caches static resources and maps requests directly inside the Windows kernel, maximizing throughput.
 - **No Third-Party Dependency**: Clean implementation without external DLLs (no OpenSSL DLLs required on Windows for HTTPS, as `http.sys` utilizes SChannel).
+- **Windows Processor Groups**: On high-core machines (>64 logical processors), the engine automatically queries system-wide topology (via `Dext.Threading.ProcessorGroups`) and distributes its I/O worker threads across all available groups and NUMA nodes using `SetThreadGroupAffinity` to achieve linear scaling beyond the 64-core barrier.
 
 ### Native Bootstrap
 

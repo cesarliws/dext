@@ -17,7 +17,7 @@ uses
   Customer.Service,
   Customer.Controller,
   Customer.Context,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Yaml,
   Dext.Configuration.Binder, // Added for TConfigurationBinder

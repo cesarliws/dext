@@ -12,7 +12,7 @@ interface
 
 uses
   System.SysUtils,
-  Dext; // Facade: IServiceProvider, IServiceScope
+  Dext, Dext.DI.Interfaces; // Facade: IServiceProvider, IServiceScope
 
 type
   TDbSeeder = class

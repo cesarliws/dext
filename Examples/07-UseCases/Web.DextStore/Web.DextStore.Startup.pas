@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web,
   Dext.Auth.JWT,
   Dext.Web.Cors;

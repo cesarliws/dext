@@ -5,7 +5,7 @@ interface
 uses
   System.IOUtils,
   System.SysUtils,
-  Dext,        // Base interfaces and DI
+  Dext, Dext.DI.Interfaces,        // Base interfaces and DI
   Dext.Utils,  // Base interfaces and DI
   Dext.Entity, // Persistence features
   Dext.Web,    // Web features, BasicAuth, Swagger

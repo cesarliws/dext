@@ -112,6 +112,8 @@ type
     /// </summary>
     /// <param name="ASequenceName">The name of the sequence in the database.</param>
     function GetSequenceNextValSQL(const ASequenceName: string): string;
+    function GetSequenceExistsSQL(const ASequenceName: string): string;
+    function GetCreateSequenceSQL(const ASequenceName: string): string;
   end;
   {$M-}
 
@@ -176,6 +178,8 @@ type
     function GetDialect: TDatabaseDialect; virtual;
     function GetJsonValueSQL(const AColumn, APath: string): string; virtual;
     function GetSequenceNextValSQL(const ASequenceName: string): string; virtual;
+    function GetSequenceExistsSQL(const ASequenceName: string): string; virtual;
+    function GetCreateSequenceSQL(const ASequenceName: string): string; virtual;
   end;
 
   /// <summary>
@@ -222,6 +226,8 @@ type
     function GetLockingSQL(ALockMode: TLockMode): string; override;
     function UseSchemaPrefix: Boolean; override;
     function GetSequenceNextValSQL(const ASequenceName: string): string; override;
+    function GetSequenceExistsSQL(const ASequenceName: string): string; override;
+    function GetCreateSequenceSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -240,6 +246,8 @@ type
     function GetReturningSQL(const AColumnName: string): string; override;
     function GetDialect: TDatabaseDialect; override;
     function GetSequenceNextValSQL(const ASequenceName: string): string; override;
+    function GetSequenceExistsSQL(const ASequenceName: string): string; override;
+    function GetCreateSequenceSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -266,6 +274,9 @@ type
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
     function GetLockingSQL(ALockMode: TLockMode): string; override;
     function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string; override;
+    function GetSequenceNextValSQL(const ASequenceName: string): string; override;
+    function GetSequenceExistsSQL(const ASequenceName: string): string; override;
+    function GetCreateSequenceSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -307,6 +318,8 @@ type
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
     function GetLockingSQL(ALockMode: TLockMode): string; override;
     function GetSequenceNextValSQL(const ASequenceName: string): string; override;
+    function GetSequenceExistsSQL(const ASequenceName: string): string; override;
+    function GetCreateSequenceSQL(const ASequenceName: string): string; override;
   end;
 
   /// <summary>
@@ -433,6 +446,16 @@ end;
 function TBaseDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
 begin
   raise ENotSupportedException.Create('Sequences are not supported by this dialect');
+end;
+
+function TBaseDialect.GetSequenceExistsSQL(const ASequenceName: string): string;
+begin
+  Result := '';
+end;
+
+function TBaseDialect.GetCreateSequenceSQL(const ASequenceName: string): string;
+begin
+  Result := '';
 end;
 
 function TBaseDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string;
@@ -1006,6 +1029,16 @@ begin
   Result := Format('SELECT nextval(''%s'')', [ASequenceName]);
 end;
 
+function TPostgreSQLDialect.GetSequenceExistsSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT 1 FROM pg_class WHERE relkind = ''S'' AND relname = LOWER(''%s'')', [ASequenceName]);
+end;
+
+function TPostgreSQLDialect.GetCreateSequenceSQL(const ASequenceName: string): string;
+begin
+  Result := Format('CREATE SEQUENCE %s', [ASequenceName]);
+end;
+
 { TInterBaseDialect }
 
 function TInterBaseDialect.BooleanToSQL(AValue: Boolean): string;
@@ -1128,6 +1161,16 @@ end;
 function TFirebirdDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
 begin
   Result := Format('SELECT NEXT VALUE FOR %s FROM rdb$database', [ASequenceName]);
+end;
+
+function TFirebirdDialect.GetSequenceExistsSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT 1 FROM rdb$generators WHERE rdb$generator_name = UPPER(''%s'')', [ASequenceName]);
+end;
+
+function TFirebirdDialect.GetCreateSequenceSQL(const ASequenceName: string): string;
+begin
+  Result := Format('CREATE SEQUENCE %s', [ASequenceName]);
 end;
 
 { TSQLServerDialect }
@@ -1324,6 +1367,21 @@ begin
     Result := 'BIT'
   else
     Result := inherited GetColumnTypeForField(AFieldType, AIsAutoInc);
+end;
+
+function TSQLServerDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT NEXT VALUE FOR %s', [ASequenceName]);
+end;
+
+function TSQLServerDialect.GetSequenceExistsSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT 1 FROM sys.sequences WHERE name = ''%s''', [ASequenceName]);
+end;
+
+function TSQLServerDialect.GetCreateSequenceSQL(const ASequenceName: string): string;
+begin
+  Result := Format('CREATE SEQUENCE %s', [ASequenceName]);
 end;
 
 { TMySQLDialect }
@@ -1567,6 +1625,16 @@ end;
 function TOracleDialect.GetSequenceNextValSQL(const ASequenceName: string): string;
 begin
   Result := Format('SELECT %s.NEXTVAL FROM dual', [ASequenceName]);
+end;
+
+function TOracleDialect.GetSequenceExistsSQL(const ASequenceName: string): string;
+begin
+  Result := Format('SELECT 1 FROM user_sequences WHERE sequence_name = UPPER(''%s'')', [ASequenceName]);
+end;
+
+function TOracleDialect.GetCreateSequenceSQL(const ASequenceName: string): string;
+begin
+  Result := Format('CREATE SEQUENCE %s', [ASequenceName]);
 end;
 
 end.

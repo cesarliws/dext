@@ -13,7 +13,7 @@ interface
 uses
   System.SysUtils,
   Dext.Auth.JWT,
-  Dext,
+  Dext, Dext.DI.Interfaces,
   Dext.Web;
 
 type

@@ -11,7 +11,7 @@
 interface
 
 uses
-  Dext;
+  Dext, Dext.DI.Interfaces;
 
 type
   /// <summary>

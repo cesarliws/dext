@@ -170,6 +170,10 @@
         <DCCReference Include="..\..\Sources\Net\Dext.Net.RestClient.pas"/>
         <DCCReference Include="..\..\Sources\Net\Dext.Net.RestRequest.pas"/>
         <DCCReference Include="..\..\Sources\Net\Dext.Logging.Sinks.APM.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Tcp.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Udp.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Mqtt.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

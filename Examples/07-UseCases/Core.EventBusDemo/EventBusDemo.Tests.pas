@@ -18,7 +18,7 @@ implementation
 
 uses
   System.SysUtils,
-  Dext,                    // TDextServices, IServiceProvider, TServiceProviderExtensions
+  Dext, Dext.DI.Interfaces,                    // TDextServices, IServiceProvider, TServiceProviderExtensions
   Dext.DI.Core,            // TServiceType
   Dext.Events,             // facade
   Dext.Events.Extensions,  // AddEventBus, AddEventPublisher, etc. (DI helpers)

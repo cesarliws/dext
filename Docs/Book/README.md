@@ -6,6 +6,7 @@
 
 ## Quick Links
 
+- [Where to Start?](01-getting-started/where-to-start.md) - Choosing your path
 - [Getting Started](01-getting-started/README.md) - Installation & Hello World
 - [Web Framework](02-web-framework/README.md) - Minimal APIs & Controllers
 - [ORM](05-orm/README.md) - Database access & queries
@@ -21,6 +22,7 @@
 
 #### [1. Getting Started](01-getting-started/README.md)
 
+- [Where to Start?](01-getting-started/where-to-start.md)
 - [Installation](01-getting-started/installation.md)
 - [Hello World](01-getting-started/hello-world.md)
 - [Project Structure](01-getting-started/project-structure.md)
@@ -116,6 +118,8 @@
 #### [12. Networking (Dext.Net)](12-networking/rest-client.md) ⭐ NEW
 
 - [REST Client](12-networking/rest-client.md) - Fluent HTTP Client
+- [TCP/UDP Sockets](12-networking/low-level-sockets.md) - Low-level networking and connection handling
+- [MQTT Client & Broker](12-networking/mqtt.md) - Pub/sub message routing and MQTT protocol
 
 #### [13. AI Assistants & MCP](13-ai-assistants/README.md) ⭐ NEW
 

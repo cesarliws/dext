@@ -124,6 +124,7 @@ contains
   Dext.Logging.Telemetry in '..\..\Sources\Core\Base\Dext.Logging.Telemetry.pas',
   Dext.Logging.Tracing in '..\..\Sources\Core\Base\Dext.Logging.Tracing.pas',
   Dext.Threading.Sync in '..\..\Sources\Core\Dext.Threading.Sync.pas',
+  Dext.Threading.ProcessorGroups in '..\..\Sources\Core\Dext.Threading.ProcessorGroups.pas',
   Dext.Telemetry.Metrics in '..\..\Sources\Core\Base\Dext.Telemetry.Metrics.pas',
   Dext.BackgroundJobs.Intf in '..\..\Sources\Core\Dext.BackgroundJobs.Intf.pas',
   Dext.BackgroundJobs.Storage.InMemory in '..\..\Sources\Core\Dext.BackgroundJobs.Storage.InMemory.pas',

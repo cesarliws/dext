@@ -213,6 +213,7 @@ type
     function GetOnLog: TProc<string>;
     procedure ApplyTenantConfig(ACreateSchema: Boolean = False);
     function GetModelBuilder: TModelBuilder;
+    procedure EnsureSequence(const ASequenceName: string);
   protected
     // IDbContext Implementation
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
@@ -819,6 +820,51 @@ begin
   Result := IDbSet<T>(FCache[TypeInfo]);
 end;
 
+procedure TDbContext.EnsureSequence(const ASequenceName: string);
+var
+  ExistsSQL, CreateSQL: string;
+  Cmd: IDbCommand;
+  Reader: IDbReader;
+  Exists: Boolean;
+begin
+  if (FDialect = nil) or (FConnection = nil) or (ASequenceName = '') then Exit;
+  
+  ExistsSQL := FDialect.GetSequenceExistsSQL(ASequenceName);
+  Exists := False;
+  if ExistsSQL <> '' then
+  begin
+    try
+      Cmd := FConnection.CreateCommand(ExistsSQL);
+      Reader := Cmd.ExecuteQuery;
+      try
+        if Reader <> nil then
+          Exists := Reader.Next;
+      finally
+        if Reader <> nil then
+          Reader.Close;
+        Reader := nil;
+        Cmd := nil;
+      end;
+    except
+      // If the query fails, assume it doesn't exist
+    end;
+  end;
+
+  if not Exists then
+  begin
+    CreateSQL := FDialect.GetCreateSequenceSQL(ASequenceName);
+    if CreateSQL <> '' then
+    begin
+      try
+        Cmd := FConnection.CreateCommand(CreateSQL);
+        Cmd.ExecuteNonQuery;
+      except
+        // Ignore errors (e.g., if it already exists but we couldn't detect it)
+      end;
+    end;
+  end;
+end;
+
 function TDbContext.EnsureCreated: Boolean;
 var
   Nodes: IList<TEntityNode>;
@@ -842,6 +888,7 @@ var
   Mapping: TObject;
   RType: TRttiType;
   TableAttr: TableAttribute;
+  PropMap: TPropertyMap;
 begin
   Result := False;
   ApplyTenantConfig(True);
@@ -921,6 +968,7 @@ begin
         
         if CanCreate then
         begin
+          Mapping := GetMapping(Node.TypeInfo);
           // Execute Creation
           SQL := Node.DbSet.GenerateCreateTableScript;
           if SQL <> '' then
@@ -931,7 +979,6 @@ begin
             // Actually, we can just use FConnection.TableExists(TableName)
             
             TableName := '';
-            Mapping := GetMapping(Node.TypeInfo);
             MapTableName := '';
             
             if Mapping <> nil then
@@ -978,6 +1025,16 @@ begin
                    raise; // Propagate the error so the developer knows why it failed
                  end;
               end;
+            end;
+          end;
+
+          // Ensure sequences are created
+          if Mapping <> nil then
+          begin
+            for PropMap in TEntityMap(Mapping).OrderedProperties do
+            begin
+              if PropMap.SequenceName <> '' then
+                EnsureSequence(PropMap.SequenceName);
             end;
           end;
           
