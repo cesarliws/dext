@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Collections;
+﻿unit EntityDemo.Tests.Collections;
 
 interface
 

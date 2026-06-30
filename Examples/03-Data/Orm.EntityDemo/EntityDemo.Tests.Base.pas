@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Base;
+﻿unit EntityDemo.Tests.Base;
 
 interface
 

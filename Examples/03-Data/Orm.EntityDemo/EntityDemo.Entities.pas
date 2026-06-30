@@ -1,4 +1,4 @@
-unit EntityDemo.Entities;
+﻿unit EntityDemo.Entities;
 
 interface
 
@@ -30,13 +30,13 @@ type
 
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     [MaxLength(255)]
     property Street: string read FStreet write FStreet;
-    
+
     [MaxLength(100)]
     property City: string read FCity write FCity;
-    
+
     [NotMapped]
     property Users: IList<TUser> read GetUsers; // Changed to IList
   end;
@@ -65,13 +65,13 @@ type
     property Name: string read FName write FName;
 
     property Age: Integer read FAge write FAge;
-    
+
     [MaxLength(255)]
     property Email: string read FEmail write FEmail;
-    
+
     [MaxLength(100)]
     property City: string read FCity write FCity;
-    
+
     [Column('address_id')]
     property AddressId: Nullable<Integer> read FAddressId write FAddressId;
 
@@ -120,12 +120,12 @@ type
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     [MaxLength(255)]
     property Name: string read FName write FName;
-    
+
     property Price: Double read FPrice write FPrice;
-    
+
     [Version]
     property Version: Integer read FVersion write FVersion;
   end;
@@ -165,18 +165,18 @@ type
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     [MaxLength(255)]
     property Title: string read FTitle write FTitle;
-    
+
     [Column('content_type'), MaxLength(100)]
     property ContentType: string read FContentType write FContentType;
-    
+
     /// <summary>
     ///   BLOB field - lazy loaded to avoid loading large data unnecessarily
     /// </summary>
     property Content: TBytes read GetContent write FContent;
-    
+
     [Column('file_size')]
     property FileSize: Integer read FFileSize write FFileSize;
   end;
@@ -200,16 +200,16 @@ type
 
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     [MaxLength(255)]
     property Title: string read FTitle write FTitle;
-    
+
     /// <summary>
     ///   Short summary - always loaded
     /// </summary>
     [MaxLength(500)]
     property Summary: string read FSummary write FSummary;
-    
+
     [Column('word_count')]
     property WordCount: Integer read FWordCount write FWordCount;
 
@@ -235,20 +235,20 @@ type
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     [Column('user_id')]
     property UserId: Integer read FUserId write FUserId;
-    
+
     /// <summary>
     ///   Short bio text
     /// </summary>
     property Bio: string read FBio write FBio;
-    
+
     /// <summary>
     ///   Avatar image - BLOB, lazy loaded
     /// </summary>
     property Avatar: TBytes read FAvatar write FAvatar;
-    
+
     /// <summary>
     ///   User preferences as JSON string
     /// </summary>
@@ -271,13 +271,13 @@ type
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     property Name: string read FName write FName;
     property Email: string read FEmail write FEmail;
-    
+
     [Column('profile_id')]
     property ProfileId: Nullable<Integer> read FProfileId write FProfileId;
-    
+
     /// <summary>
     ///   Lazy-loaded profile reference (1:1)
     /// </summary>
@@ -299,13 +299,13 @@ type
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
-    
+
     property Title: string read FTitle write FTitle;
     property Description: string read FDescription write FDescription;
-    
+
     [Column('is_completed')]
     property IsCompleted: Boolean read FIsCompleted write FIsCompleted;
-    
+
     [Column('is_deleted')]
     property IsDeleted: Boolean read FIsDeleted write FIsDeleted;
   public
@@ -325,7 +325,7 @@ type
     [PK, AutoInc]
     property Id: Integer read FId write FId;
     property Name: string read FName write FName;
-    
+
     // logic: IsRemoved = True (Deleted)
     property IsRemoved: Boolean read FIsRemoved write FIsRemoved;
   end;

@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Bulk;
+﻿unit EntityDemo.Tests.Bulk;
 
 interface
 
@@ -34,7 +34,7 @@ var
   SU: TSequencedUser;
 begin
   Dialect := TDbConfig.CreateDialect;
-  
+
   Log('📦 Running Bulk Operation Tests...');
   Log('================================');
 
@@ -69,7 +69,7 @@ begin
       U.Name := 'Bulk User ' + i.ToString;
       U.Age := 20;
       U.Email := 'bulk' + i.ToString + '@dext.com';
-      U.Address := nil; 
+      U.Address := nil;
       BulkUsers.Add(U);
     end;
 
@@ -77,7 +77,7 @@ begin
     FContext.Entities<TUser>.AddRange(BulkUsers);
     FContext.SaveChanges;
     Duration := Now - StartTime;
-    
+
     LogSuccess(Format('Inserted 100 users in %s', [FormatDateTime('ss.zzz', Duration)]));
 
     SQL := Format('SELECT COUNT(*) FROM %s WHERE %s = 20 AND %s LIKE ''Bulk User%%''',
@@ -192,7 +192,7 @@ begin
     // for SU in BulkSeqUsers do
     //   SU.Free;
   end;
-  
+
   Log('');
 end;
 

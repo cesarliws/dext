@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{C94FC31D-0108-434E-AB40-2EAC4DA62DFC}</ProjectGuid>
         <MainSource>Orm.EntityDemo.dpr</MainSource>

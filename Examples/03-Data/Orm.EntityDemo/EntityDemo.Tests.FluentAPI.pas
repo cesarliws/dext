@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.FluentAPI;
+﻿unit EntityDemo.Tests.FluentAPI;
 
 interface
 
@@ -49,7 +49,7 @@ begin
   Log('');
   Log('This test demonstrates all available fluent operators:');
   Log('');
-  
+
   // Setup
   FContext.Entities<TUser>;
   FContext.EnsureCreated;
@@ -94,25 +94,25 @@ begin
   InlineAdults := FContext.Entities<TUser>.ToList(TUserType.Age >= 18);
   LogSuccess(Format('✓ Inline query: Found %d adult(s)', [InlineAdults.Count]));
   AssertTrue(InlineAdults.Count = 2, 'Inline adults', 'Expected 2 adults');
-  
+
   // FirstOrDefault inline
   John := FContext.Entities<TUser>.FirstOrDefault(TUserType.Name.StartsWith('John'));
   if John <> nil then
     LogSuccess(Format('✓ FirstOrDefault: Found user "%s"', [John.Name]))
   else
     LogError('FirstOrDefault failed');
-  
+
   // Count inline
   AdultCount := FContext.Entities<TUser>.Count(TUserType.Age >= 18);
   LogSuccess(Format('✓ Count: %d adult user(s)', [AdultCount]));
-  
+
   // Any inline
   HasMinors := FContext.Entities<TUser>.Any(TUserType.Age < 18);
   if HasMinors then
     LogSuccess('✓ Any: Found minor users')
   else
     LogError('Any: No minor users found');
-  
+
   // Complex inline query
   ComplexResult := FContext.Entities<TUser>.ToList(
     (TUserType.Age >= 18) and TUserType.Name.Contains('o')
@@ -122,14 +122,14 @@ begin
   Log('');
   Log('✨ Test: Fluent Specification Builder');
   Log('--------------------------------------');
-  
+
   // Managed Specification with automatic cleanup
   FluentAdults := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Age >= 18)
   );
   LogSuccess(Format('✓ Fluent Spec: Found %d adult(s)', [FluentAdults.Count]));
   AssertTrue(FluentAdults.Count = 2, 'Fluent spec adults', 'Expected 2 adults');
-  
+
   // Complex fluent with chaining
   FluentComplex := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>((TUserType.Age >= 18) and TUserType.Name.Contains('o'))
@@ -141,7 +141,7 @@ begin
   Log('');
   Log(' Test: OrderBy Tipado');
   Log('------------------------');
-  
+
   // OrderBy with Asc
   OrderedAsc := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Age >= 18)
@@ -150,7 +150,7 @@ begin
   LogSuccess(Format('✓ OrderBy Asc: Found %d user(s) ordered by Name ascending', [OrderedAsc.Count]));
   if OrderedAsc.Count > 0 then
     LogSuccess(Format('  First: %s', [OrderedAsc[0].Name]));
-  
+
   // OrderBy with Desc
   OrderedDesc := FContext.Entities<TUser>.ToList(
     Specification.Where<TUser>(TUserType.Age >= 18)
@@ -163,13 +163,13 @@ begin
   Log('');
   Log('🔗 Test: Include (Eager Loading)');
   Log('--------------------------------');
-  
+
   // Create user with address
   UWithAddr := TUser.Create;
   UWithAddr.Name := 'User With Address';
   UWithAddr.Age := 40;
   UWithAddr.Email := 'addr@example.com';
-  
+
   Addr := TAddress.Create;
   Addr.Street := 'Main St';
   Addr.City := 'New York';
@@ -178,12 +178,12 @@ begin
   FContext.Entities<TAddress>.Add(Addr);
   FContext.SaveChanges;
 
-  UWithAddr.Address := Addr; 
+  UWithAddr.Address := Addr;
   UWithAddr.AddressId := Addr.Id; // Link FK manually just in case
-  
+
   FContext.Entities<TUser>.Add(UWithAddr);
   FContext.SaveChanges;
-  
+
   // Addr is now tracked by Context
   LogSuccess(Format('Inserted user with address ID: %d', [UWithAddr.AddressId.GetValueOrDefault]));
 
@@ -234,7 +234,7 @@ begin
   Log('  • (TUserType.Age < 18) or (TUserType.Age > 65)');
   Log('  • not (TUserType.Age = 25)');
   Log('');
-  
+
   LogSuccess('✅ Fluent API demonstration complete!');
   Log('');
 end;

@@ -154,7 +154,7 @@ var
   Provider: TDatabaseProvider;
   Arg: string;
 begin
-  SetConsoleCharSet(65001);
+  SetConsoleCharSet;
   try
     WriteLn('🚀 Dext Entity ORM Demo Suite');
     WriteLn('=============================');

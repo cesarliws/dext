@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Migrations;
+﻿unit EntityDemo.Tests.Migrations;
 
 interface
 
@@ -109,23 +109,23 @@ begin
       T.Column('Email', 'VARCHAR', 150).Nullable;
       T.Column('CreatedAt', 'TIMESTAMP').Default('CURRENT_TIMESTAMP');
     end);
-    
+
     Log('   ✅ CreateTable operation defined.');
-    
+
     // Test Add Column
     Builder.AddColumn('TestUsers', 'Age', 'INTEGER');
     Log('   ✅ AddColumn operation defined.');
-    
+
     // Test Create Index
     Builder.CreateIndex('TestUsers', 'IX_TestUsers_Email', ['Email'], True);
     Log('   ✅ CreateIndex operation defined.');
-    
+
     // Verify Operations Count
     if Builder.Operations.Count = 3 then
       Log('   ✅ Operations count matches (3).')
     else
       Log('   ❌ Operations count mismatch: ' + Builder.Operations.Count.ToString);
-      
+
     // Inspect first operation
     if Builder.Operations[0] is TCreateTableOperation then
     begin
@@ -136,16 +136,16 @@ begin
 
     Log('');
     Log('📝 Generating SQL for Dialects...');
-    
+
     SetLength(Dialects, 5);
     Dialects[0] := TSQLiteDialect.Create;
     Dialects[1] := TPostgreSQLDialect.Create;
     Dialects[2] := TSQLServerDialect.Create;
     Dialects[3] := TFirebirdDialect.Create;
     Dialects[4] := TMySQLDialect.Create;
-    
+
     DialectNames := ['SQLite', 'PostgreSQL', 'SQL Server', 'Firebird', 'MySQL'];
-    
+
     for i := 0 to High(Dialects) do
     begin
       Log('   🔹 ' + DialectNames[i] + ':');
@@ -160,15 +160,15 @@ begin
   finally
     Builder.Free;
   end;
-  
+
   // --- Model Differ Test ---
   Log('🔍 Running Model Differ Tests...');
-  
+
   PrevModel := TSnapshotModel.Create;
   CurrModel := TSnapshotModel.Create;
   try
     // Setup Previous Model (Empty)
-    
+
     // Setup Current Model (1 Table)
     Table := TSnapshotTable.Create;
     Table.Name := 'Users';
@@ -177,15 +177,15 @@ begin
     Col.ColumnType := 'INTEGER';
     Col.IsPrimaryKey := True;
     Table.Columns.Add(Col);
-    
+
     Col := TSnapshotColumn.Create;
     Col.Name := 'Name';
     Col.ColumnType := 'VARCHAR';
     Col.Length := 100;
     Table.Columns.Add(Col);
-    
+
     CurrModel.Tables.Add(Table);
-    
+
     // Diff 1: Empty -> Users
     Ops := TModelDiffer.Diff(CurrModel, PrevModel);
     Log('   Diff 1 (Add Table): ' + Ops.Count.ToString + ' operations.');
@@ -202,22 +202,22 @@ begin
     PrevCol.ColumnType := 'INTEGER';
     PrevCol.IsPrimaryKey := True;
     PrevTable.Columns.Add(PrevCol);
-    
+
     PrevCol := TSnapshotColumn.Create;
     PrevCol.Name := 'Name';
     PrevCol.ColumnType := 'VARCHAR';
     PrevCol.Length := 100;
     PrevTable.Columns.Add(PrevCol);
-    
+
     PrevModel.Tables.Add(PrevTable);
-    
+
     // Modify Current: Add 'Email' column
     Col := TSnapshotColumn.Create;
     Col.Name := 'Email';
     Col.ColumnType := 'VARCHAR';
     Col.Length := 150;
     Table.Columns.Add(Col);
-    
+
     // Diff 2: Users -> Users + Email
     Ops := TModelDiffer.Diff(CurrModel, PrevModel);
     try
@@ -229,7 +229,7 @@ begin
     finally
       // Ops.Free;
     end;
-    
+
     // Diff 3: Users -> Empty (Drop Table)
     Ops := TModelDiffer.Diff(nil, PrevModel); // Current is nil/empty
     try
@@ -246,10 +246,10 @@ begin
     PrevModel.Free;
     CurrModel.Free;
   end;
-  
+
   // --- Extractor Test ---
   Log('🔍 Running Extractor Tests...');
-  
+
   // Create a temporary context with SQLite
   Conn := TFDConnection.Create(nil);
   Dialect := TSQLiteDialect.Create;
@@ -263,19 +263,19 @@ begin
     // Since TDbContext doesn't have a public RegisterEntity, we rely on OnModelCreating.
     // But we are using base TDbContext here.
     // Let's use the TTestDbContext defined in EntityDemo.Tests.Base (it's TEntityDemoContext).
-    
+
     DemoContext := TEntityDemoContext.Create(TFireDACConnection.Create(Conn, False), Dialect);
     try
       Model := TDbContextModelExtractor.Extract(DemoContext);
       try
         Log('   Extracted Tables: ' + Model.Tables.Count.ToString);
-        
+
         UserTable := Model.FindTable('Users');
         if UserTable <> nil then
         begin
           Log('   ✅ Found Table: Users');
           Log('      Columns: ' + UserTable.Columns.Count.ToString);
-          
+
           IdCol := UserTable.FindColumn('Id');
           if IdCol <> nil then
             Log('      ✅ Found Column: Id (' + IdCol.ColumnType + ')')
@@ -284,7 +284,7 @@ begin
         end
         else
           Log('   ❌ Table Users not found');
-          
+
       finally
         Model.Free;
       end;
@@ -298,7 +298,7 @@ begin
 
   // --- Generator Test ---
   Log('📝 Running Generator Tests...');
-  
+
   // Reuse the Builder from the first test (we need to recreate it or use a new one)
   // Let's create a new simple builder for generation test
   GenBuilder := TSchemaBuilder.Create;
@@ -309,11 +309,11 @@ begin
       T.Column('Name', 'VARCHAR', 200).NotNull;
       T.Column('Price', 'DECIMAL').Precision(18, 2);
     end);
-    
+
     GenBuilder.AddColumn('Products', 'Stock', 'INTEGER', 0, False);
-    
+
     UnitCode := TMigrationGenerator.GenerateUnit('Migrations.Test', 'TMigration_20231001_Initial', GenBuilder.Operations);
-    
+
     Log('   Generated Code:');
     Log('   ---------------------------------------------------');
     // Log only first few lines to avoid spamming
@@ -322,30 +322,30 @@ begin
       Log('   ' + Lines[i]);
     Log('   ... (truncated)');
     Log('   ---------------------------------------------------');
-    
+
     if UnitCode.Contains('Builder.CreateTable(''Products''') and
        UnitCode.Contains('T.Column(''Name'', ''VARCHAR'', 200).NotNull;') and
        UnitCode.Contains('Builder.AddColumn(''Products'', ''Stock'', ''INTEGER'', 0, False);') then
       Log('   ✅ Generated code contains expected instructions.')
     else
       Log('   ❌ Generated code missing expected instructions.');
-      
+
   finally
     GenBuilder.Free;
   end;
 
   // --- Runner Test ---
   Log('🏃 Running Migration Runner Tests...');
-  
+
   // Register Test Migration
   RegisterMigration(TTestMigration.Create);
-  
+
   // Create Context (using SQLite)
   RunnerConn := TFDConnection.Create(nil);
   // Configure SQLite in Memory or File? Let's use file to be sure
   RunnerConn.DriverName := 'SQLite';
   RunnerConn.Params.Values['Database'] := TPath.Combine(ExtractFilePath(ParamStr(0)), 'runner_test.db');
-  
+
   RunnerDialect := TSQLiteDialect.Create;
   RunnerContext := TDbContext.Create(TFireDACConnection.Create(RunnerConn, False), RunnerDialect);
   try
@@ -355,12 +355,12 @@ begin
       RunnerConn.ExecSQL('DROP TABLE IF EXISTS __DextMigrations');
     except
     end;
-    
+
     Migrator := TMigrator.Create(RunnerContext);
     try
       Migrator.Migrate;
       Log('   ✅ Migration executed.');
-      
+
       // Verify Table Exists
       Tables := TStringList.Create;
       try
@@ -372,14 +372,14 @@ begin
       finally
         Tables.Free;
       end;
-        
+
       // Verify History
       Qry := RunnerConn.ExecSQLScalar('SELECT COUNT(*) FROM __DextMigrations WHERE Id = ''20231001_TestMigration''');
       if Integer(Qry) > 0 then
         Log('   ✅ Migration recorded in history.')
       else
         Log('   ❌ Migration NOT recorded in history.');
-        
+
     finally
       Migrator.Free;
     end;
@@ -391,7 +391,7 @@ begin
 
   // --- CLI Test ---
   Log('💻 Running CLI Tests...');
-  
+
   // Create a factory for the context
   ContextFactory := function: IDbContext
   var
@@ -402,21 +402,21 @@ begin
     C.Params.Values['Database'] := TPath.Combine(ExtractFilePath(ParamStr(0)), 'runner_test.db');
     Result := TDbContext.Create(TFireDACConnection.Create(C, True), TSQLiteDialect.Create);
   end;
-  
+
   CLI := TDextCLI.Create(ContextFactory);
   try
-    // Mock command line args? 
+    // Mock command line args?
     // TDextCLI reads ParamStr. We can't easily mock ParamStr in a running app.
     // However, we can test the Command classes directly or overload Run to accept args.
     // For now, let's just instantiate the commands manually to verify they compile and run logic.
-    
+
     Args := TCommandLineArgs.Create;
     try
       Log('   Testing migrate:list command logic...');
       ListCmd := TMigrateListCommand.Create(ContextFactory);
       ListCmd.Execute(Args);
       Log('   ✅ migrate:list executed.');
-      
+
       Log('   Testing migrate:up command logic...');
       UpCmd := TMigrateUpCommand.Create(ContextFactory);
       UpCmd.Execute(Args);
@@ -424,7 +424,7 @@ begin
     finally
       Args.Free;
     end;
-    
+
   finally
     CLI.Free;
   end;
