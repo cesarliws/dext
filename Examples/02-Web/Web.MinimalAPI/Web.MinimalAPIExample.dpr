@@ -1,4 +1,4 @@
-// Examples/MinimalAPI/MinimalAPIExample.pas
+﻿// Examples/MinimalAPI/MinimalAPIExample.pas
 program Web.MinimalAPIExample;
 
 {$APPTYPE CONSOLE}
