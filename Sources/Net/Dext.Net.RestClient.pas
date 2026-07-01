@@ -44,7 +44,7 @@ uses
 
  type
   /// <summary>Supported HTTP methods for the REST client.</summary>
-  TDextHttpMethod = (hmGET, hmPOST, hmPUT, hmDELETE, hmPATCH, hmHEAD, hmOPTIONS);
+  TDextHttpMethod = (hmGET, hmPOST, hmPUT, hmDELETE, hmPATCH, hmHEAD, hmOPTIONS, hmQUERY);
 
   /// <summary>Common MIME content types for requests and responses.</summary>
   TDextContentType = (ctJson, ctXml, ctFormUrlEncoded, ctMultipartFormData, ctBinary, ctText);
@@ -175,6 +175,18 @@ uses
     /// </summary>
     function PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
 
+    // === QUERY with JSON string payload ===
+    /// <summary>
+    ///   Executes an asynchronous QUERY sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function QueryJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>
+    ///   Executes an asynchronous QUERY to AEndpoint sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+
     /// <summary>Executes an asynchronous HTTP request.</summary>
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -216,6 +228,8 @@ uses
     function PostJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
     function PutJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
     function PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    function QueryJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    function QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
 
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -327,6 +341,25 @@ uses
     function Delete(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
     /// <summary>Executes an asynchronous DELETE and automatically deserializes the JSON response to type T.</summary>
     function Delete<T>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
+
+    /// <summary>Executes an asynchronous QUERY to the base URL.</summary>
+    function Query(const AEndpoint: string = ''): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>Executes an asynchronous QUERY with a raw stream body.</summary>
+    function Query(const AEndpoint: string; const ABody: TStream): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>Executes a QUERY sending a payload (class or record) serialized as JSON and awaits a typed response.</summary>
+    function Query<TRes>(const AEndpoint: string; const ABody: TRes): TAsyncBuilder<IRestResponse<TRes>>; overload;
+    /// <summary>Executes an asynchronous QUERY and automatically deserializes the JSON response to type T.</summary>
+    function Query<T>(const AEndpoint: string = ''): TAsyncBuilder<T>; overload;
+    /// <summary>
+    ///   Executes an asynchronous QUERY sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function QueryJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
+    /// <summary>
+    ///   Executes an asynchronous QUERY to AEndpoint sending a raw JSON string.
+    ///   Encapsulates stream creation and UTF-8 encoding internally.
+    /// </summary>
+    function QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
     
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -564,6 +597,18 @@ begin
     TStringStream.Create(APayload, TEncoding.UTF8), True);
 end;
 
+function TRestClientImpl.QueryJson(const APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := QueryJson('', APayload);
+end;
+
+function TRestClientImpl.QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  ContentTypeJson; // Set Content-Type automatically
+  Result := ExecuteAsync(hmQUERY, AEndpoint,
+    TStringStream.Create(APayload, TEncoding.UTF8), True);
+end;
+
 function TRestClientImpl.Header(const AName, AValue: string): IRestClient;
 begin
   FLock.Enter;
@@ -677,6 +722,7 @@ begin
           hmPATCH:  MethodStr := 'PATCH';
           hmHEAD:   MethodStr := 'HEAD';
           hmOPTIONS:MethodStr := 'OPTIONS';
+          hmQUERY:  MethodStr := 'QUERY';
           else MethodStr := 'GET';
         end;
 
@@ -991,6 +1037,59 @@ begin
   );
 end;
 
+function TRestClient.Query(const AEndpoint: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteAsync(hmQUERY, AEndpoint);
+end;
+
+function TRestClient.Query(const AEndpoint: string; const ABody: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteAsync(hmQUERY, AEndpoint, ABody);
+end;
+
+function TRestClient.Query<TRes>(const AEndpoint: string; const ABody: TRes): TAsyncBuilder<IRestResponse<TRes>>;
+var
+  Stream: TStringStream;
+  Builder: TAsyncBuilder<IRestResponse>;
+begin
+  Stream := TStringStream.Create(TDextJson.Serialize(ABody), TEncoding.UTF8);
+  Builder := ExecuteAsync(hmQUERY, AEndpoint, Stream, True);
+  Result := Builder.ThenBy<IRestResponse<TRes>>(
+      TFunc<IRestResponse, IRestResponse<TRes>>(
+        function(Base: IRestResponse): IRestResponse<TRes>
+        begin
+          Result := TRestResponse<TRes>.Create(Base.StatusCode, Base.StatusText, Base.ContentStream,
+            TDextJson.Deserialize<TRes>(Base.ContentString), Base.GetHeaders);
+        end
+      )
+  );
+end;
+
+function TRestClient.Query<T>(const AEndpoint: string): TAsyncBuilder<T>;
+var
+  Builder: TAsyncBuilder<IRestResponse>;
+begin
+  Builder := Query(AEndpoint);
+  Result := Builder.ThenBy<T>(
+    TFunc<IRestResponse, T>(
+      function(Res: IRestResponse): T
+      begin
+        Result := TDextJson.Deserialize<T>(Res.ContentString);
+      end
+    )
+  );
+end;
+
+function TRestClient.QueryJson(const APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.QueryJson(APayload);
+end;
+
+function TRestClient.QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.QueryJson(AEndpoint, APayload);
+end;
+
 function TRestClient.Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder<IRestResponse>;
 var
   Method: TDextHttpMethod;
@@ -1007,6 +1106,7 @@ begin
   else if SameText(RequestInfo.Method, 'PATCH') then Method := hmPATCH
   else if SameText(RequestInfo.Method, 'HEAD') then Method := hmHEAD
   else if SameText(RequestInfo.Method, 'OPTIONS') then Method := hmOPTIONS
+  else if SameText(RequestInfo.Method, 'QUERY') then Method := hmQUERY
   else raise Exception.Create('Unsupported HTTP Method: ' + RequestInfo.Method);
 
   // Prepare Body

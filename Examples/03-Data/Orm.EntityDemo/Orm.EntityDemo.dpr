@@ -154,7 +154,7 @@ var
   Provider: TDatabaseProvider;
   Arg: string;
 begin
-  SetConsoleCharSet(65001);
+  SetConsoleCharSet;
   try
     WriteLn('🚀 Dext Entity ORM Demo Suite');
     WriteLn('=============================');
@@ -173,7 +173,6 @@ begin
       else if Arg = 'sqlserver' then Provider := dpSQLServer
       else if Arg = 'sqlserverauth' then Provider := dpSQLServerWindowsAuthetication;
     end;
-
     ConfigureDatabase(Provider);
     TDbConfig.EnsureDatabaseExists; // Create database if not exists
     TBaseTest.DebugSql := False;

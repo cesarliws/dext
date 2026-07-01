@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -485,7 +485,13 @@ begin
       end);
     
   if amDelete in FOptions.AllowedMethods then
-    ABuilder.MapDelete(CleanPath + '/{id}', procedure(C: IHttpContext) begin HandleDelete(C).Execute(C); end);
+  begin
+    ABuilder.MapDelete(CleanPath + '/{id}',
+      procedure(C: IHttpContext)
+      begin
+        HandleDelete(C).Execute(C);
+      end);
+  end;
 end;
 
 class procedure TDataApiHandler.Map(const ABuilder: IApplicationBuilder; const AClass: TClass; const APath: string; ADbContext: TDbContext; AOptions: TDataApiOptions);

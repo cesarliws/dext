@@ -194,7 +194,7 @@ begin
     end;
   end;
 
-  SQL := ADialect.GetSequenceNextValSQL(ASeqName);
+  SQL := ADialect.GetSequenceNextValSQL(ASeqName, AAllocSize);
   Cmd := AConnection.CreateCommand(SQL);
   try
     Reader := Cmd.ExecuteQuery;

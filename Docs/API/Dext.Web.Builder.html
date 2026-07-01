@@ -397,6 +397,7 @@ class TApplicationBuilder {    +CreateMiddlewarePipeline()
     +MapGet()
     +MapPut()
     +MapDelete()
+    +MapQuery()
     +Build()
     +GetRoutes()
     +UpdateLastRouteMetadata()
@@ -456,6 +457,8 @@ IMiddleware <|.. TMiddleware
 <div class="api-signature">function MapPut(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function MapDelete(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function Build: TRequestDelegate</div></div>
 <div class="api-item">

@@ -29,6 +29,8 @@ Focused instruction packages for writing correct, idiomatic **Dext** (Delphi mod
 | **dext-desktop-ui** | `dext-desktop-ui.md` | VCL desktop apps, Navigator (Flutter-inspired), Magic Binding (declarative two-way), MVVM |
 | **dext-server-adapters** | `dext-server-adapters.md` | Indy adapter (self-hosted), SSL/HTTPS (OpenSSL/Taurus), `Run` vs `Start`, deployment patterns, WebBroker/ISAPI (roadmap) |
 | **dext-mcp** | `dext-mcp.md` | Model Context Protocol, MCP servers, registering tools, resources, and prompts, database function calling |
+| **dext-symbols** | `dext-symbols.md` | Locate codebase classes, interfaces, records, methods, properties, and constants using pre-generated root maps |
+
 
 ## Manual Installation
 
@@ -58,7 +60,7 @@ Skills are loaded dynamically when the agent needs them. The README is always lo
 
 **Load `dext-web`** when:
 
-- Creating or modifying HTTP endpoints (`MapGet`, `MapPost`, `[HttpGet]`, `[HttpPost]`)
+- Creating or modifying HTTP endpoints (`MapGet`, `MapPost`, `MapQuery`, `[HttpGet]`, `[HttpPost]`, `[HttpQuery]`)
 - Writing controllers (`[ApiController]`, `TInterfacedObject`)
 - Handling model binding, route parameters, query strings, headers
 - Using `Results.Ok`, `Results.Created`, etc.
@@ -181,6 +183,11 @@ Skills are loaded dynamically when the agent needs them. The README is always lo
 - Setting up SQLite or database integration with AI model function calling
 - Sychronizing database updates with VCL/FMX UI threads
 
+**Load `dext-symbols`** when:
+
+- Searching for type definitions, classes, interfaces, records, methods, properties, or constants in the codebase
+- Jumping directly to source file line numbers or looking up public API signatures
+
 ## Key Framework Facts
 
 - **Package**: Dext.Core, Dext.EF.Core, Dext.Web.Core, Dext.Testing, Dext.Net
@@ -206,3 +213,5 @@ Skills are loaded dynamically when the agent needs them. The README is always lo
 12. **`SetConsoleCharSet`** is REQUIRED in all console projects (test runners, CLI tools)
 13. **Uses Clause Order (CRITICAL)**: Due to Delphi's single class helper limitation, the `uses` order MUST always be: `Dext` → `Dext.Entity` → `Dext.Web`. The last one always wins and ensures Web methods (like `MapGet`, `AddWebStencils`) are visible.
 14. **Smart Properties**: For entities, always use **IntType**, **StringType**, **DoubleType**, and **BoolType** aliases (from `Dext.Core.SmartTypes`) instead of `Prop<T>`. For **nullable columns**, always use composition: `Prop<Nullable<T>>` (e.g., `Prop<Nullable<Integer>>`) instead of legacy `Nullable<Prop<T>>` (e.g., `Nullable<StringType>`), which is deprecated, triggers warnings, and breaks query ordering (`OrderBy`).
+15. **HTTP QUERY Method**: The `QUERY` method (RFC 10008) is supported. Use `MapQuery` / `TRestClient.Query` and `AcceptsQuery` metadata to specify supported query formats, which are automatically exposed in OPTIONS requests via the `Accept-Query` header.
+

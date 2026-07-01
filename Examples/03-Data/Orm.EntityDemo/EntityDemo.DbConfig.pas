@@ -1,4 +1,4 @@
-unit EntityDemo.DbConfig;
+﻿unit EntityDemo.DbConfig;
 
 interface
 
@@ -8,6 +8,7 @@ uses
   System.SysUtils,
   FireDAC.Comp.Client,
   FireDAC.Stan.Def,
+  {$IFDEF DEXT_ENABLE_DB_MYSQL} FireDAC.Phys.MySQL, {$ENDIF}
   Dext.Entity.Drivers.FireDAC.Links,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Drivers.FireDAC,
@@ -63,32 +64,32 @@ type
     ///   Initialize default configuration
     /// </summary>
     class constructor Create;
-    
+
     /// <summary>
     ///   Get current database provider
     /// </summary>
     class function GetProvider: TDatabaseProvider; static;
-    
+
     /// <summary>
     ///   Set current database provider
     /// </summary>
     class procedure SetProvider(AProvider: TDatabaseProvider); static;
-    
+
     /// <summary>
     ///   Create a connection for the current provider
     /// </summary>
     class function CreateConnection: IDbConnection; static;
-    
+
     /// <summary>
     ///   Create a dialect for the current provider
     /// </summary>
     class function CreateDialect: ISQLDialect; static;
-    
+
     /// <summary>
     ///   Get provider name as string
     /// </summary>
     class function GetProviderName: string; static;
-    
+
     /// <summary>
     ///   Configure SQLite connection
     /// </summary>
@@ -98,7 +99,7 @@ type
     ///   Configure SQLite In-Memory connection
     /// </summary>
     class procedure ConfigureSQLiteMemory; static;
-    
+
     /// <summary>
     ///   Configure PostgreSQL connection
     /// </summary>
@@ -109,7 +110,7 @@ type
       const AUsername: string = 'postgres';
       const APassword: string = 'postgres'
     ); static;
-    
+
     /// <summary>
     ///   Configure Firebird connection
     /// </summary>
@@ -118,7 +119,7 @@ type
       const AUsername: string = 'SYSDBA';
       const APassword: string = 'masterkey'
     ); static;
-    
+
     /// <summary>
     ///   Configure SQL Server connection with SQL Authentication
     /// </summary>
@@ -128,7 +129,7 @@ type
       const AUsername: string = 'sa';
       const APassword: string = 'Password123!'
     ); overload; static;
-    
+
     /// <summary>
     ///   Configure SQL Server connection with Windows Authentication
     /// </summary>
@@ -136,7 +137,7 @@ type
       const AHost: string = 'localhost';
       const ADatabase: string = 'dext_test'
     ); static;
-    
+
     /// <summary>
     ///   Configure MySQL/MariaDB connection
     /// </summary>
@@ -151,12 +152,12 @@ type
       const AVendorLib: string = '';
       const AVendorHome: string = ''
     ); static;
-    
+
     /// <summary>
     ///   Drop and recreate database (for testing)
     /// </summary>
     class procedure ResetDatabase; static;
-    
+
     /// <summary>
     ///   Ensures the database exists, creating it if necessary.
     ///   For server-based databases (MySQL, PostgreSQL, SQL Server).
@@ -177,28 +178,28 @@ class constructor TDbConfig.Create;
 begin
   // Default to SQLite for compatibility
   FCurrentProvider := dpSQLite;
-  
+
   // Default SQLite configuration
   FSQLiteFile := TPath.Combine(ExtractFilePath(ParamStr(0)), 'test.db');
-  
+
   // Default PostgreSQL configuration
   FPostgreSQLHost := 'localhost';
   FPostgreSQLPort := 5432;
   FPostgreSQLDatabase := 'dext_test';
   FPostgreSQLUsername := 'postgres';
   FPostgreSQLPassword := 'postgres';
-  
+
   // Default Firebird configuration
   FFirebirdFile := TPath.Combine(ExtractFilePath(ParamStr(0)), 'test.fdb');
   FFirebirdUsername := 'SYSDBA';
   FFirebirdPassword := 'masterkey';
-  
+
   // Default SQL Server configuration
   FSQLServerHost := 'localhost';
   FSQLServerDatabase := 'dext_test';
   FSQLServerUsername := 'sa';
   FSQLServerPassword := 'Password123!';
-  
+
   // Default MySQL/MariaDB configuration
   FMySQLHost := 'localhost';
   FMySQLPort := 3306;
@@ -223,7 +224,7 @@ var
   FDConn: TFDConnection;
 begin
   FDConn := TFDConnection.Create(nil);
-  
+
   case FCurrentProvider of
     dpSQLite:
     begin
@@ -231,7 +232,7 @@ begin
       FDConn.Params.Values['Database'] := FSQLiteFile;
       FDConn.Params.Values['LockingMode'] := 'Normal';
     end;
-    
+
     dpPostgreSQL:
     begin
       FDConn.DriverName := 'PG';
@@ -241,7 +242,7 @@ begin
       FDConn.Params.Values['User_Name'] := FPostgreSQLUsername;
       FDConn.Params.Values['Password'] := FPostgreSQLPassword;
     end;
-    
+
     dpFirebird:
     begin
       FDConn.DriverName := 'FB';
@@ -254,16 +255,16 @@ begin
       FDConn.Params.Values['PageSize'] := '16384';  // 16KB page size (recommended)
       FDConn.Params.Values['SQLDialect'] := '3';  // SQL Dialect 3
     end;
-    
+
     dpSQLServer:
     begin
       FDConn.DriverName := 'MSSQL';
       FDConn.Params.Values['Server'] := FSQLServerHost;
       FDConn.Params.Values['Database'] := FSQLServerDatabase;
-      
+
       // Fix for ODBC Driver 18: Trust server certificate to avoid SSL errors
       FDConn.Params.Values['ODBCAdvanced'] := 'TrustServerCertificate=yes';
-      
+
       // Check if using Windows Authentication (empty username)
       if FSQLServerUsername = '' then
       begin
@@ -279,7 +280,7 @@ begin
         FDConn.Params.Values['MetaCurSchema'] := FSQLServerUsername;
       end;
     end;
-    
+
     dpMySQL:
     begin
       FDConn.DriverName := 'MySQL';
@@ -289,15 +290,15 @@ begin
       FDConn.Params.Values['User_Name'] := FMySQLUsername;
       FDConn.Params.Values['Password'] := FMySQLPassword;
       FDConn.Params.Values['CharacterSet'] := 'utf8mb4';
-      
+
       // VendorLib/Home are now handled by TFDPhysMySQLDriverLink in ConfigureMySQL
       // to avoid caching issues and ensure correct driver loading.
     end;
-    
+
     else
       raise Exception.CreateFmt('Database provider %s not yet implemented', [GetProviderName]);
   end;
-  
+
   Result := TFireDACConnection.Create(FDConn);
 end;
 
@@ -417,7 +418,7 @@ begin
   FMySQLPassword := APassword;
   FMySQLVendorLib := AVendorLib;
   FMySQLVendorHome := AVendorHome;
-  
+
   // Configure Driver Link globally for MySQL
   {$IFDEF DEXT_ENABLE_DB_MYSQL}
   if FMySQLDriverLink = nil then
@@ -456,13 +457,13 @@ begin
         WriteLn('🗑️  Deleted SQLite database: ' + FSQLiteFile);
       end;
     end;
-    
+
     dpPostgreSQL:
     begin
       // PostgreSQL: Drop all tables (handled by EnsureCreated)
       WriteLn('⚠️  PostgreSQL: Tables will be recreated by EnsureCreated');
     end;
-    
+
     dpFirebird:
     begin
       // Delete Firebird file if exists
@@ -472,7 +473,7 @@ begin
         WriteLn('🗑️  Deleted Firebird database: ' + FFirebirdFile);
       end;
     end;
-    
+
     dpSQLServer:
     begin
       // SQL Server: Tables will be recreated by EnsureCreated
@@ -499,28 +500,28 @@ begin
         FDConn.Params.Values['User_Name'] := FMySQLUsername;
         FDConn.Params.Values['Password'] := FMySQLPassword;
         FDConn.Params.Values['CharacterSet'] := 'utf8mb4';
-        
+
         // Don't specify database - we're creating it
         // FDConn.Params.Values['Database'] := ...
-        
+
         if FMySQLVendorLib <> '' then
           FDConn.Params.Values['VendorLib'] := FMySQLVendorLib;
         if FMySQLVendorHome <> '' then
           FDConn.Params.Values['VendorHome'] := FMySQLVendorHome;
-        
+
         FDConn.Connected := True;
-        
-        SQL := Format('CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci', 
+
+        SQL := Format('CREATE DATABASE IF NOT EXISTS `%s` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci',
           [FMySQLDatabase]);
         FDConn.ExecSQL(SQL);
         WriteLn('✅ Database created or already exists: ' + FMySQLDatabase);
-        
+
         FDConn.Connected := False;
       finally
         FDConn.Free;
       end;
     end;
-    
+
     dpPostgreSQL:
     begin
       // For PostgreSQL, CREATE DATABASE doesn't support IF NOT EXISTS
@@ -533,9 +534,9 @@ begin
         FDConn.Params.Values['Database'] := 'postgres';  // Connect to default db
         FDConn.Params.Values['User_Name'] := FPostgreSQLUsername;
         FDConn.Params.Values['Password'] := FPostgreSQLPassword;
-        
+
         FDConn.Connected := True;
-        
+
         // PostgreSQL doesn't have CREATE DATABASE IF NOT EXISTS, so we check and create
         SQL := Format('SELECT 1 FROM pg_database WHERE datname = ''%s''', [FPostgreSQLDatabase]);
         Query := FDConn.ExecSQLScalar(SQL);
@@ -547,13 +548,13 @@ begin
         end
         else
           WriteLn('✅ Database already exists: ' + FPostgreSQLDatabase);
-        
+
         FDConn.Connected := False;
       finally
         FDConn.Free;
       end;
     end;
-    
+
     dpSQLServer:
     begin
       FDConn := TFDConnection.Create(nil);
@@ -562,7 +563,7 @@ begin
         FDConn.Params.Values['Server'] := FSQLServerHost;
         FDConn.Params.Values['Database'] := 'master';  // Connect to master db
         FDConn.Params.Values['ODBCAdvanced'] := 'TrustServerCertificate=yes';
-        
+
         if FSQLServerUsername = '' then
         begin
           FDConn.Params.Values['OSAuthent'] := 'Yes';
@@ -572,20 +573,20 @@ begin
           FDConn.Params.Values['User_Name'] := FSQLServerUsername;
           FDConn.Params.Values['Password'] := FSQLServerPassword;
         end;
-        
+
         FDConn.Connected := True;
-        
+
         SQL := Format('IF NOT EXISTS (SELECT name FROM master.sys.databases WHERE name = ''%s'') ' +
                        'CREATE DATABASE [%s]', [FSQLServerDatabase, FSQLServerDatabase]);
         FDConn.ExecSQL(SQL);
         WriteLn('✅ Database created or already exists: ' + FSQLServerDatabase);
-        
+
         FDConn.Connected := False;
       finally
         FDConn.Free;
       end;
     end;
-    
+
   else
     // SQLite, Firebird - database file is created automatically
     WriteLn('ℹ️  Database file will be created automatically for ' + GetProviderName);

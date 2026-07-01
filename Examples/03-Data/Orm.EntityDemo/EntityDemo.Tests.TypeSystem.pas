@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.TypeSystem;
+﻿unit EntityDemo.Tests.TypeSystem;
 
 interface
 
@@ -40,14 +40,14 @@ begin
   try
     U.Name := 'Test User';
     U.Age := 42;
-    
+
     // TUserType.Name is TProp<string>, and Meta is TPropertyInfo
     Meta := TUserType.Name.Info;
     AssertTrue(Meta.GetValue(U).AsString = 'Test User', 'RTTI GetValue(Name) working');
-    
+
     Meta := TUserType.Age.Info;
     AssertTrue(Meta.GetValue(U).AsInteger = 42, 'RTTI GetValue(Age) working');
-    
+
     Meta.SetValue(U, 50);
     AssertTrue(U.Age = 50, 'RTTI SetValue(Age) working');
   finally
@@ -62,7 +62,7 @@ begin
   Log('   Testing Complex Query Combinations...');
   TearDown;
   Setup;
-  
+
   // Setup Data
   FContext.Entities<TUser>
     .Add(TUser.Create('Alice', 20)) // NY
@@ -71,14 +71,14 @@ begin
   FContext.SaveChanges;
   FContext.Entities<TUser>[2].City := 'LA'; // Fix Charlie's city
   FContext.SaveChanges;
-  
+
   // Test 1: Multiple AND conditions (Strongly Typed)
   Users := FContext.Entities<TUser>.QueryAll
     .Where((TUserType.Age > 25) and (TUserType.City = 'NY'))
     .ToList;
   AssertTrue(Users.Count = 1, 'Only Bob should match');
   AssertTrue(Users[0].Name = 'Bob', 'Expected Bob');
-  
+
   // Test 2: OR condition
   Users := FContext.Entities<TUser>.QueryAll
     .Where((TUserType.Name = 'Alice') or (TUserType.Name = 'Charlie'))
@@ -112,12 +112,12 @@ begin
   Log('   Testing "Chic" Fluent Add syntax...');
   TearDown;
   Setup;
-  
+
   // Syntax 1: Fluent Chaining (Using conventional objects)
   FContext.Entities<TUser>
     .Add(TUser.Create('Alice', 20))
     .Add(TUser.Create('Bob', 30));
-    
+
   // Syntax 2: Functional Builder (Using .Prop rename and static Create)
   FContext.Entities<TUser>
     .Add(TEntityType<TUser>.Construct(procedure(B: IEntityBuilder<TUser>)
@@ -132,14 +132,14 @@ begin
           .Prop(TUserType.Age, 50)
           .Build;
       end);
-      
+
   // Syntax 3: "Local Factory" Pattern (Manual version)
   SimpleUserBuilder := function(AName: string; AAge: Integer): TUser
     begin
        Result := TUser.Create;
        Result.Name := AName;
        Result.Age := AAge;
-    end;    
+    end;
 
   // Syntax 4: "Metadata Factory" (Power version using TypeSystem)
   MetaUserBuilder := function(AName: string; AAge: Integer): TUser
@@ -155,7 +155,7 @@ begin
     .Add(MetaUserBuilder('Frank', 70));
 
   FContext.SaveChanges;
-  
+
   AssertTrue(FContext.Entities<TUser>.Count(Specification.All<TUser>.Expression) = 6, 'Should have 6 users');
 end;
 
@@ -170,13 +170,13 @@ begin
     List.Add(TUser.Create('Alice', 20));
     List.Add(TUser.Create('Bob', 30));
     List.Add(TUser.Create('Charlie', 40));
-    
+
     // Using the same "Chic" syntax on in-memory list!
     Filtered := List.Where((TUserType.Age > 25) and (TUserType.Name.StartsWith('B')));
-    
+
     AssertTrue(Filtered.Count = 1, 'Should find only Bob');
     AssertTrue(Filtered[0].Name = 'Bob', 'Expected Bob from list');
-    
+
     // Test Any/All on list
     AssertTrue(List.Any(TUserType.Age = 40), 'Charlie should be there');
     AssertTrue(not List.All(TUserType.Age < 30), 'Not everyone is under 30');

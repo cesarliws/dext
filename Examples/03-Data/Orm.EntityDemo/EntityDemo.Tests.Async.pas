@@ -1,11 +1,11 @@
-unit EntityDemo.Tests.Async;
+﻿unit EntityDemo.Tests.Async;
 
 interface
 
 uses
-  System.SysUtils, 
+  System.SysUtils,
   System.Classes,
-  System.Threading, 
+  System.Threading,
   EntityDemo.Tests.Base,
   Dext.Threading.Async,
   Dext.Threading.CancellationToken;
@@ -28,7 +28,7 @@ implementation
 procedure TAsyncTest.Run;
 begin
   Log('🚀 Running Fluent Async Tests...');
-  
+
   TestSimpleAsync;
   TestChainedAsync;
   TestExceptionHandling;
@@ -43,7 +43,7 @@ var
 begin
   Log('Test 1: Simple Async Function');
   Done := False;
-  
+
   TAsyncTask.Run<string>(
     function: string
     begin
@@ -205,7 +205,7 @@ begin
       function: Integer
       begin
         // This simulates work, but should be checked before start or during execution
-        Sleep(100); 
+        Sleep(100);
         Result := 42;
       end)
     .WithCancellation(CTS.Token)
@@ -224,7 +224,7 @@ begin
           Cancelled := True;
       end)
     .Start;
-    
+
     // Wait for result
     CheckCount := 0;
     while (not Cancelled) and (not Completed) and (CheckCount < 50) do
@@ -232,10 +232,10 @@ begin
       CheckSynchronize(100);
       Inc(CheckCount);
     end;
-    
+
     AssertTrue(Cancelled, 'Task was correctly cancelled', 'Task was NOT cancelled');
     AssertTrue(not Completed, 'Task should NOT complete', 'Task completed despite cancellation');
-    
+
   finally
     CTS.Free;
   end;

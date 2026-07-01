@@ -28,6 +28,7 @@ unit Dext.Entity.DbSet;
 interface
 
 uses
+  Data.DB,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
@@ -348,15 +349,44 @@ type
 // TValue.ToString does not work correctly for TGUID (returns type name, not value)
 function TValueToKeyString(const AValue: TValue): string;
 function TValueToVariant(const AValue: TValue): Variant;
+function GetFieldType(ATypeInfo: PTypeInfo): TFieldType;
 
 implementation
 
 uses
-  Data.DB,
   System.JSON,
   Dext.Entity.ProxyFactory,
   Dext.Logging.Telemetry,
   Dext.Utils;
+
+function GetFieldType(ATypeInfo: PTypeInfo): TFieldType;
+var
+  Underlying: PTypeInfo;
+begin
+  if ATypeInfo = nil then Exit(ftUnknown);
+  
+  if IsNullable(ATypeInfo) then
+    Underlying := GetUnderlyingType(ATypeInfo)
+  else
+    Underlying := ATypeInfo;
+    
+  if Underlying = nil then Exit(ftUnknown);
+  
+  case Underlying.Kind of
+    tkInteger, tkInt64: Result := ftInteger;
+    tkFloat:
+      if Underlying = TypeInfo(TDateTime) then Result := ftDateTime
+      else if Underlying = TypeInfo(TDate) then Result := ftDate
+      else if Underlying = TypeInfo(TTime) then Result := ftTime
+      else Result := ftFloat;
+    tkString, tkUString, tkWString, tkChar, tkWChar: Result := ftString;
+    tkEnumeration:
+      if Underlying = TypeInfo(Boolean) then Result := ftBoolean
+      else Result := ftInteger;
+    else
+      Result := ftUnknown;
+  end;
+end;
 
 function TValueToKeyString(const AValue: TValue): string;
 var
@@ -1350,6 +1380,8 @@ end;
 procedure TDbSet<T>.PersistAddRange(const AEntities: TArray<TObject>);
 var
   Cmd: IDbCommand;
+  Converter: ITypeConverter;
+  DataType: TFieldType;
   EntitiesT: TArray<T>;
   Generator: TSqlGenerator<T>;
   Helper: TNullableHelper;
@@ -1358,11 +1390,10 @@ var
   ParamName: string;
   ParamValues: TArray<TValue>;
   Prop: TRttiProperty;
+  PropMap: TPropertyMap;
   Props: IList<TPair<TRttiProperty, string>>;
   Sql: string;
   Val: TValue;
-  PropMap: TPropertyMap;
-  Converter: ITypeConverter;
 begin
   if Length(AEntities) = 0 then Exit;
   SetLength(EntitiesT, Length(AEntities));
@@ -1377,6 +1408,24 @@ begin
     try
       if Sql = '' then Exit;
       Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
+      
+      // Pre-initialize parameter types to prevent PostgreSQL typing errors (Bulk operations)
+      for Pair in Props do
+      begin
+        Prop := Pair.Key;
+        ParamName := Pair.Value;
+        PropMap := nil;
+        if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+        
+        if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
+          DataType := PropMap.DataType
+        else
+          DataType := GetFieldType(Prop.PropertyType.Handle);
+
+        if DataType <> ftUnknown then
+          Cmd.AddParam(ParamName, TValue.Empty, DataType);
+      end;
+      
       Cmd.SetArraySize(Length(EntitiesT));
       SetLength(ParamValues, Length(EntitiesT));
       for Pair in Props do
@@ -1445,6 +1494,7 @@ var
   j: Integer;
   ChunkSize: Integer;
   EntityIdStr: string;
+  LDataType: TFieldType;
 begin
   if Length(AEntities) = 0 then Exit;
   ChunkSize := FContext.BulkBatchSize;
@@ -1473,6 +1523,40 @@ begin
           ChunkCount := ChunkSize;
           
         Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
+        
+        // Pre-initialize parameter types to prevent PostgreSQL typing errors (Bulk operations)
+        for Pair in SetProps do
+        begin
+          Prop := Pair.Key;
+          ParamName := Pair.Value;
+          PropMap := nil;
+          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+          
+          if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
+            LDataType := PropMap.DataType
+          else
+            LDataType := GetFieldType(Prop.PropertyType.Handle);
+            
+          if LDataType <> ftUnknown then
+            Cmd.AddParam(ParamName, TValue.Empty, LDataType);
+        end;
+        
+        for Pair in WhereProps do
+        begin
+          Prop := Pair.Key;
+          ParamName := Pair.Value;
+          PropMap := nil;
+          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+          
+          if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
+            LDataType := PropMap.DataType
+          else
+            LDataType := GetFieldType(Prop.PropertyType.Handle);
+            
+          if LDataType <> ftUnknown then
+            Cmd.AddParam(ParamName, TValue.Empty, LDataType);
+        end;
+
         Cmd.SetArraySize(ChunkCount);
         SetLength(ParamValues, ChunkCount);
         
@@ -1597,6 +1681,7 @@ var
   TotalCount: Integer;
   j: Integer;
   ChunkSize: Integer;
+  LDataType: TFieldType;
 begin
   if Length(AEntities) = 0 then Exit;
   ChunkSize := FContext.BulkBatchSize;
@@ -1622,6 +1707,24 @@ begin
           ChunkCount := ChunkSize;
           
         Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
+        
+        // Pre-initialize parameter types to prevent PostgreSQL typing errors (Bulk operations)
+        for Pair in WhereProps do
+        begin
+          Prop := Pair.Key;
+          ParamName := Pair.Value;
+          PropMap := nil;
+          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
+          
+          if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
+            LDataType := PropMap.DataType
+          else
+            LDataType := GetFieldType(Prop.PropertyType.Handle);
+            
+          if LDataType <> ftUnknown then
+            Cmd.AddParam(ParamName, TValue.Empty, LDataType);
+        end;
+
         Cmd.SetArraySize(ChunkCount);
         SetLength(ParamValues, ChunkCount);
         

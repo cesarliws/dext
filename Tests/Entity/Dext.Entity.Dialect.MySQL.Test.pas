@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.Dialect.MySQL.Test;
+unit Dext.Entity.Dialect.MySQL.Test;
 
 interface
 
@@ -84,6 +84,23 @@ begin
 
   // 7. UUID Support
   AssertEqual('CHAR(36)', FDialect.GetColumnType(TypeInfo(TGUID)), 'GUID mapping should be CHAR(36)');
+
+  // 8. MariaDB Sequence Support
+  var LMariaDBDialect := TMariaDBDialect.Create;
+  try
+    AssertEqual('SELECT 1 FROM information_schema.TABLES ' +
+      'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ''SEQ_TEST'' ' +
+      'AND TABLE_TYPE = ''SEQUENCE''',
+      LMariaDBDialect.GetSequenceExistsSQL('SEQ_TEST'), 'MariaDB Sequence Exists SQL');
+    AssertEqual('CREATE SEQUENCE SEQ_TEST INCREMENT BY 50 START WITH 50',
+      LMariaDBDialect.GetCreateSequenceSQL('SEQ_TEST', 50), 'MariaDB Create Sequence with allocation size');
+    AssertEqual('CREATE SEQUENCE SEQ_TEST',
+      LMariaDBDialect.GetCreateSequenceSQL('SEQ_TEST', 1), 'MariaDB Create Sequence with default size');
+    AssertEqual('SELECT NEXTVAL(SEQ_TEST)',
+      LMariaDBDialect.GetSequenceNextValSQL('SEQ_TEST', 50), 'MariaDB Get Sequence NextVal SQL');
+  finally
+    LMariaDBDialect.Free;
+  end;
 end;
 
 end.

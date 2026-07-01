@@ -387,6 +387,7 @@ class TEndpointMetadataExtensions {    +WithSummary()
     +AllowAnonymous()
     +WithResponse()
     +WithRequestType()
+    +AcceptsQuery()
     +UpdateRouteMetadata()
 }
 TObject <|-- TEndpointMetadataExtensions
@@ -416,6 +417,8 @@ TObject <|-- TEndpointMetadataExtensions
 <div class="api-signature">function WithResponse(App: IApplicationBuilder; Code: Integer; const const: string; ASchemaType: PTypeInfo; const const: string): IApplicationBuilder</div><div class="description">Adds a documented response to the endpoint.</div></div>
 <div class="api-item">
 <div class="api-signature">function WithRequestType(App: IApplicationBuilder; ATypeInfo: PTypeInfo): IApplicationBuilder</div><div class="description">explicitly sets the request type for OpenAPI documentation.</div></div>
+<div class="api-item">
+<div class="api-signature">function AcceptsQuery(App: IApplicationBuilder; const const: array): IApplicationBuilder</div><div class="description">Configures the accepted query content types for the endpoint.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure UpdateRouteMetadata(App: IApplicationBuilder; RequestType: PTypeInfo; ResponseType: PTypeInfo)</div><div class="description">Update the last registered route's metadata. Internal/Helper use.</div></div>
 </div>

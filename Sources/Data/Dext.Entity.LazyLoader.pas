@@ -43,10 +43,10 @@ end;
 
 procedure TDextLazyLoader.Load(AEntity: TObject; const APropertyName: string);
 var
-  Prop, FKProp: TRttiProperty;
+  Prop, FKProp, PKProp: TRttiProperty;
   Map: TEntityMap;
   PropMap, PMap: TPropertyMap;
-  FKVal: TValue;
+  FKVal, PKValTyped: TValue;
   TargetSet: IDbSet;
   LoadedObj: TObject;
   FKName, PKCol, PKVal: string;
@@ -104,11 +104,13 @@ begin
         begin
           Dialect := FContext.Dialect;
           PKCol := '';
+          PKProp := nil;
           for PMap in Map.Properties.Values do
             if PMap.IsPK then
             begin
               PKCol := PMap.ColumnName;
               if PKCol = '' then PKCol := PMap.PropertyName;
+              PKProp := RType.GetProperty(PMap.PropertyName);
               Break;
             end;
 
@@ -120,7 +122,13 @@ begin
                Dialect.QuoteIdentifier(PKCol)]);
                 
             Cmd := FContext.Connection.CreateCommand(SQL);
-            Cmd.AddParam('p1', PKVal);
+            if PKProp <> nil then
+            begin
+              PKValTyped := PKProp.GetValue(AEntity);
+              Cmd.AddParam('p1', PKValTyped);
+            end
+            else
+              Cmd.AddParam('p1', PKVal);
             DBVal := Cmd.ExecuteScalar;
             
             ExistingVal := TValue.Empty;

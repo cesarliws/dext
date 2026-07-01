@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.LazyExecution;
+﻿unit EntityDemo.Tests.LazyExecution;
 
 interface
 
@@ -39,30 +39,30 @@ begin
   Log('🔄 Running Lazy Execution Tests...');
   Log('===================================');
   Log('');
-  
+
   // Setup: Insert test data
   U1 := TUser.Create;
   U1.Name := 'Alice';
   U1.Age := 25;
   U1.Email := 'alice@test.com';
   FContext.Entities<TUser>.Add(U1);
-  
+
   U2 := TUser.Create;
   U2.Name := 'Bob';
   U2.Age := 30;
   U2.Email := 'bob@test.com';
   FContext.Entities<TUser>.Add(U2);
-  
+
   U3 := TUser.Create;
   U3.Name := 'Charlie';
   U3.Age := 17;
   U3.Email := 'charlie@test.com';
   FContext.Entities<TUser>.Add(U3);
   FContext.SaveChanges;
-  
+
   LogSuccess('Inserted 3 test users');
   Log('');
-  
+
   // Test 1: Lazy Query - Query is NOT executed yet!
   Log('📋 Test 1: Lazy Query Creation');
   Log('------------------------------');
@@ -70,7 +70,7 @@ begin
   LogSuccess('✓ Query created (NOT executed yet!)');
   Log('  The query will only execute when we enumerate it.');
   Log('');
-  
+
   // Test 2: Force execution by enumerating
   Log('🔍 Test 2: Force Execution via Enumeration');
   Log('------------------------------------------');
@@ -80,11 +80,11 @@ begin
     Inc(Count);
     LogSuccess(Format('  Found: %s (Age: %d)', [User.Name, User.Age]));
   end;
-  AssertTrue(Count = 2, 
-    Format('Found %d adult users', [Count]), 
+  AssertTrue(Count = 2,
+    Format('Found %d adult users', [Count]),
     'Expected 2 adult users');
   Log('');
-  
+
   // Test 3: Query can be enumerated multiple times
   Log('🔁 Test 3: Re-enumerate Same Query');
   Log('-----------------------------------');
@@ -96,37 +96,37 @@ begin
   LogSuccess(Format('✓ Re-enumerated: Found %d users again', [Count]));
   Log('  Note: Query executes AGAIN (not cached)');
   Log('');
-  
+
   // Test 4: Query all records (lazy)
   Log('📊 Test 4: Query All Records (Lazy)');
   Log('------------------------------------');
   AllQuery := FContext.Entities<TUser>.QueryAll();
   LogSuccess('✓ Query() created for all records');
-  
+
   Count := 0;
   for User in AllQuery do
     Inc(Count);
-  AssertTrue(Count = 3, 
-    Format('Found %d total users', [Count]), 
+  AssertTrue(Count = 3,
+    Format('Found %d total users', [Count]),
     'Expected 3 total users');
   Log('');
-  
+
   // Test 5: Demonstrate difference between List() and Query()
   Log('⚡ Test 5: ToList() vs Query() - Execution Timing');
   Log('------------------------------------------------');
   Log('  ToList():  Executes IMMEDIATELY and returns IList<T>');
   Log('  Query(): Defers execution until enumerated (IEnumerable<T>)');
   Log('');
-  
+
   EagerList := FContext.Entities<TUser>.ToList(TUserType.Age >= 18);
   LogSuccess(Format('✓ ToList() executed immediately: %d results', [EagerList.Count]));
   // EagerList.Free; // REMOVED: Managed by ARC (IList<T>)
-  
+
   LazyEnum := FContext.Entities<TUser>.Query(TUserType.Age >= 18);
   LogSuccess('✓ Query() created (deferred execution)');
   Log(Format('  → Execution happens when we enumerate it (Query object: %p)', [Pointer(@LazyEnum)]));
   Log('');
-  
+
   // Test 6: Projections (Select)
   Log('🎯 Test 6: Projections (Select)');
   Log('------------------------------');
@@ -136,24 +136,24 @@ begin
       begin
         Result := U.Name;
       end);
-      
+
   LogSuccess('✓ Select<string> created (deferred execution)');
-  
+
   Count := 0;
   for Name in NamesQuery do
   begin
     Inc(Count);
     LogSuccess(Format('  Found Name: %s', [Name]));
   end;
-  
-  AssertTrue(Count = 2, 
-    Format('Found %d names', [Count]), 
+
+  AssertTrue(Count = 2,
+    Format('Found %d names', [Count]),
     'Expected 2 names');
   Log('');
-  
+
   LogSuccess('✅ Lazy Execution & Projection tests complete!');
   Log('');
-  
+
   // Test 7: Where (Filtering)
   Log('🔍 Test 7: Where (Filtering)');
   Log('---------------------------');
@@ -164,7 +164,7 @@ begin
       begin
         Result := U.Age > 20;
       end);
-      
+
   Count := 0;
   for User in FilteredQuery do
   begin
@@ -173,18 +173,18 @@ begin
   end;
   AssertTrue(Count = 2, 'Found 2 users > 20', 'Expected 2 users');
   Log('');
-  
+
   // Test 8: Skip & Take (Pagination)
   Log('📄 Test 8: Skip & Take (Pagination)');
   Log('----------------------------------');
   // Order is not guaranteed without OrderBy, but for this test we assume insertion order or DB order
   // Alice(25), Bob(30), Charlie(17)
-  
+
   PagedQuery := FContext.Entities<TUser>
     .QueryAll()
     .Skip(1)
     .Take(1);
-    
+
   Count := 0;
   for User in PagedQuery do
   begin

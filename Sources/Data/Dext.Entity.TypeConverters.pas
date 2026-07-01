@@ -371,7 +371,7 @@ begin
       Result := Format('%s::uuid', [AParamName]);
     ddSQLServer:
       Result := Format('CAST(%s AS UNIQUEIDENTIFIER)', [AParamName]);
-    ddMySQL, ddSQLite:
+    ddMySQL, ddMariaDB, ddSQLite:
       Result := AParamName; // Use as string
     else
       Result := AParamName;

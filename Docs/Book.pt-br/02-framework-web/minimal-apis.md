@@ -45,6 +45,13 @@ Builder.MapPost<TLoginRequest, IAuthService, IResult>('/api/auth/login',
   begin
     Result := Results.Ok(Auth.Login(Req));
   end);
+
+// QUERY com DTO (body) + serviço (RFC 10008)
+Builder.MapQuery<TUserSearchQuery, IUserService, IResult>('/api/users/search',
+  function(Query: TUserSearchQuery; Svc: IUserService): IResult
+  begin
+    Result := Results.Ok(Svc.Search(Query));
+  end);
 ```
 
 > [!WARNING]

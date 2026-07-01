@@ -213,7 +213,7 @@ type
     function GetOnLog: TProc<string>;
     procedure ApplyTenantConfig(ACreateSchema: Boolean = False);
     function GetModelBuilder: TModelBuilder;
-    procedure EnsureSequence(const ASequenceName: string);
+    procedure EnsureSequence(const ASequenceName: string; AAllocationSize: Integer = 1);
   protected
     // IDbContext Implementation
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
@@ -820,7 +820,7 @@ begin
   Result := IDbSet<T>(FCache[TypeInfo]);
 end;
 
-procedure TDbContext.EnsureSequence(const ASequenceName: string);
+procedure TDbContext.EnsureSequence(const ASequenceName: string; AAllocationSize: Integer);
 var
   ExistsSQL, CreateSQL: string;
   Cmd: IDbCommand;
@@ -852,7 +852,7 @@ begin
 
   if not Exists then
   begin
-    CreateSQL := FDialect.GetCreateSequenceSQL(ASequenceName);
+    CreateSQL := FDialect.GetCreateSequenceSQL(ASequenceName, AAllocationSize);
     if CreateSQL <> '' then
     begin
       try
@@ -1034,7 +1034,7 @@ begin
             for PropMap in TEntityMap(Mapping).OrderedProperties do
             begin
               if PropMap.SequenceName <> '' then
-                EnsureSequence(PropMap.SequenceName);
+                EnsureSequence(PropMap.SequenceName, PropMap.SequenceAllocationSize);
             end;
           end;
           

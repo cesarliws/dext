@@ -3,9 +3,12 @@ $ErrorActionPreference = "Stop"
 Write-Host "🚀 Starting Multi-Database Verification..." -ForegroundColor Cyan
 
 # Check if executable exists
-$ExePath = "..\Examples\Orm.EntityDemo\Orm.EntityDemo.exe"
+$ExePath = "..\Examples\Output\Orm.EntityDemo.exe"
 if (-not (Test-Path $ExePath)) {
-    Write-Error "Executable not found at $ExePath. Please build first."
+    $ExePath = "..\Examples\Orm.EntityDemo\Orm.EntityDemo.exe"
+}
+if (-not (Test-Path $ExePath)) {
+    Write-Error "Executable not found. Please build first."
 }
 
 # Define test matrix

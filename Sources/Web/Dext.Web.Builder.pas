@@ -93,6 +93,7 @@ type
     function MapGet(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function MapPut(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function MapDelete(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
+    function MapQuery(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function Build: TRequestDelegate;
     function GetRoutes: TArray<TEndpointMetadata>;
     procedure UpdateLastRouteMetadata(const AMetadata: TEndpointMetadata);
@@ -397,6 +398,27 @@ begin
       Binder: IModelBinder;
     begin
       if Context.Request.Method <> 'DELETE' then Exit;
+      
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Context, Binder);
+      try
+        Invoker.Invoke(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end
+  );
+end;
+
+function TApplicationBuilder.MapQuery(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
+begin
+  Result := MapEndpoint('QUERY', Path,
+    procedure(Context: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      if Context.Request.Method <> 'QUERY' then Exit;
       
       Binder := TModelBinder.Create;
       Invoker := THandlerInvoker.Create(Context, Binder);

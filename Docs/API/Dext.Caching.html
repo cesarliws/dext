@@ -425,10 +425,10 @@ class TResponseCaptureWrapper {    +Create()
 }
 TInterfacedObject <|-- TResponseCaptureWrapper
 IHttpResponse <|.. TResponseCaptureWrapper
-class TResponseCacheMiddleware {    +GenerateCacheKey()
-    +IsCacheable()
+class TResponseCacheMiddleware {    +IsCacheable()
     +TryServeFromCache()
     +CacheResponse()
+    +GenerateCacheKey()
     +Create()
     +Destroy()
     +Invoke()
@@ -567,9 +567,10 @@ class TResponseCacheOptionsHelper {    +Implicit()
 <div class="api-item">
 <div class="api-signature">procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate)</div></div>
 </div>
-<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">function GenerateCacheKey(AContext: IHttpContext): string</div></div>
-<div class="api-item">
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function IsCacheable(AContext: IHttpContext): Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">function TryServeFromCache(AContext: IHttpContext; const const: string): Boolean</div></div>

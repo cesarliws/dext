@@ -29,6 +29,8 @@ Pacotes de instruções focados para escrever código **Dext** (framework modern
 | **dext-desktop-ui** | `dext-desktop-ui.md` | Aplicativos desktop VCL, Navigator (inspirado no Flutter), Magic Binding (bidirecional, declarativo), MVVM |
 | **dext-server-adapters** | `dext-server-adapters.md` | Adaptador Indy (self-hosted), SSL/HTTPS (OpenSSL/Taurus), `Run` vs `Start`, padrões de deploy, WebBroker/ISAPI (roadmap) |
 | **dext-mcp** | `dext-mcp.md` | Model Context Protocol, servidores MCP, registrar ferramentas, recursos e prompts, chamadas de BD via IA |
+| **dext-symbols** | `dext-symbols.md` | Localizar classes, interfaces, records, métodos, propriedades e constantes no código usando mapas pré-gerados na raiz |
+
 
 ## Instalação Manual
 
@@ -58,7 +60,7 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 
 **Carregue `dext-web`** quando:
 
-- Criar ou modificar endpoints HTTP (`MapGet`, `MapPost`, `[HttpGet]`, `[HttpPost]`)
+- Criar ou modificar endpoints HTTP (`MapGet`, `MapPost`, `MapQuery`, `[HttpGet]`, `[HttpPost]`, `[HttpQuery]`)
 - Escrever controllers (`[ApiController]`, `TInterfacedObject`)
 - Lidar com model binding, parâmetros de rota, query strings, headers
 - Usar `Results.Ok`, `Results.Created`, etc.
@@ -181,6 +183,11 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 - Configurar conexões SQLite ou integração de banco de dados com chamadas de IA
 - Sincronizar atualizações de banco de dados com threads de interface gráfica VCL/FMX
 
+**Carregue `dext-symbols`** quando:
+
+- Buscar definições de tipos, classes, interfaces, records, métodos, propriedades ou constantes no código-fonte do Dext
+- Precisar navegar diretamente para números de linhas de declaração de símbolos ou conferir assinaturas de métodos públicos
+
 ## Fatos Principais sobre o Framework
 
 - **Pacotes**: Dext.Core, Dext.EF.Core, Dext.Web.Core, Dext.Testing, Dext.Net
@@ -206,3 +213,5 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 12. **`SetConsoleCharSet`** é OBRIGATÓRIO em todos os projetos console (test runners, ferramentas de linha de comando CLI)
 13. **Ordem das Uses (CRÍTICA)**: Devido à limitação de apenas um class helper por tipo no Delphi, a ordem nas cláusulas `uses` deve ser sempre: `Dext` → `Dext.Entity` → `Dext.Web`. O último sempre vence e garante visibilidade dos métodos Web.
 14. **Smart Properties**: Para entidades, use sempre os aliases **IntType**, **StringType**, **DoubleType** e **BoolType** (de `Dext.Core.SmartTypes`) em vez de `Prop<T>`. Para **colunas anuláveis (nullable)**, use sempre a composição `Prop<Nullable<T>>` (ex: `Prop<Nullable<Integer>>`) em vez do padrão legado `Nullable<Prop<T>>` (ex: `Nullable<StringType>`), que está obsoleto, gera alertas e quebra a ordenação de consultas (`OrderBy`).
+15. **Método HTTP QUERY**: O método `QUERY` (RFC 10008) é suportado. Use `MapQuery` / `TRestClient.Query` e metadados `AcceptsQuery` para especificar os formatos de consulta suportados, os quais são expostos de forma automática em chamadas OPTIONS através do cabeçalho `Accept-Query`.
+

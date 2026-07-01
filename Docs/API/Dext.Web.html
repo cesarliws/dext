@@ -400,6 +400,7 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
     +MapPost()
     +MapPut()
     +MapDelete()
+    +MapQuery()
     +Build()
     +UseViewEngine()
     +UseStreamableSessions()
@@ -455,6 +456,17 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
     +MapDeleteResult~T,TResult~()
     +MapDeleteResult~T1,T2,TResult~()
     +MapDeleteResult~T1,T2,T3,TResult~()
+    +MapQuery~T~()
+    +MapQuery~T1,T2~()
+    +MapQuery~T1,T2,T3~()
+    +MapQuery~TResult~()
+    +MapQuery~T,TResult~()
+    +MapQuery~T1,T2,TResult~()
+    +MapQuery~T1,T2,T3,TResult~()
+    +MapQueryResult~TResult~()
+    +MapQueryResult~T,TResult~()
+    +MapQueryResult~T1,T2,TResult~()
+    +MapQueryResult~T1,T2,T3,TResult~()
     +WithSummary()
     +WithDescription()
     +WithTag()
@@ -536,6 +548,8 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-signature">function MapPut(const const: string; Handler: TStaticHandler): AppBuilder</div><div class="description">Maps a PUT request to a static handler.</div></div>
 <div class="api-item">
 <div class="api-signature">function MapDelete(const const: string; Handler: TStaticHandler): AppBuilder</div><div class="description">Maps a DELETE request to a static handler.</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery(const const: string; Handler: TStaticHandler): AppBuilder</div><div class="description">Maps a QUERY request to a static handler.</div></div>
 <div class="api-item">
 <div class="api-signature">function Build: TRequestDelegate</div><div class="description">Builds the request pipeline and returns the main RequestDelegate.</div></div>
 <div class="api-item">
@@ -654,6 +668,28 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-signature">function MapDeleteResult&lt;T1,T2,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function MapDeleteResult&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T&gt;(const const: string; Handler: THandlerProc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2&gt;(const const: string; Handler: THandlerProc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,T3&gt;(const const: string; Handler: THandlerProc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T1,T2,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): AppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function WithSummary(const const: string): AppBuilder</div></div>
 <div class="api-item">

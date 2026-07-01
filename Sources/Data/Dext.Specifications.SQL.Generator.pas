@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -629,14 +629,17 @@ begin
     Converter := TTypeConverterRegistry.Instance.GetConverter(Lit.Value.TypeInfo);
     
     // Determine Dialect Enum
-    DialectEnum := ddUnknown;
-    Quoted := FDialect.QuoteIdentifier('t');
-    if Quoted.StartsWith('[') then DialectEnum := ddSQLServer
-    else if Quoted.StartsWith('`') then DialectEnum := ddMySQL
-    else if Quoted.StartsWith('"') then
+    DialectEnum := FDialect.GetDialect;
+    if DialectEnum = ddUnknown then
     begin
-       if SameText(FDialect.BooleanToSQL(True), 'TRUE') then DialectEnum := ddPostgreSQL
-       else DialectEnum := ddSQLite;
+      Quoted := FDialect.QuoteIdentifier('t');
+      if Quoted.StartsWith('[') then DialectEnum := ddSQLServer
+      else if Quoted.StartsWith('`') then DialectEnum := ddMySQL
+      else if Quoted.StartsWith('"') then
+      begin
+         if SameText(FDialect.BooleanToSQL(True), 'TRUE') then DialectEnum := ddPostgreSQL
+         else DialectEnum := ddSQLite;
+      end;
     end;
     
     // When comparing JSON property extraction result (returns TEXT) with non-string values,

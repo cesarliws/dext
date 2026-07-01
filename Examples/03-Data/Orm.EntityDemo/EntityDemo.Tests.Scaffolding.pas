@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Scaffolding;
+﻿unit EntityDemo.Tests.Scaffolding;
 
 interface
 

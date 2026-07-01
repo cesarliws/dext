@@ -140,6 +140,8 @@ type
     function Delete(const AEndpoint: string = ''): TRestRequest;
     /// <summary>Creates a PATCH builder for the given endpoint.</summary>
     function Patch(const AEndpoint: string = ''): TRestRequest;
+    /// <summary>Creates a QUERY builder for the given endpoint.</summary>
+    function Query(const AEndpoint: string = ''): TRestRequest;
   end;
 
   /// <summary>
@@ -726,6 +728,11 @@ end;
 function TRestRequestFactory.Patch(const AEndpoint: string): TRestRequest;
 begin
   Result := TRestRequest.Create(FClient, hmPATCH, AEndpoint);
+end;
+
+function TRestRequestFactory.Query(const AEndpoint: string): TRestRequest;
+begin
+  Result := TRestRequest.Create(FClient, hmQUERY, AEndpoint);
 end;
 
 { TRestClientRequestHelper }

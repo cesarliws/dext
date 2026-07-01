@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Concurrency;
+﻿unit EntityDemo.Tests.Concurrency;
 
 interface
 
@@ -31,7 +31,7 @@ var
   DBPrice: Double;
 begin
   Dialect := TDbConfig.CreateDialect;
-  
+
   Log('🛡️ Running Optimistic Concurrency Tests...');
   Log('========================================');
 
@@ -43,35 +43,35 @@ begin
   P.Name := 'Concurrency Product';
   P.Price := 100;
   P.Version := 1; // Initial version
-  
+
   FContext.Entities<TProduct>.Add(P);
   FContext.SaveChanges;
   LogSuccess(Format('Product inserted with ID: %d, Version: %d', [P.Id, P.Version]));
 
   // 2. Simulate User A (Context 1) and User B (Context 2)
-  
+
   // Create a second context sharing the same DB connection with the CORRECT dialect
   Context2 := TDbContext.Create(TFireDACConnection.Create(FConn, False), TDbConfig.CreateDialect);
   try
     Context2.Entities<TProduct>; // Register in second context
-    
+
     // User A loads product (from FContext)
     ProductA := FContext.Entities<TProduct>.Find(P.Id);
-    
+
     // User B loads product (from Context2)
     ProductB := Context2.Entities<TProduct>.Find(P.Id);
-    
+
     AssertTrue(ProductA.Version = 1, 'User A sees Version 1', 'User A Version mismatch');
     AssertTrue(ProductB.Version = 1, 'User B sees Version 1', 'User B Version mismatch');
-    
+
     // User A updates
     ProductA.Price := 150;
     FContext.Entities<TProduct>.Update(ProductA);
     FContext.SaveChanges;
     LogSuccess('User A updated product. New Version: ' + ProductA.Version.ToString);
-    
+
     AssertTrue(ProductA.Version = 2, 'Version incremented to 2', 'Version did not increment');
-    
+
     // User B tries to update (still has Version 1)
     ProductB.Price := 200;
     try
@@ -84,17 +84,17 @@ begin
       on E: Exception do
         LogError('Caught unexpected exception: ' + E.ClassName + ' - ' + E.Message);
     end;
-    
+
     // Verify DB state (use proper quoting for each database)
-    SQL := Format('SELECT %s FROM %s WHERE %s = %d', 
-      [Dialect.QuoteIdentifier('Price'), Dialect.QuoteIdentifier('products'), 
+    SQL := Format('SELECT %s FROM %s WHERE %s = %d',
+      [Dialect.QuoteIdentifier('Price'), Dialect.QuoteIdentifier('products'),
        Dialect.QuoteIdentifier('Id'), P.Id]);
     DBPrice := FConn.ExecSQLScalar(SQL);
     AssertTrue(DBPrice = 150, 'DB Price is 150 (User A)', 'DB Price mismatch: ' + DBPrice.ToString);
-    
+
     // 3. Concurrent Delete Scenario
     Log('Testing Concurrent Delete...');
-    
+
     // Create new product for delete test
     PDelete := TProduct.Create;
     PDelete.Name := 'Delete Product';
@@ -102,18 +102,18 @@ begin
     PDelete.Version := 1;
     FContext.Entities<TProduct>.Add(PDelete);
     FContext.SaveChanges;
-    
+
     // User A loads (FContext)
     ProductDeleteA := FContext.Entities<TProduct>.Find(PDelete.Id);
-    
+
     // User B loads (Context2)
     ProductDeleteB := Context2.Entities<TProduct>.Find(PDelete.Id);
-    
+
     // User A deletes
     FContext.Entities<TProduct>.Remove(ProductDeleteA);
     FContext.SaveChanges;
     LogSuccess('User A deleted product.');
-    
+
     // User B tries to update
     ProductDeleteB.Price := 400;
     try
@@ -130,7 +130,7 @@ begin
   finally
     Context2.Free;
   end;
-  
+
   Log('');
 end;
 

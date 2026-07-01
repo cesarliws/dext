@@ -191,10 +191,11 @@ type
     FOptions: TResponseCacheOptions;
     FStore: ICacheStore;
     
-    function GenerateCacheKey(AContext: IHttpContext): string;
     function IsCacheable(AContext: IHttpContext): Boolean;
     function TryServeFromCache(AContext: IHttpContext; const AKey: string): Boolean;
     procedure CacheResponse(AContext: IHttpContext; const AKey: string; AWrapper: TResponseCaptureWrapper);
+  protected
+    function GenerateCacheKey(AContext: IHttpContext): string;
   public
     constructor Create(const AOptions: TResponseCacheOptions);
     destructor Destroy; override;
@@ -458,7 +459,7 @@ begin
   Result.MaxSize := 1000;
   Result.VaryByQuery := True;
   SetLength(Result.VaryByHeaders, 0);
-  Result.CacheableMethods := ['GET', 'HEAD'];
+  Result.CacheableMethods := ['GET', 'HEAD', 'QUERY'];
   Result.CacheStore := nil; // Will use default TMemoryCacheStore
 end;
 
@@ -489,6 +490,8 @@ var
   HeaderValue: string;
   QueryArray: TArray<TPair<string, string>>;
   i: Integer;
+  BodyStream: TStream;
+  BodyHash: string;
 begin
   KeyBuilder := TStringBuilder.Create;
   try
@@ -520,6 +523,20 @@ begin
         KeyBuilder.Append(Header);
         KeyBuilder.Append('=');
         KeyBuilder.Append(HeaderValue);
+      end;
+    end;
+
+    // Vary by body for QUERY requests
+    if AContext.Request.Method = 'QUERY' then
+    begin
+      BodyStream := AContext.Request.Body;
+      if (BodyStream <> nil) and (BodyStream.Size > 0) then
+      begin
+        BodyStream.Position := 0;
+        BodyHash := THashSHA1.GetHashString(BodyStream);
+        BodyStream.Position := 0;
+        KeyBuilder.Append(':');
+        KeyBuilder.Append(BodyHash);
       end;
     end;
     

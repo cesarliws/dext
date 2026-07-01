@@ -37,6 +37,7 @@ Status | Task | Spec | Description
 ✅ | **FluentQuery Join Evolution**| [S19](Specs/S19-FluentQuery-Join-Evolution.md) | Unified strongly-typed fluent SQL joins (Inner, Left, Right, Full, Cross).
 ✅ | **Fluent REST Evolution** | [S20](Specs/S20-Fluent-Rest-Evolution.md) | Enhanced TRestClient factories and native record/array payload support.
 ✅ | **Native Delphi IDE Test Runner** | [S36](Specs/S36-IDE-Test-Runner.md) | Native IDE Test Runner expert with decoupled DUnitX, DUnit, DUnit2, and TestInsight integrations and rich reporting.
+✅ | **Public Symbol Indexing** | [dext index] | Extract and generate public symbol maps (Markdown, JSON, CSV) with line numbers for AI agents and NotebookLM.
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Initial visual tool for Migrations inside the IDE (Only TFDConnection scaffolding implemented).
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
@@ -59,6 +60,7 @@ Status | Task | Spec | Description
 ✅ | **Delphi Hub Client** | [S42](Specs/S42-Delphi-Hub-Client.md) | Native Delphi client connection library for Dext Hubs (WebSocket/SSE).
 ✅ | **Processor Groups** | [S48](Specs/S48-Processor-Groups.md) | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
 ✅ | **Expose TCP/UDP & MQTT** | [S47](Specs/S47-Network-Exposing.md) | Decouple core IOCP/Epoll engine for raw sockets and native MQTT client/broker.
+✅ | **HTTP QUERY Method** | [S49](Specs/S49-Http-Query-Method.md) | Standardized HTTP QUERY method support (RFC 10008) on client and server.
 
 ## 🔮 Future / Post-V1
 - [ ] **OData Support**: Full OData query support.
@@ -97,6 +99,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Evolução de Joins FluentQuery**| [S19](Specs/S19-FluentQuery-Join-Evolution.md) | Joins fluentes e fortemente tipados unificados (Inner, Left, Right, Full, Cross).
 ✅ | **Evolução REST Fluente** | [S20](Specs/S20-Fluent-Rest-Evolution.md) | Factories aprimoradas para TRestClient e suporte nativo a records/arrays.
 ✅ | **Test Runner Nativo na IDE** | [S36](Specs/S36-IDE-Test-Runner.md) | Plugin Expert nativo de Test Runner na IDE com integração DUnitX, DUnit, DUnit2 e TestInsight desacoplada e relatórios ricos.
+✅ | **Indexador de Símbolos Públicos** | [dext index] | Extrair e gerar mapas de símbolos públicos (Markdown, JSON, CSV) com números de linha para agentes de IA e NotebookLM.
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Ferramenta visual inicial para Migrations na IDE (Somente scaffolding de TFDConnection implementado).
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Expert visual na IDE para mapeamento de schema e sync contínuo via YAML.
 🟡 | **Middleware Pack** | - | SPA Fallback, Forwarded Headers e Resiliência.
@@ -119,6 +122,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Cliente Hub Delphi** | [S42](Specs/S42-Delphi-Hub-Client.md) | Biblioteca cliente nativa em Delphi para conexão com Dext Hubs (WebSocket/SSE).
 ✅ | **Processor Groups** | [S48](Specs/S48-Processor-Groups.md) | Otimização de Windows Processor Groups (escala NUMA-Aware) para >64 cores lógicos.
 ✅ | **Expor TCP/UDP & MQTT** | [S47](Specs/S47-Network-Exposing.md) | Desacoplar motor core IOCP/Epoll para sockets puros e client/broker MQTT nativo.
+✅ | **Método HTTP QUERY** | [S49](Specs/S49-Http-Query-Method.md) | Suporte ao método HTTP QUERY padronizado (RFC 10008) no cliente e no servidor.
 
 ## 🔮 Futuro / Pós-V1
 - [ ] **Suporte a OData**: Suporte completo a queries OData.

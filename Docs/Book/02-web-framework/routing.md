@@ -116,7 +116,30 @@ App.MapPatch('/resource/{id}', Handler); // PATCH
 App.MapDelete('/resource/{id}', Handler); // DELETE
 App.MapOptions('/resource', Handler); // OPTIONS
 App.MapHead('/resource', Handler);    // HEAD
+App.MapQuery('/resource', Handler);   // QUERY (RFC 10008)
 ```
+
+## HTTP QUERY Method (RFC 10008)
+
+The HTTP `QUERY` method is designed for safe, idempotent request-body-driven query operations.
+
+```pascal
+App.MapQuery('/users/query', procedure(Ctx: IHttpContext)
+  begin
+    // Process query payload from request body
+  end);
+```
+
+You can define the supported media types using the `.AcceptsQuery` method:
+
+```pascal
+App.MapQuery('/users/query', Handler);
+TEndpointMetadataExtensions.AcceptsQuery(App, ['application/jsonpath', 'application/sql']);
+```
+
+When an OPTIONS request is made to the endpoint, Dext automatically returns:
+- `Allow: QUERY, OPTIONS` (and other supported methods)
+- `Accept-Query: application/jsonpath, application/sql`
 
 ## Grouping Routes
 

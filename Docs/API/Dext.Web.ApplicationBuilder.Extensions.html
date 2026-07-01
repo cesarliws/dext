@@ -430,6 +430,17 @@ class TApplicationBuilderExtensions {    +MapPost~T~()
     +MapPostR~T,TResult~()
     +MapPostR~T1,T2,TResult~()
     +MapPostR~T1,T2,T3,TResult~()
+    +MapQuery~T~()
+    +MapQuery~T1,T2~()
+    +MapQuery~T1,T2,T3~()
+    +MapQuery~TResult~()
+    +MapQuery~T,TResult~()
+    +MapQuery~T1,T2,TResult~()
+    +MapQuery~T1,T2,T3,TResult~()
+    +MapQueryResult~TResult~()
+    +MapQueryResult~T,TResult~()
+    +MapQueryResult~T1,T2,TResult~()
+    +MapQueryResult~T1,T2,T3,TResult~()
 }
 TObject <|-- TApplicationBuilderExtensions
 class TDextAppBuilderHelper {    +MapGet~T~()
@@ -452,6 +463,13 @@ class TDextAppBuilderHelper {    +MapGet~T~()
     +MapDelete~T,TResult~()
     +MapDelete~T1,T2,TResult~()
     +MapDelete~T1,T2,T3,TResult~()
+    +MapQuery~T~()
+    +MapQuery~T1,T2~()
+    +MapQuery~T1,T2,T3~()
+    +MapQuery~TResult~()
+    +MapQuery~T,TResult~()
+    +MapQuery~T1,T2,TResult~()
+    +MapQuery~T1,T2,T3,TResult~()
     +MapGetResult~TResult~()
     +MapGetResult~T,TResult~()
     +MapGetResult~T1,T2,TResult~()
@@ -468,7 +486,12 @@ class TDextAppBuilderHelper {    +MapGet~T~()
     +MapDeleteResult~T,TResult~()
     +MapDeleteResult~T1,T2,TResult~()
     +MapDeleteResult~T1,T2,T3,TResult~()
+    +MapQueryResult~TResult~()
+    +MapQueryResult~T,TResult~()
+    +MapQueryResult~T1,T2,TResult~()
+    +MapQueryResult~T1,T2,T3,TResult~()
     +RequireAuthorization()
+    +AcceptsQuery()
     +UseSwagger()
     +UseExceptionHandler()
     +UseDeveloperExceptionPage()
@@ -584,6 +607,28 @@ class TDextAppBuilderHelper {    +MapGet~T~()
 <div class="api-signature">function MapPostR&lt;T1,T2,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function MapPostR&lt;T1,T2,T3,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerProc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerProc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,T3&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerProc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,T3,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T1,T2,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T1,T2,T3,TResult&gt;(App: IApplicationBuilder; const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -629,6 +674,20 @@ class TDextAppBuilderHelper {    +MapGet~T~()
 <div class="api-item">
 <div class="api-signature">function MapDelete&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function MapQuery&lt;T&gt;(const const: string; Handler: THandlerProc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2&gt;(const const: string; Handler: THandlerProc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,T3&gt;(const const: string; Handler: THandlerProc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function MapGetResult&lt;TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function MapGetResult&lt;T,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
@@ -661,11 +720,21 @@ class TDextAppBuilderHelper {    +MapGet~T~()
 <div class="api-item">
 <div class="api-signature">function MapDeleteResult&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T1,T2,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQueryResult&lt;T1,T2,T3,TResult&gt;(const const: string; Handler: THandlerResultFunc): IApplicationBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function RequireAuthorization: IApplicationBuilder</div><div class="description">Marks the last registered route as requiring authorization (defaults to 'Basic').</div></div>
 <div class="api-item">
 <div class="api-signature">function RequireAuthorization(const const: string): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function RequireAuthorization(const const: array): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function AcceptsQuery(const const: array): IApplicationBuilder</div><div class="description">Configures the supported query media types for the last registered HTTP QUERY endpoint.</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSwagger: IApplicationBuilder</div></div>
 <div class="api-item">

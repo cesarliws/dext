@@ -517,6 +517,7 @@ class IApplicationBuilder {    +GetServiceProvider()
     +MapGet()
     +MapPut()
     +MapDelete()
+    +MapQuery()
     +Build()
     +GetRoutes()
     +UpdateLastRouteMetadata()
@@ -904,6 +905,8 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">function MapPut(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function MapDelete(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery(const const: string; Handler: TStaticHandler): IApplicationBuilder</div><div class="description">Maps a route handling HTTP QUERY requests.</div></div>
 <div class="api-item">
 <div class="api-signature">function Build: TRequestDelegate</div></div>
 <div class="api-item">

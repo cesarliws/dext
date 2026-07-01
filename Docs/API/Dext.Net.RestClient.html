@@ -428,6 +428,7 @@ class IRestClient {    +BaseUrl()
     +ContentTypePlainText()
     +PostJson()
     +PutJson()
+    +QueryJson()
     +ExecuteAsync()
 }
 class TRestClientImpl {    +GetFullUrl()
@@ -448,6 +449,7 @@ class TRestClientImpl {    +GetFullUrl()
     +ContentTypePlainText()
     +PostJson()
     +PutJson()
+    +QueryJson()
     +ExecuteAsync()
 }
 TInterfacedObject <|-- TRestClientImpl
@@ -482,6 +484,10 @@ class TRestClient {    +Destroy()
     +PutJson()
     +Delete()
     +Delete~T~()
+    +Query()
+    +Query~TRes~()
+    +Query~T~()
+    +QueryJson()
     +ExecuteAsync()
     +Execute()
     +Instance
@@ -599,6 +605,10 @@ Exception <|-- EDextRestException
 <div class="api-item">
 <div class="api-signature">function PutJson(const const: string; const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous PUT to AEndpoint sending a raw JSON string. Encapsulates stream creation and UTF-8 encoding internally.</div></div>
 <div class="api-item">
+<div class="api-signature">function QueryJson(const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY sending a raw JSON string. Encapsulates stream creation and UTF-8 encoding internally.</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryJson(const const: string; const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY to AEndpoint sending a raw JSON string. Encapsulates stream creation and UTF-8 encoding internally.</div></div>
+<div class="api-item">
 <div class="api-signature">function ExecuteAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary): TAsyncBuilder</div><div class="description">Executes an asynchronous HTTP request.</div></div>
 </div>
 <hr>
@@ -642,6 +652,10 @@ Exception <|-- EDextRestException
 <div class="api-signature">function PutJson(const const: string): TAsyncBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function PutJson(const const: string; const const: string): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryJson(const const: string): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryJson(const const: string; const const: string): TAsyncBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function ExecuteAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary): TAsyncBuilder</div></div>
 </div>
@@ -718,6 +732,18 @@ Exception <|-- EDextRestException
 <div class="api-item">
 <div class="api-signature">function Delete&lt;T&gt;(const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous DELETE and automatically deserializes the JSON response to type T.</div></div>
 <div class="api-item">
+<div class="api-signature">function Query(const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY to the base URL.</div></div>
+<div class="api-item">
+<div class="api-signature">function Query(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY with a raw stream body.</div></div>
+<div class="api-item">
+<div class="api-signature">function Query&lt;TRes&gt;(const const: string; const const: TRes): TAsyncBuilder</div><div class="description">Executes a QUERY sending a payload (class or record) serialized as JSON and awaits a typed response.</div></div>
+<div class="api-item">
+<div class="api-signature">function Query&lt;T&gt;(const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY and automatically deserializes the JSON response to type T.</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryJson(const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY sending a raw JSON string. Encapsulates stream creation and UTF-8 encoding internally.</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryJson(const const: string; const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY to AEndpoint sending a raw JSON string. Encapsulates stream creation and UTF-8 encoding internally.</div></div>
+<div class="api-item">
 <div class="api-signature">function ExecuteAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary): TAsyncBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder</div><div class="description">Executes a request defined by a THttpRequestInfo object (compatible with .http parsers).</div></div>
@@ -737,7 +763,7 @@ Exception <|-- EDextRestException
 </div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TDextHttpMethod = enumeration</div><div class="enum-values">Values: hmGET, hmPOST, hmPUT, hmDELETE, hmPATCH, hmHEAD, hmOPTIONS</div><div class="description">Supported HTTP methods for the REST client.</div></div>
+<div class="api-signature">type TDextHttpMethod = enumeration</div><div class="enum-values">Values: hmGET, hmPOST, hmPUT, hmDELETE, hmPATCH, hmHEAD, hmOPTIONS, hmQUERY</div><div class="description">Supported HTTP methods for the REST client.</div></div>
 <div class="api-item">
 <div class="api-signature">type TDextContentType = enumeration</div><div class="enum-values">Values: ctJson, ctXml, ctFormUrlEncoded, ctMultipartFormData, ctBinary, ctText</div><div class="description">Common MIME content types for requests and responses.</div></div>
 </div>

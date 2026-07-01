@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Base;
+﻿unit EntityDemo.Tests.Base;
 
 interface
 
@@ -191,26 +191,36 @@ begin
 
   // 1. Create connection using TDbConfig
   DbConnection := TDbConfig.CreateConnection;
+  DbConnection.Connect;
   Dialect := TDbConfig.CreateDialect;
+  if (TDbConfig.GetProvider = dpMySQL) and (DbConnection.Dialect = ddMariaDB) then
+    Dialect := TMariaDBDialect.Create;
 
   // Get the underlying TFDConnection for raw SQL operations
   FConn := (DbConnection as TFireDACConnection).Connection;
 
   // Drop tables to ensure clean state
   WriteLn('🗑️  Dropping existing tables...');
-  // Order matters due to FKs - drop child tables first
-  DropTableIfExists('order_items');
-  DropTableIfExists('products');
-  DropTableIfExists('users');
-  DropTableIfExists('addresses');
-  DropTableIfExists('mixed_keys');
-  DropTableIfExists('users_with_profile');
-  DropTableIfExists('user_profiles');
-  DropTableIfExists('documents');
-  DropTableIfExists('articles');
-  DropTableIfExists('tasks');
-  DropTableIfExists('sequenced_users');
-  DropTableIfExists('converter_test');  // TypeConverter example
+  if TDbConfig.GetProvider = dpMySQL then
+    FConn.ExecSQL('SET FOREIGN_KEY_CHECKS = 0');
+  try
+    // Order matters due to FKs - drop child tables first
+    DropTableIfExists('order_items');
+    DropTableIfExists('products');
+    DropTableIfExists('users');
+    DropTableIfExists('addresses');
+    DropTableIfExists('mixed_keys');
+    DropTableIfExists('users_with_profile');
+    DropTableIfExists('user_profiles');
+    DropTableIfExists('documents');
+    DropTableIfExists('articles');
+    DropTableIfExists('tasks');
+    DropTableIfExists('sequenced_users');
+    DropTableIfExists('converter_test');  // TypeConverter example
+  finally
+    if TDbConfig.GetProvider = dpMySQL then
+      FConn.ExecSQL('SET FOREIGN_KEY_CHECKS = 1');
+  end;
 
   // 1.5 Clear SQL Cache to avoid interference between tests
   TSQLCache.Instance.Clear;

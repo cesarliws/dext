@@ -383,6 +383,7 @@ class IApplicationBuilderWithModelBinding {    +Build()
 class TApplicationBuilderWithModelBinding {    +Create()
     +MapPost~T~()
     +MapGet~T~()
+    +MapQuery~T~()
     +Build()
 }
 TInterfacedObject <|-- TApplicationBuilderWithModelBinding
@@ -408,6 +409,8 @@ TObject <|-- TApplicationBuilderModelBindingExtensions
 <div class="api-signature">function MapPost&lt;T&gt;(const const: string; Handler: TProc): TApplicationBuilderWithModelBinding</div></div>
 <div class="api-item">
 <div class="api-signature">function MapGet&lt;T&gt;(const const: string; Handler: TProc): TApplicationBuilderWithModelBinding</div></div>
+<div class="api-item">
+<div class="api-signature">function MapQuery&lt;T&gt;(const const: string; Handler: TProc): TApplicationBuilderWithModelBinding</div></div>
 <div class="api-item">
 <div class="api-signature">function Build: IApplicationBuilder</div></div>
 </div>

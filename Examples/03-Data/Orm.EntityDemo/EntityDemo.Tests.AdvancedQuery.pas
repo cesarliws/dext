@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.AdvancedQuery;
+﻿unit EntityDemo.Tests.AdvancedQuery;
 
 interface
 
@@ -436,24 +436,24 @@ begin
   U.Age := 25;
   FContext.Entities<TUser>.Add(U);
   FContext.SaveChanges;
-  
+
   // Syntax Goal: Where(TUserType.Age > 18)
   // TUserType.Age is TProp<Integer>
-  // > 18 invokes TProp<Integer>.GreaterThan(..., 18) -> TExpression 
+  // > 18 invokes TProp<Integer>.GreaterThan(..., 18) -> TExpression
   // Where(...) takes ISpecification or IExpression (via implicit?)
   // TFluentQuery.Where(Expression) exists.
-  
+
   Query := FContext.Entities<TUser>.QueryAll
     .Where(TUserType.Age > 18)
     .Where(TUserType.Name <> '');
     //.Where(TUserType.Age > 18)
     //.Where(TUserType.Name <> '');
-    
-    // Note: TProp<string> operators need to support <> '' 
+
+    // Note: TProp<string> operators need to support <> ''
     // And implicit convert TProp<T> expression result (TPropExpression.TExpression) to IExpression interface
-    
+
   Users := Query.ToList;
-  
+
   AssertTrue(Users.Count = 1, 'Should find 1 user', Format('Found %d', [Users.Count]));
   AssertTrue(Users[0].Age = 25, 'Age should be 25', Format('Found %d', [Users[0].Age]));
 end;
@@ -464,7 +464,7 @@ var
 begin
   Log('   Testing String-Based Expressions (".Where(''Age'' > 18)")...');
   // NOTE: This uses the new TPropExpression.Implicit(string) operator
-  
+
   TearDown;
   Setup;
 
@@ -472,20 +472,20 @@ begin
     .Add(TUser.Create('Kid', 10))
     .Add(TUser.Create('Adult', 25));
   FContext.SaveChanges;
-  
+
   // Test 1: Basic string literal comparison
   Users := FContext.Entities<TUser>.QueryAll
     .Where(Prop('Age') > 18)
     .ToList;
-    
+
   AssertTrue(Users.Count = 1, 'String expression Age > 18 passed', Format('Found %d', [Users.Count]));
   AssertTrue(Users[0].Name = 'Adult', 'Expected Adult', Users[0].Name);
-  
+
   // Test 2: Complex string literal comparison
   Users := FContext.Entities<TUser>.QueryAll
     .Where((Prop('Age') > 10) and (Prop('Name') = 'Adult'))
     .ToList;
-    
+
   AssertTrue(Users.Count = 1, 'Complex string expression passed', Format('Found %d', [Users.Count]));
 
   // Test 3: String literal with LIKE
@@ -500,7 +500,7 @@ begin
     .Where(Prop('Name') = 'Kid')
     .ToList;
   AssertTrue(Users.Count = 1, 'Mapping "Name" string to "full_name" column passed', Format('Found %d', [Users.Count]));
-  
+
   LogSuccess('   ✓ String-based expressions working correctly!');
 end;
 

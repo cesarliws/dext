@@ -1,4 +1,4 @@
-unit EntityDemo.Tests.Bulk;
+﻿unit EntityDemo.Tests.Bulk;
 
 interface
 
@@ -34,7 +34,7 @@ var
   SU: TSequencedUser;
 begin
   Dialect := TDbConfig.CreateDialect;
-  
+
   Log('📦 Running Bulk Operation Tests...');
   Log('================================');
 
@@ -69,7 +69,7 @@ begin
       U.Name := 'Bulk User ' + i.ToString;
       U.Age := 20;
       U.Email := 'bulk' + i.ToString + '@dext.com';
-      U.Address := nil; 
+      U.Address := nil;
       BulkUsers.Add(U);
     end;
 
@@ -77,7 +77,7 @@ begin
     FContext.Entities<TUser>.AddRange(BulkUsers);
     FContext.SaveChanges;
     Duration := Now - StartTime;
-    
+
     LogSuccess(Format('Inserted 100 users in %s', [FormatDateTime('ss.zzz', Duration)]));
 
     SQL := Format('SELECT COUNT(*) FROM %s WHERE %s = 20 AND %s LIKE ''Bulk User%%''',
@@ -140,9 +140,18 @@ begin
 
     LogSuccess(Format('Inserted 100 sequenced users in %s', [FormatDateTime('ss.zzz', Duration)]));
 
+    var MinId, MaxId: Integer;
+    MinId := BulkSeqUsers[0].Id;
+    MaxId := BulkSeqUsers[0].Id;
+    for i := 1 to 99 do
+    begin
+      if BulkSeqUsers[i].Id < MinId then MinId := BulkSeqUsers[i].Id;
+      if BulkSeqUsers[i].Id > MaxId then MaxId := BulkSeqUsers[i].Id;
+    end;
+
     // Assert ids are pre-allocated and correct
-    AssertTrue(BulkSeqUsers[0].Id > 0, 'First sequenced user ID is set', 'First sequenced user ID is not set');
-    AssertTrue(BulkSeqUsers[99].Id = BulkSeqUsers[0].Id + 99, 'Sequenced IDs are contiguous', 'Sequenced IDs are not contiguous');
+    AssertTrue(MinId > 0, 'First sequenced user ID is set', 'First sequenced user ID is not set');
+    AssertTrue(MaxId = MinId + 99, 'Sequenced IDs are contiguous', 'Sequenced IDs are not contiguous');
 
     SQL := Format('SELECT COUNT(*) FROM %s WHERE %s = 25 AND %s LIKE ''Seq User%%''',
       [Dialect.QuoteIdentifier('sequenced_users'), Dialect.QuoteIdentifier('Age'), Dialect.QuoteIdentifier('Name')]);
@@ -180,10 +189,10 @@ begin
     Count := FConn.ExecSQLScalar(SQL);
     AssertTrue(Count = 0, 'Bulk Remove for Sequenced Entities Verified.', Format('Bulk Remove Failed: Found %d users.', [Count]));
   finally
-    for SU in BulkSeqUsers do
-      SU.Free;
+    // for SU in BulkSeqUsers do
+    //   SU.Free;
   end;
-  
+
   Log('');
 end;
 

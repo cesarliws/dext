@@ -365,6 +365,11 @@ var
   Method, Path, RequestVersion: string;
   BestLiteral, BestPattern: TRouteDefinition;
   BestLiteralNeutral, BestPatternNeutral: TRouteDefinition;
+  AllowMethods: string;
+  AcceptQuery: string;
+  MatchingRoute: TRouteDefinition;
+  i: Integer;
+  HasQuery: Boolean;
 begin
   ARouteParams.Clear;
   Result := False;
@@ -416,6 +421,65 @@ begin
   else if BestPatternNeutral <> nil then
     Route := BestPatternNeutral
   else
+    Route := nil;
+
+  if (Route = nil) and (Method = 'OPTIONS') then
+  begin
+    AllowMethods := 'OPTIONS';
+    AcceptQuery := '';
+    HasQuery := False;
+    
+    for MatchingRoute in FRoutes do
+    begin
+      if ((MatchingRoute.Pattern = nil) and (MatchingRoute.Path = Path)) or
+         ((MatchingRoute.Pattern <> nil) and MatchingRoute.Pattern.Match(Path, ARouteParams)) then
+      begin
+        if not AllowMethods.Contains(MatchingRoute.Method) then
+          AllowMethods := AllowMethods + ', ' + MatchingRoute.Method;
+          
+        if MatchingRoute.Method = 'QUERY' then
+        begin
+          HasQuery := True;
+          if Length(MatchingRoute.Metadata.AcceptQueryTypes) > 0 then
+          begin
+            for i := 0 to High(MatchingRoute.Metadata.AcceptQueryTypes) do
+            begin
+              if AcceptQuery <> '' then
+                AcceptQuery := AcceptQuery + ', ';
+              AcceptQuery := AcceptQuery + MatchingRoute.Metadata.AcceptQueryTypes[i];
+            end;
+          end;
+        end;
+      end;
+    end;
+    
+    // If we found any matching routes, return a dynamic OPTIONS handler
+    if AllowMethods <> 'OPTIONS' then
+    begin
+      AHandler := procedure(Ctx: IHttpContext)
+        begin
+          Ctx.Response.StatusCode := 200;
+          Ctx.Response.AddHeader('Allow', AllowMethods);
+          if HasQuery then
+          begin
+            if AcceptQuery = '' then
+              AcceptQuery := 'application/json'; // Default format
+            Ctx.Response.AddHeader('Accept-Query', AcceptQuery);
+          end;
+          Ctx.Response.Write('');
+        end;
+      
+      // Fill dummy/default metadata
+      FillChar(AMetadata, SizeOf(AMetadata), 0);
+      AMetadata.Method := 'OPTIONS';
+      AMetadata.Path := Path;
+      
+      Result := True;
+      Exit;
+    end;
+  end;
+
+  if Route = nil then
     Exit;
 
   AHandler := Route.Handler;

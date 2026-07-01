@@ -85,6 +85,11 @@ type
     class function WithRequestType(App: IApplicationBuilder; ATypeInfo: PTypeInfo): IApplicationBuilder;
     
     /// <summary>
+    ///   Configures the accepted query content types for the endpoint.
+    /// </summary>
+    class function AcceptsQuery(App: IApplicationBuilder; const AMediaTypes: array of string): IApplicationBuilder;
+    
+    /// <summary>
     ///   Update the last registered route's metadata. Internal/Helper use.
     /// </summary>
     class procedure UpdateRouteMetadata(App: IApplicationBuilder; RequestType: PTypeInfo; ResponseType: PTypeInfo);
@@ -291,6 +296,24 @@ class function TEndpointMetadataExtensions.WithRequestType(App: IApplicationBuil
 begin
   Result := App;
   UpdateRouteMetadata(App, ATypeInfo, nil);
+end;
+
+class function TEndpointMetadataExtensions.AcceptsQuery(App: IApplicationBuilder; const AMediaTypes: array of string): IApplicationBuilder;
+var
+  Routes: TArray<TEndpointMetadata>;
+  Metadata: TEndpointMetadata;
+  i: Integer;
+begin
+  Result := App;
+  Routes := App.GetRoutes;
+  if Length(Routes) > 0 then
+  begin
+    Metadata := Routes[High(Routes)];
+    SetLength(Metadata.AcceptQueryTypes, Length(AMediaTypes));
+    for i := 0 to High(AMediaTypes) do
+      Metadata.AcceptQueryTypes[i] := AMediaTypes[i];
+    App.UpdateLastRouteMetadata(Metadata);
+  end;
 end;
 
 class procedure TEndpointMetadataExtensions.UpdateRouteMetadata(App: IApplicationBuilder; RequestType: PTypeInfo; ResponseType: PTypeInfo);
