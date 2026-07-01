@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{1A75A0FB-06A4-4EE9-B72B-1F4D07B11A57}</ProjectGuid>
         <MainSource>DextTool.dpr</MainSource>
@@ -128,6 +128,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Configuration.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Doc.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Facade.pas"/>
+        <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Index.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.MigrateDown.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.MigrateGenerate.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.MigrateList.pas"/>
@@ -135,6 +136,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Scaffold.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Test.pas"/>
         <DCCReference Include="Tools\Dext.Hosting.CLI.Tools.DocGen.pas"/>
+        <DCCReference Include="Tools\Dext.Hosting.CLI.Tools.IndexGen.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

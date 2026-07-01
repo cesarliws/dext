@@ -38,6 +38,10 @@ dext ui --port 8080
 # Documentação
 dext doc
 dext doc --output ./Docs
+
+# Mapa de Símbolos
+dext index
+dext index --path ./Sources --format json
 ```
 
 ## Instalação e Compilação

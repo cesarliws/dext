@@ -38,3 +38,4 @@ history.json
 *.o
 *.dcp
 *.hpp
+dext-symbols.*

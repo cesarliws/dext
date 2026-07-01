@@ -29,6 +29,8 @@ Pacotes de instruções focados para escrever código **Dext** (framework modern
 | **dext-desktop-ui** | `dext-desktop-ui.md` | Aplicativos desktop VCL, Navigator (inspirado no Flutter), Magic Binding (bidirecional, declarativo), MVVM |
 | **dext-server-adapters** | `dext-server-adapters.md` | Adaptador Indy (self-hosted), SSL/HTTPS (OpenSSL/Taurus), `Run` vs `Start`, padrões de deploy, WebBroker/ISAPI (roadmap) |
 | **dext-mcp** | `dext-mcp.md` | Model Context Protocol, servidores MCP, registrar ferramentas, recursos e prompts, chamadas de BD via IA |
+| **dext-symbols** | `dext-symbols.md` | Localizar classes, interfaces, records, métodos, propriedades e constantes no código usando mapas pré-gerados na raiz |
+
 
 ## Instalação Manual
 
@@ -180,6 +182,11 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 - Expor ferramentas (tools), recursos ou prompts customizados para assistentes de IA
 - Configurar conexões SQLite ou integração de banco de dados com chamadas de IA
 - Sincronizar atualizações de banco de dados com threads de interface gráfica VCL/FMX
+
+**Carregue `dext-symbols`** quando:
+
+- Buscar definições de tipos, classes, interfaces, records, métodos, propriedades ou constantes no código-fonte do Dext
+- Precisar navegar diretamente para números de linhas de declaração de símbolos ou conferir assinaturas de métodos públicos
 
 ## Fatos Principais sobre o Framework
 

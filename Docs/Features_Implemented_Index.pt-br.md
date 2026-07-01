@@ -630,6 +630,7 @@ API fluente baseada no padrão `Should(Value)`.
 - **Dext Doc** — Geração automatizada de documentação técnica do projeto.
 - **`dext test`** — Execução de testes e geração de relatórios de cobertura via CLI.
 - **`dext ui`** — Dashboard web para monitoramento de testes em tempo real.
+- **`dext index`** — Mapeamento e indexação de todos os símbolos públicos (classes, records, interfaces, métodos, etc.) com números de linha em Markdown, JSON e CSV para agentes de IA e NotebookLM.
 
 ---
 

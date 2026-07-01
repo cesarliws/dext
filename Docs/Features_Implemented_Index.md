@@ -825,6 +825,7 @@ The framework embeds a premium, high-performance, asynchronous observability sui
 - **Dext Doc** — Automated technical project documentation generation.
 - **`dext test`** — CLI-based test execution and coverage report generation.
 - **`dext ui`** — Web dashboard for real-time test monitoring.
+- **`dext index`** — Mapping and indexing of all public symbols (classes, records, interfaces, methods, etc.) with exact line numbers in Markdown, JSON, and CSV for AI agents and NotebookLM.
 
 ---
 

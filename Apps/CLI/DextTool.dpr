@@ -18,13 +18,15 @@ uses
   Dext.Hosting.CLI.Commands.Configuration in 'Commands\Dext.Hosting.CLI.Commands.Configuration.pas',
   Dext.Hosting.CLI.Commands.Doc in 'Commands\Dext.Hosting.CLI.Commands.Doc.pas',
   Dext.Hosting.CLI.Commands.Facade in 'Commands\Dext.Hosting.CLI.Commands.Facade.pas',
+  Dext.Hosting.CLI.Commands.Index in 'Commands\Dext.Hosting.CLI.Commands.Index.pas',
   Dext.Hosting.CLI.Commands.MigrateDown in 'Commands\Dext.Hosting.CLI.Commands.MigrateDown.pas',
   Dext.Hosting.CLI.Commands.MigrateGenerate in 'Commands\Dext.Hosting.CLI.Commands.MigrateGenerate.pas',
   Dext.Hosting.CLI.Commands.MigrateList in 'Commands\Dext.Hosting.CLI.Commands.MigrateList.pas',
   Dext.Hosting.CLI.Commands.MigrateUp in 'Commands\Dext.Hosting.CLI.Commands.MigrateUp.pas',
   Dext.Hosting.CLI.Commands.Scaffold in 'Commands\Dext.Hosting.CLI.Commands.Scaffold.pas',
   Dext.Hosting.CLI.Commands.Test in 'Commands\Dext.Hosting.CLI.Commands.Test.pas',
-  Dext.Hosting.CLI.Tools.DocGen in 'Tools\Dext.Hosting.CLI.Tools.DocGen.pas';
+  Dext.Hosting.CLI.Tools.DocGen in 'Tools\Dext.Hosting.CLI.Tools.DocGen.pas',
+  Dext.Hosting.CLI.Tools.IndexGen in 'Tools\Dext.Hosting.CLI.Tools.IndexGen.pas';
 
 
 function CreateDbContext: IDbContext;
@@ -115,6 +117,7 @@ begin
       CLI.AddCommand(TScaffoldCommand.Create);
       CLI.AddCommand(TDocCommand.Create);
       CLI.AddCommand(TFacadeCommand.Create);
+      CLI.AddCommand(TIndexCommand.Create);
 
       CLI.Run;
     finally

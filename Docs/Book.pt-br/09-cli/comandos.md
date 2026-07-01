@@ -62,6 +62,20 @@ Opções:
 - `-t, --target` - Arquivo de saída de destino (arquivo Pas).
 - `-x, --target-unit` - O nome da unit de destino (ex: `Dext.Entity`).
 - `--verbose` - Habilita logs detalhados.
+
+## Index (`index`)
+
+Gera um mapa/índice completo de todos os símbolos públicos (classes, records, interfaces, métodos, propriedades, constantes, enums, etc.) em diversos formatos com seus números exatos de linhas. Ideal para agentes de IA (como Antigravity/Codex) e ferramentas como NotebookLM.
+
+```bash
+dext index -p Sources -f markdown -o dext-symbols.md
+```
+
+Opções:
+- `-p, --path` - Diretório de origem a ser escaneado recursivamente (Padrão: diretório atual).
+- `-o, --output` - Caminho do arquivo de saída gerado.
+- `-f, --format` - Formato do mapa de símbolos: `markdown` (padrão), `json` ou `csv`.
+- `-x, --exclude` - Lista de pastas ou units a serem ignoradas separadas por vírgula (ex: `External,__recovery`).
  
 ## Dashboard (`ui`)
 

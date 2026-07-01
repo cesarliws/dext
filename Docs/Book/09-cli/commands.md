@@ -17,6 +17,7 @@ Overview of all `dext` CLI commands.
 | `config:init` | Initialize configuration |
 | `env:scan` | Scan for Delphi environments |
 | `facade` | Generate Facade Unit |
+| `index` | Generate Symbol Index Map |
 
 ## Migration Commands
 
@@ -116,6 +117,20 @@ Options:
 - `-x, --target-unit` - The name of the target unit (e.g., `Dext.Entity`).
 - `--verbose` - Enable verbose logging.
  
+## Index Command
+
+Generate a complete map/index of all public symbols (classes, records, interfaces, methods, properties, constants, enums, etc.) across multiple formats with their exact declaration line numbers. Extremely useful for AI agents (such as Antigravity/Codex) and tools like NotebookLM.
+
+```bash
+dext index -p Sources -f markdown -o dext-symbols.md
+```
+
+Options:
+- `-p, --path` - Source directory to scan recursively (Default: current directory).
+- `-o, --output` - Path of the output file.
+- `-f, --format` - Format of the symbol map: `markdown` (default), `json`, or `csv`.
+- `-x, --exclude` - Comma-separated list of directories/files/units to ignore (e.g., `External,__recovery`).
+
 ## Dashboard
 
 Start the web monitoring UI:
