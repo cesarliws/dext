@@ -246,4 +246,48 @@ if Ctx.User.IsInRole('admin') then
 | Creating your own `IJwtTokenHandler` interface | Always use `Dext.Auth.JWT.IJwtTokenHandler` |
 | `Jwt.GenerateToken(User, Role)` | Use `Jwt.GenerateToken(TArray<TClaim>)` |
 | Not adding `.RequireAuthorization` | Endpoints are public by default |
+| Calling `inherited Create(AName)` | Call `inherited Create;` or `inherited;` |
+
+## 7. Policy-Based Authorization & Asymmetric Validation (RS256)
+
+### Custom Policies
+Register named authorization policies globally in `TAuthorizationPolicyRegistry`:
+
+```pascal
+TAuthorizationPolicyRegistry.RegisterPolicy('Over18',
+  function(const Principal: IClaimsPrincipal): Boolean
+  begin
+    var AgeClaim := Principal.FindClaim('age');
+    Result := (AgeClaim.Value <> '') and (StrToIntDef(AgeClaim.Value, 0) >= 18);
+  end);
+```
+
+Then require it on endpoints:
+
+* Minimal APIs: `.RequirePolicy('Over18')`
+* Controllers: `[Authorize(Policy := 'Over18')]`
+
+### Asymmetric Cryptography (RS256)
+When integrating with identity providers (Google, Azure AD, Keycloak), use RS256 signature validation. Load options with the public JWK key:
+
+```pascal
+Services.AddAuthentication(procedure(Options: TAuthenticationOptions)
+  begin
+    Options.Algorithm := 'RS256';
+    Options.PublicKeyJson := '{"kty":"RSA", "n":"...", "e":"..."}'; // Modulus & Exponent
+  end);
+```
+
+### External Identity Providers (OIDC / OAuth2)
+Use plug-and-play middleware helpers:
+
+```pascal
+App.Builder
+  .UseGoogleAuthentication('CLIENT_ID')
+  // OR
+  .UseEntraIdAuthentication('TENANT_ID', 'CLIENT_ID')
+  // OR
+  .UseKeycloakAuthentication('REALM_URL', 'CLIENT_ID')
+```
+
 

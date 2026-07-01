@@ -943,6 +943,27 @@ The framework includes support for network transport decoupling inside the IOCP/
 - **Trie Tree Route Router** — Highly optimized Trie tree data structure for wildcards and topic subscription matching, with full support for single-level (`+`) and multi-level (`#`) wildcards.
 - **Broker Server & Client** — Multi-session concurrent MQTT broker supporting subscription states and clean sessions, alongside a non-blocking MQTT client with background keep-alive ping loop.
 
+## 🔐 22. Security, Identity & Authorization (S06) (`Sources\Web`, `Tests\Web`)
+
+Dext features a native, high-performance security and identity engine based on industry standards (JWT, OAuth2, and OpenID Connect) to guarantee enterprise-level compliance and safety.
+
+### 22.1 Cryptographic Engine and JWT Validation (`Dext.Auth.JWT`)
+- **TJwtTokenHandler** — Full-featured JSON Web Token (JWT) manager with native support for HS256 signatures and RS256 asymmetric validation.
+- **Windows CNG Integration** — High-performance validation and signing dynamically leveraging Windows Native Cryptography APIs (`bcrypt.dll`), with a transparent fallback to `System.Hash` (Delphi XE8+) or Indy/OpenSSL for maximum compatibility across versions.
+- **Optimized Parsing** — Structured parsing of JWT tokens using fast string indexers (`IndexOf`) and memory spans (`TByteSpan`), avoiding heap allocations.
+- **Claims Handling** — Flexible claim records (`TClaim`) and a fluent identity builder (`TClaimsBuilder`).
+
+### 22.2 JWT Authentication Middleware (`Dext.Auth.Middleware`)
+- **TJwtAuthenticationMiddleware** — HTTP pipeline middleware that extracts tokens from the `Authorization: Bearer` header, validates signatures, expiration times (`exp`), issuer (`iss`), and audience (`aud`), then injects the claims principal (`IClaimsPrincipal`) directly into the request context (`IHttpContext.User`).
+
+### 22.3 Declarative and Policy-Based Authorization (`Dext.Auth.Attributes`, `Dext.Auth.Identity`)
+- **Authorization Attributes** — `[Authorize]` and `[AllowAnonymous]` attributes for declarative protection of controllers and actions.
+- **Role Validation** — Role-based access control evaluated dynamically inside the route execution and controller scanning dispatch flow.
+- **Policy Engine** — Runtime registration and evaluation of complex custom policies through the `TAuthorizationPolicyRegistry` (e.g., minimum age requirements or custom scope checks).
+
+### 22.4 External Identity Providers (OIDC)
+- **Plug-and-Play Methods** — Middleware extensions for out-of-the-box configuration of third-party identity providers via OIDC: `UseGoogleAuthentication`, `UseEntraIdAuthentication` (Azure AD), and `UseKeycloakAuthentication`.
+
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: June 29, 2026).*
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 01, 2026).*

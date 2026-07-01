@@ -33,24 +33,44 @@ uses
 
 type
   /// <summary>
-  ///   Marks a handler as requiring authentication.
-  ///   Optionally allows filtering by Roles and Authentication Scheme.
+  ///   Marks a handler or controller as requiring authentication.
+  ///   Optionally allows filtering by Roles, Policy, and Authentication Scheme.
   /// </summary>
   AuthorizeAttribute = class(TCustomAttribute)
   private
     FRoles: string;
     FScheme: string;
+    FPolicy: string;
   public
+    /// <summary>
+    ///   Initializes a new instance of AuthorizeAttribute requiring authentication.
+    /// </summary>
     constructor Create; overload;
+    /// <summary>
+    ///   Initializes a new instance of AuthorizeAttribute filtering by roles.
+    /// </summary>
     constructor Create(const ARoles: string); overload;
+    /// <summary>
+    ///   Initializes a new instance of AuthorizeAttribute filtering by roles and scheme.
+    /// </summary>
     constructor Create(const ARoles, AScheme: string); overload;
     
-    property Roles: string read FRoles;
-    property Scheme: string read FScheme;
+    /// <summary>
+    ///   Allowed roles (comma-separated).
+    /// </summary>
+    property Roles: string read FRoles write FRoles;
+    /// <summary>
+    ///   Required authentication scheme.
+    /// </summary>
+    property Scheme: string read FScheme write FScheme;
+    /// <summary>
+    ///   Required authorization policy name.
+    /// </summary>
+    property Policy: string read FPolicy write FPolicy;
   end;
 
   /// <summary>
-  ///   Marks a handler as allowing anonymous access (bypasses authentication).
+  ///   Marks a handler or controller as allowing anonymous access (bypasses authentication).
   /// </summary>
   AllowAnonymousAttribute = class(TCustomAttribute)
   end;
@@ -64,6 +84,7 @@ begin
   inherited Create;
   FRoles := '';
   FScheme := '';
+  FPolicy := '';
 end;
 
 constructor AuthorizeAttribute.Create(const ARoles: string);
@@ -71,6 +92,7 @@ begin
   inherited Create;
   FRoles := ARoles;
   FScheme := '';
+  FPolicy := '';
 end;
 
 constructor AuthorizeAttribute.Create(const ARoles, AScheme: string);
@@ -78,6 +100,7 @@ begin
   inherited Create;
   FRoles := ARoles;
   FScheme := AScheme;
+  FPolicy := '';
 end;
 
 end.
