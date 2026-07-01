@@ -178,6 +178,32 @@ type
       Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
     class function MapPostR<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
       Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
+
+    // === QUERY methods ===
+    class function MapQuery<T>(App: IApplicationBuilder; const Path: string; 
+      Handler: THandlerProc<T>): IApplicationBuilder; overload;
+    class function MapQuery<T1, T2>(App: IApplicationBuilder; const Path: string; 
+      Handler: THandlerProc<T1, T2>): IApplicationBuilder; overload;
+    class function MapQuery<T1, T2, T3>(App: IApplicationBuilder; const Path: string; 
+      Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder; overload;
+
+    class function MapQuery<TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
+    class function MapQuery<T, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    class function MapQuery<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapQuery<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
+
+    class function MapQueryResult<TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
+    class function MapQueryResult<T, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    class function MapQueryResult<T1, T2, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    class function MapQueryResult<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
+      Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
   end;
 
   TDextAppBuilderHelper = record helper for TAppBuilder
@@ -209,6 +235,15 @@ type
     function MapDelete<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
     function MapDelete<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
 
+    function MapQuery<T>(const Path: string; Handler: THandlerProc<T>): IApplicationBuilder; overload;
+    function MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder; overload;
+    function MapQuery<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder; overload;
+
+    function MapQuery<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
+    function MapQuery<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    function MapQuery<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    function MapQuery<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
+
     function MapGetResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
     function MapGetResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
     function MapGetResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
@@ -229,12 +264,23 @@ type
     function MapDeleteResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
     function MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
 
+    function MapQueryResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder; overload;
+    function MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
+    function MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
+    function MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
+
     /// <summary>
     ///  Marks the last registered route as requiring authorization (defaults to 'Basic').
     /// </summary>
     function RequireAuthorization: IApplicationBuilder; overload;
     function RequireAuthorization(const AScheme: string): IApplicationBuilder; overload;
     function RequireAuthorization(const ASchemes: array of string): IApplicationBuilder; overload;
+    /// <summary>
+    ///   Configures the supported query media types for the last registered HTTP QUERY endpoint.
+    /// </summary>
+    /// <param name="AMediaTypes">An array of media type strings (e.g. 'application/jsonpath').</param>
+    /// <returns>The application builder instance for chaining.</returns>
+    function AcceptsQuery(const AMediaTypes: array of string): IApplicationBuilder;
 
     // Middleware Extensions
     function UseSwagger: IApplicationBuilder; overload;
@@ -438,6 +484,61 @@ begin
   Result := TApplicationBuilderExtensions.MapDeleteResult<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
 end;
 
+function TDextAppBuilderHelper.MapQuery<T>(const Path: string; Handler: THandlerProc<T>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQuery<T>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQuery<T1, T2>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQuery<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQuery<T1, T2, T3>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQuery<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQuery<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<T, TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQuery<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQuery<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQueryResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<T, TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+end;
+
+function TDextAppBuilderHelper.MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapQueryResult<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
+end;
+
 function TDextAppBuilderHelper.RequireAuthorization: IApplicationBuilder;
 begin
   Result := TEndpointMetadataExtensions.RequireAuthorization(Self.Unwrap, ['Basic']);
@@ -451,6 +552,11 @@ end;
 function TDextAppBuilderHelper.RequireAuthorization(const ASchemes: array of string): IApplicationBuilder;
 begin
   Result := TEndpointMetadataExtensions.RequireAuthorization(Self.Unwrap, ASchemes);
+end;
+
+function TDextAppBuilderHelper.AcceptsQuery(const AMediaTypes: array of string): IApplicationBuilder;
+begin
+  Result := TEndpointMetadataExtensions.AcceptsQuery(Self.Unwrap, AMediaTypes);
 end;
 
 function TDextAppBuilderHelper.UseSwagger: IApplicationBuilder;
@@ -1123,6 +1229,163 @@ class function TApplicationBuilderExtensions.MapDeleteResult<T1, T2, T3, TResult
   const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
 begin
   Result := App.MapEndpoint('DELETE', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, T3, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<T>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerProc<T>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<T1, T2>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerProc<T1, T2>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<T1, T2, T3>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerProc<T1, T2, T3>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, T3>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder;
+begin
+  Result := MapQueryResult<TResult>(App, Path, Handler);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<T, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
+begin
+  Result := MapQueryResult<T, TResult>(App, Path, Handler);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<T1, T2, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
+begin
+  Result := MapQueryResult<T1, T2, TResult>(App, Path, Handler);
+end;
+
+class function TApplicationBuilderExtensions.MapQuery<T1, T2, T3, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := MapQueryResult<T1, T2, T3, TResult>(App, Path, Handler);
+end;
+
+class function TApplicationBuilderExtensions.MapQueryResult<TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQueryResult<T, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQueryResult<T1, T2, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
+    procedure(Ctx: IHttpContext)
+    var
+      Invoker: THandlerInvoker;
+      Binder: IModelBinder;
+    begin
+      Binder := TModelBinder.Create;
+      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      try
+        Invoker.Invoke<T1, T2, TResult>(Handler);
+      finally
+        Invoker.Free;
+      end;
+    end);
+end;
+
+class function TApplicationBuilderExtensions.MapQueryResult<T1, T2, T3, TResult>(App: IApplicationBuilder;
+  const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder;
+begin
+  Result := App.MapEndpoint('QUERY', Path,
     procedure(Ctx: IHttpContext)
     var
       Invoker: THandlerInvoker;

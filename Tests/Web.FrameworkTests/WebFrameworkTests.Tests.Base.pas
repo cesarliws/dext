@@ -1,4 +1,4 @@
-unit WebFrameworkTests.Tests.Base;
+﻿unit WebFrameworkTests.Tests.Base;
 
 interface
 
@@ -18,16 +18,16 @@ type
     FHost: IWebHost;
     FServerThread: TThread; // Explicit thread management
     FServerError: string;
-    
+
     procedure Log(const Msg: string);
     procedure LogSuccess(const Msg: string);
     procedure LogError(const Msg: string);
     procedure AssertTrue(Condition: Boolean; const SuccessMsg, FailMsg: string);
     procedure AssertEqual(const Expected, Actual: string; const Context: string);
-    
+
     procedure Setup; virtual;
     procedure TearDown; virtual;
-    
+
     /// <summary>
     ///  Configures the web host builder. Override to add services/middleware.
     /// </summary>
@@ -74,22 +74,22 @@ begin
   WriteLn('🔧 Setting up test...');
   Builder := TDextWebHost.CreateDefaultBuilder
     .UseUrls('http://127.0.0.1:' + FPort.ToString);
-    
+
   ConfigureHost(Builder);
-  
+
   FHost := Builder.Build;
-  
+
   Builder := nil; // Force release
-  
+
   FServerError := '';
   FServerThread := TThread.CreateAnonymousThread(procedure
     begin
       try
         // Keep a reference to prevent premature destruction
-        HostRef := FHost; 
+        HostRef := FHost;
         if HostRef <> nil then
         begin
-          // Use Start instead of Run because Run might exit prematurely 
+          // Use Start instead of Run because Run might exit prematurely
           // if the 'no-wait' command line switch is present.
           HostRef.Start;
         end;
@@ -98,10 +98,10 @@ begin
           FServerError := E.Message;
       end;
     end);
-    
+
   FServerThread.FreeOnTerminate := False;
   FServerThread.Start;
-  
+
   // Wait for the server port to be assigned (in case of dynamic port 0)
   Retries := 0;
   while (FHost <> nil) and (FHost.Port = 0) and (Retries < 50) and (FServerError = '') do
@@ -129,7 +129,7 @@ begin
     except
       // Server not yet active
     end;
-    
+
     Sleep(100);
     Inc(Retries);
   end;
@@ -152,13 +152,13 @@ begin
   begin
     FHost.Stop;
   end;
-  
+
   if Assigned(FServerThread) then
   begin
     FServerThread.WaitFor;
     FreeAndNil(FServerThread);
   end;
-  
+
   FHost := nil;
 end;
 

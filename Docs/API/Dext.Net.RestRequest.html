@@ -401,6 +401,7 @@ class TRestRequestFactory {    +Get()
     +Put()
     +Delete()
     +Patch()
+    +Query()
 }
 class TRestClientRequestHelper {    +Request()
 }
@@ -486,6 +487,8 @@ class IRestRequestData {    +GetClient()
 <div class="api-signature">function Delete(const const: string): TRestRequest</div><div class="description">Creates a DELETE builder for the given endpoint.</div></div>
 <div class="api-item">
 <div class="api-signature">function Patch(const const: string): TRestRequest</div><div class="description">Creates a PATCH builder for the given endpoint.</div></div>
+<div class="api-item">
+<div class="api-signature">function Query(const const: string): TRestRequest</div><div class="description">Creates a QUERY builder for the given endpoint.</div></div>
 </div>
 <hr>
 <div class="class-header">

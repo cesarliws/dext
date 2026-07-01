@@ -60,7 +60,7 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 
 **Carregue `dext-web`** quando:
 
-- Criar ou modificar endpoints HTTP (`MapGet`, `MapPost`, `[HttpGet]`, `[HttpPost]`)
+- Criar ou modificar endpoints HTTP (`MapGet`, `MapPost`, `MapQuery`, `[HttpGet]`, `[HttpPost]`, `[HttpQuery]`)
 - Escrever controllers (`[ApiController]`, `TInterfacedObject`)
 - Lidar com model binding, parâmetros de rota, query strings, headers
 - Usar `Results.Ok`, `Results.Created`, etc.
@@ -213,3 +213,5 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 12. **`SetConsoleCharSet`** é OBRIGATÓRIO em todos os projetos console (test runners, ferramentas de linha de comando CLI)
 13. **Ordem das Uses (CRÍTICA)**: Devido à limitação de apenas um class helper por tipo no Delphi, a ordem nas cláusulas `uses` deve ser sempre: `Dext` → `Dext.Entity` → `Dext.Web`. O último sempre vence e garante visibilidade dos métodos Web.
 14. **Smart Properties**: Para entidades, use sempre os aliases **IntType**, **StringType**, **DoubleType** e **BoolType** (de `Dext.Core.SmartTypes`) em vez de `Prop<T>`. Para **colunas anuláveis (nullable)**, use sempre a composição `Prop<Nullable<T>>` (ex: `Prop<Nullable<Integer>>`) em vez do padrão legado `Nullable<Prop<T>>` (ex: `Nullable<StringType>`), que está obsoleto, gera alertas e quebra a ordenação de consultas (`OrderBy`).
+15. **Método HTTP QUERY**: O método `QUERY` (RFC 10008) é suportado. Use `MapQuery` / `TRestClient.Query` e metadados `AcceptsQuery` para especificar os formatos de consulta suportados, os quais são expostos de forma automática em chamadas OPTIONS através do cabeçalho `Accept-Query`.
+

@@ -74,7 +74,11 @@ type
     RequestType: PTypeInfo;      // Type info for request body
     ResponseType: PTypeInfo;     // Type info for response body
     Responses: TArray<TOpenAPIResponseMetadata>; // Documented responses
-    AllowAnonymous: Boolean;     // Skips authorization check
+    AllowAnonymous: Boolean;
+    /// <summary>
+    ///   The supported media types for HTTP QUERY payloads (e.g., 'application/jsonpath').
+    /// </summary>
+    AcceptQueryTypes: TArray<string>;
   end;
 
   TCookieOptions = record
@@ -397,6 +401,13 @@ type
     function MapGet(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function MapPut(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function MapDelete(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
+    /// <summary>
+    ///   Maps a route handling HTTP QUERY requests.
+    /// </summary>
+    /// <param name="Path">The route path pattern.</param>
+    /// <param name="Handler">The static handler delegate to execute.</param>
+    /// <returns>The application builder instance for chaining.</returns>
+    function MapQuery(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function Build: TRequestDelegate;
     
     function GetRoutes: TArray<TEndpointMetadata>; // ? Introspection

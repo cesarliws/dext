@@ -75,6 +75,13 @@ Builder.MapPost<TCreateUserDto, IUserService, IResult>('/api/users',
     var User := Svc.Add(Dto);
     Result := Results.Created('/api/users/' + IntToStr(User.Id), User);
   end);
+
+// QUERY: DTO from body + service (RFC 10008)
+Builder.MapQuery<TUserSearchQuery, IUserService, IResult>('/api/users/search',
+  function(Query: TUserSearchQuery; Svc: IUserService): IResult
+  begin
+    Result := Results.Ok(Svc.Search(Query));
+  end);
 ```
 
 > **NEVER** do `Ctx.RequestServices.GetService<T>` or `Ctx.Request.BodyAsJson<T>`.

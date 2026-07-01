@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -804,6 +804,11 @@ type
     function MapDelete(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
 
     /// <summary>
+    ///   Maps a QUERY request to a static handler.
+    /// </summary>
+    function MapQuery(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+
+    /// <summary>
     ///   Builds the request pipeline and returns the main RequestDelegate.
     /// </summary>
     function Build: TRequestDelegate;
@@ -955,6 +960,23 @@ type
     function MapDeleteResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
     function MapDeleteResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
     function MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+
+    // -------------------------------------------------------------------------
+    // 🔍 Routing - QUERY
+    // -------------------------------------------------------------------------
+    function MapQuery<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
+    function MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
+    function MapQuery<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder; overload;
+
+    function MapQuery<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
+    function MapQuery<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
+    function MapQuery<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
+    function MapQuery<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+
+    function MapQueryResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
+    function MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
+    function MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
+    function MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 📝 OpenAPI Metadata
@@ -1228,6 +1250,12 @@ end;
 function THttpAppBuilderHelper.MapDelete(const Path: string; Handler: TStaticHandler): AppBuilder;
 begin
   Self.Unwrap.MapDelete(Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery(const Path: string; Handler: TStaticHandler): AppBuilder;
+begin
+  Self.Unwrap.MapQuery(Path, Handler);
   Result := Self;
 end;
 
@@ -1553,6 +1581,72 @@ end;
 function THttpAppBuilderHelper.MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder;
 begin
   TApplicationBuilderExtensions.MapDeleteResult<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQuery<T>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQuery<T1, T2>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQuery<T1, T2, T3>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<T, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQuery<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQueryResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<T, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<T1, T2, TResult>(Self.Unwrap, Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder;
+begin
+  TApplicationBuilderExtensions.MapQueryResult<T1, T2, T3, TResult>(Self.Unwrap, Path, Handler);
   Result := Self;
 end;
 

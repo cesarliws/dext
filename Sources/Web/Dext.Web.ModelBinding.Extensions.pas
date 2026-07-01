@@ -49,9 +49,9 @@ type
   public
     constructor Create(ABuilder: TApplicationBuilder);
 
-    // ? GENERIC METHODS (class only)
     function MapPost<T>(const Path: string; Handler: TProc<T>): TApplicationBuilderWithModelBinding;
     function MapGet<T>(const Path: string; Handler: TProc<T>): TApplicationBuilderWithModelBinding;
+    function MapQuery<T>(const Path: string; Handler: TProc<T>): TApplicationBuilderWithModelBinding;
 
     // ? FINAL METHOD (returns interface)
     function Build: IApplicationBuilder;
@@ -112,6 +112,31 @@ begin
         Value := FModelBinder.BindQuery(TypeInfo(T), Context);
         Data := Value.AsType<T>;
         Handler(Data);
+      except
+        on E: Exception do
+        begin
+          Context.Response.StatusCode := 400;
+          Context.Response.Json(Format('{"error":"%s"}', [E.Message]));
+        end;
+      end;
+    end
+  );
+  Result := Self;
+end;
+
+function TApplicationBuilderWithModelBinding.MapQuery<T>(const Path: string;
+  Handler: TProc<T>): TApplicationBuilderWithModelBinding;
+begin
+  FBuilder.Map(Path,
+    procedure(Context: IHttpContext)
+    var
+      BodyData: T;
+      Value: TValue;
+    begin
+      try
+        Value := FModelBinder.BindBody(TypeInfo(T), Context);
+        BodyData := Value.AsType<T>;
+        Handler(BodyData);
       except
         on E: Exception do
         begin

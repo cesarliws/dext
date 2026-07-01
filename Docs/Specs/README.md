@@ -54,6 +54,7 @@ ID | Title | Status | Goal
 **S46** | [Database Sequence Generators & HiLo](S46-Sequence-Generators.md) | ✅ Finalized | Database sequence mapping and HiLo pre-allocation.
 **S47** | [Expose TCP/UDP & MQTT Server/Client](S47-Network-Exposing.md) | ✅ Finalized | Decouple IOCP/Epoll engine to expose raw TCP/UDP sockets and implement MQTT protocol stack.
 **S48** | [Processor Groups](S48-Processor-Groups.md) | ✅ Finalized | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
+**S49** | [HTTP QUERY Method](S49-Http-Query-Method.md) | ✅ Finalized | Standardized HTTP QUERY method support (RFC 10008) on client and server.
 
 ---
 

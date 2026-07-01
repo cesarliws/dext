@@ -1057,7 +1057,7 @@ begin
 
       // Pre-load body JSON once if it's a POST/PUT/PATCH and likely contains JSON
       LMethod := Context.Request.Method;
-      LIsPostLike := (LMethod = 'POST') or (LMethod = 'PUT') or (LMethod = 'PATCH');
+      LIsPostLike := (LMethod = 'POST') or (LMethod = 'PUT') or (LMethod = 'PATCH') or (LMethod = 'QUERY');
       LContentType := Context.Request.GetHeader('Content-Type').ToLower;
       LIsJson := LContentType.Contains('application/json');
 

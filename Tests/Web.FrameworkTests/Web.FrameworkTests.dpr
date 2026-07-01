@@ -1,4 +1,4 @@
-﻿program Web.FrameworkTests;
+program Web.FrameworkTests;
 
 {$APPTYPE CONSOLE}
 
@@ -9,7 +9,8 @@ uses
   WebFrameworkTests.Tests.Base in 'WebFrameworkTests.Tests.Base.pas',
   WebFrameworkTests.Tests.Routing in 'WebFrameworkTests.Tests.Routing.pas',
   WebFrameworkTests.Tests.Async in 'WebFrameworkTests.Tests.Async.pas',
-  WebFrameworkTests.Tests.DataApi in 'WebFrameworkTests.Tests.DataApi.pas';
+  WebFrameworkTests.Tests.DataApi in 'WebFrameworkTests.Tests.DataApi.pas',
+  WebFrameworkTests.Tests.QueryMethod in 'WebFrameworkTests.Tests.QueryMethod.pas';
 
 procedure RunTest(const TestClass: TBaseTestClass);
 var
@@ -42,6 +43,7 @@ begin
     RunTest(TRoutingTest);
     RunTest(TAsyncTest);
     RunTest(TDataApiTest);
+    RunTest(TQueryMethodTest);
 
     WriteLn('');
     WriteLn('✨ All tests completed.');

@@ -533,6 +533,11 @@ class TMySQLDialect {    +QuoteIdentifier()
     +GetSequenceNextValSQL()
 }
 TBaseDialect <|-- TMySQLDialect
+class TMariaDBDialect {    +GetDialect()
+    +GetSequenceExistsSQL()
+    +GetCreateSequenceSQL()
+}
+TMySQLDialect <|-- TMariaDBDialect
 class TOracleDialect {    +QuoteIdentifier()
     +GeneratePaging()
     +BooleanToSQL()
@@ -609,11 +614,11 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GenerateSeedData(AOp: TSeedDataOperation): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div><div class="description">Generates the SQL statement to fetch the next value from a database sequence.</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div><div class="description">Generates the SQL statement to fetch the next value from a database sequence.</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -673,11 +678,11 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">function GenerateCreateTable(AOp: TCreateTableOperation): string</div></div>
@@ -724,7 +729,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -760,11 +765,11 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function UseSchemaPrefix: Boolean</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -788,11 +793,11 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -834,11 +839,11 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -866,7 +871,17 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TMariaDBDialect</h3><a name="TMariaDBDialect"></a><div class="ancestor">Inherits from: TMySQLDialect</div><div class="description">MariaDB (10.3+) Dialect implementation.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -894,11 +909,11 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSequenceNextValSQL(const const: string): string</div></div>
+<div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceExistsSQL(const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetCreateSequenceSQL(const const: string): string</div></div>
+<div class="api-signature">function GetCreateSequenceSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -913,7 +928,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TDatabaseDialect = enumeration</div><div class="enum-values">Values: ddUnknown, ddSQLite, ddPostgreSQL, ddMySQL, ddSQLServer, ddFirebird, ddInterbase, ddOracle</div><div class="description">Database dialect enumeration for type converters.</div></div>
+<div class="api-signature">type TDatabaseDialect = enumeration</div><div class="enum-values">Values: ddUnknown, ddSQLite, ddPostgreSQL, ddMySQL, ddMariaDB, ddSQLServer, ddFirebird, ddInterbase, ddOracle</div><div class="description">Database dialect enumeration for type converters.</div></div>
 <div class="api-item">
 <div class="api-signature">type TReturningPosition = enumeration</div><div class="enum-values">Values: rpAtEnd, rpBeforeValues</div></div>
 </div>

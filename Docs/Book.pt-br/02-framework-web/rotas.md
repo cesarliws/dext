@@ -79,7 +79,30 @@ App.MapPost('/resource', Handler);    // POST
 App.MapPut('/resource/{id}', Handler); // PUT
 App.MapPatch('/resource/{id}', Handler); // PATCH
 App.MapDelete('/resource/{id}', Handler); // DELETE
+App.MapQuery('/resource', Handler);   // QUERY (RFC 10008)
 ```
+
+## Método HTTP QUERY (RFC 10008)
+
+O método HTTP `QUERY` é projetado para operações de consulta seguras, idempotentes e orientadas ao corpo da requisição.
+
+```pascal
+App.MapQuery('/users/query', procedure(Ctx: IHttpContext)
+  begin
+    // Processa o corpo da requisição com a query estruturada
+  end);
+```
+
+Você pode definir os tipos de mídia (media types) suportados usando o método `.AcceptsQuery`:
+
+```pascal
+App.MapQuery('/users/query', Handler);
+TEndpointMetadataExtensions.AcceptsQuery(App, ['application/jsonpath', 'application/sql']);
+```
+
+Quando uma requisição OPTIONS é enviada para o endpoint, o Dext retorna automaticamente:
+- `Allow: QUERY, OPTIONS` (e outros métodos suportados)
+- `Accept-Query: application/jsonpath, application/sql`
 
 ## Agrupando Rotas
 

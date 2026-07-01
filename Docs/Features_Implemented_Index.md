@@ -227,7 +227,8 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 
 ### 3.1 Bootstrapping & Minimal API
 - **TWebApplication** — Fluent facade for initialization: automatically loads `appsettings.json`, `appsettings.yaml`, Environment Variables, registers services, and builds the pipeline in a single chain.
-- **Minimal API** — Direct handler registration via delegates without controllers (`app.MapGet`, `app.MapPost`).
+- **Minimal API** — Direct handler registration via delegates without controllers (`app.MapGet`, `app.MapPost`, `app.MapQuery`).
+- **HTTP QUERY Mapping** — Safe, idempotent data retrieval endpoints utilizing structured request bodies.
 
 ### 3.2 Middleware Pipeline
 - **Chain of Responsibility** — Functional (anonymous delegates) and class-based middlewares with DI constructor injection.
@@ -236,6 +237,7 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 ### 3.3 Routing Engine
 - **Dynamic Parameters** — Routes with `{id}`, `{slug}`, and type constraints.
 - **API Versioning** — `THeaderApiVersionReader`, `TQueryStringApiVersionReader`, `TPathApiVersionReader`, `TCompositeApiVersionReader` (composite strategy).
+- **HTTP QUERY Discovery** — Automatic `OPTIONS` routing generating standard `Allow` and `Accept-Query` headers carrying configured query media types (e.g. `application/jsonpath`).
 
 ### 3.4 Model Binding
 - **Hybrid Binding** — `[FromBody]`, `[FromQuery]`, `[FromRoute]`, `[FromHeader]`, `[FromServices]` attributes.
@@ -258,7 +260,7 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **SSE (Server-Sent Events)** — Unidirectional event streaming fallback.
 - **WebSockets & SignalR Hubs** — Full RFC 6455 native WebSocket transport with client-to-server masking, handshake handling, and complete integration with `Dext.Web.Hubs` for real-time bi-directional messaging, group dispatching, and ping/pong keepalives. Natively upgrades HTTP connections using opaque mode (`HTTP_SEND_RESPONSE_FLAG_OPAQUE`) on HTTP.sys.
 - **Delphi Hub Client (SignalR-compatible)** — Native, high-performance Delphi client library (`Dext.Web.Hubs.Client`) supporting WebSocket and SSE transports, automated negotiate/handshake protocols, ping heartbeats, and thread-safe callbacks with optional main UI thread marshaling.
-- **Caching** — In-Memory. (A full high-performance native Redis client is planned and under active development, currently ~80% complete). Detailed **Health Checks** (expandable roadmap under development).
+- **Caching** — In-Memory caching engine. Generates unique cache keys for HTTP QUERY requests by computing a `THashSHA1` hash of the query request body stream. (A full high-performance native Redis client is planned and under active development, currently ~80% complete). Detailed **Health Checks** (expandable roadmap under development).
 
 ### 3.8 API Documentation & Scaffolding
 - **OpenAPI / Swagger** — Automatic specification generation.

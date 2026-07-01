@@ -109,6 +109,7 @@ begin
   else if Method = 'PATCH' then Result := hmPATCH
   else if Method = 'HEAD' then Result := hmHEAD
   else if Method = 'OPTIONS' then Result := hmOPTIONS
+  else if Method = 'QUERY' then Result := hmQUERY
   else Result := hmGET; // Default
 end;
 

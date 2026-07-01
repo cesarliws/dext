@@ -60,6 +60,7 @@ Status | Task | Spec | Description
 ✅ | **Delphi Hub Client** | [S42](Specs/S42-Delphi-Hub-Client.md) | Native Delphi client connection library for Dext Hubs (WebSocket/SSE).
 ✅ | **Processor Groups** | [S48](Specs/S48-Processor-Groups.md) | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
 ✅ | **Expose TCP/UDP & MQTT** | [S47](Specs/S47-Network-Exposing.md) | Decouple core IOCP/Epoll engine for raw sockets and native MQTT client/broker.
+✅ | **HTTP QUERY Method** | [S49](Specs/S49-Http-Query-Method.md) | Standardized HTTP QUERY method support (RFC 10008) on client and server.
 
 ## 🔮 Future / Post-V1
 - [ ] **OData Support**: Full OData query support.
@@ -121,6 +122,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Cliente Hub Delphi** | [S42](Specs/S42-Delphi-Hub-Client.md) | Biblioteca cliente nativa em Delphi para conexão com Dext Hubs (WebSocket/SSE).
 ✅ | **Processor Groups** | [S48](Specs/S48-Processor-Groups.md) | Otimização de Windows Processor Groups (escala NUMA-Aware) para >64 cores lógicos.
 ✅ | **Expor TCP/UDP & MQTT** | [S47](Specs/S47-Network-Exposing.md) | Desacoplar motor core IOCP/Epoll para sockets puros e client/broker MQTT nativo.
+✅ | **Método HTTP QUERY** | [S49](Specs/S49-Http-Query-Method.md) | Suporte ao método HTTP QUERY padronizado (RFC 10008) no cliente e no servidor.
 
 ## 🔮 Futuro / Pós-V1
 - [ ] **Suporte a OData**: Suporte completo a queries OData.
