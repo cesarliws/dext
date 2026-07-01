@@ -1,6 +1,6 @@
 # 📑 S06: Security & Identity (OAuth2/OIDC) Specification
 
-**Status:** 📝 Draft  
+**Status:** ✅ Finalized  
 **Owner:** Engineering Team  
 **Reviewers:** Community / Architects
 

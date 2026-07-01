@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -60,6 +60,8 @@ type
     FullPath: string;
     HttpMethod: string;
     RequiresAuth: Boolean;
+    Roles: string;
+    Policy: string;
   end;
 
   IControllerScanner = interface
@@ -85,6 +87,7 @@ implementation
 
 uses
   Dext.Auth.Attributes,
+  Dext.Auth.Identity,
   Dext.Core.Activator,
   Dext.Utils,
   Dext.Web.HandlerInvoker,
@@ -308,6 +311,10 @@ var
   RespAttr: SwaggerResponseAttribute;
   RespMeta: TOpenAPIResponseMetadata;
   R: RouteAttribute;
+  ControllerRoles: string;
+  ControllerPolicy: string;
+  MethodRoles: string;
+  MethodPolicy: string;
 begin
   Result := 0;
   Controllers := FindControllers;
@@ -373,6 +380,8 @@ begin
       MethodRequiresAuth := False;
       MethodAllowsAnonymous := False;
       SecuritySchemes := TCollections.CreateList<string>;
+      ControllerRoles := '';
+      ControllerPolicy := '';
 
       // Check controller level [Authorize]
       for Attr in Controller.RttiType.GetAttributes do
@@ -380,9 +389,13 @@ begin
         begin
           ControllerRequiresAuth := True;
           SecuritySchemes.Add(Dext.Auth.Attributes.AuthorizeAttribute(Attr).Scheme);
+          ControllerRoles := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Roles;
+          ControllerPolicy := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Policy;
         end;
 
       // Check method level attributes
+      MethodRoles := '';
+      MethodPolicy := '';
       for Attr in ControllerMethod.Method.GetAttributes do
       begin
         if (Attr is Dext.Auth.Attributes.AuthorizeAttribute) or (Attr.ClassName = 'AuthorizeAttribute') then
@@ -391,6 +404,8 @@ begin
           LScheme := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Scheme;
           if (LScheme <> '') and (SecuritySchemes.IndexOf(LScheme) < 0) then
             SecuritySchemes.Add(LScheme);
+          MethodRoles := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Roles;
+          MethodPolicy := Dext.Auth.Attributes.AuthorizeAttribute(Attr).Policy;
         end;
 
         if (Attr is AllowAnonymousAttribute) or (Attr.ClassName = 'AllowAnonymousAttribute') then
@@ -403,10 +418,24 @@ begin
       if MethodAllowsAnonymous then
       begin
         CachedMethod.RequiresAuth := False;
+        CachedMethod.Roles := '';
+        CachedMethod.Policy := '';
         SecuritySchemes.Clear; // Skip security definitions in Swagger too if anonymous
       end
       else
+      begin
         CachedMethod.RequiresAuth := ControllerRequiresAuth or MethodRequiresAuth;
+        if MethodRequiresAuth then
+        begin
+          CachedMethod.Roles := MethodRoles;
+          CachedMethod.Policy := MethodPolicy;
+        end
+        else
+        begin
+          CachedMethod.Roles := ControllerRoles;
+          CachedMethod.Policy := ControllerPolicy;
+        end;
+      end;
 
       FCachedMethods.Add(CachedMethod);
 
@@ -559,6 +588,43 @@ begin
       SafeWriteLn('❌ Authorization failed: User not authenticated');
       Context.Response.Status(401).Json('{"error": "Unauthorized"}');
       Exit;
+    end;
+
+    // Check Roles
+    if CachedMethod.Roles <> '' then
+    begin
+      var rolesList: TArray<string>;
+      var isAuthorized: Boolean;
+      var role: string;
+      
+      rolesList := CachedMethod.Roles.Split([',']);
+      isAuthorized := False;
+      for role in rolesList do
+      begin
+        if Context.User.IsInRole(role.Trim) then
+        begin
+          isAuthorized := True;
+          Break;
+        end;
+      end;
+
+      if not isAuthorized then
+      begin
+        SafeWriteLn('❌ Authorization failed: User does not have required roles: ' + CachedMethod.Roles);
+        Context.Response.Status(403).Json('{"error": "Forbidden - Missing required role"}');
+        Exit;
+      end;
+    end;
+
+    // Check Policy
+    if CachedMethod.Policy <> '' then
+    begin
+      if not TAuthorizationPolicyRegistry.Evaluate(CachedMethod.Policy, Context.User) then
+      begin
+        SafeWriteLn('❌ Authorization failed: User failed policy evaluation: ' + CachedMethod.Policy);
+        Context.Response.Status(403).Json('{"error": "Forbidden - Policy check failed"}');
+        Exit;
+      end;
     end;
   end;
 

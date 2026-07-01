@@ -48,9 +48,18 @@ type
     function ExtractToken(const AAuthHeader: string): string;
     function CreatePrincipal(const AClaims: TArray<TClaim>): IClaimsPrincipal;
   public
+    /// <summary>
+    ///   Creates a new instance of TJwtAuthenticationMiddleware with default Bearer prefix.
+    /// </summary>
     constructor Create(const AOptions: TJwtOptions); overload;
+    /// <summary>
+    ///   Creates a new instance of TJwtAuthenticationMiddleware with a custom token prefix.
+    /// </summary>
     constructor Create(const AOptions: TJwtOptions; const ATokenPrefix: string); overload;
     
+    /// <summary>
+    ///   Invokes the middleware, validating the JWT and setting the HTTP context User if valid.
+    /// </summary>
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
   end;
 
@@ -73,6 +82,21 @@ type
     ///   Adds JWT authentication middleware using a fluent builder directly.
     /// </summary>
     class function UseJwtAuthentication(const ABuilder: IApplicationBuilder; const AJwtBuilder: TJwtOptionsBuilder): IApplicationBuilder; overload; static;
+
+    /// <summary>
+    ///   Configures JWT Authentication for Google OAuth2 using OIDC.
+    /// </summary>
+    class function UseGoogleAuthentication(const ABuilder: IApplicationBuilder; const AClientId, APublicKeyJwk: string): IApplicationBuilder; static;
+    
+    /// <summary>
+    ///   Configures JWT Authentication for Microsoft Entra ID (Azure AD).
+    /// </summary>
+    class function UseEntraIdAuthentication(const ABuilder: IApplicationBuilder; const ATenantId, AClientId, APublicKeyJwk: string): IApplicationBuilder; static;
+
+    /// <summary>
+    ///   Configures JWT Authentication for a custom Keycloak server.
+    /// </summary>
+    class function UseKeycloakAuthentication(const ABuilder: IApplicationBuilder; const AServerUrl, ARealm, AClientId, APublicKeyJwk: string): IApplicationBuilder; static;
   end;
 
 implementation
@@ -115,65 +139,60 @@ end;
 
 function TJwtAuthenticationMiddleware.CreatePrincipal(const AClaims: TArray<TClaim>): IClaimsPrincipal;
 var
-  UserName: string;
-  Claim: TClaim;
-  Identity: IIdentity;
+  userName: string;
+  claim: TClaim;
+  identity: IIdentity;
 begin
-  // Extract username from claims (try 'name' first, then 'sub')
-  UserName := '';
-  for Claim in AClaims do
+  userName := '';
+  for claim in AClaims do
   begin
-    if SameText(Claim.ClaimType, TClaimTypes.Name) then
+    if SameText(claim.ClaimType, TClaimTypes.Name) then
     begin
-      UserName := Claim.Value;
+      userName := claim.Value;
       Break;
     end;
   end;
   
-  if UserName = '' then
+  if userName = '' then
   begin
-    for Claim in AClaims do
+    for claim in AClaims do
     begin
-      if SameText(Claim.ClaimType, TClaimTypes.NameIdentifier) then
+      if SameText(claim.ClaimType, TClaimTypes.NameIdentifier) then
       begin
-        UserName := Claim.Value;
+        userName := claim.Value;
         Break;
       end;
     end;
   end;
   
-  Identity := TClaimsIdentity.Create(UserName, 'JWT');
-  Result := TClaimsPrincipal.Create(Identity, AClaims);
+  identity := TClaimsIdentity.Create(userName, 'JWT');
+  Result := TClaimsPrincipal.Create(identity, AClaims);
 end;
 
 procedure TJwtAuthenticationMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
 var
-  AuthHeader: string;
-  Token: string;
-  ValidationResult: TJwtValidationResult;
-  Principal: IClaimsPrincipal;
+  authHeader: string;
+  token: string;
+  validationResult: TJwtValidationResult;
+  principal: IClaimsPrincipal;
 begin
-  // Try to get Authorization header
   if AContext.Request.Headers.ContainsKey('Authorization') then
   begin
-    AuthHeader := AContext.Request.Headers['Authorization'];
-    Token := ExtractToken(AuthHeader);
+    authHeader := AContext.Request.Headers['Authorization'];
+    token := ExtractToken(authHeader);
     
-    if Token <> '' then
+    if token <> '' then
     begin
-      // Validate token
-      ValidationResult := FTokenHandler.ValidateToken(Token);
+      validationResult := FTokenHandler.ValidateToken(token);
       
-      if ValidationResult.IsValid then
+      if validationResult.IsValid then
       begin
-        // Create principal and set user
-        Principal := CreatePrincipal(ValidationResult.Claims);
-        AContext.User := Principal;
+        principal := CreatePrincipal(validationResult.Claims);
+        AContext.User := principal;
       end;
     end;
   end;
   
-  // Continue pipeline
   ANext(AContext);
 end;
 
@@ -189,18 +208,57 @@ class function TApplicationBuilderJwtExtensions.UseJwtAuthentication(
   const ABuilder: IApplicationBuilder; const ASecretKey: string; 
   AConfigurator: TJwtBuilderProc): IApplicationBuilder;
 var
-  Builder: TJwtOptionsBuilder;
+  builder: TJwtOptionsBuilder;
 begin
-  Builder := TJwtOptionsBuilder.Create(ASecretKey);
+  builder := TJwtOptionsBuilder.Create(ASecretKey);
   if Assigned(AConfigurator) then
-    AConfigurator(Builder);
+    AConfigurator(builder);
   
-  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, Builder.Build);
+  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, builder.Build);
 end;
 
 class function TApplicationBuilderJwtExtensions.UseJwtAuthentication(const ABuilder: IApplicationBuilder; const AJwtBuilder: TJwtOptionsBuilder): IApplicationBuilder;
 begin
   Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, AJwtBuilder.Build);
+end;
+
+class function TApplicationBuilderJwtExtensions.UseGoogleAuthentication(
+  const ABuilder: IApplicationBuilder; const AClientId, APublicKeyJwk: string): IApplicationBuilder;
+var
+  options: TJwtOptions;
+begin
+  options := TJwtOptions.Create('');
+  options.Algorithm := 'RS256';
+  options.Issuer := 'https://accounts.google.com';
+  options.Audience := AClientId;
+  options.PublicKey := APublicKeyJwk;
+  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, options);
+end;
+
+class function TApplicationBuilderJwtExtensions.UseEntraIdAuthentication(
+  const ABuilder: IApplicationBuilder; const ATenantId, AClientId, APublicKeyJwk: string): IApplicationBuilder;
+var
+  options: TJwtOptions;
+begin
+  options := TJwtOptions.Create('');
+  options.Algorithm := 'RS256';
+  options.Issuer := 'https://login.microsoftonline.com/' + ATenantId + '/v2.0';
+  options.Audience := AClientId;
+  options.PublicKey := APublicKeyJwk;
+  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, options);
+end;
+
+class function TApplicationBuilderJwtExtensions.UseKeycloakAuthentication(
+  const ABuilder: IApplicationBuilder; const AServerUrl, ARealm, AClientId, APublicKeyJwk: string): IApplicationBuilder;
+var
+  options: TJwtOptions;
+begin
+  options := TJwtOptions.Create('');
+  options.Algorithm := 'RS256';
+  options.Issuer := AServerUrl + '/realms/' + ARealm;
+  options.Audience := AClientId;
+  options.PublicKey := APublicKeyJwk;
+  Result := ABuilder.UseMiddleware(TJwtAuthenticationMiddleware, options);
 end;
 
 end.

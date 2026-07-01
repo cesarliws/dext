@@ -30,6 +30,7 @@ interface
 uses
   System.SysUtils,
   Dext.Collections,
+  Dext.Collections.Dict,
   Dext.Auth.JWT;
 
 type
@@ -38,12 +39,18 @@ type
   /// </summary>
   IIdentity = interface
     ['{F8E9D2C3-4A5B-6C7D-8E9F-0A1B2C3D4E5F}']
+    /// <summary>Gets the name of the identity.</summary>
     function GetName: string;
+    /// <summary>Indicates whether the user has been authenticated.</summary>
     function GetIsAuthenticated: Boolean;
+    /// <summary>Gets the type of authentication used.</summary>
     function GetAuthenticationType: string;
     
+    /// <summary>User identity name.</summary>
     property Name: string read GetName;
+    /// <summary>Is authenticated.</summary>
     property IsAuthenticated: Boolean read GetIsAuthenticated;
+    /// <summary>Authentication type.</summary>
     property AuthenticationType: string read GetAuthenticationType;
   end;
 
@@ -52,13 +59,20 @@ type
   /// </summary>
   IClaimsPrincipal = interface
     ['{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}']
+    /// <summary>Gets the user's primary identity.</summary>
     function GetIdentity: IIdentity;
+    /// <summary>Gets the associated claims array.</summary>
     function GetClaims: TArray<TClaim>;
+    /// <summary>Finds a claim of a specific type.</summary>
     function FindClaim(const AClaimType: string): TClaim;
+    /// <summary>Checks if the principal contains a claim of a specific type.</summary>
     function HasClaim(const AClaimType: string): Boolean;
+    /// <summary>Checks if the user belongs to a specific security role.</summary>
     function IsInRole(const ARole: string): Boolean;
     
+    /// <summary>The primary identity.</summary>
     property Identity: IIdentity read GetIdentity;
+    /// <summary>All claims of the user.</summary>
     property Claims: TArray<TClaim> read GetClaims;
   end;
 
@@ -71,14 +85,21 @@ type
     FAuthenticationType: string;
     FIsAuthenticated: Boolean;
   public
+    /// <summary>Initializes a new instance of TClaimsIdentity.</summary>
     constructor Create(const AName: string; const AAuthenticationType: string = 'JWT');
     
+    /// <summary>Gets the user name.</summary>
     function GetName: string;
+    /// <summary>Gets whether the user is authenticated.</summary>
     function GetIsAuthenticated: Boolean;
+    /// <summary>Gets the authentication type.</summary>
     function GetAuthenticationType: string;
     
+    /// <summary>User identity name.</summary>
     property Name: string read GetName;
+    /// <summary>Is authenticated.</summary>
     property IsAuthenticated: Boolean read GetIsAuthenticated;
+    /// <summary>Authentication type.</summary>
     property AuthenticationType: string read GetAuthenticationType;
   end;
 
@@ -90,16 +111,41 @@ type
     FIdentity: IIdentity;
     FClaims: TArray<TClaim>;
   public
+    /// <summary>Initializes a new instance of TClaimsPrincipal.</summary>
     constructor Create(const AIdentity: IIdentity; const AClaims: TArray<TClaim>);
     
+    /// <summary>Gets the identity.</summary>
     function GetIdentity: IIdentity;
+    /// <summary>Gets the claims.</summary>
     function GetClaims: TArray<TClaim>;
+    /// <summary>Finds a claim by type.</summary>
     function FindClaim(const AClaimType: string): TClaim;
+    /// <summary>Checks if a claim exists.</summary>
     function HasClaim(const AClaimType: string): Boolean;
+    /// <summary>Checks if the user has a specific role.</summary>
     function IsInRole(const ARole: string): Boolean;
     
+    /// <summary>Identity.</summary>
     property Identity: IIdentity read GetIdentity;
+    /// <summary>Claims list.</summary>
     property Claims: TArray<TClaim> read GetClaims;
+  end;
+
+  /// <summary>Callback signature for policy evaluation.</summary>
+  TAuthorizationPolicyCallback = reference to function(const APrincipal: IClaimsPrincipal): Boolean;
+
+  /// <summary>
+  ///   Global registry for named authorization policies.
+  /// </summary>
+  TAuthorizationPolicyRegistry = class
+  private
+    class var FPolicies: IDictionary<string, TAuthorizationPolicyCallback>;
+    class constructor CreateClass;
+  public
+    /// <summary>Registers a named policy validation callback.</summary>
+    class procedure RegisterPolicy(const AName: string; const ACallback: TAuthorizationPolicyCallback);
+    /// <summary>Evaluates a registered policy against the principal.</summary>
+    class function Evaluate(const AName: string; const APrincipal: IClaimsPrincipal): Boolean;
   end;
 
   /// <summary>
@@ -107,31 +153,50 @@ type
   /// </summary>
   TClaimTypes = class
   public
-    const NameIdentifier = 'sub';      // Subject (user ID)
-    const Name = 'name';                // User name
-    const Email = 'email';              // Email address
-    const Role = 'role';                // User role
-    const GivenName = 'given_name';     // First name
-    const FamilyName = 'family_name';   // Last name
-    const Expiration = 'exp';           // Expiration time
-    const IssuedAt = 'iat';             // Issued at time
-    const Issuer = 'iss';               // Token issuer
-    const Audience = 'aud';             // Token audience
+    /// <summary>Subject identifier (sub).</summary>
+    const NameIdentifier = 'sub';
+    /// <summary>Name (name).</summary>
+    const Name = 'name';
+    /// <summary>Email address (email).</summary>
+    const Email = 'email';
+    /// <summary>Role identifier (role).</summary>
+    const Role = 'role';
+    /// <summary>Given name (given_name).</summary>
+    const GivenName = 'given_name';
+    /// <summary>Family name (family_name).</summary>
+    const FamilyName = 'family_name';
+    /// <summary>Expiration (exp).</summary>
+    const Expiration = 'exp';
+    /// <summary>Issued at (iat).</summary>
+    const IssuedAt = 'iat';
+    /// <summary>Issuer (iss).</summary>
+    const Issuer = 'iss';
+    /// <summary>Audience (aud).</summary>
+    const Audience = 'aud';
   end;
 
   /// <summary>
-  ///   Fluent builder to facilitate the assembly of Claims sets (Identifiers, Roles, Profile).
+  ///   Fluent builder to facilitate the assembly of Claims sets.
   /// </summary>
   IClaimsBuilder = interface
     ['{B2C3D4E5-F6A7-8B9C-0D1E-2F3A4B5C6D7E}']
+    /// <summary>Adds a custom claim.</summary>
     function AddClaim(const AType, AValue: string): IClaimsBuilder;
+    /// <summary>Adds a NameIdentifier claim.</summary>
     function WithNameIdentifier(const AValue: string): IClaimsBuilder;
+    /// <summary>Adds a Name claim.</summary>
     function WithName(const AValue: string): IClaimsBuilder;
+    /// <summary>Adds an Email claim.</summary>
     function WithEmail(const AValue: string): IClaimsBuilder;
+    /// <summary>Adds a Role claim.</summary>
     function WithRole(const AValue: string): IClaimsBuilder;
+    /// <summary>Adds a GivenName claim.</summary>
     function WithGivenName(const AValue: string): IClaimsBuilder;
+    /// <summary>Adds a FamilyName claim.</summary>
     function WithFamilyName(const AValue: string): IClaimsBuilder;
+    /// <summary>Builds the final claims array.</summary>
     function Build: TArray<TClaim>;
+    /// <summary>Returns the current number of claims.</summary>
     function Count: Integer;
   end;
 
@@ -142,52 +207,28 @@ type
   private
     FClaims: IList<TClaim>;
   public
+    /// <summary>Creates a new instance of TClaimsBuilder.</summary>
     constructor Create;
+    /// <summary>Destroys the TClaimsBuilder instance.</summary>
     destructor Destroy; override;
 
-    /// <summary>
-    ///   Adds a custom claim.
-    /// </summary>
+    /// <summary>Adds a custom claim.</summary>
     function AddClaim(const AType, AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Adds the 'sub' (subject/user ID) claim.
-    /// </summary>
+    /// <summary>Adds the 'sub' (subject/user ID) claim.</summary>
     function WithNameIdentifier(const AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Adds the 'name' claim.
-    /// </summary>
+    /// <summary>Adds the 'name' claim.</summary>
     function WithName(const AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Adds the 'email' claim.
-    /// </summary>
+    /// <summary>Adds the 'email' claim.</summary>
     function WithEmail(const AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Adds the 'role' claim. Can be called multiple times for multiple roles.
-    /// </summary>
+    /// <summary>Adds the 'role' claim.</summary>
     function WithRole(const AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Adds the 'given_name' claim.
-    /// </summary>
+    /// <summary>Adds the 'given_name' claim.</summary>
     function WithGivenName(const AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Adds the 'family_name' claim.
-    /// </summary>
+    /// <summary>Adds the 'family_name' claim.</summary>
     function WithFamilyName(const AValue: string): IClaimsBuilder;
-
-    /// <summary>
-    ///   Builds and returns the claims array.
-    /// </summary>
+    /// <summary>Builds and returns the claims array.</summary>
     function Build: TArray<TClaim>;
-
-    /// <summary>
-    ///   Returns the number of claims currently in the builder.
-    /// </summary>
+    /// <summary>Returns the number of claims in the builder.</summary>
     function Count: Integer;
   end;
 
@@ -239,12 +280,12 @@ end;
 
 function TClaimsPrincipal.FindClaim(const AClaimType: string): TClaim;
 var
-  Claim: TClaim;
+  claim: TClaim;
 begin
-  for Claim in FClaims do
+  for claim in FClaims do
   begin
-    if SameText(Claim.ClaimType, AClaimType) then
-      Exit(Claim);
+    if SameText(claim.ClaimType, AClaimType) then
+      Exit(claim);
   end;
   
   Result.ClaimType := '';
@@ -253,23 +294,45 @@ end;
 
 function TClaimsPrincipal.HasClaim(const AClaimType: string): Boolean;
 var
-  Claim: TClaim;
+  claim: TClaim;
 begin
-  Claim := FindClaim(AClaimType);
-  Result := Claim.ClaimType <> '';
+  claim := FindClaim(AClaimType);
+  Result := claim.ClaimType <> '';
 end;
 
 function TClaimsPrincipal.IsInRole(const ARole: string): Boolean;
 var
-  Claim: TClaim;
+  claim: TClaim;
 begin
-  for Claim in FClaims do
+  for claim in FClaims do
   begin
-    if SameText(Claim.ClaimType, TClaimTypes.Role) and SameText(Claim.Value, ARole) then
+    if SameText(claim.ClaimType, TClaimTypes.Role) and SameText(claim.Value, ARole) then
       Exit(True);
   end;
   
   Result := False;
+end;
+
+{ TAuthorizationPolicyRegistry }
+
+class constructor TAuthorizationPolicyRegistry.CreateClass;
+begin
+  FPolicies := TCollections.CreateDictionaryIgnoreCase<string, TAuthorizationPolicyCallback>();
+end;
+
+class procedure TAuthorizationPolicyRegistry.RegisterPolicy(const AName: string; const ACallback: TAuthorizationPolicyCallback);
+begin
+  FPolicies.AddOrSetValue(AName, ACallback);
+end;
+
+class function TAuthorizationPolicyRegistry.Evaluate(const AName: string; const APrincipal: IClaimsPrincipal): Boolean;
+var
+  callback: TAuthorizationPolicyCallback;
+begin
+  if FPolicies.TryGetValue(AName, callback) then
+    Result := callback(APrincipal)
+  else
+    Result := False;
 end;
 
 { TClaimsBuilder }
@@ -332,4 +395,3 @@ begin
 end;
 
 end.
-

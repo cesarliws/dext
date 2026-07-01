@@ -11,7 +11,7 @@ ID | Title | Status | Goal
 **S03** | [Live Observability Dashboard](S03-Live-Observability.md) | 🟡 In Progress | Real-time debugging of SQL, HTTP and Exceptions via Telemetry (Core done, UI next).
 **S04** | [DataAPI Conventions](S04-DataApi-Conventions.md) | ✅ Finalized | Simplify REST endpoint exposure using attributes and global defaults.
 **S05** | [Advanced Tooling](S05-Advanced-Tooling.md) | 📝 Draft | IDE Wizards, Code-First Parsers (Pending), and TFDConnection Scaffolding (Implemented).
-**S06** | [Security & Identity](S06-Security-Identity.md) | 📝 Draft | Native OAuth2, OpenID Connect, and JWT policy-based authorization.
+**S06** | [Security & Identity](S06-Security-Identity.md) | ✅ Finalized | Native OAuth2, OpenID Connect, and JWT policy-based authorization.
 **S07** | [High-Performance Reflection](S07-High-Perf-Reflection.md) | ✅ Finalized | Zero-boxing type handlers, fast-path reflection registry, and thread-safe RTTI caches.
 **S08** | [Dynamic Ports](S08-Dynamic-Ports.md) | ✅ Finalized | Support for Port 0 (OS picks free port) for Demos and CI.
 **S09** | [Template Engine](S09-Template-Engine.md) | ✅ Finalized | Zero-dependency AST-based template engine (Razor-like).

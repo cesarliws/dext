@@ -24,11 +24,15 @@
 {                                                                           }
 {***************************************************************************}
 unit Dext.Auth.JWT;
+
 {$I Dext.inc}
 
 interface
 
 uses
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
   System.Classes,
   System.DateUtils,
   System.JSON,
@@ -37,6 +41,7 @@ uses
   System.SysUtils,
   System.Hash,
   Dext.Collections,
+  Dext.Core.Span,
   IdGlobal,
   IdHashSHA,
   IdHMAC,
@@ -48,8 +53,11 @@ type
   ///   Represents a claim (key-value pair) in a JWT token.
   /// </summary>
   TClaim = record
+    /// <summary>The type/key of the claim.</summary>
     ClaimType: string;
+    /// <summary>The value of the claim.</summary>
     Value: string;
+    /// <summary>Creates a new Claim record.</summary>
     constructor Create(const AType, AValue: string);
   end;
 
@@ -57,8 +65,11 @@ type
   ///   JWT token validation result.
   /// </summary>
   TJwtValidationResult = record
+    /// <summary>Indicates whether the validation succeeded.</summary>
     IsValid: Boolean;
+    /// <summary>Contains the error description if validation failed.</summary>
     ErrorMessage: string;
+    /// <summary>Claims extracted from the verified token.</summary>
     Claims: TArray<TClaim>;
   end;
 
@@ -67,58 +78,64 @@ type
   /// </summary>
   IJwtTokenHandler = interface
     ['{A1B2C3D4-E5F6-7A8B-9C0D-1E2F3A4B5C6D}']
+    /// <summary>Generates a token with specified claims signed with HMAC-SHA256.</summary>
     function GenerateToken(const AClaims: TArray<TClaim>): string;
+    /// <summary>Validates and decodes the given JWT token.</summary>
     function ValidateToken(const AToken: string): TJwtValidationResult;
+    /// <summary>Gets the claims of a token without checking signature. Use with caution.</summary>
     function GetClaims(const AToken: string): TArray<TClaim>;
     
+    /// <summary>Secret key getter.</summary>
     function GetSecretKey: string;
+    /// <summary>Secret key setter.</summary>
     procedure SetSecretKey(const Value: string);
+    /// <summary>Issuer getter.</summary>
     function GetIssuer: string;
+    /// <summary>Issuer setter.</summary>
     procedure SetIssuer(const Value: string);
+    /// <summary>Audience getter.</summary>
     function GetAudience: string;
+    /// <summary>Audience setter.</summary>
     procedure SetAudience(const Value: string);
+    /// <summary>Expiration time in minutes getter.</summary>
     function GetExpirationMinutes: Integer;
+    /// <summary>Expiration time in minutes setter.</summary>
     procedure SetExpirationMinutes(const Value: Integer);
     
+    /// <summary>Secret key used to sign and verify tokens.</summary>
     property SecretKey: string read GetSecretKey write SetSecretKey;
+    /// <summary>Issuer of the token.</summary>
     property Issuer: string read GetIssuer write SetIssuer;
+    /// <summary>Target audience of the token.</summary>
     property Audience: string read GetAudience write SetAudience;
+    /// <summary>Token lifespan in minutes.</summary>
     property ExpirationMinutes: Integer read GetExpirationMinutes write SetExpirationMinutes;
   end;
 
   /// <summary>
-  ///   JWT configuration options (Secret, Issuer, Audience).
+  ///   JWT configuration options (Secret, Issuer, Audience, Algorithm, PublicKey).
   /// </summary>
   TJwtOptions = record
   public
-    /// <summary>
-    ///   Secret key used for signing and validating tokens.
-    /// </summary>
+    /// <summary>Secret key used for signing and validating HS256 tokens.</summary>
     SecretKey: string;
-    
-    /// <summary>
-    ///   Token issuer (iss claim).
-    /// </summary>
+    /// <summary>Token issuer (iss claim).</summary>
     Issuer: string;
-    
-    /// <summary>
-    ///   Token audience (aud claim).
-    /// </summary>
+    /// <summary>Token audience (aud claim).</summary>
     Audience: string;
-    
-    /// <summary>
-    ///   Token expiration time in minutes.
-    /// </summary>
+    /// <summary>Token expiration time in minutes.</summary>
     ExpirationMinutes: Integer;
+    /// <summary>Algorithm used (HS256, RS256).</summary>
+    Algorithm: string;
+    /// <summary>Base64 encoded public key or modulus/exponent for RS256 validation.</summary>
+    PublicKey: string;
 
-    /// <summary>
-    ///   Creates default JWT options.
-    /// </summary>
+    /// <summary>Creates default JWT options.</summary>
     class function Create(const ASecretKey: string): TJwtOptions; static;
   end;
 
   /// <summary>
-  ///   Fluent builder for creating <see cref="TJwtOptions"/> objects.
+  ///   Fluent builder for creating TJwtOptions objects.
   /// </summary>
   TJwtOptionsBuilder = record
   private
@@ -126,53 +143,44 @@ type
     FInitialized: Boolean;
     procedure EnsureInitialized(const ASecretKey: string = '');
   public
-    /// <summary>
-    ///   Creates a new JWT options builder.
-    /// </summary>
+    /// <summary>Creates a new JWT options builder with the given secret.</summary>
     class function Create(const ASecretKey: string): TJwtOptionsBuilder; static;
-    
-    // =====================================================================
-    // New API (without 'With' prefix)
-    // =====================================================================
-    
+    /// <summary>Sets the token issuer.</summary>
     function Issuer(const AIssuer: string): TJwtOptionsBuilder;
+    /// <summary>Sets the token audience.</summary>
     function Audience(const AAudience: string): TJwtOptionsBuilder;
+    /// <summary>Sets the token expiration in minutes.</summary>
     function ExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder;
+    /// <summary>Sets the signing algorithm.</summary>
+    function Algorithm(const AAlg: string): TJwtOptionsBuilder;
+    /// <summary>Sets the public key for asymmetric validation.</summary>
+    function PublicKey(const APubKey: string): TJwtOptionsBuilder;
 
-    // =====================================================================
-    // Deprecated API (with 'With' prefix)
-    // =====================================================================
-    
+    /// <summary>Sets the token issuer (deprecated).</summary>
     function WithIssuer(const AIssuer: string): TJwtOptionsBuilder; deprecated 'Use Issuer instead';
+    /// <summary>Sets the token audience (deprecated).</summary>
     function WithAudience(const AAudience: string): TJwtOptionsBuilder; deprecated 'Use Audience instead';
+    /// <summary>Sets the token expiration (deprecated).</summary>
     function WithExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder; deprecated 'Use ExpirationMinutes instead';
 
-    /// <summary>
-    ///   Builds and returns the JWT options.
-    /// </summary>
+    /// <summary>Builds and returns the JWT options.</summary>
     function Build: TJwtOptions;
-    
-    /// <summary>
-    ///   Implicit conversion to TJwtOptions.
-    /// </summary>
+    /// <summary>Implicit conversion to TJwtOptions.</summary>
     class operator Implicit(const ABuilder: TJwtOptionsBuilder): TJwtOptions;
   end;
 
-  /// <summary>
-  ///   Delegate for configuring JWT options via builder (passed by reference).
-  /// </summary>
+  /// <summary>Delegate for configuring JWT options via builder.</summary>
   TJwtBuilderProc = reference to procedure(var Builder: TJwtOptionsBuilder);
 
-  /// <summary>
-  ///   Helper for implicit conversion of TJwtOptions to TValue.
-  /// </summary>
+  /// <summary>Helper for implicit conversion of TJwtOptions to TValue.</summary>
   TJwtOptionsHelper = record helper for TJwtOptions
   public
+    /// <summary>Converts a TJwtOptions instance implicitly to TValue.</summary>
     class operator Implicit(const AValue: TJwtOptions): TValue;
   end;
 
   /// <summary>
-  ///   Default implementation of the JWT token handler using HS256.
+  ///   Default implementation of the JWT token handler using HS256 and RS256.
   /// </summary>
   TJwtTokenHandler = class(TInterfacedObject, IJwtTokenHandler)
   private
@@ -180,6 +188,8 @@ type
     FIssuer: string;
     FAudience: string;
     FExpirationMinutes: Integer;
+    FAlgorithm: string;
+    FPublicKey: string;
     FBase64: TBase64Encoding;
     class function ToBase64Url(const ABase64: string): string; static;
 
@@ -197,32 +207,39 @@ type
     function GetExpirationMinutes: Integer;
     procedure SetExpirationMinutes(const Value: Integer);
   public
+    /// <summary>Initializes a new instance of the token handler.</summary>
     constructor Create(const ASecretKey: string; const AIssuer: string = '';
-      const AAudience: string = ''; AExpirationMinutes: Integer = 60);
+      const AAudience: string = ''; AExpirationMinutes: Integer = 60); overload;
+    /// <summary>Initializes a new instance of the token handler with full options.</summary>
+    constructor Create(const AOptions: TJwtOptions); overload;
+    /// <summary>Destroys the token handler instance.</summary>
     destructor Destroy; override;
 
-    /// <summary>
-    ///   Generates a JWT token with the specified claims.
-    /// </summary>
+    /// <summary>Generates a JWT token with the specified claims.</summary>
     function GenerateToken(const AClaims: TArray<TClaim>): string;
-
-    /// <summary>
-    ///   Validates a JWT token and returns the claims if valid.
-    /// </summary>
+    /// <summary>Validates a JWT token and returns the claims if valid.</summary>
     function ValidateToken(const AToken: string): TJwtValidationResult;
-
-    /// <summary>
-    ///   Extracts claims from a token without full validation (use with caution).
-    /// </summary>
+    /// <summary>Extracts claims from a token without full validation.</summary>
     function GetClaims(const AToken: string): TArray<TClaim>;
 
+    /// <summary>Secret key.</summary>
     property SecretKey: string read GetSecretKey write SetSecretKey;
+    /// <summary>Token issuer.</summary>
     property Issuer: string read GetIssuer write SetIssuer;
+    /// <summary>Token audience.</summary>
     property Audience: string read GetAudience write SetAudience;
+    /// <summary>Expiration time in minutes.</summary>
     property ExpirationMinutes: Integer read GetExpirationMinutes write SetExpirationMinutes;
+    /// <summary>Algorithm.</summary>
+    property Algorithm: string read FAlgorithm write FAlgorithm;
+    /// <summary>Public Key.</summary>
+    property PublicKey: string read FPublicKey write FPublicKey;
   end;
 
 implementation
+
+uses
+  System.StrUtils;
 
 { TClaim }
 
@@ -242,104 +259,447 @@ begin
   FIssuer := AIssuer;
   FAudience := AAudience;
   FExpirationMinutes := AExpirationMinutes;
+  FAlgorithm := 'HS256';
+  FPublicKey := '';
+  FBase64 := TBase64Encoding.Create(0);
+end;
+
+constructor TJwtTokenHandler.Create(const AOptions: TJwtOptions);
+begin
+  inherited Create;
+  FSecretKey := AOptions.SecretKey;
+  FIssuer := AOptions.Issuer;
+  FAudience := AOptions.Audience;
+  FExpirationMinutes := AOptions.ExpirationMinutes;
+  FAlgorithm := AOptions.Algorithm;
+  FPublicKey := AOptions.PublicKey;
+  if FAlgorithm = '' then
+    FAlgorithm := 'HS256';
   FBase64 := TBase64Encoding.Create(0);
 end;
 
 class function TJwtTokenHandler.ToBase64Url(const ABase64: string): string;
 var
-  I, J, L: Integer;
+  i, j, len: Integer;
 begin
-  L := Length(ABase64);
-  SetLength(Result, L);
-  J := 1;
-  for I := 1 to L do
+  len := Length(ABase64);
+  SetLength(Result, len);
+  j := 1;
+  for i := 1 to len do
   begin
-    case ABase64[I] of
+    case ABase64[i] of
       '+':
         begin
-          Result[J] := '-';
-          Inc(J);
+          Result[j] := '-';
+          Inc(j);
         end;
       '/':
         begin
-          Result[J] := '_';
-          Inc(J);
+          Result[j] := '_';
+          Inc(j);
         end;
       '=':
-        ; // skip padding in URL-safe format
+        ; // skip padding
     else
-      Result[J] := ABase64[I];
-      Inc(J);
+      Result[j] := ABase64[i];
+      Inc(j);
     end;
   end;
-  SetLength(Result, J - 1);
+  SetLength(Result, j - 1);
 end;
 
 function TJwtTokenHandler.Base64UrlEncode(const AInput: string): string;
 var
-  Bytes: TBytes;
+  bytes: TBytes;
 begin
-  Bytes := TEncoding.UTF8.GetBytes(AInput);
-  Result := ToBase64Url(FBase64.EncodeBytesToString(Bytes));
+  bytes := TEncoding.UTF8.GetBytes(AInput);
+  Result := ToBase64Url(FBase64.EncodeBytesToString(bytes));
 end;
 
 function TJwtTokenHandler.Base64UrlDecode(const AInput: string): string;
 var
-  Base64: string;
-  Bytes: TBytes;
-  Padding: Integer;
+  base64: string;
+  bytes: TBytes;
+  padding: Integer;
 begin
-  Base64 := AInput;
+  base64 := AInput;
+  base64 := base64.Replace('-', '+', [rfReplaceAll]);
+  base64 := base64.Replace('_', '/', [rfReplaceAll]);
   
-  // Convert from Base64URL to standard Base64
-  Base64 := Base64.Replace('-', '+', [rfReplaceAll]);
-  Base64 := Base64.Replace('_', '/', [rfReplaceAll]);
+  padding := 4 - (Length(base64) mod 4);
+  if padding < 4 then
+    base64 := base64 + StringOfChar('=', padding);
   
-  // Add padding
-  Padding := 4 - (Length(Base64) mod 4);
-  if Padding < 4 then
-    Base64 := Base64 + StringOfChar('=', Padding);
-  
-  Bytes := TNetEncoding.Base64.DecodeStringToBytes(Base64);
-  Result := TEncoding.UTF8.GetString(Bytes);
+  bytes := TNetEncoding.Base64.DecodeStringToBytes(base64);
+  Result := TEncoding.UTF8.GetString(bytes);
 end;
+
+{$IFDEF MSWINDOWS}
+type
+  TBCryptRsaKeyBlob = record
+    Magic: Cardinal;
+    BitLength: Cardinal;
+    cbPublicExp: Cardinal;
+    cbModulus: Cardinal;
+    cbPrime1: Cardinal;
+    cbPrime2: Cardinal;
+  end;
+
+  TBCryptPkcs1PaddingInfo = record
+    pszAlgId: LPCWSTR;
+  end;
+
+// Windows CNG helper function to compute HMAC-SHA256
+function BCryptHMACSHA256(const AKey, AHeader, APayload: string; out ABytes: TBytes): Boolean;
+const
+  BCRYPT_SHA256_ALGORITHM = 'SHA256';
+  BCRYPT_ALG_HANDLE_HMAC_FLAG = $00000008;
+  BCRYPT_OBJECT_LENGTH = 'ObjectLength';
+  BCRYPT_HASH_LENGTH = 'HashLength';
+  STATUS_SUCCESS = HRESULT($00000000);
+type
+  TBCryptOpenAlgorithmProvider = function(out phAlgorithm: THandle; pszAlgId: LPCWSTR; pszImplementation: LPCWSTR; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptCloseAlgorithmProvider = function(hAlgorithm: THandle; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptGetProperty = function(hObject: THandle; pszProperty: LPCWSTR; pbOutput: PByte; cbOutput: ULONG; out pcbResult: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptCreateHash = function(hAlgorithm: THandle; out phHash: THandle; pbHashObject: PByte; cbHashObject: ULONG; pbSecret: PByte; cbSecret: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptHashData = function(hHash: THandle; pbInput: PByte; cbInput: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptFinishHash = function(hHash: THandle; pbOutput: PByte; cbOutput: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptDestroyHash = function(hHash: THandle): HRESULT; stdcall;
+var
+  hBCrypt: HMODULE;
+  BCryptOpenAlgorithmProvider: TBCryptOpenAlgorithmProvider;
+  BCryptCloseAlgorithmProvider: TBCryptCloseAlgorithmProvider;
+  BCryptGetProperty: TBCryptGetProperty;
+  BCryptCreateHash: TBCryptCreateHash;
+  BCryptHashData: TBCryptHashData;
+  BCryptFinishHash: TBCryptFinishHash;
+  BCryptDestroyHash: TBCryptDestroyHash;
+
+  hAlg: THandle;
+  hHash: THandle;
+  status: HRESULT;
+  cbResult: Cardinal;
+  cbHashObject: Cardinal;
+  cbHash: Cardinal;
+  pbHashObject: PByte;
+  pbHash: PByte;
+  keyBytes: TBytes;
+  headerBytes: TBytes;
+  dotByte: Byte;
+  payloadBytes: TBytes;
+begin
+  Result := False;
+  hAlg := 0;
+  hHash := 0;
+  pbHashObject := nil;
+  pbHash := nil;
+
+  hBCrypt := LoadLibrary('bcrypt.dll');
+  if hBCrypt = 0 then
+    Exit;
+
+  try
+    @BCryptOpenAlgorithmProvider := GetProcAddress(hBCrypt, 'BCryptOpenAlgorithmProvider');
+    @BCryptCloseAlgorithmProvider := GetProcAddress(hBCrypt, 'BCryptCloseAlgorithmProvider');
+    @BCryptGetProperty := GetProcAddress(hBCrypt, 'BCryptGetProperty');
+    @BCryptCreateHash := GetProcAddress(hBCrypt, 'BCryptCreateHash');
+    @BCryptHashData := GetProcAddress(hBCrypt, 'BCryptHashData');
+    @BCryptFinishHash := GetProcAddress(hBCrypt, 'BCryptFinishHash');
+    @BCryptDestroyHash := GetProcAddress(hBCrypt, 'BCryptDestroyHash');
+
+    if not Assigned(BCryptOpenAlgorithmProvider) or not Assigned(BCryptCloseAlgorithmProvider) or
+       not Assigned(BCryptGetProperty) or not Assigned(BCryptCreateHash) or
+       not Assigned(BCryptHashData) or not Assigned(BCryptFinishHash) or
+       not Assigned(BCryptDestroyHash) then
+      Exit;
+
+    status := BCryptOpenAlgorithmProvider(hAlg, BCRYPT_SHA256_ALGORITHM, nil, BCRYPT_ALG_HANDLE_HMAC_FLAG);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptGetProperty(hAlg, BCRYPT_OBJECT_LENGTH, @cbHashObject, SizeOf(cbHashObject), cbResult, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptGetProperty(hAlg, BCRYPT_HASH_LENGTH, @cbHash, SizeOf(cbHash), cbResult, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    GetMem(pbHashObject, cbHashObject);
+    GetMem(pbHash, cbHash);
+
+    keyBytes := TEncoding.UTF8.GetBytes(AKey);
+    headerBytes := TEncoding.UTF8.GetBytes(AHeader);
+    dotByte := Ord('.');
+    payloadBytes := TEncoding.UTF8.GetBytes(APayload);
+
+    status := BCryptCreateHash(hAlg, hHash, pbHashObject, cbHashObject, PByte(keyBytes), Length(keyBytes), 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptHashData(hHash, PByte(headerBytes), Length(headerBytes), 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptHashData(hHash, @dotByte, 1, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptHashData(hHash, PByte(payloadBytes), Length(payloadBytes), 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptFinishHash(hHash, pbHash, cbHash, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    SetLength(ABytes, cbHash);
+    Move(pbHash^, ABytes[0], cbHash);
+    Result := True;
+
+  finally
+    if hHash <> 0 then
+      BCryptDestroyHash(hHash);
+    if hAlg <> 0 then
+      BCryptCloseAlgorithmProvider(hAlg, 0);
+    if pbHashObject <> nil then
+      FreeMem(pbHashObject);
+    if pbHash <> nil then
+      FreeMem(pbHash);
+    FreeLibrary(hBCrypt);
+  end;
+end;
+
+// Windows CNG helper function to verify RS256 signatures
+function BCryptVerifyRS256(const APublicKeyPemOrModulusExponent, AHeader, APayload, ASignatureB64Url: string): Boolean;
+const
+  BCRYPT_SHA256_ALGORITHM = 'SHA256';
+  BCRYPT_RSA_ALGORITHM = 'RSA';
+  BCRYPT_PAD_PKCS1 = $00000002;
+  STATUS_SUCCESS = HRESULT($00000000);
+type
+  TBCryptOpenAlgorithmProvider = function(out phAlgorithm: THandle; pszAlgId: LPCWSTR; pszImplementation: LPCWSTR; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptCloseAlgorithmProvider = function(hAlgorithm: THandle; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptImportKeyPair = function(hAlgorithm: THandle; hPubKey: THandle; pszBlobType: LPCWSTR; out phKey: THandle; pbInput: PByte; cbInput: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptDestroyKey = function(hKey: THandle): HRESULT; stdcall;
+  TBCryptCreateHash = function(hAlgorithm: THandle; out phHash: THandle; pbHashObject: PByte; cbHashObject: ULONG; pbSecret: PByte; cbSecret: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptHashData = function(hHash: THandle; pbInput: PByte; cbInput: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptFinishHash = function(hHash: THandle; pbOutput: PByte; cbOutput: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+  TBCryptDestroyHash = function(hHash: THandle): HRESULT; stdcall;
+  TBCryptVerifySignature = function(hKey: THandle; pPaddingInfo: Pointer; pbHash: PByte; cbHash: ULONG; pbSignature: PByte; cbSignature: ULONG; dwFlags: ULONG): HRESULT; stdcall;
+var
+  hBCrypt: HMODULE;
+  BCryptOpenAlgorithmProvider: TBCryptOpenAlgorithmProvider;
+  BCryptCloseAlgorithmProvider: TBCryptCloseAlgorithmProvider;
+  BCryptImportKeyPair: TBCryptImportKeyPair;
+  BCryptDestroyKey: TBCryptDestroyKey;
+  BCryptCreateHash: TBCryptCreateHash;
+  BCryptHashData: TBCryptHashData;
+  BCryptFinishHash: TBCryptFinishHash;
+  BCryptDestroyHash: TBCryptDestroyHash;
+  BCryptVerifySignature: TBCryptVerifySignature;
+
+  hRsaAlg: THandle;
+  hHashAlg: THandle;
+  hKey: THandle;
+  hHash: THandle;
+  status: HRESULT;
+  sigBytes: TBytes;
+  signedData: string;
+  dataBytes: TBytes;
+  hashBytes: TBytes;
+  paddingInfo: TBCryptPkcs1PaddingInfo;
+  
+  // Public key parsing
+  nBytes: TBytes;
+  eBytes: TBytes;
+  blobBytes: TBytes;
+  blobHeader: TBCryptRsaKeyBlob;
+  keyJson: TJSONObject;
+  base64UrlStr: string;
+begin
+  Result := False;
+  hRsaAlg := 0;
+  hHashAlg := 0;
+  hKey := 0;
+  hHash := 0;
+
+  hBCrypt := LoadLibrary('bcrypt.dll');
+  if hBCrypt = 0 then
+    Exit;
+
+  try
+    @BCryptOpenAlgorithmProvider := GetProcAddress(hBCrypt, 'BCryptOpenAlgorithmProvider');
+    @BCryptCloseAlgorithmProvider := GetProcAddress(hBCrypt, 'BCryptCloseAlgorithmProvider');
+    @BCryptImportKeyPair := GetProcAddress(hBCrypt, 'BCryptImportKeyPair');
+    @BCryptDestroyKey := GetProcAddress(hBCrypt, 'BCryptDestroyKey');
+    @BCryptCreateHash := GetProcAddress(hBCrypt, 'BCryptCreateHash');
+    @BCryptHashData := GetProcAddress(hBCrypt, 'BCryptHashData');
+    @BCryptFinishHash := GetProcAddress(hBCrypt, 'BCryptFinishHash');
+    @BCryptDestroyHash := GetProcAddress(hBCrypt, 'BCryptDestroyHash');
+    @BCryptVerifySignature := GetProcAddress(hBCrypt, 'BCryptVerifySignature');
+
+    if not Assigned(BCryptOpenAlgorithmProvider) or not Assigned(BCryptCloseAlgorithmProvider) or
+       not Assigned(BCryptImportKeyPair) or not Assigned(BCryptDestroyKey) or
+       not Assigned(BCryptCreateHash) or not Assigned(BCryptHashData) or
+       not Assigned(BCryptFinishHash) or not Assigned(BCryptDestroyHash) or
+       not Assigned(BCryptVerifySignature) then
+      Exit;
+
+    // Parse Public Key JSON (JWK format) or raw base64 PEM
+    nBytes := nil;
+    eBytes := nil;
+    if APublicKeyPemOrModulusExponent.Trim.StartsWith('{') then
+    begin
+      try
+        keyJson := TJSONObject.ParseJSONValue(APublicKeyPemOrModulusExponent) as TJSONObject;
+        if keyJson <> nil then
+        begin
+          try
+            if keyJson.Values['n'] <> nil then
+            begin
+              base64UrlStr := keyJson.Values['n'].Value;
+              base64UrlStr := base64UrlStr.Replace('-', '+', [rfReplaceAll]).Replace('_', '/', [rfReplaceAll]);
+              while Length(base64UrlStr) mod 4 <> 0 do
+                base64UrlStr := base64UrlStr + '=';
+              nBytes := TNetEncoding.Base64.DecodeStringToBytes(base64UrlStr);
+            end;
+            if keyJson.Values['e'] <> nil then
+            begin
+              base64UrlStr := keyJson.Values['e'].Value;
+              base64UrlStr := base64UrlStr.Replace('-', '+', [rfReplaceAll]).Replace('_', '/', [rfReplaceAll]);
+              while Length(base64UrlStr) mod 4 <> 0 do
+                base64UrlStr := base64UrlStr + '=';
+              eBytes := TNetEncoding.Base64.DecodeStringToBytes(base64UrlStr);
+            end;
+          finally
+            keyJson.Free;
+          end;
+        end;
+      except
+        Exit;
+      end;
+    end;
+
+    if (Length(nBytes) = 0) or (Length(eBytes) = 0) then
+      Exit; // Could not parse RSA Modulus/Exponent
+
+    // Construct BCRYPT_RSAKEY_BLOB
+    blobHeader.Magic := $31415352; // 'RSA1'
+    blobHeader.BitLength := Length(nBytes) * 8;
+    blobHeader.cbPublicExp := Length(eBytes);
+    blobHeader.cbModulus := Length(nBytes);
+    blobHeader.cbPrime1 := 0;
+    blobHeader.cbPrime2 := 0;
+
+    SetLength(blobBytes, SizeOf(TBCryptRsaKeyBlob) + Length(eBytes) + Length(nBytes));
+    Move(blobHeader, blobBytes[0], SizeOf(TBCryptRsaKeyBlob));
+    Move(eBytes[0], blobBytes[SizeOf(TBCryptRsaKeyBlob)], Length(eBytes));
+    Move(nBytes[0], blobBytes[SizeOf(TBCryptRsaKeyBlob) + Length(eBytes)], Length(nBytes));
+
+    // Initialize algorithm provider and import key
+    status := BCryptOpenAlgorithmProvider(hRsaAlg, BCRYPT_RSA_ALGORITHM, nil, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptImportKeyPair(hRsaAlg, 0, 'RSAPUBLICBLOB', hKey, @blobBytes[0], Length(blobBytes), 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    // Hash the JWT Header + Payload
+    status := BCryptOpenAlgorithmProvider(hHashAlg, BCRYPT_SHA256_ALGORITHM, nil, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    status := BCryptCreateHash(hHashAlg, hHash, nil, 0, nil, 0, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    signedData := AHeader + '.' + APayload;
+    dataBytes := TEncoding.UTF8.GetBytes(signedData);
+    status := BCryptHashData(hHash, PByte(dataBytes), Length(dataBytes), 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    SetLength(hashBytes, 32); // SHA256 digest size
+    status := BCryptFinishHash(hHash, @hashBytes[0], 32, 0);
+    if status <> STATUS_SUCCESS then
+      Exit;
+
+    // Verify signature
+    base64UrlStr := ASignatureB64Url;
+    base64UrlStr := base64UrlStr.Replace('-', '+', [rfReplaceAll]).Replace('_', '/', [rfReplaceAll]);
+    while Length(base64UrlStr) mod 4 <> 0 do
+      base64UrlStr := base64UrlStr + '=';
+    sigBytes := TNetEncoding.Base64.DecodeStringToBytes(base64UrlStr);
+
+    paddingInfo.pszAlgId := 'SHA256';
+    status := BCryptVerifySignature(hKey, @paddingInfo, @hashBytes[0], 32, @sigBytes[0], Length(sigBytes), BCRYPT_PAD_PKCS1);
+    Result := status = STATUS_SUCCESS;
+
+  finally
+    if hKey <> 0 then
+      BCryptDestroyKey(hKey);
+    if hRsaAlg <> 0 then
+      BCryptCloseAlgorithmProvider(hRsaAlg, 0);
+    if hHashAlg <> 0 then
+      BCryptCloseAlgorithmProvider(hHashAlg, 0);
+    if hHash <> 0 then
+      BCryptDestroyHash(hHash);
+    FreeLibrary(hBCrypt);
+  end;
+end;
+{$ENDIF}
 
 function TJwtTokenHandler.CreateSignature(const AHeader, APayload: string): string;
 var
-  Data: string;
-  Base64Hash: string;
-  {$IFDEF DEXT_HAS_SYSTEM_HASH}
-  Hash: TBytes;
-  {$ELSE}
-  HMAC: TIdHMACSHA256;
-  Hash: TIdBytes;
+  data: string;
+  base64Hash: string;
+  hashBytes: TBytes;
+  {$IFNDEF DEXT_HAS_SYSTEM_HASH}
+  hmac: TIdHMACSHA256;
+  idHash: TIdBytes;
   {$ENDIF}
 begin
-  Data := AHeader + '.' + APayload;
-  
+  if FAlgorithm = 'RS256' then
+    raise ENotSupportedException.Create('RS256 token generation is not supported. Use RS256 for validation only.');
+
+  {$IFDEF MSWINDOWS}
+  // 1. Try Windows CNG API first
+  if BCryptHMACSHA256(FSecretKey, AHeader, APayload, hashBytes) then
+  begin
+    base64Hash := TNetEncoding.Base64.EncodeBytesToString(hashBytes);
+    Result := ToBase64Url(base64Hash);
+    Exit;
+  end;
+  {$ENDIF}
+
+  // Fallback to System.Hash or Indy/OpenSSL
+  data := AHeader + '.' + APayload;
+
   {$IFDEF DEXT_HAS_SYSTEM_HASH}
-  // Use native Delphi System.Hash (Delphi XE8+)
-  Hash := THashSHA2.GetHMACAsBytes(
-    TEncoding.UTF8.GetBytes(Data),
+  // 2. Use native Delphi System.Hash (Delphi XE8+)
+  hashBytes := THashSHA2.GetHMACAsBytes(
+    TEncoding.UTF8.GetBytes(data),
     TEncoding.UTF8.GetBytes(FSecretKey)
   );
-  Base64Hash := TNetEncoding.Base64.EncodeBytesToString(Hash);
+  base64Hash := TNetEncoding.Base64.EncodeBytesToString(hashBytes);
   {$ELSE}
-  // Fallback to Indy/OpenSSL for older Delphi versions
+  // 3. Fallback to Indy/OpenSSL for older Delphi versions
   if not TIdHashSHA256.IsAvailable then
     LoadOpenSSLLibrary;
   
-  HMAC := TIdHMACSHA256.Create;
+  hmac := TIdHMACSHA256.Create;
   try
-    HMAC.Key := IndyTextEncoding_UTF8.GetBytes(FSecretKey);
-    Hash := HMAC.HashValue(IndyTextEncoding_UTF8.GetBytes(Data));
-    Base64Hash := TNetEncoding.Base64.EncodeBytesToString(Hash);
+    hmac.Key := IndyTextEncoding_UTF8.GetBytes(FSecretKey);
+    idHash := hmac.HashValue(IndyTextEncoding_UTF8.GetBytes(data));
+    base64Hash := TNetEncoding.Base64.EncodeBytesToString(idHash);
   finally
-    HMAC.Free;
+    hmac.Free;
   end;
   {$ENDIF}
     
-  Result := ToBase64Url(Base64Hash);
+  Result := ToBase64Url(base64Hash);
 end;
 
 destructor TJwtTokenHandler.Destroy;
@@ -395,7 +755,9 @@ begin
   Result.SecretKey := ASecretKey;
   Result.Issuer := '';
   Result.Audience := '';
-  Result.ExpirationMinutes := 60; // Default: 1 hour
+  Result.ExpirationMinutes := 60;
+  Result.Algorithm := 'HS256';
+  Result.PublicKey := '';
 end;
 
 { TJwtOptionsBuilder }
@@ -436,7 +798,20 @@ begin
   Result := Self;
 end;
 
-// Deprecated Implementation
+function TJwtOptionsBuilder.Algorithm(const AAlg: string): TJwtOptionsBuilder;
+begin
+  EnsureInitialized;
+  FOptions.Algorithm := AAlg;
+  Result := Self;
+end;
+
+function TJwtOptionsBuilder.PublicKey(const APubKey: string): TJwtOptionsBuilder;
+begin
+  EnsureInitialized;
+  FOptions.PublicKey := APubKey;
+  Result := Self;
+end;
+
 function TJwtOptionsBuilder.WithIssuer(const AIssuer: string): TJwtOptionsBuilder;
 begin
   Result := Issuer(AIssuer);
@@ -472,102 +847,123 @@ end;
 
 function TJwtTokenHandler.GenerateToken(const AClaims: TArray<TClaim>): string;
 var
-  HeaderStr, PayloadStr, Signature: string;
-  Claim: TClaim;
-  ExpirationTime: TDateTime;
-  PayloadJson: TStringBuilder;
+  headerStr, payloadStr, signature: string;
+  claim: TClaim;
+  expirationTime: TDateTime;
+  payloadJson: TStringBuilder;
 begin
-  // Create header - build JSON manually to avoid formatting
-  HeaderStr := Base64UrlEncode('{"alg":"HS256","typ":"JWT"}');
+  headerStr := Base64UrlEncode('{"alg":"HS256","typ":"JWT"}');
 
-  // Create payload - build JSON manually to avoid formatting
-  PayloadJson := TStringBuilder.Create;
+  payloadJson := TStringBuilder.Create;
   try
-    PayloadJson.Append('{');
+    payloadJson.Append('{');
     
-    // Add standard claims
     if FIssuer <> '' then
-      PayloadJson.AppendFormat('"iss":"%s",', [FIssuer]);
+      payloadJson.AppendFormat('"iss":"%s",', [FIssuer]);
     
     if FAudience <> '' then
-      PayloadJson.AppendFormat('"aud":"%s",', [FAudience]);
+      payloadJson.AppendFormat('"aud":"%s",', [FAudience]);
     
-    PayloadJson.AppendFormat('"iat":%d,', [DateTimeToUnix(Now)]);
+    payloadJson.AppendFormat('"iat":%d,', [DateTimeToUnix(Now)]);
     
-    ExpirationTime := IncMinute(Now, FExpirationMinutes);
-    PayloadJson.AppendFormat('"exp":%d', [DateTimeToUnix(ExpirationTime)]);
+    expirationTime := IncMinute(Now, FExpirationMinutes);
+    payloadJson.AppendFormat('"exp":%d', [DateTimeToUnix(expirationTime)]);
     
-    // Add custom claims
-    for Claim in AClaims do
-      PayloadJson.AppendFormat(',"%s":"%s"', [Claim.ClaimType, Claim.Value]);
+    for claim in AClaims do
+      payloadJson.AppendFormat(',"%s":"%s"', [claim.ClaimType, claim.Value]);
     
-    PayloadJson.Append('}');
-    PayloadStr := PayloadJson.ToString;
-    PayloadStr := Base64UrlEncode(PayloadStr);
+    payloadJson.Append('}');
+    payloadStr := payloadJson.ToString;
+    payloadStr := Base64UrlEncode(payloadStr);
   finally
-    PayloadJson.Free;
+    payloadJson.Free;
   end;
 
-  // Create signature
-  Signature := CreateSignature(HeaderStr, PayloadStr);
-  
-  Result := HeaderStr + '.' + PayloadStr + '.' + Signature;
+  signature := CreateSignature(headerStr, payloadStr);
+  Result := headerStr + '.' + payloadStr + '.' + signature;
 end;
 
 function TJwtTokenHandler.VerifySignature(const AToken: string): Boolean;
 var
-  Parts: TArray<string>;
-  ExpectedSignature: string;
+  dot1, dot2: Integer;
+  header, payload, signature: string;
+  expectedSignature: string;
 begin
-  Parts := AToken.Split(['.']);
-  if Length(Parts) <> 3 then
+  dot1 := AToken.IndexOf('.');
+  if dot1 < 0 then
     Exit(False);
   
-  ExpectedSignature := CreateSignature(Parts[0], Parts[1]);
-  Result := Parts[2] = ExpectedSignature;
+  dot2 := AToken.IndexOf('.', dot1 + 1);
+  if dot2 < 0 then
+    Exit(False);
+    
+  if AToken.IndexOf('.', dot2 + 1) >= 0 then
+    Exit(False);
+
+  header := AToken.Substring(0, dot1);
+  payload := AToken.Substring(dot1 + 1, dot2 - dot1 - 1);
+  signature := AToken.Substring(dot2 + 1);
+  
+  if FAlgorithm = 'RS256' then
+  begin
+    {$IFDEF MSWINDOWS}
+    Result := BCryptVerifyRS256(FPublicKey, header, payload, signature);
+    {$ELSE}
+    raise ENotSupportedException.Create('RS256 validation is only supported on Windows CNG currently.');
+    {$ENDIF}
+  end
+  else
+  begin
+    expectedSignature := CreateSignature(header, payload);
+    Result := signature = expectedSignature;
+  end;
 end;
 
 function TJwtTokenHandler.GetClaims(const AToken: string): TArray<TClaim>;
 var
-  Parts: TArray<string>;
-  PayloadJson: string;
-  Payload: TJSONObject;
-  Pair: TJSONPair;
-  Claims: IList<TClaim>;
-  Claim: TClaim;
+  dot1, dot2: Integer;
+  payloadJson: string;
+  payloadObj: TJSONObject;
+  pair: TJSONPair;
+  claimsList: IList<TClaim>;
+  claim: TClaim;
 begin
   SetLength(Result, 0);
   
-  Parts := AToken.Split(['.']);
-  if Length(Parts) <> 3 then
+  dot1 := AToken.IndexOf('.');
+  if dot1 < 0 then
+    Exit;
+  
+  dot2 := AToken.IndexOf('.', dot1 + 1);
+  if dot2 < 0 then
     Exit;
   
   try
-    PayloadJson := Base64UrlDecode(Parts[1]);
-    Payload := TJSONObject.ParseJSONValue(PayloadJson) as TJSONObject;
-    if Payload = nil then
+    payloadJson := Base64UrlDecode(AToken.Substring(dot1 + 1, dot2 - dot1 - 1));
+    payloadObj := TJSONObject.ParseJSONValue(payloadJson) as TJSONObject;
+    if payloadObj = nil then
       Exit;
     
     try
-      Claims := TCollections.CreateList<TClaim>;
-      for Pair in Payload do
+      claimsList := TCollections.CreateList<TClaim>;
+      for pair in payloadObj do
       begin
-        Claim.ClaimType := Pair.JsonString.Value;
-        if Pair.JsonValue is TJSONString then
-          Claim.Value := TJSONString(Pair.JsonValue).Value
-        else if Pair.JsonValue is TJSONNumber then
-          Claim.Value := TJSONNumber(Pair.JsonValue).ToString
-        else if Pair.JsonValue is TJSONBool then
-          Claim.Value := BoolToStr(TJSONBool(Pair.JsonValue).AsBoolean, True)
+        claim.ClaimType := pair.JsonString.Value;
+        if pair.JsonValue is TJSONString then
+          claim.Value := TJSONString(pair.JsonValue).Value
+        else if pair.JsonValue is TJSONNumber then
+          claim.Value := TJSONNumber(pair.JsonValue).ToString
+        else if pair.JsonValue is TJSONBool then
+          claim.Value := BoolToStr(TJSONBool(pair.JsonValue).AsBoolean, True)
         else
-          Claim.Value := Pair.JsonValue.ToString;
+          claim.Value := pair.JsonValue.ToString;
         
-        Claims.Add(Claim);
+        claimsList.Add(claim);
       end;
       
-      Result := Claims.ToArray;
+      Result := claimsList.ToArray;
     finally
-      Payload.Free;
+      payloadObj.Free;
     end;
   except
     SetLength(Result, 0);
@@ -576,48 +972,45 @@ end;
 
 function TJwtTokenHandler.ValidateToken(const AToken: string): TJwtValidationResult;
 var
-  Claims: TArray<TClaim>;
-  Claim: TClaim;
-  ExpClaim: string;
-  ExpTime: Int64;
-  IssuerFound, AudienceFound: Boolean;
+  claims: TArray<TClaim>;
+  claim: TClaim;
+  expClaim: string;
+  expTime: Int64;
+  issuerFound, audienceFound: Boolean;
 begin
   Result.IsValid := False;
   Result.ErrorMessage := '';
   SetLength(Result.Claims, 0);
   
-  // Verify signature
   if not VerifySignature(AToken) then
   begin
     Result.ErrorMessage := 'Invalid signature';
     Exit;
   end;
   
-  // Get claims
-  Claims := GetClaims(AToken);
-  if Length(Claims) = 0 then
+  claims := GetClaims(AToken);
+  if Length(claims) = 0 then
   begin
     Result.ErrorMessage := 'Invalid token format';
     Exit;
   end;
   
-  // Check expiration
-  ExpClaim := '';
-  for Claim in Claims do
+  expClaim := '';
+  for claim in claims do
   begin
-    if Claim.ClaimType = 'exp' then
+    if claim.ClaimType = 'exp' then
     begin
-      ExpClaim := Claim.Value;
+      expClaim := claim.Value;
       Break;
     end;
   end;
   
-  if ExpClaim <> '' then
+  if expClaim <> '' then
   begin
-    ExpTime := StrToInt64Def(ExpClaim, 0);
-    if ExpTime > 0 then
+    expTime := StrToInt64Def(expClaim, 0);
+    if expTime > 0 then
     begin
-      if DateTimeToUnix(Now) > ExpTime then
+      if DateTimeToUnix(Now) > expTime then
       begin
         Result.ErrorMessage := 'Token expired';
         Exit;
@@ -625,40 +1018,38 @@ begin
     end;
   end;
   
-  // Validate issuer if configured
   if FIssuer <> '' then
   begin
-    IssuerFound := False;
-    for Claim in Claims do
+    issuerFound := False;
+    for claim in claims do
     begin
-      if (Claim.ClaimType = 'iss') and (Claim.Value = FIssuer) then
+      if (claim.ClaimType = 'iss') and (claim.Value = FIssuer) then
       begin
-        IssuerFound := True;
+        issuerFound := True;
         Break;
       end;
     end;
     
-    if not IssuerFound then
+    if not issuerFound then
     begin
       Result.ErrorMessage := 'Invalid issuer';
       Exit;
     end;
   end;
   
-  // Validate audience if configured
   if FAudience <> '' then
   begin
-    AudienceFound := False;
-    for Claim in Claims do
+    audienceFound := False;
+    for claim in claims do
     begin
-      if (Claim.ClaimType = 'aud') and (Claim.Value = FAudience) then
+      if (claim.ClaimType = 'aud') and (claim.Value = FAudience) then
       begin
-        AudienceFound := True;
+        audienceFound := True;
         Break;
       end;
     end;
     
-    if not AudienceFound then
+    if not audienceFound then
     begin
       Result.ErrorMessage := 'Invalid audience';
       Exit;
@@ -666,10 +1057,7 @@ begin
   end;
   
   Result.IsValid := True;
-  Result.Claims := Claims;
+  Result.Claims := claims;
 end;
 
 end.
-
-
-

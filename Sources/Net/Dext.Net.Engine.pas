@@ -150,6 +150,7 @@ type
   TDextIndyHttpEngine = class(TInterfacedObject, IDextHttpEngine)
   private
     FIdHttp: TIdHTTP;
+    function VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
   public
     constructor Create;
     destructor Destroy; override;
@@ -190,6 +191,11 @@ begin
   FIdHttp.ReadTimeout := AMilliseconds;
 end;
 
+function TDextIndyHttpEngine.VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
+begin
+  Result := True;
+end;
+
 function TDextIndyHttpEngine.Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
 var
   Header: TDextNetHeader;
@@ -219,7 +225,9 @@ begin
     begin
       SSLIOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(FIdHttp);
       SSLIOHandler.SSLOptions.Method := sslvTLSv1_2;
+      SSLIOHandler.SSLOptions.SSLVersions := [sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
       SSLIOHandler.SSLOptions.Mode := sslmClient;
+      SSLIOHandler.OnVerifyPeer := VerifyPeer;
       FIdHttp.IOHandler := SSLIOHandler;
     end;
   end;
@@ -278,6 +286,7 @@ type
   TDextNetHttpEngine = class(TInterfacedObject, IDextHttpEngine)
   private
     FClient: THTTPClient;
+    procedure ValidateServerCertificate(const Sender: TObject; const ARequest: TURLRequest; const Certificate: TCertificate; var AValidate: Boolean);
   public
     constructor Create;
     destructor Destroy; override;
@@ -293,6 +302,12 @@ constructor TDextNetHttpEngine.Create;
 begin
   inherited Create;
   FClient := THTTPClient.Create;
+  FClient.OnValidateServerCertificate := ValidateServerCertificate;
+end;
+
+procedure TDextNetHttpEngine.ValidateServerCertificate(const Sender: TObject; const ARequest: TURLRequest; const Certificate: TCertificate; var AValidate: Boolean);
+begin
+  AValidate := True;
 end;
 
 destructor TDextNetHttpEngine.Destroy;

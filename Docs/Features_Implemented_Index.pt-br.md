@@ -762,6 +762,27 @@ O framework inclui suporte para desacoplamento de transporte no servidor IOCP/Ep
 - **Roteador Trie Tree** — Árvore Trie customizada para correspondência eficiente de tópicos com suporte completo aos coringas de nível único (`+`) e múltiplos níveis (`#`).
 - **Broker Server e Client** — Servidor broker concorrente com suporte a sessões limpas e controle de assinaturas, e cliente assíncrono com thread de recebimento dedicada e keep-alive automático via ping/pong.
 
+## 🔐 22. Segurança, Identidade & Autorização (S06) (`Sources\Web`, `Tests\Web`)
+
+O Dext possui um motor nativo de segurança e identidade baseado nos padrões de mercado (JWT, OAuth2 e OpenID Connect), garantindo conformidade empresarial com alta performance.
+
+### 22.1 Engine Criptográfica e Validação JWT (`Dext.Auth.JWT`)
+- **TJwtTokenHandler** — Gerenciador completo de JSON Web Tokens (JWT) com suporte nativo à assinatura HS256 e validação assimétrica RS256.
+- **Integração com Windows CNG** — Validação e assinatura de alto desempenho utilizando as APIs de criptografia nativas do Windows (`bcrypt.dll`) de forma dinâmica, com fallback transparente para `System.Hash` (Delphi XE8+) ou Indy/OpenSSL para máxima compatibilidade.
+- **Parsing Otimizado** — Análise estruturada de tokens JWT usando indexadores de string (`IndexOf`) e spans de memória, eliminando alocações desnecessárias no heap.
+- **Tratamento de Claims** — Estrutura de Claims flexível (`TClaim`) e builder fluente de identidades (`TClaimsBuilder`).
+
+### 22.2 Middleware de Autenticação JWT (`Dext.Auth.Middleware`)
+- **TJwtAuthenticationMiddleware** — Middleware de pipeline HTTP que extrai o token do cabeçalho `Authorization: Bearer`, valida sua assinatura, tempo de expiração (`exp`), emissor (`iss`) e audiência (`aud`), e injeta o principal (`IClaimsPrincipal`) no contexto da requisição (`IHttpContext.User`).
+
+### 22.3 Autorização Declarativa e Baseada em Políticas (`Dext.Auth.Attributes`, `Dext.Auth.Identity`)
+- **Atributos de Autorização** — Atributos `[Authorize]` e `[AllowAnonymous]` para proteção declarativa de controllers e actions.
+- **Validação de Roles** — Controle de acesso baseado em roles diretamente no fluxo de execução do dispatcher de rotas.
+- **Motor de Políticas** — Registro e avaliação de políticas customizadas em runtime através do `TAuthorizationPolicyRegistry` (ex: política de idade mínima ou escopos de acesso).
+
+### 22.4 Provedores de Identidade Externos (OIDC)
+- **Métodos Plug-and-Play** — Extensões para configuração expressa de provedores externos via OIDC: `UseGoogleAuthentication`, `UseEntraIdAuthentication` (Azure AD) e `UseKeycloakAuthentication`.
+
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jun 29, 2026).*
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 01, 2026).*
