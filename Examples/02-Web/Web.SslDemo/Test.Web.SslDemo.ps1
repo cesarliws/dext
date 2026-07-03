@@ -2,8 +2,8 @@
 # Tests the server in HTTPS mode by default (ignoring cert errors)
 
 $ErrorActionPreference = "Stop"
-$baseUrl = "https://localhost:8080"
-#$baseUrl = "http://localhost:8080" # It is running HTTP
+#$baseUrl = "https://localhost:8080"
+$baseUrl = "http://localhost:8080" # It is running HTTP
 
 Write-Host "Testing Web.SslDemo" -ForegroundColor Cyan
 Write-Host "===================" -ForegroundColor Cyan
