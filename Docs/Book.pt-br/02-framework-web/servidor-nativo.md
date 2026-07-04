@@ -66,6 +66,28 @@ begin
 end;
 ```
 
+## Gerenciamento de Threads com epoll no Linux
+
+No Linux, o Dext implementa uma **Arquitetura Multi-Reactor** de alta performance combinada com balanceamento de carga ao nível de socket.
+
+Em vez de ter uma única thread aceitando conexões e distribuindo-as para threads de trabalho (o que geraria um gargalo de disputa), o Dext distribui os loops de eventos diretamente na camada do sistema operacional:
+
+1. **Multi-Reactor com SO_REUSEPORT**:
+   Ao iniciar o servidor, o Dext cria um pool de threads de trabalho (`TDextEpollWorker`) correspondente à contagem de núcleos de CPU do sistema por padrão. Cada thread de trabalho possui sua própria instância isolada do `epoll` (`epoll_create1`) e faz o bind na mesma porta/IP de escuta utilizando a opção de socket `SO_REUSEPORT`. O kernel do Linux se encarrega de balancear as conexões de entrada diretamente entre os loops epoll de cada thread, eliminando a contenção na chamada `accept`.
+
+2. **Loop de Eventos Edge-Triggered e One-Shot**:
+   Cada worker thread monitora suas conexões no modo Edge-Triggered (`EPOLLET`) e One-Shot (`EPOLLONESHOT`). Essa combinação garante:
+   - Máxima eficiência em notificações do `epoll_wait`.
+   - Segurança de threads absoluta: uma vez que um socket cliente dispara um evento e é capturado por um worker, ele não disparará em nenhum outro loop de trabalho até que seja explicitamente rearmado.
+
+3. **Despacho Assíncrono de Requisições**:
+   Quando a thread de trabalho termina de ler e fazer o parse completo da requisição HTTP, ela não executa o manipulador da requisição de forma síncrona. Em vez disso, ela despacha a execução da lógica de negócios para o Pool de Threads padrão do Delphi (`TTask.Run`). Isso desacopla totalmente a E/S de rede (Network I/O) da lógica da aplicação, impedindo que requisições lentas ou chamadas bloqueantes a banco de dados travem o loop de rede.
+
+4. **Escrita Assíncrona e Rearme da Conexão**:
+   - A thread do pool processa a requisição e gera a resposta HTTP.
+   - Caso a resposta não possa ser completamente transmitida em uma única chamada de sistema `writev` não-bloqueante, o restante dos dados é agendado no epoll do worker sob o evento `EPOLLOUT` para ser escrito de forma assíncrona.
+   - Assim que a escrita é finalizada, a conexão é rearmada no loop epoll para novas requisições (Keep-Alive) ou é fechada de forma limpa.
+
 ## Escalonamento de Windows Processor Groups
 
 Em máquinas Windows com alta contagem de núcleos (mais de 64 processadores lógicos), o sistema operacional divide os núcleos da CPU em **Processor Groups** (máximo de 64 núcleos por grupo). Por padrão, um processo é atribuído a apenas um grupo inicial, fazendo com que todos os outros grupos de núcleos fiquem ociosos.

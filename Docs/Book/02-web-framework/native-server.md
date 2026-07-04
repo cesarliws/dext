@@ -66,6 +66,28 @@ begin
 end;
 ```
 
+## Linux epoll Thread Management
+
+On Linux, Dext implements a high-performance **Multi-Reactor Architecture** combined with socket-level load balancing. 
+
+Instead of a single thread accepting connections and dispatching them to worker threads (which creates a bottleneck), Dext distributes event loops at the OS level:
+
+1. **Multi-Reactor with SO_REUSEPORT**: 
+   When the engine starts, it spawns a pool of worker threads (`TDextEpollWorker`) defaulting to the number of CPU cores. Each worker thread runs its own independent `epoll` instance (`epoll_create1`) and binds to the exact same listening address/port using the socket option `SO_REUSEPORT`. This allows the Linux kernel to automatically load-balance incoming TCP connection requests across the worker threads' event loops at the kernel level, achieving zero-overhead connection acceptance.
+
+2. **Edge-Triggered and One-Shot Event Loop**:
+   Each worker thread monitors its sockets in Edge-Triggered (`EPOLLET`) and One-Shot (`EPOLLONESHOT`) mode. This configuration guarantees:
+   - Max efficiency of `epoll_wait` notifications.
+   - Strict thread-safety: once a client socket registers an event, it will not trigger on any other worker's loop until explicitly re-armed.
+
+3. **Asynchronous Request Dispatching**:
+   Once a worker thread detects an incoming request, it reads and parses the HTTP payload into memory. If the parsing succeeds, it does not process the user request synchronously. Instead, it dispatches the request to the global Delphi Thread Pool (`TTask.Run`). This decouples network I/O from application business logic, preventing slow request handlers or blocking database calls from starving the socket event loops.
+
+4. **Asynchronous Writing and Connection Rearming**:
+   - The thread pool thread processes the request and writes the response.
+   - If the response cannot be completely sent in a single non-blocking `writev` system call, the remaining buffer is registered for `EPOLLOUT` events, which are handled by the worker thread's event loop to avoid blocking the worker or the thread pool.
+   - Once all response data is written, the socket is either re-armed for the next request (keep-alive) or gracefully shut down/closed.
+
 ## Windows Processor Groups Scaling
 
 On high-core Windows machines (more than 64 logical processors), the OS partitions CPU cores into **Processor Groups** (max 64 cores per group). By default, a process is bound to a single group, leaving all other groups completely idle.
