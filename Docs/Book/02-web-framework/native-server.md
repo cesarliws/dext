@@ -88,6 +88,15 @@ Instead of a single thread accepting connections and dispatching them to worker 
    - If the response cannot be completely sent in a single non-blocking `writev` system call, the remaining buffer is registered for `EPOLLOUT` events, which are handled by the worker thread's event loop to avoid blocking the worker or the thread pool.
    - Once all response data is written, the socket is either re-armed for the next request (keep-alive) or gracefully shut down/closed.
 
+5. **Advanced Linux Kernel Optimizations**:
+   - **Thread Core Affinity (CPU Pinning)**: Binds each `TDextEpollWorker` thread to a dedicated physical CPU core using `pthread_setaffinity_np` to eliminate context switching, thread migration, and CPU cache thrashing.
+   - **TCP_DEFER_ACCEPT**: Postpones waking up worker threads until client data is received, minimizing idle wake-ups from empty TCP connections.
+   - **TCP Fast Open (TFO)**: Allows incoming SYN packets to carry HTTP request payloads, saving one RTT for recurring clients.
+   - **Zero-Copy File Transmission (sendfile)**: Serving static files via `sendfile()` streams the file descriptor data directly into the network socket at the kernel level, skipping user-space heap allocations.
+   - **Context Pooling**: Workers reuse pre-allocated connection contexts (`TDextEpollContext`) to avoid heap fragmentation and Garbage Collector overhead.
+   - **Keep-Alive & Timeout Drainage**: Integrated socket Keep-Alive configurations alongside an active worker sweep that automatically terminates idle connections (>15s) under high descriptor pressure.
+   - **SO_LINGER Graceful Close**: Avoids dropping packets on termination by enforcing socket lingering.
+
 ## Windows Processor Groups Scaling
 
 On high-core Windows machines (more than 64 logical processors), the OS partitions CPU cores into **Processor Groups** (max 64 cores per group). By default, a process is bound to a single group, leaving all other groups completely idle.

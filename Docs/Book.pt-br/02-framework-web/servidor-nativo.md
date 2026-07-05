@@ -88,6 +88,15 @@ Em vez de ter uma única thread aceitando conexões e distribuindo-as para threa
    - Caso a resposta não possa ser completamente transmitida em uma única chamada de sistema `writev` não-bloqueante, o restante dos dados é agendado no epoll do worker sob o evento `EPOLLOUT` para ser escrito de forma assíncrona.
    - Assim que a escrita é finalizada, a conexão é rearmada no loop epoll para novas requisições (Keep-Alive) ou é fechada de forma limpa.
 
+5. **Otimizações Avançadas no Kernel do Linux**:
+   - **Afinidade de Núcleo (CPU Pinning)**: Vincula cada thread `TDextEpollWorker` a um núcleo físico de CPU dedicado usando `pthread_setaffinity_np` para eliminar trocas de contexto e degradação de cache.
+   - **TCP_DEFER_ACCEPT**: Adia o despertar de worker threads até que dados úteis do cliente cheguem, reduzindo desperdício com conexões vazias.
+   - **TCP Fast Open (TFO)**: Permite que pacotes SYN iniciais tragam dados de requisição, economizando um RTT.
+   - **Transmissão Zero-Copy (sendfile)**: Transmissão de arquivos via `sendfile()` transfere dados diretamente do descritor de arquivo para o descritor de rede no nível do kernel, sem alocar memória em espaço do usuário.
+   - **Context Pooling**: Reutiliza instâncias de `TDextEpollContext` a partir de um pool local da thread de trabalho, mitigando fragmentação de heap.
+   - **Gerenciamento de Timeouts & Keep-Alive**: Limpeza ativa de sockets inativos (>15s) e configurações finas de keep-alive a nível de kernel para evitar esgotamento de descritores de arquivo.
+   - **SO_LINGER e Drenagem**: Encerramento controlado usando a opção `SO_LINGER` para garantir o envio total de pacotes pendentes antes do fechamento.
+
 ## Escalonamento de Windows Processor Groups
 
 Em máquinas Windows com alta contagem de núcleos (mais de 64 processadores lógicos), o sistema operacional divide os núcleos da CPU em **Processor Groups** (máximo de 64 núcleos por grupo). Por padrão, um processo é atribuído a apenas um grupo inicial, fazendo com que todos os outros grupos de núcleos fiquem ociosos.

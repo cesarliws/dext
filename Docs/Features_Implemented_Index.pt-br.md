@@ -785,4 +785,14 @@ O Dext possui um motor nativo de segurança e identidade baseado nos padrões de
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 01, 2026).*
+## 🚀 23. Evolução do Motor Epoll no Linux (S50) (`Sources\Server`)
+
+- **Afinidade de Núcleo (CPU Pinning)**: Vinculação automática de threads de rede (`TDextEpollWorker`) a núcleos de CPU dedicados via `pthread_setaffinity_np` para reduzir trocas de contexto e degradação de cache.
+- **Otimizações de Pré-Aceitação**: Uso de `TCP_DEFER_ACCEPT` no socket servidor para evitar desperdício de wake-ups e `TCP_FASTOPEN` (TFO) para suportar envio de dados no handshake SYN.
+- **Transmissão Zero-Copy via sendfile**: Transmissão direta de arquivos em sockets não-bloqueantes usando a chamada de sistema do kernel `sendfile`, eliminando buffers e cópias em espaço do usuário.
+- **Pool de Contexto Zero-Allocation**: Reutilização de descritores de conexões (`TDextEpollContext`) por meio de pools locais de cada thread de trabalho, evitando fragmentação do heap sob alta concorrência.
+- **Varredura Ativa de Keep-Alive**: Monitoramento ativo de inatividade de descritores fechando conexões ociosas (>15s) e configuração refinada de keep-alive a nível de kernel com opção de fechamento limpo via `SO_LINGER`.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 05, 2026).*

@@ -174,6 +174,11 @@ type
     /// <param name="AOffset">The zero-based byte offset in ABuffer from which to begin writing.</param>
     /// <param name="ACount">The number of bytes to write.</param>
     procedure Write(const ABuffer: TBytes; AOffset, ACount: Integer);
+    /// <summary>Writes a file directly to the response socket using zero-copy transmission.</summary>
+    /// <param name="APath">The path to the file to serve.</param>
+    /// <param name="AOffset">The byte offset from where to start reading the file.</param>
+    /// <param name="ACount">The number of bytes to send. If <= 0, serves until the end of the file.</param>
+    procedure WriteFile(const APath: string; AOffset, ACount: Int64);
     /// <summary>Flushes any buffered response data to the network.</summary>
     procedure Flush;
     /// <summary>Closes the response stream and connection.</summary>
@@ -584,6 +589,40 @@ begin
   {$ELSE}
   WSASend(FSocket, @WsaBuf, 1, BytesSent, 0, nil, nil);
   {$IFEND}
+end;
+
+procedure TDextIocpResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
+var
+  FileStream: TFileStream;
+  Buffer: TBytes;
+  Remaining: Int64;
+  Chunk: Integer;
+begin
+  if not FHeadersSent then
+    SendHeaders;
+
+  FileStream := TFileStream.Create(APath, fmOpenRead or fmShareDenyWrite);
+  try
+    FileStream.Position := AOffset;
+    Remaining := ACount;
+    if Remaining <= 0 then
+      Remaining := FileStream.Size - AOffset;
+
+    SetLength(Buffer, 32768);
+    while Remaining > 0 do
+    begin
+      if Remaining > Length(Buffer) then
+        Chunk := Length(Buffer)
+      else
+        Chunk := Remaining;
+
+      FileStream.ReadBuffer(Buffer[0], Chunk);
+      Write(Buffer, 0, Chunk);
+      Remaining := Remaining - Chunk;
+    end;
+  finally
+    FileStream.Free;
+  end;
 end;
 
 { TDextIocpWorker }

@@ -352,13 +352,18 @@ Units: `Dext.Server.HttpSys`, `Dext.Server.Epoll`, `Dext.Server.Native`
 
 The Native Server Engine is a zero-dependency high-performance HTTP server engine driver. Unlike DCS (which is a third-party library) or Indy (blocking), the Native Server Engine maps directly to OS-level kernel/system features:
 - **Windows**: Kernel-mode HTTP Server API (`http.sys`) with asynchronous completion ports.
-- **Linux**: Non-blocking raw TCP sockets driven by the Linux `epoll` system calls.
+- **Linux**: Non-blocking raw TCP sockets driven by the Linux `epoll` system calls with advanced kernel-level enhancements.
 
 ### Architecture & Key Features
 - **Zero-Allocation HTTP Parsing**: Uses `TDextIocpHttpParser` for lightning-fast parsing of HTTP/1.1 headers without intermediate heap allocations.
 - **Kernel-level Caching (Windows)**: `http.sys` caches static resources and maps requests directly inside the Windows kernel, maximizing throughput.
 - **No Third-Party Dependency**: Clean implementation without external DLLs (no OpenSSL DLLs required on Windows for HTTPS, as `http.sys` utilizes SChannel).
 - **Windows Processor Groups**: On high-core machines (>64 logical processors), the engine automatically queries system-wide topology (via `Dext.Threading.ProcessorGroups`) and distributes its I/O worker threads across all available groups and NUMA nodes using `SetThreadGroupAffinity` to achieve linear scaling beyond the 64-core barrier.
+- **Linux Core Affinity Pinning**: Workers automatically pin themselves to specific CPU cores via `pthread_setaffinity_np` to prevent thread migration overhead and context switches.
+- **Kernel-assisted Accept Balancing**: Utilizes listener-level `TCP_DEFER_ACCEPT` to postpone wake-ups until incoming payload arrives, and `TCP_FASTOPEN` (TFO) to allow SYN payloads.
+- **Zero-Copy sendfile()**: Serves static files directly from the file descriptor to the socket descriptor inside the event loop using zero-copy `sendfile` system calls.
+- **Worker-Local Context Pooling**: Features a lock-free, zero-allocation pre-allocated connection context pool (`TDextEpollContext`) to mitigate heap allocations during high request rates.
+- **Graceful Linger & Sweeps**: Implements `SO_LINGER` connection teardown and active keep-alive idle connection sweeps (sweeping idle connections >15 seconds).
 
 ### Native Bootstrap
 

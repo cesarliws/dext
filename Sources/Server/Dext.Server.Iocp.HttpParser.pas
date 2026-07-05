@@ -159,7 +159,6 @@ var
   LineEnd: Integer;
   Space1: Integer;
   Space2: Integer;
-  UrlEnd: Integer;
   QueryStart: Integer;
   Colon: Integer;
   Seg: THeaderSegment;
@@ -201,7 +200,6 @@ begin
   AMethod := GetMethodString(ABuffer, 0, Space1);
 
   // URL / Path & Query
-  UrlEnd := Space2;
   QueryStart := FindByte(ABuffer, Space1 + 1, Space2, 63); // '?' character
   
   PathStart := Space1 + 1;

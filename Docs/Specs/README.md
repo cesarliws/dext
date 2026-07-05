@@ -55,7 +55,7 @@ ID | Title | Status | Goal
 **S47** | [Expose TCP/UDP & MQTT Server/Client](S47-Network-Exposing.md) | ✅ Finalized | Decouple IOCP/Epoll engine to expose raw TCP/UDP sockets and implement MQTT protocol stack.
 **S48** | [Processor Groups](S48-Processor-Groups.md) | ✅ Finalized | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
 **S49** | [HTTP QUERY Method](S49-Http-Query-Method.md) | ✅ Finalized | Standardized HTTP QUERY method support (RFC 10008) on client and server.
-**S50** | [Linux Epoll Server Engine Evolution](S50-Linux-Epoll-Evolution.md) | 📝 Proposed | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, lock-free buffer pooling, and keep-alive timing wheels.
+**S50** | [Linux Epoll Server Engine Evolution](S50-Linux-Epoll-Evolution.md) | ✅ Finalized | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, lock-free buffer pooling, and keep-alive timing wheels.
 
 ---
 
