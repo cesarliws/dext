@@ -415,10 +415,16 @@ begin
 
   Host := Builder.Build as IWebApplication;
 
-  if SameText(AEngine, '-httpsys') or SameText(AEngine, 'httpsys') then
+  if SameText(AEngine, '-httpsys') or SameText(AEngine, 'httpsys') or
+     SameText(AEngine, '-epoll') or SameText(AEngine, 'epoll') or
+     SameText(AEngine, '-native') or SameText(AEngine, 'native') then
   begin
     Host.UseNativeServer;
+    {$IFDEF MSWINDOWS}
     Writeln('Starting http.sys server on http://127.0.0.1:8085/ping');
+    {$ELSE}
+    Writeln('Starting Epoll server on http://127.0.0.1:8085/ping');
+    {$ENDIF}
     Host.Start(8085);
   end
   else if SameText(AEngine, '-indy') or SameText(AEngine, 'indy') then

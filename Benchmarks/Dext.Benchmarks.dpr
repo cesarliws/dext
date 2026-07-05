@@ -33,6 +33,11 @@ begin
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
-  Write('Press [ENTER] to finish');
-  ReadLn;
+  {$IFDEF MSWINDOWS}
+  if not FindCmdLineSwitch('non-interactive', ['-', '/'], True) then
+  begin
+    Write('Press [ENTER] to finish');
+    ReadLn;
+  end;
+  {$ENDIF}
 end.

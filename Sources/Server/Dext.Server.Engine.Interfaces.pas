@@ -125,6 +125,8 @@ type
     /// <param name="AOffset">The zero-based byte offset in ABuffer.</param>
     /// <param name="ACount">The number of bytes to write.</param>
     procedure Write(const ABuffer: TBytes; AOffset, ACount: Integer);
+    /// <summary>Writes a file directly to the response socket using zero-copy transmission.</summary>
+    procedure WriteFile(const APath: string; AOffset, ACount: Int64);
     /// <summary>Flushes any buffered response data to the underlying transport.</summary>
     procedure Flush;
     /// <summary>Closes the HTTP response, finishing the request lifecycle.</summary>

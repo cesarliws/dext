@@ -29,7 +29,7 @@ From the root workspace directory, run:
 Powershell -ExecutionPolicy Bypass -File .\DelphiBuildDPROJ.ps1 -ProjectFile ".\DextRepository\Benchmarks\Dext.Benchmarks.dproj" -Config Release -Platform Win32
 ```
 
-### B. Via Direct MSBuild Command
+### B. Via Direct MSBuild Command (Windows)
 From the `Benchmarks` directory, call `rsvars.bat` and compile:
 ```powershell
 # Load Delphi environment variables
@@ -38,6 +38,17 @@ call "C:\Program Files (x86)\Embarcadero\Studio\37.0\bin\rsvars.bat"
 # Compile clean Release build
 msbuild Dext.Benchmarks.dproj /t:Clean;Build /p:Config=Release /p:Platform=Win32 /v:minimal /nologo
 ```
+
+### C. Compiling for Linux (Cross-Compilation)
+To compile for Linux64 using Delphi's cross compiler from Windows, run:
+```powershell
+# Using the Universal Builder Script
+Powershell -ExecutionPolicy Bypass -File .\DelphiBuildDPROJ.ps1 -ProjectFile ".\DextRepository\Benchmarks\Dext.Benchmarks.dproj" -Config Release -Platform Linux64
+
+# Or via Direct MSBuild Command
+msbuild Dext.Benchmarks.dproj /t:Clean;Build /p:Config=Release /p:Platform=Linux64 /v:minimal /nologo
+```
+*Note: Make sure you have the Linux SDK configured in your RAD Studio IDE connection manager to allow successful cross-compilation.*
 
 ---
 
@@ -124,3 +135,46 @@ Statistics        Avg      Stdev        Max
 ```
 * **Reqs/sec (RPS)**: The total number of requests processed by Dext per second (higher is better).
 * **Latency**: Response time to clients. `http.sys` should average ~11ms under 125 concurrent connections, maintaining low latency spikes.
+
+---
+
+## 🐧 Testing Benchmarks on Linux
+
+Dext contains a high-performance native `epoll` socket server engine built specifically for Linux. You can compile and benchmark Dext directly on Linux to compare performance.
+
+### 1. Compile the Benchmark for Linux
+You can cross-compile the binary from Windows to Linux64 (refer to the **How to Compile - C** section above). The compiled binary `Dext.Benchmarks` will be outputted to:
+```
+DextRepository\Output\37.0\Linux64\Release\Dext.Benchmarks
+```
+Copy this binary to your target Linux system.
+
+### 2. Standalone Server with Epoll
+Execute the standalone Dext server using the high-performance native `epoll` engine on Linux:
+```bash
+# Allow executing the binary
+chmod +x ./Dext.Benchmarks
+
+# Start the epoll server (defaults to port 8085)
+./Dext.Benchmarks --server -epoll
+```
+*(Note: Bypassing http.sys on Linux, `-epoll` or `-native` will automatically instantiate the `TDextEpollEngine` sockets.)*
+
+### 3. Load Testing with Bombardier on Linux
+To stress-test your server on Linux:
+1. **Download Bombardier**: Get the pre-compiled binary for Linux from the [Bombardier Releases page](https://github.com/codesenberg/bombardier/releases):
+   ```bash
+   wget https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64
+   chmod +x bombardier-linux-amd64
+   ```
+2. **Execute Stress Test**: Send a load of 125 concurrent connections for 10 seconds to the epoll server:
+   ```bash
+   ./bombardier-linux-amd64 -c 125 -d 10s http://127.0.0.1:8085/ping
+   ```
+
+### 4. Running Microbenchmarks on Linux
+To run the in-memory, routing, and ORM Google/Spring microbenchmarks on Linux:
+```bash
+./Dext.Benchmarks --benchmark_repetitions=3
+```
+*The `ReadLn` console blocking is automatically bypassed on non-Windows platforms so the suite runs cleanly inside Linux shell scripts and CI environments without hanging.*

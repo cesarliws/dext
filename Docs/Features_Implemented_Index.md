@@ -966,4 +966,14 @@ Dext features a native, high-performance security and identity engine based on i
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 01, 2026).*
+## 🚀 23. Linux Epoll Server Engine Evolution (S50) (`Sources\Server`)
+
+- **Thread Core Affinity (CPU Pinning)**: Auto-binding of I/O worker threads (`TDextEpollWorker`) to dedicated CPU cores via `pthread_setaffinity_np` to avoid scheduler migration overhead and maximize cache locality.
+- **Kernel-level Pre-acceptance Optimization**: Implements socket-level `TCP_DEFER_ACCEPT` to postpone worker wake-ups until incoming payload arrives, and `TCP_FASTOPEN` (TFO) to support payload transmission in the initial SYN packet.
+- **Zero-Copy File Transmission (sendfile)**: Integrated support for direct file streaming using the non-blocking kernel `sendfile` system call, bypassing user-space copy buffers.
+- **Context Allocation Pooling**: Features a lock-free, thread-safe pre-allocated connection context pool (`TDextEpollContext`) to completely avoid heap fragmentation during highly concurrent connection spikes.
+- **Active Keep-Alive Sweep**: High-efficiency background sweep monitoring connection activity timestamps, automatically terminating idle descriptors (>15 seconds) under descriptor pressure, coupled with `SO_LINGER` socket teardown.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 05, 2026).*

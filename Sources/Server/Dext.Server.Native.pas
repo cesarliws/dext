@@ -667,7 +667,15 @@ procedure TDextNativeHttpResponse.Write(const AStream: TStream);
 var
   Buffer: TBytes;
   ReadBytes: Integer;
+  FileStream: TFileStream;
 begin
+  if AStream is TFileStream then
+  begin
+    FileStream := TFileStream(AStream);
+    FRawResponse.WriteFile(FileStream.FileName, 0, FileStream.Size);
+    Exit;
+  end;
+
   SetLength(Buffer, 32768);
   AStream.Position := 0;
   while True do
