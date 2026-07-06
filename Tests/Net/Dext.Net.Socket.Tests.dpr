@@ -14,7 +14,9 @@ uses
   Dext.Net.Udp in '..\..\Sources\Net\Dext.Net.Udp.pas',
   Dext.Net.Mqtt.Parser in '..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas',
   Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas',
-  Dext.Net.Mqtt.Tests in 'Dext.Net.Mqtt.Tests.pas';
+  Dext.Net.Mqtt.Tests in 'Dext.Net.Mqtt.Tests.pas',
+  Dext.Net.Redis in '..\..\Sources\Net\Dext.Net.Redis.pas',
+  Dext.Net.Redis.Tests in 'Dext.Net.Redis.Tests.pas';
 
 begin
   SetConsoleCharSet;
@@ -24,7 +26,9 @@ begin
       .RegisterFixtures([
         TDextTcpTests,
         TDextUdpTests,
-        TDextMqttTests
+        TDextMqttTests,
+        TDextRedisParserTests,
+        TDextRedisClientTests
       ]));
   except
     on error: Exception do

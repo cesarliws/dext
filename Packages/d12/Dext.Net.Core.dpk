@@ -1,4 +1,4 @@
-﻿package Dext.Net.Core;
+package Dext.Net.Core;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -45,6 +45,7 @@ contains
   Dext.Net.Tcp in '..\..\Sources\Net\Dext.Net.Tcp.pas',
   Dext.Net.Udp in '..\..\Sources\Net\Dext.Net.Udp.pas',
   Dext.Net.Mqtt.Parser in '..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas',
-  Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas';
+  Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas',
+  Dext.Net.Redis in '..\..\Sources\Net\Dext.Net.Redis.pas';
 
 end.

@@ -795,4 +795,24 @@ O Dext possui um motor nativo de segurança e identidade baseado nos padrões de
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 05, 2026).*
+## ⚡ 24. Cliente Redis Nativo (S13) (`Sources\Net`, `Tests\Net`)
+
+O Dext inclui uma biblioteca cliente nativa e de alta performance para o Redis, suportando os protocolos RESP2 e RESP3. Ele conta com otimizações de parsing zero-allocation, connection pooling integrado, pipelines assíncronos de comandos via `TAsyncTask` e processamento de Pub/Sub concorrente utilizando canais.
+
+### 24.1 Serialização de Alta Performance (RESP2/RESP3)
+- **Parser Zero-Allocation** — O `TDextRedisParser` analisa os streams de bytes RESP sem alocações desnecessárias no heap usando spans de memória (`TByteSpan`).
+- **Novos Tipos do RESP3** — Suporte nativo para os novos tipos de retorno do RESP3: Nulos (`_`), Booleanos (`#`) e Double Floats (`,`).
+
+### 24.2 Connection Pool & Thread Safety
+- **TDextRedisConnectionPool** — Pool de conexões seguro e concorrente (`IStack<TDextRedisConnection>`) para evitar custos de conexão repetida e gerenciar recursos de forma eficiente.
+- **Comandos Thread-Safe** — Gerenciamento transparente na aquisição e liberação das conexões durante chamadas concorrentes ao cliente.
+
+### 24.3 Pub/Sub Reativo e Canais
+- **TDextRedisPubSub** — Motor de Pub/Sub assíncrono integrado com canais concorrentes do Dext (`IChannel<TDextRedisMessage>`) para despacho seguro de mensagens entre threads.
+
+### 24.4 Integração com RedisJSON & Dext.Json
+- **Suporte ao Módulo RedisJSON** — Integração nativa com a engine `Dext.Json` para serializar e deserializar objetos complexos em Delphi diretamente de e para o servidor Redis.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 06, 2026).*

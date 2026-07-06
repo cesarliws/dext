@@ -1,11 +1,11 @@
 ---
 name: dext-networking
-description: Make HTTP, REST, TCP, UDP and MQTT connections from Delphi using the Dext NET client/server stack. Use when implementing low-level socket communication, custom protocols, or MQTT messaging.
+description: Make HTTP, REST, TCP, UDP, MQTT, and Redis connections from Delphi using the Dext NET client/server stack. Use when implementing low-level socket communication, custom protocols, MQTT messaging, or Redis caching/PubSub.
 ---
 
-# Dext Networking (REST, Sockets, and MQTT)
+# Dext Networking (REST, Sockets, MQTT, and Redis)
 
-Fluent REST client, high-performance low-level TCP/UDP sockets, and native MQTT v3.1.1 messaging.
+Fluent REST client, high-performance low-level TCP/UDP sockets, native MQTT v3.1.1 messaging, and native Redis client.
 
 ## Core Import
 
@@ -277,11 +277,44 @@ var Client := TDextMqttClient.Create;
 Client.Connect('127.0.0.1', 1883, 'MyDelphiClient');
 Client.OnMessageReceived := procedure(const Msg: TMqttMessage)
   begin
-    WriteLn('Received: ', Msg.Topic, ' - ', Length(Msg.Payload), ' bytes');
-  end;
-Client.Subscribe('sensors/+/status');
-Client.Publish('sensors/kitchen/status', TEncoding.UTF8.GetBytes('online'));
+  Client.Subscribe('sensors/+/status');
+  Client.Publish('sensors/kitchen/status', TEncoding.UTF8.GetBytes('online'));
+  ```
+
+---
+
+## Native Redis Client (Dext.Redis)
+
+High-performance native Redis client supporting RESP2/RESP3 serialization, connection pooling, reactive Pub/Sub channels, and RedisJSON.
+
+```pascal
+uses
+  Dext.Net.Redis,
+  Dext.Collections.Channels;
+
+// Basic GET/SET
+var Client := TDextRedisClient.Create('127.0.0.1', 6379, 16);
+try
+  Client.SetVal('key', 'value', 3600); // Set with 1h TTL
+  var Val := Client.Get('key');
+finally
+  Client.Free;
+end;
+
+// Asynchronous commands
+Client.ExecuteAsync('GET', ['key'])
+  .OnComplete(procedure(Val: TDextRedisValue)
+    begin
+      WriteLn(Val.AsString);
+    end)
+  .Start;
+
+// Pub/Sub using concurrent channels
+var Chan := Client.Subscribe('channel');
+Client.Publish('channel', 'event');
+var Msg := Chan.Read; // Blocks until message arrives
 ```
+
 
 
 

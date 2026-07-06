@@ -26,40 +26,19 @@
 unit Dext.Caching.Redis;
 
 {
-  Redis Cache Store Implementation (Future)
-  
-  This unit demonstrates how to implement a Redis-based cache store
-  using the ICacheStore interface.
-  
-  Dependencies:
-    - Redis client library (e.g., DelphiRedis, TRedisClient)
-  
-  Usage:
-    var
-      RedisStore: TRedisCacheStore;
-    begin
-      RedisStore := TRedisCacheStore.Create('localhost', 6379);
-      
-      TApplicationBuilderCacheExtensions.UseResponseCache(Builder,
-        procedure(Cache: TResponseCacheBuilder)
-        begin
-          Cache
-            .WithDefaultDuration(60)
-            .WithStore(RedisStore);
-        end);
-    end;
+  Redis Cache Store Implementation using Dext.Net.Redis
 }
 
 interface
 
 uses
   System.SysUtils,
-  Dext.Caching;
+  Dext.Caching,
+  Dext.Net.Redis;
 
 type
   /// <summary>
   ///   Redis-based cache store implementation.
-  ///   Requires a Redis client library to be implemented.
   /// </summary>
   TRedisCacheStore = class(TInterfacedObject, ICacheStore)
   private
@@ -67,7 +46,7 @@ type
     FPort: Integer;
     FPassword: string;
     FDatabase: Integer;
-    // FRedisClient: TRedisClient;  // Placeholder for actual Redis client
+    FRedisClient: TDextRedisClient;
   protected
     function GetRedisKey(const AKey: string): string;
   public
@@ -94,67 +73,61 @@ begin
   FPassword := APassword;
   FDatabase := ADatabase;
   
-  // TODO: Initialize Redis client
-  // FRedisClient := TRedisClient.Create(FHost, FPort);
-  // if FPassword <> '' then
-  //   FRedisClient.Auth(FPassword);
-  // FRedisClient.Select(FDatabase);
+  FRedisClient := TDextRedisClient.Create(FHost, FPort);
+  // Note: auth & database select can be added if client supports auth command via Execute
+  if FPassword <> '' then
+    FRedisClient.Execute('AUTH', [FPassword]);
+  if FDatabase <> 0 then
+    FRedisClient.Execute('SELECT', [FDatabase.ToString]);
 end;
 
 destructor TRedisCacheStore.Destroy;
 begin
-  // TODO: Cleanup Redis client
-  // FRedisClient.Free;
+  FRedisClient.Free;
   inherited;
 end;
 
 function TRedisCacheStore.GetRedisKey(const AKey: string): string;
 begin
-  // Prefix all cache keys
   Result := 'dext:cache:' + AKey;
 end;
 
 function TRedisCacheStore.TryGet(const AKey: string; out AValue: string): Boolean;
 begin
-  // TODO: Implement Redis GET
-  // try
-  //   AValue := FRedisClient.Get(GetRedisKey(AKey));
-  //   Result := AValue <> '';
-  // except
-  //   Result := False;
-  // end;
-  
-  Result := False; // Placeholder
+  try
+    AValue := FRedisClient.Get(GetRedisKey(AKey));
+    Result := AValue <> '';
+  except
+    Result := False;
+  end;
 end;
 
 procedure TRedisCacheStore.SetValue(const AKey, AValue: string; ADurationSeconds: Integer);
 begin
-  // TODO: Implement Redis SETEX
-  // FRedisClient.SetEx(GetRedisKey(AKey), ADurationSeconds, AValue);
+  try
+    FRedisClient.SetVal(GetRedisKey(AKey), AValue, ADurationSeconds);
+  except
+    // Silent fail or log
+  end;
 end;
 
 procedure TRedisCacheStore.Remove(const AKey: string);
 begin
-  // TODO: Implement Redis DEL
-  // FRedisClient.Del(GetRedisKey(AKey));
+  try
+    FRedisClient.Del(GetRedisKey(AKey));
+  except
+    // Silent fail
+  end;
 end;
 
 procedure TRedisCacheStore.Clear;
-//var
-//  Keys: TArray<string>;
-//  Key: string;
 begin
-  // TODO: Implement Redis FLUSHDB or pattern-based deletion
-  // FRedisClient.FlushDB;
-  // or
-  // var
-  //   Keys: TArray<string>;
-  //   Key: string;
-  // begin
-  //   Keys := FRedisClient.Keys('dext:cache:*');
-  //   for Key in Keys do
-  //     FRedisClient.Del(Key);
-  // end;
+  try
+    // In production we could flush or use keys, for now let's flushdb
+    FRedisClient.Execute('FLUSHDB', []);
+  except
+    // Silent fail
+  end;
 end;
 
 end.

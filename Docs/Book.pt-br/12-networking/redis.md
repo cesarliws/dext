@@ -1,0 +1,131 @@
+# ⚡ Cliente Redis (Dext.Redis)
+
+O Dext inclui uma biblioteca cliente nativa e de alta performance para o Redis, suportando os protocolos RESP2 e RESP3. Ele conta com otimizações de parsing zero-allocation, connection pooling integrado, pipelines assíncronos de comandos via `TAsyncTask` e processamento de Pub/Sub concorrente utilizando canais.
+
+## Principais Recursos
+
+- **Protocolos RESP2/RESP3**: Suporte completo ao Redis Serialization Protocol, incluindo novas adições do RESP3 como Nulos, Booleanos e Doubles.
+- **Connection Pool**: `TDextRedisConnectionPool` embutido para reutilização eficiente de conexões sob cargas intensas de concorrência.
+- **Execução Assíncrona**: Totalmente integrado com a API assíncrona de Dext (`TAsyncTask.Run`).
+- **Pub/Sub Reativo**: Entrega de mensagens usando canais seguros para threads do Dext (`IChannel<T>`).
+- **Integração RedisJSON**: Serialização e deserialização automática de objetos Delphi diretamente no Redis via `Dext.Json`.
+
+---
+
+## Uso Básico do Cliente Redis (`TDextRedisClient`)
+
+Instancie o cliente, execute operações e utilize o connection pool de forma transparente:
+
+```pascal
+uses
+  System.SysUtils,
+  Dext.Net.Redis;
+
+var
+  Client: TDextRedisClient;
+  Val: string;
+  Ok: Boolean;
+begin
+  // O tamanho do pool padrão é 16
+  Client := TDextRedisClient.Create('127.0.0.1', 6379, 16);
+  try
+    // Define uma chave com expiração de 60 segundos
+    Ok := Client.SetVal('username', 'Cezar', 60);
+    if Ok then
+      Writeln('Chave criada com sucesso');
+
+    // Recupera uma chave
+    Val := Client.Get('username');
+    Writeln('Username: ', Val);
+
+    // Remove uma chave
+    Client.Del('username');
+  finally
+    Client.Free;
+  end;
+end;
+```
+
+---
+
+## Comandos Assíncronos
+
+Execute comandos em segundo plano usando a integração com o `TAsyncTask`:
+
+```pascal
+uses
+  Dext.Net.Redis,
+  Dext.Threading.Async;
+
+begin
+  Client.ExecuteAsync('GET', ['mykey'])
+    .OnComplete(procedure(Val: TDextRedisValue)
+      begin
+        Writeln('Resultado Assincrono: ', Val.AsString);
+      end)
+    .Start;
+end;
+```
+
+---
+
+## Pub/Sub Reativo com Canais
+
+Inscreva-se em canais de forma reativa usando os pipelines de canais concorrentes do Dext:
+
+```pascal
+uses
+  System.SysUtils,
+  Dext.Net.Redis,
+  Dext.Collections.Channels;
+
+var
+  Chan: IChannel<TDextRedisMessage>;
+  Msg: TDextRedisMessage;
+begin
+  // Subscribe retorna um canal seguro para threads (IChannel)
+  Chan := Client.Subscribe('telemetry');
+
+  // Lê a mensagem (bloqueia a thread atual até que uma mensagem seja recebida)
+  Msg := Chan.Read;
+  Writeln('Mensagem recebida do canal: ', Msg.Channel);
+  Writeln('Conteudo: ', Msg.Payload);
+  
+  // Publica uma mensagem no canal
+  Client.Publish('telemetry', 'event_fired');
+end;
+```
+
+---
+
+## Integração com RedisJSON & Dext.Json
+
+Grave e recupere objetos complexos diretamente como JSON no Redis:
+
+```pascal
+uses
+  Dext.Net.Redis;
+
+var
+  User, LoadedUser: TUser;
+begin
+  User := TUser.Create;
+  try
+    User.Name := 'Alice';
+    User.Age := 30;
+    
+    // Salva o objeto como JSON
+    Client.JsonSet('user:100', '$', User);
+    
+    // Recupera o JSON e deserializa automaticamente
+    LoadedUser := Client.JsonGet<TUser>('user:100');
+    try
+      Writeln('Usuario carregado: ', LoadedUser.Name);
+    finally
+      LoadedUser.Free;
+    end;
+  finally
+    User.Free;
+  end;
+end;
+```
