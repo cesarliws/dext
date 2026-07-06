@@ -215,6 +215,7 @@
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
+<a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
@@ -386,6 +387,9 @@ class TJwtAuthenticationMiddleware {    +ExtractToken()
 TInterfacedObject <|-- TJwtAuthenticationMiddleware
 IMiddleware <|.. TJwtAuthenticationMiddleware
 class TApplicationBuilderJwtExtensions {    +UseJwtAuthentication()
+    +UseGoogleAuthentication()
+    +UseEntraIdAuthentication()
+    +UseKeycloakAuthentication()
 }
 TObject <|-- TApplicationBuilderJwtExtensions
 </div>
@@ -395,11 +399,11 @@ TObject <|-- TApplicationBuilderJwtExtensions
 <div class="class-header">
 <h3>class TJwtAuthenticationMiddleware</h3><a name="TJwtAuthenticationMiddleware"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Middleware that validates JWT tokens and populates the User principal.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: TJwtOptions)</div></div>
+<div class="api-signature">constructor Create(const const: TJwtOptions)</div><div class="description">Creates a new instance of TJwtAuthenticationMiddleware with default Bearer prefix.</div></div>
 <div class="api-item">
-<div class="api-signature">constructor Create(const const: TJwtOptions; const const: string)</div></div>
+<div class="api-signature">constructor Create(const const: TJwtOptions; const const: string)</div><div class="description">Creates a new instance of TJwtAuthenticationMiddleware with a custom token prefix.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate)</div></div>
+<div class="api-signature">procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate)</div><div class="description">Invokes the middleware, validating the JWT and setting the HTTP context User if valid.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function ExtractToken(const const: string): string</div></div>
@@ -415,6 +419,12 @@ TObject <|-- TApplicationBuilderJwtExtensions
 <div class="api-signature">function UseJwtAuthentication(const const: IApplicationBuilder; const const: string; AConfigurator: TJwtBuilderProc): IApplicationBuilder</div><div class="description">Adds JWT authentication middleware configured with a builder.</div></div>
 <div class="api-item">
 <div class="api-signature">function UseJwtAuthentication(const const: IApplicationBuilder; const const: TJwtOptionsBuilder): IApplicationBuilder</div><div class="description">Adds JWT authentication middleware using a fluent builder directly.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseGoogleAuthentication(const const: IApplicationBuilder; const const: string; const const: string): IApplicationBuilder</div><div class="description">Configures JWT Authentication for Google OAuth2 using OIDC.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseEntraIdAuthentication(const const: IApplicationBuilder; const const: string; const const: string; const const: string): IApplicationBuilder</div><div class="description">Configures JWT Authentication for Microsoft Entra ID (Azure AD).</div></div>
+<div class="api-item">
+<div class="api-signature">function UseKeycloakAuthentication(const const: IApplicationBuilder; const const: string; const const: string; const const: string; const const: string): IApplicationBuilder</div><div class="description">Configures JWT Authentication for a custom Keycloak server.</div></div>
 </div>
 <hr>
 

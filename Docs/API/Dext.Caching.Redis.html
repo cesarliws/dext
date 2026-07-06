@@ -215,6 +215,7 @@
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
+<a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
@@ -393,22 +394,22 @@ ICacheStore <|.. TRedisCacheStore
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>class TRedisCacheStore</h3><a name="TRedisCacheStore"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Redis-based cache store implementation. Requires a Redis client library to be implemented.</div></div>
+<h3>class TRedisCacheStore</h3><a name="TRedisCacheStore"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Implementacao de provedor de cache baseada em Redis para o Dext Framework.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; APort: Integer; const const: string; ADatabase: Integer)</div></div>
+<div class="api-signature">constructor Create(const const: string; APort: Integer; const const: string; ADatabase: Integer)</div><div class="description">Inicializa o provedor de cache com as credenciais e parametros de conexao do Redis.</div></div>
 <div class="api-item">
-<div class="api-signature">destructor Destroy</div></div>
+<div class="api-signature">destructor Destroy</div><div class="description">Destroi a instancia do provedor de cache liberando a conexao do Redis.</div></div>
 <div class="api-item">
-<div class="api-signature">function TryGet(const const: string; out out: string): Boolean</div></div>
+<div class="api-signature">function TryGet(const const: string; out out: string): Boolean</div><div class="description">Tenta recuperar um valor do cache associado a chave especificada.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure SetValue(const const: string; const const: string; ADurationSeconds: Integer)</div></div>
+<div class="api-signature">procedure SetValue(const const: string; const const: string; ADurationSeconds: Integer)</div><div class="description">Define um valor no cache associado a uma chave com um tempo de duracao em segundos.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Remove(const const: string)</div></div>
+<div class="api-signature">procedure Remove(const const: string)</div><div class="description">Remove uma chave e seu valor associado do cache.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Clear</div></div>
+<div class="api-signature">procedure Clear</div><div class="description">Limpa todas as chaves do banco de dados Redis configurado.</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
-<div class="api-signature">function GetRedisKey(const const: string): string</div></div>
+<div class="api-signature">function GetRedisKey(const const: string): string</div><div class="description">Retorna a chave formatada com o prefixo padrao do cache do Dext.</div></div>
 </div>
 <hr>
 

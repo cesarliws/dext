@@ -215,6 +215,7 @@
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
+<a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
@@ -404,6 +405,8 @@ class TJwtOptionsBuilder {    +EnsureInitialized()
     +Issuer()
     +Audience()
     +ExpirationMinutes()
+    +Algorithm()
+    +PublicKey()
     +WithIssuer()
     +WithAudience()
     +WithExpirationMinutes()
@@ -434,6 +437,8 @@ class TJwtTokenHandler {    +ToBase64Url()
     +Issuer
     +Audience
     +ExpirationMinutes
+    +Algorithm
+    +PublicKey
 }
 TInterfacedObject <|-- TJwtTokenHandler
 IJwtTokenHandler <|.. TJwtTokenHandler
@@ -444,7 +449,7 @@ IJwtTokenHandler <|.. TJwtTokenHandler
 <div class="class-header">
 <h3>record TClaim</h3><a name="TClaim"></a><div class="description">Represents a claim (key-value pair) in a JWT token.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: string)</div></div>
+<div class="api-signature">constructor Create(const const: string; const const: string)</div><div class="description">Creates a new Claim record.</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -453,59 +458,63 @@ IJwtTokenHandler <|.. TJwtTokenHandler
 <div class="class-header">
 <h3>interface IJwtTokenHandler</h3><a name="IJwtTokenHandler"></a><div class="description">JWT token handler contract, allowing for generation and validation.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function GenerateToken(const const: TArray): string</div></div>
+<div class="api-signature">function GenerateToken(const const: TArray): string</div><div class="description">Generates a token with specified claims signed with HMAC-SHA256.</div></div>
 <div class="api-item">
-<div class="api-signature">function ValidateToken(const const: string): TJwtValidationResult</div></div>
+<div class="api-signature">function ValidateToken(const const: string): TJwtValidationResult</div><div class="description">Validates and decodes the given JWT token.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetClaims(const const: string): TArray</div></div>
+<div class="api-signature">function GetClaims(const const: string): TArray</div><div class="description">Gets the claims of a token without checking signature. Use with caution.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetSecretKey: string</div></div>
+<div class="api-signature">function GetSecretKey: string</div><div class="description">Secret key getter.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure SetSecretKey(const const: string)</div></div>
+<div class="api-signature">procedure SetSecretKey(const const: string)</div><div class="description">Secret key setter.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetIssuer: string</div></div>
+<div class="api-signature">function GetIssuer: string</div><div class="description">Issuer getter.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure SetIssuer(const const: string)</div></div>
+<div class="api-signature">procedure SetIssuer(const const: string)</div><div class="description">Issuer setter.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetAudience: string</div></div>
+<div class="api-signature">function GetAudience: string</div><div class="description">Audience getter.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure SetAudience(const const: string)</div></div>
+<div class="api-signature">procedure SetAudience(const const: string)</div><div class="description">Audience setter.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetExpirationMinutes: Integer</div></div>
+<div class="api-signature">function GetExpirationMinutes: Integer</div><div class="description">Expiration time in minutes getter.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure SetExpirationMinutes(const const: Integer)</div></div>
+<div class="api-signature">procedure SetExpirationMinutes(const const: Integer)</div><div class="description">Expiration time in minutes setter.</div></div>
 <div class="api-item">
-<div class="api-signature">property SecretKey: </div></div>
+<div class="api-signature">property SecretKey: </div><div class="description">Secret key used to sign and verify tokens.</div></div>
 <div class="api-item">
-<div class="api-signature">property Issuer: </div></div>
+<div class="api-signature">property Issuer: </div><div class="description">Issuer of the token.</div></div>
 <div class="api-item">
-<div class="api-signature">property Audience: </div></div>
+<div class="api-signature">property Audience: </div><div class="description">Target audience of the token.</div></div>
 <div class="api-item">
-<div class="api-signature">property ExpirationMinutes: </div></div>
+<div class="api-signature">property ExpirationMinutes: </div><div class="description">Token lifespan in minutes.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>record TJwtOptions</h3><a name="TJwtOptions"></a><div class="description">JWT configuration options (Secret, Issuer, Audience).</div></div>
+<h3>record TJwtOptions</h3><a name="TJwtOptions"></a><div class="description">JWT configuration options (Secret, Issuer, Audience, Algorithm, PublicKey).</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Create(const const: string): TJwtOptions</div><div class="description">Creates default JWT options.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>record TJwtOptionsBuilder</h3><a name="TJwtOptionsBuilder"></a><div class="description">Fluent builder for creating <see cref="TJwtOptions"/> objects.</div></div>
+<h3>record TJwtOptionsBuilder</h3><a name="TJwtOptionsBuilder"></a><div class="description">Fluent builder for creating TJwtOptions objects.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Create(const const: string): TJwtOptionsBuilder</div><div class="description">Creates a new JWT options builder.</div></div>
+<div class="api-signature">function Create(const const: string): TJwtOptionsBuilder</div><div class="description">Creates a new JWT options builder with the given secret.</div></div>
 <div class="api-item">
-<div class="api-signature">function Issuer(const const: string): TJwtOptionsBuilder</div></div>
+<div class="api-signature">function Issuer(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the token issuer.</div></div>
 <div class="api-item">
-<div class="api-signature">function Audience(const const: string): TJwtOptionsBuilder</div></div>
+<div class="api-signature">function Audience(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the token audience.</div></div>
 <div class="api-item">
-<div class="api-signature">function ExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder</div></div>
+<div class="api-signature">function ExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder</div><div class="description">Sets the token expiration in minutes.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithIssuer(const const: string): TJwtOptionsBuilder</div></div>
+<div class="api-signature">function Algorithm(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the signing algorithm.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithAudience(const const: string): TJwtOptionsBuilder</div></div>
+<div class="api-signature">function PublicKey(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the public key for asymmetric validation.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder</div></div>
+<div class="api-signature">function WithIssuer(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the token issuer (deprecated).</div></div>
+<div class="api-item">
+<div class="api-signature">function WithAudience(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the token audience (deprecated).</div></div>
+<div class="api-item">
+<div class="api-signature">function WithExpirationMinutes(AMinutes: Integer): TJwtOptionsBuilder</div><div class="description">Sets the token expiration (deprecated).</div></div>
 <div class="api-item">
 <div class="api-signature">function Build: TJwtOptions</div><div class="description">Builds and returns the JWT options.</div></div>
 <div class="api-item">
@@ -518,29 +527,35 @@ IJwtTokenHandler <|.. TJwtTokenHandler
 <div class="class-header">
 <h3>record TJwtOptionsHelper</h3><a name="TJwtOptionsHelper"></a><div class="description">Helper for implicit conversion of TJwtOptions to TValue.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">procedure Implicit(const const: TJwtOptions)</div></div>
+<div class="api-signature">procedure Implicit(const const: TJwtOptions)</div><div class="description">Converts a TJwtOptions instance implicitly to TValue.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>class TJwtTokenHandler</h3><a name="TJwtTokenHandler"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Default implementation of the JWT token handler using HS256.</div></div>
+<h3>class TJwtTokenHandler</h3><a name="TJwtTokenHandler"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Default implementation of the JWT token handler using HS256 and RS256.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: string; const const: string; AExpirationMinutes: Integer)</div></div>
+<div class="api-signature">constructor Create(const const: string; const const: string; const const: string; AExpirationMinutes: Integer)</div><div class="description">Initializes a new instance of the token handler.</div></div>
 <div class="api-item">
-<div class="api-signature">destructor Destroy</div></div>
+<div class="api-signature">constructor Create(const const: TJwtOptions)</div><div class="description">Initializes a new instance of the token handler with full options.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div><div class="description">Destroys the token handler instance.</div></div>
 <div class="api-item">
 <div class="api-signature">function GenerateToken(const const: TArray): string</div><div class="description">Generates a JWT token with the specified claims.</div></div>
 <div class="api-item">
 <div class="api-signature">function ValidateToken(const const: string): TJwtValidationResult</div><div class="description">Validates a JWT token and returns the claims if valid.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetClaims(const const: string): TArray</div><div class="description">Extracts claims from a token without full validation (use with caution).</div></div>
+<div class="api-signature">function GetClaims(const const: string): TArray</div><div class="description">Extracts claims from a token without full validation.</div></div>
 <div class="api-item">
-<div class="api-signature">property SecretKey: </div></div>
+<div class="api-signature">property SecretKey: </div><div class="description">Secret key.</div></div>
 <div class="api-item">
-<div class="api-signature">property Issuer: </div></div>
+<div class="api-signature">property Issuer: </div><div class="description">Token issuer.</div></div>
 <div class="api-item">
-<div class="api-signature">property Audience: </div></div>
+<div class="api-signature">property Audience: </div><div class="description">Token audience.</div></div>
 <div class="api-item">
-<div class="api-signature">property ExpirationMinutes: </div></div>
+<div class="api-signature">property ExpirationMinutes: </div><div class="description">Expiration time in minutes.</div></div>
+<div class="api-item">
+<div class="api-signature">property Algorithm: </div><div class="description">Algorithm.</div></div>
+<div class="api-item">
+<div class="api-signature">property PublicKey: </div><div class="description">Public Key.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function ToBase64Url(const const: string): string</div></div>
@@ -572,7 +587,7 @@ IJwtTokenHandler <|.. TJwtTokenHandler
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TJwtBuilderProc = Type</div><div class="description">Delegate for configuring JWT options via builder (passed by reference).</div></div>
+<div class="api-signature">type TJwtBuilderProc = Type</div><div class="description">Delegate for configuring JWT options via builder.</div></div>
 </div>
 
         </div>

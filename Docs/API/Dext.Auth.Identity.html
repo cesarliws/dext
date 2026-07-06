@@ -215,6 +215,7 @@
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
+<a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
@@ -414,6 +415,11 @@ class TClaimsPrincipal {    +Create()
 }
 TInterfacedObject <|-- TClaimsPrincipal
 IClaimsPrincipal <|.. TClaimsPrincipal
+class TAuthorizationPolicyRegistry {    +CreateClass()
+    +RegisterPolicy()
+    +Evaluate()
+}
+TObject <|-- TAuthorizationPolicyRegistry
 class TClaimTypes {}
 TObject <|-- TClaimTypes
 class IClaimsBuilder {    +AddClaim()
@@ -447,106 +453,117 @@ IClaimsBuilder <|.. TClaimsBuilder
 <div class="class-header">
 <h3>interface IIdentity</h3><a name="IIdentity"></a><div class="description">Contract that defines the basic identity of a user (Name, Authentication Type).</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function GetName: string</div></div>
+<div class="api-signature">function GetName: string</div><div class="description">Gets the name of the identity.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetIsAuthenticated: Boolean</div></div>
+<div class="api-signature">function GetIsAuthenticated: Boolean</div><div class="description">Indicates whether the user has been authenticated.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetAuthenticationType: string</div></div>
+<div class="api-signature">function GetAuthenticationType: string</div><div class="description">Gets the type of authentication used.</div></div>
 <div class="api-item">
-<div class="api-signature">property Name: </div></div>
+<div class="api-signature">property Name: </div><div class="description">User identity name.</div></div>
 <div class="api-item">
-<div class="api-signature">property IsAuthenticated: </div></div>
+<div class="api-signature">property IsAuthenticated: </div><div class="description">Is authenticated.</div></div>
 <div class="api-item">
-<div class="api-signature">property AuthenticationType: </div></div>
+<div class="api-signature">property AuthenticationType: </div><div class="description">Authentication type.</div></div>
 </div>
 <hr>
 <div class="class-header">
 <h3>interface IClaimsPrincipal</h3><a name="IClaimsPrincipal"></a><div class="description">Contract for a Claims-based Principal, allowing for Role validation and access to user metadata.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function GetIdentity: IIdentity</div></div>
+<div class="api-signature">function GetIdentity: IIdentity</div><div class="description">Gets the user's primary identity.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetClaims: TArray</div></div>
+<div class="api-signature">function GetClaims: TArray</div><div class="description">Gets the associated claims array.</div></div>
 <div class="api-item">
-<div class="api-signature">function FindClaim(const const: string): TClaim</div></div>
+<div class="api-signature">function FindClaim(const const: string): TClaim</div><div class="description">Finds a claim of a specific type.</div></div>
 <div class="api-item">
-<div class="api-signature">function HasClaim(const const: string): Boolean</div></div>
+<div class="api-signature">function HasClaim(const const: string): Boolean</div><div class="description">Checks if the principal contains a claim of a specific type.</div></div>
 <div class="api-item">
-<div class="api-signature">function IsInRole(const const: string): Boolean</div></div>
+<div class="api-signature">function IsInRole(const const: string): Boolean</div><div class="description">Checks if the user belongs to a specific security role.</div></div>
 <div class="api-item">
-<div class="api-signature">property Identity: </div></div>
+<div class="api-signature">property Identity: </div><div class="description">The primary identity.</div></div>
 <div class="api-item">
-<div class="api-signature">property Claims: </div></div>
+<div class="api-signature">property Claims: </div><div class="description">All claims of the user.</div></div>
 </div>
 <hr>
 <div class="class-header">
 <h3>class TClaimsIdentity</h3><a name="TClaimsIdentity"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Claims-based identity implementation.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: string)</div></div>
+<div class="api-signature">constructor Create(const const: string; const const: string)</div><div class="description">Initializes a new instance of TClaimsIdentity.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetName: string</div></div>
+<div class="api-signature">function GetName: string</div><div class="description">Gets the user name.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetIsAuthenticated: Boolean</div></div>
+<div class="api-signature">function GetIsAuthenticated: Boolean</div><div class="description">Gets whether the user is authenticated.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetAuthenticationType: string</div></div>
+<div class="api-signature">function GetAuthenticationType: string</div><div class="description">Gets the authentication type.</div></div>
 <div class="api-item">
-<div class="api-signature">property Name: </div></div>
+<div class="api-signature">property Name: </div><div class="description">User identity name.</div></div>
 <div class="api-item">
-<div class="api-signature">property IsAuthenticated: </div></div>
+<div class="api-signature">property IsAuthenticated: </div><div class="description">Is authenticated.</div></div>
 <div class="api-item">
-<div class="api-signature">property AuthenticationType: </div></div>
+<div class="api-signature">property AuthenticationType: </div><div class="description">Authentication type.</div></div>
 </div>
 <hr>
 <div class="class-header">
 <h3>class TClaimsPrincipal</h3><a name="TClaimsPrincipal"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Claims principal implementation.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: IIdentity; const const: TArray)</div></div>
+<div class="api-signature">constructor Create(const const: IIdentity; const const: TArray)</div><div class="description">Initializes a new instance of TClaimsPrincipal.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetIdentity: IIdentity</div></div>
+<div class="api-signature">function GetIdentity: IIdentity</div><div class="description">Gets the identity.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetClaims: TArray</div></div>
+<div class="api-signature">function GetClaims: TArray</div><div class="description">Gets the claims.</div></div>
 <div class="api-item">
-<div class="api-signature">function FindClaim(const const: string): TClaim</div></div>
+<div class="api-signature">function FindClaim(const const: string): TClaim</div><div class="description">Finds a claim by type.</div></div>
 <div class="api-item">
-<div class="api-signature">function HasClaim(const const: string): Boolean</div></div>
+<div class="api-signature">function HasClaim(const const: string): Boolean</div><div class="description">Checks if a claim exists.</div></div>
 <div class="api-item">
-<div class="api-signature">function IsInRole(const const: string): Boolean</div></div>
+<div class="api-signature">function IsInRole(const const: string): Boolean</div><div class="description">Checks if the user has a specific role.</div></div>
 <div class="api-item">
-<div class="api-signature">property Identity: </div></div>
+<div class="api-signature">property Identity: </div><div class="description">Identity.</div></div>
 <div class="api-item">
-<div class="api-signature">property Claims: </div></div>
+<div class="api-signature">property Claims: </div><div class="description">Claims list.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TAuthorizationPolicyRegistry</h3><a name="TAuthorizationPolicyRegistry"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Global registry for named authorization policies.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure RegisterPolicy(const const: string; const const: TAuthorizationPolicyCallback)</div><div class="description">Registers a named policy validation callback.</div></div>
+<div class="api-item">
+<div class="api-signature">function Evaluate(const const: string; const const: IClaimsPrincipal): Boolean</div><div class="description">Evaluates a registered policy against the principal.</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">constructor CreateClass</div></div>
 </div>
 <hr>
 <div class="class-header">
 <h3>class TClaimTypes</h3><a name="TClaimTypes"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Common claim types.</div></div>
 <hr>
 <div class="class-header">
-<h3>interface IClaimsBuilder</h3><a name="IClaimsBuilder"></a><div class="description">Fluent builder to facilitate the assembly of Claims sets (Identifiers, Roles, Profile).</div></div>
+<h3>interface IClaimsBuilder</h3><a name="IClaimsBuilder"></a><div class="description">Fluent builder to facilitate the assembly of Claims sets.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function AddClaim(const const: string; const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function AddClaim(const const: string; const const: string): IClaimsBuilder</div><div class="description">Adds a custom claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithNameIdentifier(const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function WithNameIdentifier(const const: string): IClaimsBuilder</div><div class="description">Adds a NameIdentifier claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithName(const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function WithName(const const: string): IClaimsBuilder</div><div class="description">Adds a Name claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithEmail(const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function WithEmail(const const: string): IClaimsBuilder</div><div class="description">Adds an Email claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithRole(const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function WithRole(const const: string): IClaimsBuilder</div><div class="description">Adds a Role claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithGivenName(const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function WithGivenName(const const: string): IClaimsBuilder</div><div class="description">Adds a GivenName claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithFamilyName(const const: string): IClaimsBuilder</div></div>
+<div class="api-signature">function WithFamilyName(const const: string): IClaimsBuilder</div><div class="description">Adds a FamilyName claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function Build: TArray</div></div>
+<div class="api-signature">function Build: TArray</div><div class="description">Builds the final claims array.</div></div>
 <div class="api-item">
-<div class="api-signature">function Count: Integer</div></div>
+<div class="api-signature">function Count: Integer</div><div class="description">Returns the current number of claims.</div></div>
 </div>
 <hr>
 <div class="class-header">
 <h3>class TClaimsBuilder</h3><a name="TClaimsBuilder"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Default implementation of the Claims builder.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create</div></div>
+<div class="api-signature">constructor Create</div><div class="description">Creates a new instance of TClaimsBuilder.</div></div>
 <div class="api-item">
-<div class="api-signature">destructor Destroy</div></div>
+<div class="api-signature">destructor Destroy</div><div class="description">Destroys the TClaimsBuilder instance.</div></div>
 <div class="api-item">
 <div class="api-signature">function AddClaim(const const: string; const const: string): IClaimsBuilder</div><div class="description">Adds a custom claim.</div></div>
 <div class="api-item">
@@ -556,7 +573,7 @@ IClaimsBuilder <|.. TClaimsBuilder
 <div class="api-item">
 <div class="api-signature">function WithEmail(const const: string): IClaimsBuilder</div><div class="description">Adds the 'email' claim.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithRole(const const: string): IClaimsBuilder</div><div class="description">Adds the 'role' claim. Can be called multiple times for multiple roles.</div></div>
+<div class="api-signature">function WithRole(const const: string): IClaimsBuilder</div><div class="description">Adds the 'role' claim.</div></div>
 <div class="api-item">
 <div class="api-signature">function WithGivenName(const const: string): IClaimsBuilder</div><div class="description">Adds the 'given_name' claim.</div></div>
 <div class="api-item">
@@ -564,9 +581,13 @@ IClaimsBuilder <|.. TClaimsBuilder
 <div class="api-item">
 <div class="api-signature">function Build: TArray</div><div class="description">Builds and returns the claims array.</div></div>
 <div class="api-item">
-<div class="api-signature">function Count: Integer</div><div class="description">Returns the number of claims currently in the builder.</div></div>
+<div class="api-signature">function Count: Integer</div><div class="description">Returns the number of claims in the builder.</div></div>
 </div>
 <hr>
+<h2>Types</h2>
+<div class="visibility-group"><div class="api-item">
+<div class="api-signature">type TAuthorizationPolicyCallback = Type</div><div class="description">Callback signature for policy evaluation.</div></div>
+</div>
 
         </div>
     </div>

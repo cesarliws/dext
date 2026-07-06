@@ -964,8 +964,6 @@ Dext features a native, high-performance security and identity engine based on i
 ### 22.4 External Identity Providers (OIDC)
 - **Plug-and-Play Methods** — Middleware extensions for out-of-the-box configuration of third-party identity providers via OIDC: `UseGoogleAuthentication`, `UseEntraIdAuthentication` (Azure AD), and `UseKeycloakAuthentication`.
 
----
-
 ## 🚀 23. Linux Epoll Server Engine Evolution (S50) (`Sources\Server`)
 
 - **Thread Core Affinity (CPU Pinning)**: Auto-binding of I/O worker threads (`TDextEpollWorker`) to dedicated CPU cores via `pthread_setaffinity_np` to avoid scheduler migration overhead and maximize cache locality.
@@ -976,4 +974,24 @@ Dext features a native, high-performance security and identity engine based on i
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 05, 2026).*
+## ⚡ 24. Native Redis Client (S13) (`Sources\Net`, `Tests\Net`)
+
+Dext features a native, high-performance Redis client library supporting RESP2/RESP3 serialization, connection pooling, reactive Pub/Sub channels, and RedisJSON.
+
+### 24.1 High-Performance Serialization (RESP2/RESP3)
+- **Zero-Allocation Parser** — Highly optimized `TDextRedisParser` parsing incoming RESP byte streams using memory spans (`TByteSpan`), avoiding heap allocations.
+- **RESP3 Additions** — Native support for new RESP3 value types including Nulls (`_`), Booleans (`#`), and Double Floats (`,`).
+
+### 24.2 Connection Pool & Thread Safety
+- **TDextRedisConnectionPool** — Safe, high-concurrency client pooling (`IStack<TDextRedisConnection>`) to minimize socket creation overhead and manage connections efficiently.
+- **Thread-Safe Commands** — Automatic acquisition and release of pooled connection handles during command executions.
+
+### 24.3 Reactive Pub/Sub & Channels
+- **TDextRedisPubSub** — Asynchronous Pub/Sub engine using Dext's native concurrent channels (`IChannel<TDextRedisMessage>`) for thread-safe message dispatching.
+
+### 24.4 RedisJSON & Dext.Json Integration
+- **RedisJSON Module Support** — Native integration with the `Dext.Json` serialization engine to store and retrieve structured Delphi objects directly as JSON values.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 06, 2026).*

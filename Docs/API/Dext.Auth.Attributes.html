@@ -215,6 +215,7 @@
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
+<a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
@@ -381,6 +382,7 @@ classDiagram
 class AuthorizeAttribute {    +Create()
     +Roles
     +Scheme
+    +Policy
 }
 TCustomAttribute <|-- AuthorizeAttribute
 class AllowAnonymousAttribute {}
@@ -390,21 +392,23 @@ TCustomAttribute <|-- AllowAnonymousAttribute
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>class AuthorizeAttribute</h3><a name="AuthorizeAttribute"></a><div class="ancestor">Inherits from: TCustomAttribute</div><div class="description">Marks a handler as requiring authentication. Optionally allows filtering by Roles and Authentication Scheme.</div></div>
+<h3>class AuthorizeAttribute</h3><a name="AuthorizeAttribute"></a><div class="ancestor">Inherits from: TCustomAttribute</div><div class="description">Marks a handler or controller as requiring authentication. Optionally allows filtering by Roles, Policy, and Authentication Scheme.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create</div></div>
+<div class="api-signature">constructor Create</div><div class="description">Initializes a new instance of AuthorizeAttribute requiring authentication.</div></div>
 <div class="api-item">
-<div class="api-signature">constructor Create(const const: string)</div></div>
+<div class="api-signature">constructor Create(const const: string)</div><div class="description">Initializes a new instance of AuthorizeAttribute filtering by roles.</div></div>
 <div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: string)</div></div>
+<div class="api-signature">constructor Create(const const: string; const const: string)</div><div class="description">Initializes a new instance of AuthorizeAttribute filtering by roles and scheme.</div></div>
 <div class="api-item">
-<div class="api-signature">property Roles: </div></div>
+<div class="api-signature">property Roles: </div><div class="description">Allowed roles (comma-separated).</div></div>
 <div class="api-item">
-<div class="api-signature">property Scheme: </div></div>
+<div class="api-signature">property Scheme: </div><div class="description">Required authentication scheme.</div></div>
+<div class="api-item">
+<div class="api-signature">property Policy: </div><div class="description">Required authorization policy name.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>class AllowAnonymousAttribute</h3><a name="AllowAnonymousAttribute"></a><div class="ancestor">Inherits from: TCustomAttribute</div><div class="description">Marks a handler as allowing anonymous access (bypasses authentication).</div></div>
+<h3>class AllowAnonymousAttribute</h3><a name="AllowAnonymousAttribute"></a><div class="ancestor">Inherits from: TCustomAttribute</div><div class="description">Marks a handler or controller as allowing anonymous access (bypasses authentication).</div></div>
 <hr>
 
         </div>
