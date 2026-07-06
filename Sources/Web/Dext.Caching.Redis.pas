@@ -25,7 +25,8 @@ interface
 uses
   System.SysUtils,
   Dext.Caching,
-  Dext.Net.Redis;
+  Dext.Net.Redis,
+  Dext.Web.Interfaces;
 
 type
   /// <summary>
@@ -72,7 +73,33 @@ type
     procedure Clear;
   end;
 
+  /// <summary>
+  ///   Record helper para expor UseRedisCache no TAppBuilder.
+  /// </summary>
+  TRedisAppBuilderHelper = record helper for TAppBuilder
+  public
+    /// <summary>
+    ///   Configura e ativa o cache de resposta HTTP utilizando Redis.
+    /// </summary>
+    function UseRedisCache(const AHost: string = 'localhost'; APort: Integer = 6379; 
+      const APassword: string = ''; ADatabase: Integer = 0; ADurationSeconds: Integer = 60): TAppBuilder;
+  end;
+
 implementation
+
+{ TRedisAppBuilderHelper }
+
+function TRedisAppBuilderHelper.UseRedisCache(const AHost: string; APort: Integer; 
+  const APassword: string; ADatabase: Integer; ADurationSeconds: Integer): TAppBuilder;
+begin
+  TApplicationBuilderCacheExtensions.UseResponseCache(
+    Self.Unwrap,
+    TResponseCacheBuilder.Create
+      .DefaultDuration(ADurationSeconds)
+      .Store(TRedisCacheStore.Create(AHost, APort, APassword, ADatabase))
+  );
+  Result := Self;
+end;
 
 { TRedisCacheStore }
 
