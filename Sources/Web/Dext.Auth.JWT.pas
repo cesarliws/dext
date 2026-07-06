@@ -389,6 +389,9 @@ var
   payloadBytes: TBytes;
 begin
   Result := False;
+  BCryptCloseAlgorithmProvider := nil;
+  BCryptDestroyHash := nil;
+
   hAlg := 0;
   hHash := 0;
   pbHashObject := nil;
@@ -519,6 +522,10 @@ var
   base64UrlStr: string;
 begin
   Result := False;
+  BCryptCloseAlgorithmProvider := nil;
+  BCryptDestroyKey := nil;
+  BCryptDestroyHash := nil;
+
   hRsaAlg := 0;
   hHashAlg := 0;
   hKey := 0;

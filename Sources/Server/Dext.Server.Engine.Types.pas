@@ -29,6 +29,9 @@ unit Dext.Server.Engine.Types;
 
 interface
 
+uses
+  System.SysUtils;
+
 {$SCOPEDENUMS ON}
 
 type
@@ -78,6 +81,16 @@ type
     /// <summary>Configures the server bind address (e.g. '0.0.0.0', '127.0.0.1', or '+').</summary>
     /// <param name="AAddress">The bind address string.</param>
     function WithBindAddress(const AAddress: string): TServerEngineOptions;
+  end;
+
+  /// <summary>
+  ///   Common low-level HTTP parsing helper utilities for raw byte buffers.
+  /// </summary>
+  TDextHttpParserCommon = record
+  public
+    class function FindByte(const ABuffer: TBytes; AStart, AEnd: Integer; AByte: Byte): Integer; static; inline;
+    class function FindCRLF(const ABuffer: TBytes; AStart, AEnd: Integer): Integer; static; inline;
+    class function CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean; static; inline;
   end;
 
 implementation
@@ -132,6 +145,47 @@ function TServerEngineOptionsHelper.WithBindAddress(const AAddress: string): TSe
 begin
   Self.BindAddress := AAddress;
   Result := Self;
+end;
+
+{ TDextHttpParserCommon }
+
+class function TDextHttpParserCommon.FindByte(const ABuffer: TBytes; AStart, AEnd: Integer; AByte: Byte): Integer;
+var
+  I: Integer;
+begin
+  for I := AStart to AEnd - 1 do
+    if ABuffer[I] = AByte then
+      Exit(I);
+  Result := -1;
+end;
+
+class function TDextHttpParserCommon.FindCRLF(const ABuffer: TBytes; AStart, AEnd: Integer): Integer;
+var
+  I: Integer;
+begin
+  for I := AStart to AEnd - 2 do
+    if (ABuffer[I] = 13) and (ABuffer[I+1] = 10) then
+      Exit(I);
+  Result := -1;
+end;
+
+class function TDextHttpParserCommon.CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean;
+var
+  I: Integer;
+  B1, B2: Byte;
+  PStr: PChar;
+begin
+  if ALen <> Length(AStr) then Exit(False);
+  PStr := PChar(AStr);
+  for I := 0 to ALen - 1 do
+  begin
+    B1 := ABuffer[AStart + I];
+    B2 := Ord(PStr[I]);
+    if (B1 >= 65) and (B1 <= 90) then B1 := B1 + 32;
+    if (B2 >= 65) and (B2 <= 90) then B2 := B2 + 32;
+    if B1 <> B2 then Exit(False);
+  end;
+  Result := True;
 end;
 
 end.

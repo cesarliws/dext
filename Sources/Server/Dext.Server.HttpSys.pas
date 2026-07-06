@@ -1048,34 +1048,68 @@ end;
 
 procedure TDextHttpSysResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
 var
-  FileStream: TFileStream;
-  Buffer: TBytes;
+  FileHandle: THandle;
+  Chunk: HTTP_DATA_CHUNK_FILEHANDLE;
+  Ret: ULONG;
+  BytesSent: ULONG;
   Remaining: Int64;
-  Chunk: Integer;
+  FileSizeVal: Int64;
 begin
-  FileStream := TFileStream.Create(APath, fmOpenRead or fmShareDenyWrite);
+  FileHandle := CreateFileW(
+    PWideChar(APath),
+    GENERIC_READ,
+    FILE_SHARE_READ or FILE_SHARE_WRITE or FILE_SHARE_DELETE,
+    nil,
+    OPEN_EXISTING,
+    FILE_ATTRIBUTE_NORMAL,
+    0
+  );
+  if FileHandle = INVALID_HANDLE_VALUE then
+    raise EOSError.Create('Failed to open file: ' + APath);
+
   try
-    FileStream.Position := AOffset;
     Remaining := ACount;
     if Remaining <= 0 then
-      Remaining := FileStream.Size - AOffset;
-
-    SetLength(Buffer, 32768);
-    while Remaining > 0 do
     begin
-      if Remaining > Length(Buffer) then
-        Chunk := Length(Buffer)
+      if GetFileSizeEx(FileHandle, FileSizeVal) then
+        Remaining := FileSizeVal - AOffset
       else
-        Chunk := Remaining;
-
-      FileStream.ReadBuffer(Buffer[0], Chunk);
-      Write(Buffer, 0, Chunk);
-      Remaining := Remaining - Chunk;
+        Remaining := 0;
     end;
+
+    if not FHeadersSent then
+    begin
+      if FHeaderValues[11].Length = 0 then
+        SetHeaderInt(11, Remaining);
+      SendHeadersInternal(True);
+    end;
+
+    FillChar(Chunk, SizeOf(Chunk), 0);
+    Chunk.DataChunkType := hctFromFileHandle;
+    Chunk.ByteRange.StartingOffset.QuadPart := AOffset;
+    Chunk.ByteRange.Length.QuadPart := Remaining;
+    Chunk.FileHandle := FileHandle;
+
+    Ret := HttpSendResponseEntityBody(
+      FReqQueue,
+      FRequestId,
+      HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+      1,
+      @Chunk,
+      BytesSent,
+      nil,
+      nil,
+      nil,
+      nil
+    );
+    if Ret <> ERROR_SUCCESS then
+      raise EOSError.Create('HttpSendResponseEntityBody (File) failed with error: ' + IntToStr(Ret));
   finally
-    FileStream.Free;
+    CloseHandle(FileHandle);
   end;
 end;
+
+
 
 { TDextHttpSysWebSocketConnection }
 

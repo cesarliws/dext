@@ -32,7 +32,8 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  Dext.Collections.Dict;
+  Dext.Collections.Dict,
+  Dext.Server.Engine.Types;
 
 type
   /// <summary>
@@ -80,40 +81,18 @@ implementation
 { TDextIocpHttpParser }
 
 class function TDextIocpHttpParser.FindByte(const ABuffer: TBytes; AStart, AEnd: Integer; AByte: Byte): Integer;
-var
-  I: Integer;
 begin
-  for I := AStart to AEnd - 1 do
-    if ABuffer[I] = AByte then
-      Exit(I);
-  Result := -1;
+  Result := TDextHttpParserCommon.FindByte(ABuffer, AStart, AEnd, AByte);
 end;
 
 class function TDextIocpHttpParser.FindCRLF(const ABuffer: TBytes; AStart, AEnd: Integer): Integer;
-var
-  I: Integer;
 begin
-  for I := AStart to AEnd - 2 do
-    if (ABuffer[I] = 13) and (ABuffer[I+1] = 10) then
-      Exit(I);
-  Result := -1;
+  Result := TDextHttpParserCommon.FindCRLF(ABuffer, AStart, AEnd);
 end;
 
 class function TDextIocpHttpParser.CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean;
-var
-  I: Integer;
-  B1, B2: Byte;
 begin
-  if ALen <> Length(AStr) then Exit(False);
-  for I := 0 to ALen - 1 do
-  begin
-    B1 := ABuffer[AStart + I];
-    B2 := Ord(AStr[I + 1]);
-    if (B1 >= 65) and (B1 <= 90) then B1 := B1 + 32;
-    if (B2 >= 65) and (B2 <= 90) then B2 := B2 + 32;
-    if B1 <> B2 then Exit(False);
-  end;
-  Result := True;
+  Result := TDextHttpParserCommon.CompareBytesCI(ABuffer, AStart, ALen, AStr);
 end;
 
 class function TDextIocpHttpParser.GetMethodString(const ABuffer: TBytes; AStart, ALen: Integer): string;
