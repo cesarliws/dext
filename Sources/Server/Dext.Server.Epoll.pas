@@ -352,6 +352,7 @@ implementation
 {$IFDEF LINUX}
 uses
   System.Threading,
+  Dext.Resilience,
   Posix.Base,
   Posix.SysTypes,
   Posix.SysSocket,
@@ -444,46 +445,24 @@ begin
   FSendFileFd := -1;
   FSendFileOffset := 0;
   FSendFileLen := 0;
-  FLastActive := TThread.GetTickCount64;
+  FLastActive := GetTickCount64;
 end;
  
 { TDextEpollHttpParser }
 
 class function TDextEpollHttpParser.FindByte(const ABuffer: TBytes; AStart, AEnd: Integer; AByte: Byte): Integer;
-var
-  I: Integer;
 begin
-  for I := AStart to AEnd - 1 do
-    if ABuffer[I] = AByte then
-      Exit(I);
-  Result := -1;
+  Result := TDextHttpParserCommon.FindByte(ABuffer, AStart, AEnd, AByte);
 end;
 
 class function TDextEpollHttpParser.FindCRLF(const ABuffer: TBytes; AStart, AEnd: Integer): Integer;
-var
-  I: Integer;
 begin
-  for I := AStart to AEnd - 2 do
-    if (ABuffer[I] = 13) and (ABuffer[I+1] = 10) then
-      Exit(I);
-  Result := -1;
+  Result := TDextHttpParserCommon.FindCRLF(ABuffer, AStart, AEnd);
 end;
 
 class function TDextEpollHttpParser.CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean;
-var
-  I: Integer;
-  B1, B2: Byte;
 begin
-  if ALen <> Length(AStr) then Exit(False);
-  for I := 0 to ALen - 1 do
-  begin
-    B1 := ABuffer[AStart + I];
-    B2 := Ord(AStr[I + 1]);
-    if (B1 >= 65) and (B1 <= 90) then B1 := B1 + 32;
-    if (B2 >= 65) and (B2 <= 90) then B2 := B2 + 32;
-    if B1 <> B2 then Exit(False);
-  end;
-  Result := True;
+  Result := TDextHttpParserCommon.CompareBytesCI(ABuffer, AStart, ALen, AStr);
 end;
 
 class function TDextEpollHttpParser.GetMethodString(const ABuffer: TBytes; AStart, ALen: Integer): string;
@@ -760,7 +739,7 @@ begin
   // Cópia restrita aos bytes úteis do request para thread-safety no reactor desacoplado
   FBuffer := Copy(ABody, 0, ABodyOffset + ABodyLen);
 
-  FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
+  FResolvedHeaders := nil;
 
   // Stream que lê diretamente do buffer sem cópia adicional
   FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen);
@@ -768,7 +747,8 @@ end;
 
 destructor TDextEpollRequest.Destroy;
 begin
-  FResolvedHeaders.Free;
+  if Assigned(FResolvedHeaders) then
+    FResolvedHeaders.Free;
   FBodyStream.Free;
   inherited;
 end;
@@ -785,24 +765,42 @@ end;
 
 function TDextEpollRequest.ResolveHeader(const AName: string): string;
 var
-  I: Integer;
+  i: Integer;
   Seg: THeaderSegment;
+  ValStart, ValLen: Integer;
 begin
-  if FResolvedHeaders.TryGetValue(AName, Result) then Exit;
-
-  for I := 0 to Length(FHeaderSegments) - 1 do
+  if FResolvedHeaders <> nil then
   begin
-    Seg := FHeaderSegments[I];
+    if FResolvedHeaders.TryGetValue(AName, Result) then Exit;
+  end;
+
+  for i := 0 to Length(FHeaderSegments) - 1 do
+  begin
+    Seg := FHeaderSegments[i];
     if TDextEpollHttpParser.CompareBytesCI(FBuffer, Seg.KeyStart, Seg.KeyLen, AName) then
     begin
-      Result := TEncoding.UTF8.GetString(FBuffer, Seg.ValueStart, Seg.ValueLen).Trim;
+      ValStart := Seg.ValueStart;
+      ValLen := Seg.ValueLen;
+      while (ValLen > 0) and ((FBuffer[ValStart] = 32) or (FBuffer[ValStart] = 9)) do
+      begin
+        Inc(ValStart);
+        Dec(ValLen);
+      end;
+      while (ValLen > 0) and ((FBuffer[ValStart + ValLen - 1] = 32) or (FBuffer[ValStart + ValLen - 1] = 9)) do
+        Dec(ValLen);
+
+      Result := TEncoding.UTF8.GetString(FBuffer, ValStart, ValLen);
+      
+      if FResolvedHeaders = nil then
+        FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
       FResolvedHeaders.Add(AName, Result);
       Exit;
     end;
   end;
 
-  // Cacheia cabeçalhos não encontrados
   Result := '';
+  if FResolvedHeaders = nil then
+    FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
   FResolvedHeaders.Add(AName, '');
 end;
 
@@ -813,18 +811,30 @@ end;
 
 procedure TDextEpollRequest.PopulateHeaders(ADict: TDictionary<string, string>);
 var
-  I: Integer;
+  i: Integer;
   Seg: THeaderSegment;
   Key, Value: string;
+  KeyStart, KeyLen: Integer;
 begin
-  for I := 0 to Length(FHeaderSegments) - 1 do
+  for i := 0 to Length(FHeaderSegments) - 1 do
   begin
-    Seg := FHeaderSegments[I];
-    Key := TEncoding.UTF8.GetString(FBuffer, Seg.KeyStart, Seg.KeyLen).Trim.ToLower;
+    Seg := FHeaderSegments[i];
+    KeyStart := Seg.KeyStart;
+    KeyLen := Seg.KeyLen;
+    while (KeyLen > 0) and ((FBuffer[KeyStart] = 32) or (FBuffer[KeyStart] = 9)) do
+    begin
+      Inc(KeyStart);
+      Dec(KeyLen);
+    end;
+    while (KeyLen > 0) and ((FBuffer[KeyStart + KeyLen - 1] = 32) or (FBuffer[KeyStart + KeyLen - 1] = 9)) do
+      Dec(KeyLen);
+
+    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen).ToLower;
     Value := ResolveHeader(Key);
     ADict.AddOrSetValue(Key, Value);
   end;
 end;
+
 
 // Interface redirects
 function TDextEpollRequest.GetMethod: string; begin Result := FMethod; end;
@@ -1200,13 +1210,12 @@ procedure TDextEpollWorker.ProcessRequestAsync(
   AConnection: IDextServerConnection;
   ARequest: IDextRawRequest;
   AResponse: IDextRawResponse
-);
 var
   LLocalEpollFd: Integer;
+  LProc: TProc;
 begin
   LLocalEpollFd := FEpollFd;
-  TTask.Run(
-    procedure
+  LProc := procedure
     var
       LConnection: IDextServerConnection;
       LRequest: IDextRawRequest;
@@ -1251,8 +1260,8 @@ begin
         LRequest := nil;
         LConnection := nil;
       end;
-    end
-  );
+    end;
+  TTask.Run(LProc);
 end;
 
 procedure TDextEpollWorker.Execute;
@@ -1354,7 +1363,7 @@ begin
               Context.FSendFileFd := -1;
               Context.FSendFileOffset := 0;
               Context.FSendFileLen := 0;
-              Context.FLastActive := TThread.GetTickCount64;
+              Context.FLastActive := GetTickCount64;
             end
             else
               Context := TDextEpollContext.Create(ClientFd, FEpollFd);
@@ -1388,7 +1397,7 @@ begin
         else
         begin
           Context := TDextEpollContext(Event.data.ptr);
-          Context.FLastActive := TThread.GetTickCount64;
+          Context.FLastActive := GetTickCount64;
 
           if (Event.events and EPOLLOUT) <> 0 then
           begin
@@ -1595,7 +1604,7 @@ begin
       end;
 
       // Keep-Alive connection timeout sweep
-      NowTicks := TThread.GetTickCount64;
+      NowTicks := GetTickCount64;
       for j := FActiveContexts.Count - 1 downto 0 do
       begin
         Ctx := TDextEpollContext(FActiveContexts[j]);

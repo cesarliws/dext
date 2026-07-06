@@ -66,10 +66,13 @@ $MSBuildArgs = @(
     "/p:Config=$env:BUILD_CONFIG",
     "/p:Platform=$env:PLATFORM",
     "/p:ProductVersion=$env:PRODUCT_VERSION",
-    "/p:DCC_DcuOutput=`"$env:OUTPUT_PATH`"",
-    "/p:DCC_BplOutput=`"$env:COMMON_BPL_OUTPUT`"",
-    "/p:DCC_DcpOutput=`"$env:COMMON_DCP_OUTPUT`"",
-    "/p:DCC_UnitSearchPath=`"$env:OUTPUT_PATH;C:\dev\Dext\DextRepository\Sources;C:\dev\Dext\DextRepository\Sources\Dashboard;C:\dev\Dext\DextRepository\External\DelphiAST\Source;C:\dev\Dext\DextRepository\External\DelphiAST\Source\SimpleParser;C:\dev\Dext\DextRepository\Sources\Common`"",
+    "/p:DCC_DcuOutput=$env:OUTPUT_PATH",
+    "/p:DCC_BplOutput=$env:COMMON_BPL_OUTPUT",
+    "/p:DCC_DcpOutput=$env:COMMON_DCP_OUTPUT",
+    "/p:DCC_UnitSearchPath=$env:OUTPUT_PATH%3BC:\dev\Dext\DextRepository\Sources%3BC:\dev\Dext\DextRepository\Sources\Dashboard%3BC:\dev\Dext\DextRepository\External\DelphiAST\Source%3BC:\dev\Dext\DextRepository\External\DelphiAST\Source\SimpleParser%3BC:\dev\Dext\DextRepository\Sources\Common",
+
+
+
     "/v:minimal",
     "/nologo"
 )

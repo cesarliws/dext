@@ -283,6 +283,31 @@ type
   end;
   PHTTP_DATA_CHUNK_INMEMORY = ^HTTP_DATA_CHUNK_INMEMORY;
 
+  /// <summary>
+  ///   Represents a range of bytes within a file.
+  /// </summary>
+  HTTP_BYTE_RANGE = record
+    /// <summary>Starting offset of the range.</summary>
+    StartingOffset: ULARGE_INTEGER;
+    /// <summary>Length of the range in bytes.</summary>
+    Length: ULARGE_INTEGER;
+  end;
+
+  /// <summary>
+  ///   Represents a data chunk from a file handle for http.sys transmission.
+  /// </summary>
+  HTTP_DATA_CHUNK_FILEHANDLE = record
+    /// <summary>The type of data chunk (always hctFromFileHandle).</summary>
+    DataChunkType: THttpChunkType;
+    /// <summary>The byte range of the file to transmit.</summary>
+    ByteRange: HTTP_BYTE_RANGE;
+    /// <summary>The file handle.</summary>
+    FileHandle: THandle;
+  end;
+  PHTTP_DATA_CHUNK_FILEHANDLE = ^HTTP_DATA_CHUNK_FILEHANDLE;
+
+
+
   HTTP_RESPONSE = record
     Flags: ULONG;
     Version: HTTP_VERSION;
