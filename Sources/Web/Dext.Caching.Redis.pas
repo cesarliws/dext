@@ -2,7 +2,7 @@
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
-{           Copyright (C) 2025 Cesar Romero & Dext Contributors             }
+{           Copyright (C) 2026 Cesar Romero & Dext Contributors             }
 {                                                                           }
 {           Licensed under the Apache License, Version 2.0 (the "License"); }
 {           you may not use this file except in compliance with the License.}
@@ -18,16 +18,7 @@
 {           License.                                                        }
 {                                                                           }
 {***************************************************************************}
-{                                                                           }
-{  Author:  Cesar Romero                                                    }
-{  Created: 2025-12-08                                                      }
-{                                                                           }
-{***************************************************************************}
 unit Dext.Caching.Redis;
-
-{
-  Redis Cache Store Implementation using Dext.Net.Redis
-}
 
 interface
 
@@ -38,7 +29,7 @@ uses
 
 type
   /// <summary>
-  ///   Redis-based cache store implementation.
+  ///   Implementacao de provedor de cache baseada em Redis para o Dext Framework.
   /// </summary>
   TRedisCacheStore = class(TInterfacedObject, ICacheStore)
   private
@@ -48,15 +39,36 @@ type
     FDatabase: Integer;
     FRedisClient: TDextRedisClient;
   protected
+    /// <summary>
+    ///   Retorna a chave formatada com o prefixo padrao do cache do Dext.
+    /// </summary>
     function GetRedisKey(const AKey: string): string;
   public
+    /// <summary>
+    ///   Inicializa o provedor de cache com as credenciais e parametros de conexao do Redis.
+    /// </summary>
     constructor Create(const AHost: string = 'localhost'; APort: Integer = 6379; 
       const APassword: string = ''; ADatabase: Integer = 0);
+    /// <summary>
+    ///   Destroi a instancia do provedor de cache liberando a conexao do Redis.
+    /// </summary>
     destructor Destroy; override;
     
+    /// <summary>
+    ///   Tenta recuperar um valor do cache associado a chave especificada.
+    /// </summary>
     function TryGet(const AKey: string; out AValue: string): Boolean;
+    /// <summary>
+    ///   Define um valor no cache associado a uma chave com um tempo de duracao em segundos.
+    /// </summary>
     procedure SetValue(const AKey: string; const AValue: string; ADurationSeconds: Integer);
+    /// <summary>
+    ///   Remove uma chave e seu valor associado do cache.
+    /// </summary>
     procedure Remove(const AKey: string);
+    /// <summary>
+    ///   Limpa todas as chaves do banco de dados Redis configurado.
+    /// </summary>
     procedure Clear;
   end;
 
@@ -74,7 +86,6 @@ begin
   FDatabase := ADatabase;
   
   FRedisClient := TDextRedisClient.Create(FHost, FPort);
-  // Note: auth & database select can be added if client supports auth command via Execute
   if FPassword <> '' then
     FRedisClient.Execute('AUTH', [FPassword]);
   if FDatabase <> 0 then
@@ -107,7 +118,7 @@ begin
   try
     FRedisClient.SetVal(GetRedisKey(AKey), AValue, ADurationSeconds);
   except
-    // Silent fail or log
+    // Falha silenciosa
   end;
 end;
 
@@ -116,19 +127,17 @@ begin
   try
     FRedisClient.Del(GetRedisKey(AKey));
   except
-    // Silent fail
+    // Falha silenciosa
   end;
 end;
 
 procedure TRedisCacheStore.Clear;
 begin
   try
-    // In production we could flush or use keys, for now let's flushdb
     FRedisClient.Execute('FLUSHDB', []);
   except
-    // Silent fail
+    // Falha silenciosa
   end;
 end;
 
 end.
-

@@ -1,4 +1,4 @@
-﻿package Dext.Web.Core;
+package Dext.Web.Core;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -37,6 +37,7 @@ requires
   IndyCore,
   Dext.Core,
   Dext.EF.Core,
+  Dext.Net.Core,
   RESTComponents,
   inet;
 
@@ -56,6 +57,7 @@ contains
   Dext.Auth.Identity in '..\..\Sources\Web\Dext.Auth.Identity.pas',
   Dext.Auth.JWT in '..\..\Sources\Web\Dext.Auth.JWT.pas',
   Dext.Auth.Middleware in '..\..\Sources\Web\Dext.Auth.Middleware.pas',
+  Dext.Caching.Redis in '..\..\Sources\Web\Dext.Caching.Redis.pas',
   Dext.Caching in '..\..\Sources\Web\Dext.Caching.pas',
   Dext.DI.Middleware in '..\..\Sources\Web\Dext.DI.Middleware.pas',
   Dext.Filters.BuiltIn in '..\..\Sources\Web\Dext.Filters.BuiltIn.pas',

@@ -30,7 +30,9 @@ uses
   Dext.Core.Span,
   Dext.Net.Tcp,
   Dext.Net.Redis,
-  Dext.Collections.Channels;
+  Dext.Collections.Channels,
+  Dext.Caching,
+  Dext.Caching.Redis;
 
 type
   [TestFixture('Dext.Net Redis Parser')]
@@ -59,6 +61,15 @@ type
     procedure Client_ShouldExecuteBasicCommandsWithMockServer;
     [Test]
     procedure Client_ShouldSupportPubSubWithMockServer;
+  end;
+
+  [TestFixture('Dext.Net Redis Cache Store')]
+  TDextRedisCacheStoreTests = class
+  public
+    [Test]
+    procedure CacheStore_ShouldGetAndSetKeys;
+    [Test]
+    procedure CacheStore_ShouldClearKeys;
   end;
 
 implementation
@@ -277,8 +288,93 @@ begin
   end;
 end;
 
+{ TDextRedisCacheStoreTests }
+
+procedure TDextRedisCacheStoreTests.CacheStore_ShouldGetAndSetKeys;
+var
+  Server: TDextTcpServer;
+  Cache: ICacheStore;
+  ResValue: string;
+begin
+  Server := TDextTcpServer.Create;
+  try
+    Server.OnDataSpan :=
+      procedure(const AConnection: ITcpConnection; const AData: TByteSpan)
+      var
+        Request: string;
+        Response: TBytes;
+      begin
+        Request := AData.ToString;
+        if Request.Contains('GET') then
+        begin
+          if Request.Contains('dext:cache:mykey') then
+            Response := TEncoding.UTF8.GetBytes('$12'#13#10'cached_value'#13#10)
+          else
+            Response := TEncoding.UTF8.GetBytes('$-1'#13#10);
+        end
+        else if Request.Contains('SET') then
+        begin
+          Response := TEncoding.UTF8.GetBytes('+OK'#13#10);
+        end
+        else
+          Response := TEncoding.UTF8.GetBytes('-ERR Unknown'#13#10);
+        AConnection.Send(Response);
+      end;
+
+    Server.Bind('127.0.0.1', 0);
+    Server.Start;
+
+    Cache := TRedisCacheStore.Create('127.0.0.1', Server.ListenPort);
+    
+    Should(Cache.TryGet('mykey', ResValue)).BeTrue;
+    Should(ResValue).Be('cached_value');
+
+    Cache.SetValue('otherkey', 'val', 10);
+  finally
+    Server.Free;
+  end;
+end;
+
+procedure TDextRedisCacheStoreTests.CacheStore_ShouldClearKeys;
+var
+  Server: TDextTcpServer;
+  Cache: ICacheStore;
+  Cleared: Boolean;
+begin
+  Server := TDextTcpServer.Create;
+  try
+    Cleared := False;
+    Server.OnDataSpan :=
+      procedure(const AConnection: ITcpConnection; const AData: TByteSpan)
+      var
+        Request: string;
+        Response: TBytes;
+      begin
+        Request := AData.ToString;
+        if Request.Contains('FLUSHDB') then
+        begin
+          Cleared := True;
+          Response := TEncoding.UTF8.GetBytes('+OK'#13#10);
+        end
+        else
+          Response := TEncoding.UTF8.GetBytes('-ERR Unknown'#13#10);
+        AConnection.Send(Response);
+      end;
+
+    Server.Bind('127.0.0.1', 0);
+    Server.Start;
+
+    Cache := TRedisCacheStore.Create('127.0.0.1', Server.ListenPort);
+    Cache.Clear;
+    Should(Cleared).BeTrue;
+  finally
+    Server.Free;
+  end;
+end;
+
 initialization
   TTestRunner.RegisterFixture(TDextRedisParserTests);
   TTestRunner.RegisterFixture(TDextRedisClientTests);
+  TTestRunner.RegisterFixture(TDextRedisCacheStoreTests);
 
 end.

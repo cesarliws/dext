@@ -129,3 +129,39 @@ begin
   end;
 end;
 ```
+
+---
+
+## Web Caching Store (`TRedisCacheStore`)
+
+The `Dext.Caching.Redis` unit provides a native implementation of the `ICacheStore` interface targeting Redis, which is automatically registered in the Web Application pipeline when caching with Redis is requested.
+
+```pascal
+uses
+  System.SysUtils,
+  Dext.Caching,
+  Dext.Caching.Redis;
+
+var
+  Cache: ICacheStore;
+  CachedValue: string;
+begin
+  Cache := TRedisCacheStore.Create('127.0.0.1', 6379, 'password_if_any', 0 { database });
+  try
+    // Store value with 300 seconds TTL
+    Cache.SetValue('session:token', 'xyz123', 300);
+    
+    // Retrieve value
+    if Cache.TryGet('session:token', CachedValue) then
+      Writeln('Token from cache: ', CachedValue);
+      
+    // Remove key
+    Cache.Remove('session:token');
+    
+    // Clear database
+    Cache.Clear;
+  finally
+    Cache := nil; // Managed interface reference
+  end;
+end;
+```

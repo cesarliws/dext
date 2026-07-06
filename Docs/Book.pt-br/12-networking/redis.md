@@ -129,3 +129,39 @@ begin
   end;
 end;
 ```
+
+---
+
+## Provedor de Cache Web (`TRedisCacheStore`)
+
+A unit `Dext.Caching.Redis` disponibiliza uma implementacao nativa da interface `ICacheStore` destinada ao Redis, sendo registrada automaticamente no pipeline da aplicacao web para operacoes de cache descentralizadas.
+
+```pascal
+uses
+  System.SysUtils,
+  Dext.Caching,
+  Dext.Caching.Redis;
+
+var
+  Cache: ICacheStore;
+  CachedValue: string;
+begin
+  Cache := TRedisCacheStore.Create('127.0.0.1', 6379, 'senha_se_houver', 0 { database });
+  try
+    // Armazena um valor com 300 segundos de TTL
+    Cache.SetValue('session:token', 'xyz123', 300);
+    
+    // Recupera o valor
+    if Cache.TryGet('session:token', CachedValue) then
+      Writeln('Token recuperado: ', CachedValue);
+      
+    // Remove a chave
+    Cache.Remove('session:token');
+    
+    // Limpa a base de dados
+    Cache.Clear;
+  finally
+    Cache := nil; // Referencia de interface auto-gerenciada
+  end;
+end;
+```
