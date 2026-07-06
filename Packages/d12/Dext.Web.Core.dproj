@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{257BA51B-4993-4F54-A190-67E6B947E5DF}</ProjectGuid>
         <MainSource>Dext.Web.Core.dpk</MainSource>
@@ -149,7 +149,6 @@
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
         <DCCReference Include="Dext.EF.Core.dcp"/>
-        <DCCReference Include="Dext.Net.Core.dcp"/>
         <DCCReference Include="RESTComponents.dcp"/>
         <DCCReference Include="inet.dcp"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Engine.Types.pas"/>
@@ -167,7 +166,6 @@
         <DCCReference Include="..\..\Sources\Web\Dext.Auth.Identity.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Auth.JWT.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Auth.Middleware.pas"/>
-        <DCCReference Include="..\..\Sources\Web\Dext.Caching.Redis.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Caching.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.DI.Middleware.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Filters.BuiltIn.pas"/>

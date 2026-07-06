@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dext.Events.Interfaces - Dext Framework 1.0</title>
+    <title>Dext.Net.Redis - Dext Framework 1.0</title>
     
     <!-- Blocking script to avoid theme flicker --> 
     <script>
@@ -373,127 +373,238 @@
         
         <div id="contentArea">
             <!-- Main Documentation Content Injected Here -->
-            <h1>Unit Dext.Events.Interfaces</h1><h2>Classes</h2>
+            <h1>Unit Dext.Net.Redis</h1><h2>Classes</h2>
 <details class="mermaid-details" open>
 <summary>Class Diagram <span class="collapse-text">(Click to collapse)</span><span class="expand-text">(Click to expand)</span></summary>
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
-class TPublishResult {    +HandlersSucceeded()
+class EDextRedisException {}
+Exception <|-- EDextRedisException
+class TDextRedisValue {    +CreateNull()
+    +CreateSimpleString()
+    +CreateError()
+    +CreateInteger()
+    +CreateBulkString()
+    +CreateArray()
+    +CreateBoolean()
+    +CreateDouble()
+    +IsNull()
+    +AsString()
+    +ValueType
+    +RawSpan
+    +AsInteger
+    +AsDouble
+    +AsBoolean
+    +AsArray
 }
-class IEventHandler {}
-class IEventHandler~T~ {    +Handle()
+class TDextRedisParser {    +TryParse()
 }
-IEventHandler <|-- IEventHandler~T~
-class IEventBehavior {    +Intercept()
+class TDextRedisConnection {    +AppendData()
+    +ShiftBuffer()
+    +Create()
+    +Destroy()
+    +Connect()
+    +Disconnect()
+    +Connected()
+    +ExecuteCommand()
+    +ExecuteCommandAsync()
 }
-class IEventPublisher~T~ {    +Publish()
-    +PublishBackground()
+TObject <|-- TDextRedisConnection
+class TDextRedisConnectionPool {    +Create()
+    +Destroy()
+    +Acquire()
+    +Release()
+    +Clear()
+    +MaxPoolSize
+    +CurrentCount
 }
-class IEventBus {    +Dispatch()
-    +DispatchBackground()
+TObject <|-- TDextRedisConnectionPool
+class TDextRedisMessage {}
+class TDextRedisPubSub {    +ReaderLoop()
+    +Create()
+    +Destroy()
+    +Subscribe()
+    +Unsubscribe()
 }
-class THandlerEntry {}
-class IEventHandlerRegistry {    +RegisterHandler()
-    +RegisterBehavior()
-    +RegisterEventBehavior()
-    +GetHandlers()
-    +GetBehaviorFactories()
-    +GetEventBehaviorFactories()
+TObject <|-- TDextRedisPubSub
+class TDextRedisClient {    +Create()
+    +Destroy()
+    +Execute()
+    +ExecuteAsync()
+    +Get()
+    +SetVal()
+    +Del()
+    +Expire()
+    +JsonSet()
+    +JsonGet~T~()
+    +HSet()
+    +HGet()
+    +LPush()
+    +RPop()
+    +SAdd()
+    +SIsMember()
+    +Subscribe()
+    +Publish()
+    +Eval()
 }
-class TEventBusExtensions {    +Publish~T~()
-    +PublishBackground~T~()
-}
-class EEventBusException {}
-Exception <|-- EEventBusException
-class EEventDispatchException {}
-EEventBusException <|-- EEventDispatchException
-class EEventDispatchAggregate {    +Create()
-}
-EEventBusException <|-- EEventDispatchAggregate
+TObject <|-- TDextRedisClient
 </div>
 </div>
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>record TPublishResult</h3><a name="TPublishResult"></a><div class="description">Carries the result of a Publish<T> call. HandlersInvoked counts all handlers that were started, including those that raised - use HandlersFailed to distinguish successes.</div></div>
+<h3>class EDextRedisException</h3><a name="EDextRedisException"></a><div class="ancestor">Inherits from: Exception</div><div class="description">Exception class thrown for Redis communication or protocol errors.</div></div>
+<hr>
+<div class="class-header">
+<h3>record TDextRedisValue</h3><a name="TDextRedisValue"></a><div class="description">Zero-allocation/low-allocation representation of Redis responses.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function HandlersSucceeded: Integer</div></div>
+<div class="api-signature">function CreateNull: TDextRedisValue</div><div class="description">Creates a Redis value representing a Null response.</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateSimpleString(const const: TByteSpan): TDextRedisValue</div><div class="description">Creates a Redis value representing a Simple String response.</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateError(const const: TByteSpan): TDextRedisValue</div><div class="description">Creates a Redis value representing an Error response.</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateInteger(AValue: Int64): TDextRedisValue</div><div class="description">Creates a Redis value representing an Integer response.</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateBulkString(const const: TByteSpan): TDextRedisValue</div><div class="description">Creates a Redis value representing a Bulk String response.</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateArray(const const: TArray): TDextRedisValue</div><div class="description">Creates a Redis value representing an Array response.</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateBoolean(AValue: Boolean): TDextRedisValue</div><div class="description">Creates a Redis value representing a Boolean response (RESP3).</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateDouble(AValue: Double): TDextRedisValue</div><div class="description">Creates a Redis value representing a Double response (RESP3).</div></div>
+<div class="api-item">
+<div class="api-signature">function IsNull: Boolean</div><div class="description">Returns true if the value is null.</div></div>
+<div class="api-item">
+<div class="api-signature">function AsString: string</div><div class="description">Converts the value to a string representation.</div></div>
+<div class="api-item">
+<div class="api-signature">property ValueType: </div><div class="description">Gets the type of the Redis value.</div></div>
+<div class="api-item">
+<div class="api-signature">property RawSpan: </div><div class="description">Gets the raw byte span of the response.</div></div>
+<div class="api-item">
+<div class="api-signature">property AsInteger: </div><div class="description">Gets the value as an integer.</div></div>
+<div class="api-item">
+<div class="api-signature">property AsDouble: </div><div class="description">Gets the value as a double float.</div></div>
+<div class="api-item">
+<div class="api-signature">property AsBoolean: </div><div class="description">Gets the value as a boolean.</div></div>
+<div class="api-item">
+<div class="api-signature">property AsArray: </div><div class="description">Gets the elements of the response as a Redis value array.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventHandler</h3><a name="IEventHandler"></a><div class="description">Marker base interface for all event handlers. Internal - implement IEventHandler<T> in application code.</div></div>
-<hr>
-<div class="class-header">
-<h3>interface IEventHandler&lt;T&gt;</h3><a name="IEventHandler_lt_T_gt_"></a><div class="ancestor">Inherits from: IEventHandler</div><div class="description">Typed event handler. Implement this interface to react to the event type T. Handlers are resolved via DI on each publish, allowing dependency injection.</div></div>
+<h3>record TDextRedisParser</h3><a name="TDextRedisParser"></a><div class="description">Zero-allocation parsing helper for RESP2/RESP3.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">procedure Handle(const const: T)</div></div>
+<div class="api-signature">function TryParse(const const: TByteSpan; out out: TDextRedisValue; out out: Integer): Boolean</div><div class="description">Attempts to parse a Redis response from the provided buffer span.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventBehavior</h3><a name="IEventBehavior"></a><div class="description">Cross-cutting behavior applied around every handler invocation. Behaviors form an ordered pipeline - each must call ANext() to continue. Registered globally (all events) or per event type. Register via Services.AddEventBehavior&lt;TBehavior&gt;() (global) or Services.AddEventBehaviorFor&lt;TEvent, TBehavior&gt;() (per-event).  Named Intercept (not Handle) to clearly distinguish middleware from the final IEventHandler&lt;T&gt;.Handle call.</div></div>
+<h3>class TDextRedisConnection</h3><a name="TDextRedisConnection"></a><div class="ancestor">Inherits from: TObject</div><div class="description">High-performance TCP wrapper for Redis socket connections.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">procedure Intercept(AEventType: PTypeInfo; const const: TValue; const const: TEventNextDelegate)</div></div>
+<div class="api-signature">procedure AppendData(const const: TByteSpan)</div><div class="description">Appends incoming bytes to the connection buffer.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ShiftBuffer(ACount: Integer)</div><div class="description">Shifts the connection buffer window after consuming bytes.</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create(const const: string; APort: Word)</div><div class="description">Initializes a connection with host and port details.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div><div class="description">Frees connection resources.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Connect</div><div class="description">Establishes socket connection.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Disconnect</div><div class="description">Gracefully disconnects the socket connection.</div></div>
+<div class="api-item">
+<div class="api-signature">function Connected: Boolean</div><div class="description">Returns true if currently connected.</div></div>
+<div class="api-item">
+<div class="api-signature">function ExecuteCommand(const const: string; const const: TArray): TDextRedisValue</div><div class="description">Executes a Redis command and returns the response.</div></div>
+<div class="api-item">
+<div class="api-signature">function ExecuteCommandAsync(const const: string; const const: TArray): TAsyncBuilder</div><div class="description">Executes a Redis command asynchronously.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventPublisher&lt;T&gt;</h3><a name="IEventPublisher_lt_T_gt_"></a><div class="description">Facade for publishing a single type of event. Follows the Interface Segregation Principle (ISP) - inject IEventPublisher&lt;T&gt; instead of IEventBus in components that only publish a specific type of event.</div></div>
+<h3>class TDextRedisConnectionPool</h3><a name="TDextRedisConnectionPool"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Connection pool manager for TDextRedisConnection instances.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Publish(const const: T): TPublishResult</div><div class="description">Publishes the event synchronously and waits for all handlers to process.</div></div>
+<div class="api-signature">constructor Create(const const: string; APort: Word; AMaxPoolSize: Integer)</div><div class="description">Initializes a connection pool with size boundaries.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure PublishBackground(const const: T)</div><div class="description">Publishes the event in a background thread (fire-and-forget).</div></div>
+<div class="api-signature">destructor Destroy</div><div class="description">Cleans and destroys the connection pool.</div></div>
+<div class="api-item">
+<div class="api-signature">function Acquire: TDextRedisConnection</div><div class="description">Acquires a connection from the pool, creating one if empty.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Release(AConnection: TDextRedisConnection)</div><div class="description">Releases a connection back into the pool.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Clear</div><div class="description">Disconnects and clears all pooled connections.</div></div>
+<div class="api-item">
+<div class="api-signature">property MaxPoolSize: </div><div class="description">Gets or sets the maximum size of the connection pool.</div></div>
+<div class="api-item">
+<div class="api-signature">property CurrentCount: </div><div class="description">Gets the current number of active connections managed by the pool.</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>interface IEventBus</h3><a name="IEventBus"></a><div class="description">The Dext Central Event Bus. Allows complete decoupling between in-memory message producers and consumers.</div></div>
+<h3>record TDextRedisMessage</h3><a name="TDextRedisMessage"></a><div class="description">Represents a Redis Pub/Sub message payload.</div></div>
+<hr>
+<div class="class-header">
+<h3>class TDextRedisPubSub</h3><a name="TDextRedisPubSub"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Dedicated class for Redis Pub/Sub operations.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Dispatch(AEventType: PTypeInfo; const const: TValue): TPublishResult</div><div class="description">Dispatches an event synchronously. Invokes all registered Handlers and Behaviors. Returns publication statistics. Raises an exception if any handler fails.</div></div>
+<div class="api-signature">constructor Create(const const: string; APort: Word)</div><div class="description">Initializes Pub/Sub client connection.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure DispatchBackground(AEventType: PTypeInfo; const const: TValue)</div><div class="description">Dispatches an event asynchronously (fire-and-forget). Processing occurs in a separate thread with an isolated DI scope.</div></div>
+<div class="api-signature">destructor Destroy</div><div class="description">Cleans Pub/Sub client connection.</div></div>
+<div class="api-item">
+<div class="api-signature">function Subscribe(const const: string): IChannel</div><div class="description">Subscribes to a channel, returning a concurrent channel.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Unsubscribe(const const: string)</div><div class="description">Unsubscribes from a channel.</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure ReaderLoop</div></div>
 </div>
 <hr>
 <div class="class-header">
-<h3>record THandlerEntry</h3><a name="THandlerEntry"></a></div>
-<hr>
-<div class="class-header">
-<h3>interface IEventHandlerRegistry</h3><a name="IEventHandlerRegistry"></a><div class="description">Internal registry: maps event TypeInfo to handler entry lists and manages global + per-event behavior factory lists. Populated at startup by AddEventHandler/AddEventBehavior. Do not consume directly - use IEventBus.</div></div>
+<h3>class TDextRedisClient</h3><a name="TDextRedisClient"></a><div class="ancestor">Inherits from: TObject</div><div class="description">The developer-facing native Redis client.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">procedure RegisterHandler(AEventType: PTypeInfo; AHandlerClass: TClass; const const: TFunc)</div></div>
+<div class="api-signature">constructor Create(const const: string; APort: Word; AMaxPoolSize: Integer)</div><div class="description">Initializes the client with connection parameters.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure RegisterBehavior(const const: TFunc)</div></div>
+<div class="api-signature">destructor Destroy</div><div class="description">Cleans the client resources.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure RegisterEventBehavior(AEventType: PTypeInfo; const const: TFunc)</div></div>
+<div class="api-signature">function Execute(const const: string; const const: TArray): TDextRedisValue</div><div class="description">Executes a command and returns the parsed value.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetHandlers(AEventType: PTypeInfo): TArray</div></div>
+<div class="api-signature">function ExecuteAsync(const const: string; const const: TArray): TAsyncBuilder</div><div class="description">Executes a command asynchronously.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetBehaviorFactories: TArray</div></div>
+<div class="api-signature">function Get(const const: string): string</div><div class="description">Retrieves a string value by key.</div></div>
 <div class="api-item">
-<div class="api-signature">function GetEventBehaviorFactories(AEventType: PTypeInfo): TArray</div></div>
+<div class="api-signature">function SetVal(const const: string; const const: string; AExpireSeconds: Integer): Boolean</div><div class="description">Sets a string value by key, with optional expiration.</div></div>
+<div class="api-item">
+<div class="api-signature">function Del(const const: string): Integer</div><div class="description">Deletes a key from Redis.</div></div>
+<div class="api-item">
+<div class="api-signature">function Expire(const const: string; ASeconds: Integer): Boolean</div><div class="description">Sets a key's time to live in seconds.</div></div>
+<div class="api-item">
+<div class="api-signature">function JsonSet(const const: string; const const: string; const const: TObject): Boolean</div><div class="description">Sets a JSON object in RedisJSON at a path.</div></div>
+<div class="api-item">
+<div class="api-signature">function JsonGet&lt;T&gt;(const const: string; const const: string): T</div><div class="description">Retrieves and deserializes a JSON object from RedisJSON.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure HSet(const const: string; const const: string; const const: string)</div><div class="description">Sets a field in a Redis Hash.</div></div>
+<div class="api-item">
+<div class="api-signature">function HGet(const const: string; const const: string): string</div><div class="description">Gets a field value from a Redis Hash.</div></div>
+<div class="api-item">
+<div class="api-signature">function LPush(const const: string; const const: string): Integer</div><div class="description">Prepends a value to a list.</div></div>
+<div class="api-item">
+<div class="api-signature">function RPop(const const: string): string</div><div class="description">Removes and returns the last element of a list.</div></div>
+<div class="api-item">
+<div class="api-signature">function SAdd(const const: string; const const: string): Integer</div><div class="description">Adds a member to a set.</div></div>
+<div class="api-item">
+<div class="api-signature">function SIsMember(const const: string; const const: string): Boolean</div><div class="description">Checks if a member belongs to a set.</div></div>
+<div class="api-item">
+<div class="api-signature">function Subscribe(const const: string): IChannel</div><div class="description">Subscribes to a Pub/Sub channel.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Publish(const const: string; const const: string)</div><div class="description">Publishes a message to a channel.</div></div>
+<div class="api-item">
+<div class="api-signature">function Eval(const const: string; const const: TArray; const const: TArray): TDextRedisValue</div><div class="description">Executes a Lua script on the server side.</div></div>
 </div>
 <hr>
-<div class="class-header">
-<h3>record TEventBusExtensions</h3><a name="TEventBusExtensions"></a><div class="description">Typed call-site sugar over IEventBus. Delphi E2535 prevents generic methods on interfaces, so these static helpers box the event to TValue and delegate to IEventBus.Dispatch. Defined here (not on the DI helper) to avoid the naming conflict with TEventBusDIExtensions in Dext.Events.Extensions.  Usage: <code> // FBus: IEventBus (injected) TEventBusExtensions.Publish&lt;TOrderPlacedEvent&gt;(FBus, Event); // or inject the narrow IEventPublisher&lt;T&gt; (preferred - ISP): FPublisher.Publish(Event); </code></div></div>
-<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Publish&lt;T&gt;(const const: IEventBus; const const: T): TPublishResult</div></div>
-<div class="api-item">
-<div class="api-signature">procedure PublishBackground&lt;T&gt;(const const: IEventBus; const const: T)</div></div>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">procedure RegisterRedisClient(const const: IServiceCollection; const const: string; APort: Word)</div><div class="description">Registers the Redis client in the Dependency Injection container.</div></div>
 </div>
-<hr>
-<div class="class-header">
-<h3>class EEventBusException</h3><a name="EEventBusException"></a><div class="ancestor">Inherits from: Exception</div></div>
-<hr>
-<div class="class-header">
-<h3>class EEventDispatchException</h3><a name="EEventDispatchException"></a><div class="ancestor">Inherits from: EEventBusException</div><div class="description">Raised by TEventExceptionBehavior when a single handler fails. Carries the event type name for diagnosing dispatch failures.</div></div>
-<hr>
-<div class="class-header">
-<h3>class EEventDispatchAggregate</h3><a name="EEventDispatchAggregate"></a><div class="ancestor">Inherits from: EEventBusException</div><div class="description">Raised by IEventBus.Publish&lt;T&gt; when one or more handlers raise an exception. All handlers are always invoked before this is raised. Errors contains one entry per failed handler (ClassName + Message).</div></div>
-<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: TArray)</div></div>
-</div>
-<hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TEventNextDelegate = Type</div><div class="description">Delegate representing the continuation in the event handling pipeline. Call ANext() to pass execution to the next behavior (or the handler). Omitting the call short-circuits the pipeline for the current handler.</div></div>
+<div class="api-signature">type TDextRedisValueType = enumeration</div><div class="enum-values">Values: rvNull, rvSimpleString, rvError, rvInteger, rvBulkString, rvArray, rvBoolean, rvDouble</div><div class="description">Supported Redis protocol value types.</div></div>
 </div>
 
         </div>

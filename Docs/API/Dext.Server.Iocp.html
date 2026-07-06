@@ -215,6 +215,7 @@
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
+<a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
@@ -415,6 +416,7 @@ class TDextIocpResponse {    +Create()
     +SetHeader()
     +SendHeaders()
     +Write()
+    +WriteFile()
     +Flush()
     +Close()
 }
@@ -520,6 +522,8 @@ IDextServerEngine <|.. TDextIocpEngine
 <div class="api-signature">procedure SendHeaders</div><div class="description">Forces sending of response headers to the client.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Write(const const: TBytes; AOffset: Integer; ACount: Integer)</div><div class="description">Writes raw bytes into the response body stream.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteFile(const const: string; AOffset: Int64; ACount: Int64)</div><div class="description">Writes a file directly to the response socket using zero-copy transmission.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Flush</div><div class="description">Flushes any buffered response data to the network.</div></div>
 <div class="api-item">
