@@ -213,6 +213,7 @@
         <DCCReference Include="..\..\Sources\Web\Dext.Web.ModelBinding.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.MultiTenancy.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.EntityDataSetApi.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Pipeline.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Results.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Routing.Attributes.pas"/>

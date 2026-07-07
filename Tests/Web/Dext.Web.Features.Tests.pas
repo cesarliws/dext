@@ -440,7 +440,7 @@ begin
       WriteLn('CLIENT RECEIVED (Standard): Status=' + Resp.StatusCode.ToString + ', Content-Length=' + Resp.ContentStream.Size.ToString);
       Should(Resp.StatusCode).Be(200);
       Should(Resp.GetHeader('Content-Encoding')).Be('gzip');
-      Should(Resp.ContentStream.Size).BeLessThan(4000); // Verify it is compressed
+      Should(Resp.RawContentStream.Size).BeLessThan(4000); // Verify it is compressed on the wire
 
       // 2. Test direct write Controller Action (writes directly to Ctx.Response)
       Resp := RestClient('http://localhost:' + Host.Port.ToString)
@@ -451,7 +451,7 @@ begin
       WriteLn('CLIENT RECEIVED (Direct): Status=' + Resp.StatusCode.ToString + ', Content-Length=' + Resp.ContentStream.Size.ToString);
       Should(Resp.StatusCode).Be(200);
       Should(Resp.GetHeader('Content-Encoding')).Be('gzip');
-      Should(Resp.ContentStream.Size).BeLessThan(4000); // Verify it is compressed
+      Should(Resp.RawContentStream.Size).BeLessThan(4000); // Verify it is compressed on the wire
     except
       on E: Exception do
       begin

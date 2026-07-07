@@ -829,5 +829,31 @@ O Dext inclui uma biblioteca cliente nativa e de alta performance para o Redis, 
 
 ---
 
+## 💾 26. Sincronização do TEntityDataSet e Descompressão no RestClient (S51)
+
+Oferece controle de alterações distribuído e descompressão de rede.
+
+### 26.1 Registro Nativo de Alterações (Change-Log) no TEntityDataSet
+- **Rastreamento de Estados de Linha** — Controle de modificações usando
+  `TEntityRowState` exposto pela lista `Changes` (`TEntityChange`).
+- **Tombstones para Exclusão** — Preserva chaves primárias (`Key`) dos registros
+  excluídos, permitindo sincronizar remoções com o servidor.
+- **Gestão Transacional** — API nativa `AcceptChanges` para consolidar o estado
+  em memória pós-sincronização bem-sucedida.
+
+### 26.2 Mapeamento de Endpoints "Agreed Service"
+- **Roteamento Automático** — Mapeamento via `MapEntityDataSet<T>` expõe
+  `GET` para listagem e `POST` `/apply` para persistência das alterações.
+- **Persistência Customizável** — Interface plugável `IEntityDataSetStore`
+  integrada ao ciclo transacional do ORM (`DbContext.SaveChanges`).
+
+### 26.3 Descompressão Transparente de Rede
+- **Negociação Automática** — O `TRestClient` sinaliza `Accept-Encoding`
+  e realiza a descompactação via `TZDecompressionStream` de forma transparente.
+- **Preservação de Stream Bruto** — Mantém o stream compactado original
+  disponível em `RawContentStream` para inspeção e auditoria.
+
+---
+
 *Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 07, 2026).*
 

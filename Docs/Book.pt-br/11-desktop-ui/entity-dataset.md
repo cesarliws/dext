@@ -84,6 +84,49 @@ O Dext garante que o estado de design-time não polua seus arquivos de código:
 - **Segurança na Persistência:** A propriedade `Active` é gerenciada automaticamente para que nunca seja salva como `True` no DFM, evitando popups de erro de conexão ao abrir forms.
 - **Limpeza Inteligente:** Alterar a propriedade `EntityClassName` dispara automaticamente uma reconstrução total dos campos para evitar contaminação de metadados.
 
+## 💾 Controle de Alterações e Sincronização Remota
+
+O dataset registra nativamente inserções, atualizações e exclusões, facilitando
+a sincronização com um servidor REST.
+
+### Log de Alterações Nativo
+
+Quando um registro é editado, inserido ou excluído, o `TEntityDataSet` rastreia
+automaticamente na propriedade `Changes`.
+
+```pascal
+var
+  Change: TEntityChange;
+begin
+  for Change in DataSet.Changes do
+  begin
+    case Change.State of
+      ersInserted: // Registro novo
+      ersModified: // Modificado (lista Change.DirtyFields disponível)
+      ersDeleted:  // Tombstone (mapa de chaves primárias em Change.Key)
+    end;
+  end;
+end;
+```
+
+Após salvar com sucesso, invoque `AcceptChanges` para consolidar o estado e limpar o log:
+
+```pascal
+DataSet.AcceptChanges;
+```
+
+### Endpoints REST Auto-Gerados
+
+No servidor, mapeie a entidade para criar os endpoints de sincronização convencionais:
+
+```pascal
+App.MapEntityDataSet<TCustomer>('/api/customers', TMyDbContext);
+```
+
+Isso registra as seguintes rotas:
+- `GET /api/customers` para buscar a lista de registros.
+- `POST /api/customers/apply` para persistir o lote de alterações recebido.
+
 ---
 
 ## 🏆 Recursos Principais

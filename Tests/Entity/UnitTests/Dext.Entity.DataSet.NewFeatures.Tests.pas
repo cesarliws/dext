@@ -6,6 +6,7 @@ uses
   System.SysUtils,
   System.Classes,
   Data.DB,
+  Dext.Core.Span,
   Dext.Testing,
   Dext.Entity.DataSet,
   Dext.Entity.Attributes,
@@ -18,6 +19,8 @@ type
     FId: Integer;
     FName: string;
     FPrice: Double;
+    FStock: SmallInt;
+    FStatus: Byte;
   public
     [PrimaryKey, AutoInc]
     property Id: Integer read FId write FId;
@@ -27,6 +30,9 @@ type
 
     [DisplayWidth(15), DisplayLabel('Unit Price')]
     property Price: Double read FPrice write FPrice;
+
+    property Stock: SmallInt read FStock write FStock;
+    property Status: Byte read FStatus write FStatus;
   end;
 
   // Hacker para o TDataLink (permitir acesso a membros publicos/protegidos)
@@ -53,6 +59,10 @@ type
     procedure Test_OnPrepareField_Event;
     [Test]
     procedure Test_Grid_Painting_Simulation_MultiBuffer;
+    [Test]
+    procedure Test_SmallOrdinals_Serialization;
+    [Test]
+    procedure Test_ChangeLog_Tracking;
   end;
 
 implementation
@@ -161,6 +171,79 @@ begin
     LDataLink.Free;
     LDataSource.Free;
   end;
+end;
+
+procedure TEntityDataSetFeaturesTests.Test_SmallOrdinals_Serialization;
+var
+  JsonData: string;
+  Span: TByteSpan;
+  Bytes: TBytes;
+begin
+  JsonData := '[{"Id":1,"Name":"A","Stock":100,"Status":2}]';
+  Bytes := TEncoding.UTF8.GetBytes(JsonData);
+  Span := TByteSpan.FromBytes(Bytes);
+  FDataSet.LoadFromUtf8Json<TProductFeaturesTest>(Span);
+  FDataSet.Open;
+
+  Should(FDataSet.FieldByName('Stock').AsInteger).Be(100);
+  Should(FDataSet.FieldByName('Status').AsInteger).Be(2);
+end;
+
+procedure TEntityDataSetFeaturesTests.Test_ChangeLog_Tracking;
+var
+  List: IList<TProductFeaturesTest>;
+  Prod: TProductFeaturesTest;
+  Changes: IList<TEntityChange>;
+begin
+  List := TCollections.CreateList<TProductFeaturesTest>(True);
+  Prod := TProductFeaturesTest.Create;
+  Prod.Id := 1;
+  Prod.Name := 'Original';
+  Prod.Stock := 50;
+  Prod.Status := 1;
+  List.Add(Prod);
+
+  FDataSet.Load<TProductFeaturesTest>(List);
+  FDataSet.Open;
+
+  // 1. Initial State -> Should be empty
+  Should(FDataSet.Changes.Count).Be(0);
+
+  // 2. Modify existing
+  FDataSet.First;
+  FDataSet.Edit;
+  FDataSet.FieldByName('Name').AsString := 'Modified';
+  FDataSet.Post;
+
+  Changes := FDataSet.Changes;
+  Should(Changes.Count).Be(1);
+  Should(Changes[0].State = ersModified).BeTrue;
+  Should(Changes[0].DirtyFields[0]).Be('Name');
+
+  // 3. Insert new
+  FDataSet.Append;
+  FDataSet.FieldByName('Id').AsInteger := 2;
+  FDataSet.FieldByName('Name').AsString := 'New';
+  FDataSet.Post;
+
+  Should(FDataSet.Changes.Count).Be(2);
+  Should(FDataSet.Changes[1].State = ersInserted).BeTrue;
+
+  // 4. Delete existing (loaded)
+  FDataSet.Locate('Id', 1, []);
+  FDataSet.Delete;
+
+  // Original modified change should be removed, replaced by ersDeleted tombstone.
+  // Inserted change remains at index 0.
+  Should(FDataSet.Changes.Count).Be(2);
+  Should(FDataSet.Changes[0].State = ersInserted).BeTrue;
+  Should(FDataSet.Changes[1].State = ersDeleted).BeTrue;
+  Should(FDataSet.Changes[1].Key[0].Key).Be('Id');
+  Should(FDataSet.Changes[1].Key[0].Value).Be(1);
+
+  // 5. AcceptChanges
+  FDataSet.AcceptChanges;
+  Should(FDataSet.Changes.Count).Be(0);
 end;
 
 end.

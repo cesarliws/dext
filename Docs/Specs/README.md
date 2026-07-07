@@ -56,6 +56,7 @@ ID | Title | Status | Goal
 **S48** | [Processor Groups](S48-Processor-Groups.md) | ✅ Finalized | Windows Processor Groups optimization (NUMA-Aware scaling) for >64 logical cores.
 **S49** | [HTTP QUERY Method](S49-Http-Query-Method.md) | ✅ Finalized | Standardized HTTP QUERY method support (RFC 10008) on client and server.
 **S50** | [Linux Epoll Server Engine Evolution](S50-Linux-Epoll-Evolution.md) | ✅ Finalized | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, lock-free buffer pooling, and keep-alive timing wheels.
+**S51** | [EntityDataSet Remote Sync](S51-EntityDataSet-Remote-Sync.md) | 🟡 In Progress | Remote tracking, delta packaging, and transport decompression.
 
 ---
 

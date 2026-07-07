@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -596,7 +596,7 @@ begin
       var rolesList: TArray<string>;
       var isAuthorized: Boolean;
       var role: string;
-      
+
       rolesList := CachedMethod.Roles.Split([',']);
       isAuthorized := False;
       for role in rolesList do

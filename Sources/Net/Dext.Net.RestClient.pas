@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -40,7 +40,8 @@ uses
   Dext.Net.Engine,
   Dext.Resilience,
   Dext.Threading.Async,
-  Dext.Threading.CancellationToken;
+  Dext.Threading.CancellationToken,
+  System.ZLib;
 
  type
   /// <summary>Supported HTTP methods for the REST client.</summary>
@@ -60,6 +61,8 @@ uses
     function GetContentStream: TStream;
     /// <summary>Returns the response body as string (UTF-8).</summary>
     function GetContentString: string;
+    /// <summary>Returns the raw uncompressed stream.</summary>
+    function GetRawContentStream: TStream;
     /// <summary>Gets the value of a specific response header (case-insensitive lookup).</summary>
     /// <param name="AName">Header name (e.g. "Content-Type", "X-Request-Id").</param>
     /// <returns>The header value, or empty string if not found.</returns>
@@ -74,6 +77,7 @@ uses
     property StatusText: string read GetStatusText;
     property ContentStream: TStream read GetContentStream;
     property ContentString: string read GetContentString;
+    property RawContentStream: TStream read GetRawContentStream;
     /// <summary>Returns true if the status code is in the 2xx range (200-299).</summary>
     property IsSuccess: Boolean read GetIsSuccess;
   end;
@@ -93,12 +97,14 @@ uses
     FStatusCode: Integer;
     FStatusText: string;
     FContentStream: TMemoryStream;
+    FRawContentStream: TMemoryStream;
     FHeaders: TDextNetHeaders;
   protected
     function GetStatusCode: Integer;
     function GetStatusText: string;
     function GetContentStream: TStream;
     function GetContentString: string;
+    function GetRawContentStream: TStream;
     function GetHeader(const AName: string): string;
     function GetHeaders: TDextNetHeaders;
     function GetIsSuccess: Boolean;
@@ -396,23 +402,55 @@ end;
 
 constructor TRestResponse.Create(AStatusCode: Integer; const AStatusText: string; AStream: TStream;
   const AHeaders: TDextNetHeaders);
+var
+  ContentEncoding: string;
+  Decompressor: TZDecompressionStream;
 begin
   inherited Create;
   FStatusCode := AStatusCode;
   FStatusText := AStatusText;
   FHeaders := AHeaders;
   FContentStream := TMemoryStream.Create;
+  FRawContentStream := TMemoryStream.Create;
   if Assigned(AStream) then
   begin
     AStream.Position := 0;
-    FContentStream.CopyFrom(AStream, AStream.Size);
+    FRawContentStream.CopyFrom(AStream, AStream.Size);
+    FRawContentStream.Position := 0;
+    
+    ContentEncoding := GetHeader('Content-Encoding');
+    if SameText(ContentEncoding, 'gzip') then
+    begin
+      Decompressor := TZDecompressionStream.Create(FRawContentStream, 31);
+      try
+        FContentStream.CopyFrom(Decompressor, 0);
+      finally
+        Decompressor.Free;
+      end;
+    end
+    else if SameText(ContentEncoding, 'deflate') then
+    begin
+      Decompressor := TZDecompressionStream.Create(FRawContentStream, 15);
+      try
+        FContentStream.CopyFrom(Decompressor, 0);
+      finally
+        Decompressor.Free;
+      end;
+    end
+    else
+    begin
+      FContentStream.CopyFrom(FRawContentStream, FRawContentStream.Size);
+    end;
+    
     FContentStream.Position := 0;
+    FRawContentStream.Position := 0;
   end;
 end;
 
 destructor TRestResponse.Destroy;
 begin
   FContentStream.Free;
+  FRawContentStream.Free;
   inherited;
 end;
 
@@ -421,25 +459,30 @@ begin
   Result := FContentStream;
 end;
 
+function TRestResponse.GetRawContentStream: TStream;
+begin
+  Result := FRawContentStream;
+end;
+
 function TRestResponse.GetContentString: string;
 var
-  LBytes: TBytes;
+  Data: TBytes;
 begin
   if FContentStream.Size = 0 then Exit('');
-  
+
   FContentStream.Position := 0;
-  SetLength(LBytes, FContentStream.Size);
-  FContentStream.ReadBuffer(LBytes[0], FContentStream.Size);
-  Result := TEncoding.UTF8.GetString(LBytes);
+  SetLength(Data, FContentStream.Size);
+  FContentStream.ReadBuffer(Data[0], FContentStream.Size);
+  Result := TEncoding.UTF8.GetString(Data);
 end;
 
 function TRestResponse.GetHeader(const AName: string): string;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to High(FHeaders) do
-    if SameText(FHeaders[I].Name, AName) then
-      Exit(FHeaders[I].Value);
+  for i := 0 to High(FHeaders) do
+    if SameText(FHeaders[i].Name, AName) then
+      Exit(FHeaders[i].Value);
   Result := '';
 end;
 
@@ -504,9 +547,7 @@ begin
   inherited;
 end;
 
-
 function TRestClientImpl.GetFullUrl(const AEndpoint: string): string;
-
 begin
   if FBaseUrl = '' then Exit(AEndpoint);
   
@@ -635,16 +676,17 @@ end;
 function TRestClientImpl.ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
   const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>): TAsyncBuilder<IRestResponse>;
 var
-  Url: string;
-  Retries: Integer;
-  Headers: TDextNetHeaders;
-  Timeout: Integer;
   Auth: IAuthenticationProvider;
-  LHeadList: TList<TDextNetHeader>;
-  LPair: TPair<string, string>;
-  I: Integer;
-  HasContentType: Boolean;
   ContentTypeStr: string;
+  HasAcceptEncoding: Boolean;
+  HasContentType: Boolean;
+  Headers: TDextNetHeaders;
+  HeadList: TList<TDextNetHeader>;
+  i: Integer;
+  Pair: TPair<string, string>;
+  Retries: Integer;
+  Timeout: Integer;
+  Url: string;
 begin
   Url := GetFullUrl(AEndpoint);
   Retries := FMaxRetries;
@@ -652,12 +694,12 @@ begin
   Auth := FAuthProvider;
   
   // Snapshot headers (Thread Safety)
-  LHeadList := TList<TDextNetHeader>.Create;
+  HeadList := TList<TDextNetHeader>.Create;
   try
     FLock.Enter;
     try
-      for LPair in FHeaders do
-        LHeadList.Add(TDextNetHeader.Create(LPair.Key, LPair.Value));
+      for Pair in FHeaders do
+        HeadList.Add(TDextNetHeader.Create(Pair.Key, Pair.Value));
     finally
       FLock.Leave;
     end;
@@ -665,21 +707,34 @@ begin
     if Assigned(Auth) then
     begin
        if Auth is TApiKeyAuthProvider then
-         LHeadList.Add(TDextNetHeader.Create(TApiKeyAuthProvider(Auth).Key, Auth.GetHeaderValue))
+         HeadList.Add(TDextNetHeader.Create(TApiKeyAuthProvider(Auth).Key, Auth.GetHeaderValue))
        else
-         LHeadList.Add(TDextNetHeader.Create('Authorization', Auth.GetHeaderValue));
+         HeadList.Add(TDextNetHeader.Create('Authorization', Auth.GetHeaderValue));
     end;
  
     if Assigned(AHeaders) then
     begin
-      for LPair in AHeaders do
-        LHeadList.Add(TDextNetHeader.Create(LPair.Key, LPair.Value));
+      for Pair in AHeaders do
+        HeadList.Add(TDextNetHeader.Create(Pair.Key, Pair.Value));
     end;
 
-    HasContentType := False;
-    for I := 0 to LHeadList.Count - 1 do
+    HasAcceptEncoding := False;
+    for i := 0 to HeadList.Count - 1 do
     begin
-      if SameText(LHeadList[I].Name, 'Content-Type') then
+      if SameText(HeadList[i].Name, 'Accept-Encoding') then
+      begin
+        HasAcceptEncoding := True;
+        Break;
+      end;
+    end;
+
+    if not HasAcceptEncoding then
+      HeadList.Add(TDextNetHeader.Create('Accept-Encoding', 'gzip, deflate'));
+
+    HasContentType := False;
+    for i := 0 to HeadList.Count - 1 do
+    begin
+      if SameText(HeadList[i].Name, 'Content-Type') then
       begin
         HasContentType := True;
         Break;
@@ -698,12 +753,12 @@ begin
         else ContentTypeStr := '';
       end;
       if ContentTypeStr <> '' then
-        LHeadList.Add(TDextNetHeader.Create('Content-Type', ContentTypeStr));
+        HeadList.Add(TDextNetHeader.Create('Content-Type', ContentTypeStr));
     end;
     
-    Headers := LHeadList.ToArray;
+    Headers := HeadList.ToArray;
   finally
-    LHeadList.Free;
+    HeadList.Free;
   end;
   
   Result := TAsyncTask.Run<IRestResponse>(
@@ -790,14 +845,14 @@ end;
 
 class function TRestClient.Create(const ABaseUrl: string): TRestClient;
 var
-  LNewPool: TConnectionPool;
+  NewPool: TConnectionPool;
 begin
   // Thread-safe pool initialization
   if not Assigned(FSharedPool) then
   begin
-    LNewPool := TConnectionPool.Create;
-    if TInterlocked.CompareExchange(Pointer(FSharedPool), Pointer(LNewPool), nil) <> nil then
-      LNewPool.Free;
+    NewPool := TConnectionPool.Create;
+    if TInterlocked.CompareExchange(Pointer(FSharedPool), Pointer(NewPool), nil) <> nil then
+      NewPool.Free;
   end;
   Result.FInstance := TRestClientImpl.Create(ABaseUrl);
 end;
@@ -1092,8 +1147,8 @@ end;
 
 function TRestClient.Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder<IRestResponse>;
 var
-  Method: TDextHttpMethod;
   BodyStream: TStringStream;
+  Method: TDextHttpMethod;
 begin
   if RequestInfo = nil then
     raise Exception.Create('RequestInfo cannot be nil');

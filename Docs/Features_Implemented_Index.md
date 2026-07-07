@@ -1008,5 +1008,31 @@ Dext features a native, high-performance Redis client library supporting RESP2/R
 
 ---
 
+## 💾 26. Remote TEntityDataSet Sync & Transparent Decompression (S51)
+
+Exposes delta-tracking mechanisms and transport decompression.
+
+### 26.1 Native Change-Log Tracking in TEntityDataSet
+- **Row State Tracking** — Native change tracking via `TEntityRowState` 
+  and change list property `Changes` (`TEntityChange`).
+- **Tombstones for Deletion** — Retains primary key maps (`Key`) of deleted
+  entities during `Delete`, enabling synchronization of removals.
+- **Transactional Consolidating** — Native `AcceptChanges` API to clear
+  accumulated change logs after successful updates.
+
+### 26.2 Server-side agreed service mapping
+- **Automated Routing Endpoints** — Native `MapEntityDataSet<T>` exposing
+  `GET` for fetching and `POST` `/apply` for persisting the change list.
+- **Custom Persistence Engine** — Pluggable `IEntityDataSetStore` interface
+  defaulting to `TDbContextEntityDataSetStore` (`DbContext.SaveChanges`).
+
+### 26.3 Transparent Network Transport Decompression
+- **Transparent Inbound Decompression** — `TRestClient` advertises
+  `Accept-Encoding` and decompresses response streams dynamically.
+- **Raw Stream Preservation** — Preserves raw compressed bytes via
+  `RawContentStream` property for audit or direct byte checking.
+
+---
+
 *Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 07, 2026).*
 

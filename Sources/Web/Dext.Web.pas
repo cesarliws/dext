@@ -997,6 +997,10 @@ type
     function MapDataApi<T: class, constructor>(const APath: string): AppBuilder; overload;
     function MapDataApi<T: class, constructor>(const APath: string; AOptions: TDataApiOptions): AppBuilder; overload;
     function MapDataApi(const AEntityClass: TClass; const APath: string; AOptions: TDataApiOptions = nil): AppBuilder; overload;
+    /// <summary>
+    /// Maps REST endpoints for remote TEntityDataSet tracking and sync.
+    /// </summary>
+    function MapEntityDataSet<T: class, constructor>(const APath: string; ADbContextClass: TClass): AppBuilder; overload;
     {$ENDIF}
   end;
 
@@ -1019,7 +1023,8 @@ implementation
 
 uses
   Dext.Options.Extensions,
-  Dext.Configuration.Binder;
+  Dext.Configuration.Binder,
+  Dext.Web.EntityDataSetApi;
 
 function WebApplication: IWebApplication;
 begin
@@ -1714,6 +1719,13 @@ end;
 function THttpAppBuilderHelper.MapDataApi(const AEntityClass: TClass; const APath: string; AOptions: TDataApiOptions): AppBuilder;
 begin
   TDataApi.Map(Self.Unwrap, AEntityClass, APath, AOptions);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapEntityDataSet<T>(const APath: string;
+  ADbContextClass: TClass): AppBuilder;
+begin
+  TEntityDataSetApi.Map<T>(Self.Unwrap, APath, ADbContextClass);
   Result := Self;
 end;
 {$ENDIF}
