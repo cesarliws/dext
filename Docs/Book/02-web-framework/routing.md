@@ -152,6 +152,22 @@ App.MapGroup('/api/v1', procedure(Group: IRouteGroup)
   end);
 ```
 
+## Routing Engine Performance (Radix Tree)
+
+Dext uses an optimized **Radix Tree (Trie)** routing algorithm. Instead of
+performing a linear search (`O(N)`) through all registered routes on each
+incoming request, routes are compiled into a tree of path segments.
+
+Key features:
+- **O(L) Matching Complexity**: Route matching time depends strictly on the
+  depth/segments of the URL path (`L`) rather than the number of routes (`N`).
+- **Segment Backtracking**: Support for literals, parameters (`{id}`), and
+  wildcards with backtracking to ensure exact routes take precedence.
+- **Zero-Allocation Metadata Mapping**: The engine bypasses RTTI/TValue
+  wrapping when resolving endpoint metadata by directly assigning values via
+  the `IHttpContext.EndpointMetadata` property.
+
 ---
 
 [← Model Binding](model-binding.md) | [Next: Middleware →](middleware.md)
+

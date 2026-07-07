@@ -821,4 +821,13 @@ O Dext inclui uma biblioteca cliente nativa e de alta performance para o Redis, 
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 06, 2026).*
+## 🛣️ 25. Motor de Roteamento Baseado em Árvore Radix (`Sources\Web`)
+
+- **Roteamento por Árvore Radix (Trie)** — Busca linear de rotas substituída por uma estrutura em árvore otimizada com `TRouteNode`, alcançando complexidade de correspondência de caminhos de $O(L)$ (onde $L$ é a profundidade de segmentos) e resolução determinística.
+- **Backtracking de Segmentos** — Suporte completo a segmentos fixos (literais), parâmetros de rota (`{param}`) e parâmetros curinga com backtracking segmento a segmento para resolução de sobreposições.
+- **Mapeamento de Metadados de Requisição Zero-Allocation** — Evita o encapsulamento dinâmico pesado com RTTI (eliminando alocações de dicionários e `TValue` no heap) ao expor e atribuir `EndpointMetadata` diretamente nas propriedades de `IHttpContext` das rotas correspondidas.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 07, 2026).*
+

@@ -1000,4 +1000,13 @@ Dext features a native, high-performance Redis client library supporting RESP2/R
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 06, 2026).*
+## 🛣️ 25. High-Performance Radix Tree Routing Engine (`Sources\Web`)
+
+- **Radix Tree (Trie) Routing Matching** — Path segment route scanning replaced with an optimized `TRouteNode` tree structure, achieving $O(L)$ path matching complexity (where $L$ is path segment depth) and deterministic route resolution.
+- **Backtracking Segment Traversal** — Fully supports literal matching, path parameters (`{param}`), and wildcard parameters with segment-by-segment backtracking to resolve overlaps.
+- **Zero-Allocation Request Metadata Mapping** — Bypasses RTTI-heavy dynamic wrapping (eliminating dictionary and `TValue` heap allocations) by directly exposing and assigning `EndpointMetadata` via `IHttpContext` properties on matched routes.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 07, 2026).*
+
