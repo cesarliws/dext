@@ -90,7 +90,7 @@ uses
   Dext.Web.Versioning,
   Dext.WebHost,
   Dext.Caching,
-  //Dext.Caching.Redis,
+  Dext.Caching.Redis,
   Dext.Web.ApplicationBuilder.Extensions,
   Dext.Web.WebApplication,
   Dext.Web.Indy.SSL.Interfaces,
@@ -176,7 +176,7 @@ type
 
   // Dext.Caching.Redis
   /// <summary> Distributed cache implementation using Redis. </summary>
-  //TRedisCacheStore = Dext.Caching.Redis.TRedisCacheStore;
+  TRedisCacheStore = Dext.Caching.Redis.TRedisCacheStore;
 
   // Dext.DI.Middleware
   TServiceScopeMiddleware = Dext.DI.Middleware.TServiceScopeMiddleware;

@@ -134,7 +134,10 @@ end;
 
 ## Web Caching Store (`TRedisCacheStore`)
 
-The `Dext.Caching.Redis` unit provides a native implementation of the `ICacheStore` interface targeting Redis, which is automatically registered in the Web Application pipeline when caching with Redis is requested.
+The `Dext.Caching.Redis` unit provides a native implementation of the `ICacheStore` interface targeting Redis.
+
+### Manual Usage
+For manual caching or direct database operations, instantiate the store:
 
 ```pascal
 uses
@@ -164,4 +167,29 @@ begin
     Cache := nil; // Managed interface reference
   end;
 end;
+```
+
+### Registering Redis Response Cache
+
+To enable global HTTP response caching using Redis, register `TRedisCacheStore` via `UseResponseCache` in your `TAppBuilder` pipeline:
+
+```pascal
+uses
+  Dext.Caching,
+  Dext.Caching.Redis;
+
+App.UseResponseCache(
+  ResponseCacheOptions
+    .DefaultDuration(300)
+    .Store(TRedisCacheStore.Create('127.0.0.1', 6379))
+);
+```
+
+Or use the native helper shortcut `.UseRedisCache`:
+
+```pascal
+uses
+  Dext.Caching.Redis;
+
+App.UseRedisCache('127.0.0.1', 6379, 'password_if_any', 0 { database }, 300 { default duration });
 ```

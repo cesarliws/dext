@@ -134,7 +134,10 @@ end;
 
 ## Provedor de Cache Web (`TRedisCacheStore`)
 
-A unit `Dext.Caching.Redis` disponibiliza uma implementacao nativa da interface `ICacheStore` destinada ao Redis, sendo registrada automaticamente no pipeline da aplicacao web para operacoes de cache descentralizadas.
+A unit `Dext.Caching.Redis` disponibiliza uma implementacao nativa da interface `ICacheStore` destinada ao Redis.
+
+### Uso Manual
+Para operacoes manuais de cache ou acesso direto, instancie o provedor:
 
 ```pascal
 uses
@@ -164,4 +167,29 @@ begin
     Cache := nil; // Referencia de interface auto-gerenciada
   end;
 end;
+```
+
+### Registrando Cache de Respostas com Redis
+
+Para ativar o cache global de respostas HTTP usando Redis, registre o `TRedisCacheStore` no pipeline do `TAppBuilder` atraves do `UseResponseCache`:
+
+```pascal
+uses
+  Dext.Caching,
+  Dext.Caching.Redis;
+
+App.UseResponseCache(
+  ResponseCacheOptions
+    .DefaultDuration(300)
+    .Store(TRedisCacheStore.Create('127.0.0.1', 6379))
+);
+```
+
+Ou use o helper de extensao nativo `.UseRedisCache`:
+
+```pascal
+uses
+  Dext.Caching.Redis;
+
+App.UseRedisCache('127.0.0.1', 6379, 'senha_se_houver', 0 { database }, 300 { duracao padrao });
 ```

@@ -119,7 +119,7 @@ Exceeded requests return `429 Too Many Requests` with headers:
 
 ## Response Caching
 
-### Middleware Configuration
+### Middleware Configuration (Memory Cache)
 
 ```pascal
 App.Builder.UseResponseCache(
@@ -127,6 +127,22 @@ App.Builder.UseResponseCache(
     .DefaultDuration(30)
     .MaxSize(100)
     .VaryByQueryString);
+```
+
+### Middleware Configuration (Redis Cache)
+
+```pascal
+uses Dext.Caching.Redis;
+
+// 1. Explicitly specifying the TRedisCacheStore:
+App.Builder.UseResponseCache(
+  ResponseCacheOptions
+    .DefaultDuration(60)
+    .Store(TRedisCacheStore.Create('127.0.0.1', 6379))
+);
+
+// 2. Or using the UseRedisCache helper shortcut:
+App.Builder.UseRedisCache('127.0.0.1', 6379, 'password_if_any', 0 { database }, 60 { duration });
 ```
 
 ## Built-In Filters & Attributes

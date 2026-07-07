@@ -37,6 +37,7 @@ requires
   IndyCore,
   Dext.Core,
   Dext.EF.Core,
+  Dext.Net.Core,
   RESTComponents,
   inet;
 
@@ -57,6 +58,7 @@ contains
   Dext.Auth.JWT in '..\..\Sources\Web\Dext.Auth.JWT.pas',
   Dext.Auth.Middleware in '..\..\Sources\Web\Dext.Auth.Middleware.pas',
   Dext.Caching in '..\..\Sources\Web\Dext.Caching.pas',
+  Dext.Caching.Redis in '..\..\Sources\Web\Dext.Caching.Redis.pas',
   Dext.DI.Middleware in '..\..\Sources\Web\Dext.DI.Middleware.pas',
   Dext.Filters.BuiltIn in '..\..\Sources\Web\Dext.Filters.BuiltIn.pas',
   Dext.Filters in '..\..\Sources\Web\Dext.Filters.pas',

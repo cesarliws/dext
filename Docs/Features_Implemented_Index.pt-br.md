@@ -260,7 +260,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **SSE (Server-Sent Events)** — Streaming unidirecional de eventos como fallback.
 - **WebSockets e Hubs SignalR** — Suporte completo ao transporte nativo WebSocket RFC 6455 com mascaramento cliente-servidor, tratamento de handshake e integração total com `Dext.Web.Hubs` para mensagens bidirecionais em tempo real, despacho para grupos e keepalives via ping/pong. Realiza o upgrade nativo de conexões HTTP via modo opaco (`HTTP_SEND_RESPONSE_FLAG_OPAQUE`) no HTTP.sys.
 - **Cliente Hub Delphi (SignalR-compatible)** — Biblioteca cliente nativa em Delphi (`Dext.Web.Hubs.Client`) de alta performance, com suporte a transportes WebSocket e SSE, protocolos de negociação/handshake automáticos, heartbeat via ping e dispatches thread-safe com marshaling opcional para a thread principal (UI).
-- **Caching** — Motor de cache em memória. Gera chaves de cache exclusivas para requisições HTTP QUERY calculando um hash `THashSHA1` do stream de corpo da requisição. (Cliente Redis nativo de alta performance planejado e em desenvolvimento ativo, atualmente ~80% completo). **Health Checks** detalhados (com plano de expansão no roadmap).
+- **Caching** — Motor de cache em memória e provedor de cache Redis nativo (`TRedisCacheStore`). Gera chaves de cache exclusivas para requisições HTTP QUERY calculando um hash `THashSHA1` do stream de corpo da requisição. Suporte para registro de cache de resposta no pipeline via `.UseRedisCache` no `TAppBuilder`. **Health Checks** detalhados (com plano de expansão no roadmap).
 
 ### 3.8 API Documentation & Scaffolding
 - **OpenAPI / Swagger** — Geração automática de especificação.
@@ -434,6 +434,12 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 - **Basic Auth (RFC 7617)** — Encoding Base64 de `user:password`.
 - **API Key** — Header ou query string customizável.
 - **OAuth 2.0 Client Credentials (RFC 6749 §4.4)** — Token caching automático, refresh thread-safe com margem de segurança de 30s para evitar uso de tokens expirados.
+
+### 5.3 Cliente Redis Nativo (`Dext.Net.Redis`)
+- **Protocolos RESP2/RESP3** — Execução nativa de sockets de alta performance suportando especificações RESP2 e RESP3 com parsing RESP sem alocação de memória.
+- **Connection Pooling** — `TDextRedisConnectionPool` integrado para compartilhamento gerenciado de conexões entre threads.
+- **Pub/Sub Reativo** — Pipeline de mensagens através de canais concorrentes (`IChannel<TDextRedisMessage>`).
+- **Integração RedisJSON e Dext.Json** — Serialização direta e type-safe de classes Delphi para valores JSON no Redis usando o motor JSON principal.
 
 ---
 

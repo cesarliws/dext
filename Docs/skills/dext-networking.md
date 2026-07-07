@@ -315,6 +315,16 @@ Client.Publish('channel', 'event');
 var Msg := Chan.Read; // Blocks until message arrives
 ```
 
+### Redis Web Cache Integration
+To use Redis as the backend for HTTP response caching inside the web pipeline:
+
+```pascal
+uses Dext.Caching.Redis;
+
+// Register Redis Cache in App Builder
+App.UseRedisCache('127.0.0.1', 6379, 'password_if_any', 0 { database }, 60 { duration seconds });
+```
+
 
 
 

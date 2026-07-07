@@ -388,6 +388,10 @@ class TServerEngineOptionsHelper {    +WithIoThreads()
     +WithKeepAlive()
     +WithBindAddress()
 }
+class TDextHttpParserCommon {    +FindByte()
+    +FindCRLF()
+    +CompareBytesCI()
+}
 </div>
 </div>
 </details>
@@ -412,6 +416,16 @@ class TServerEngineOptionsHelper {    +WithIoThreads()
 <div class="api-signature">function WithKeepAlive(AEnable: Boolean; ATimeoutSec: Integer): TServerEngineOptions</div><div class="description">Configures keep-alive socket configuration.</div></div>
 <div class="api-item">
 <div class="api-signature">function WithBindAddress(const const: string): TServerEngineOptions</div><div class="description">Configures the server bind address (e.g. '0.0.0.0', '127.0.0.1', or '+').</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TDextHttpParserCommon</h3><a name="TDextHttpParserCommon"></a><div class="description">Common low-level HTTP parsing helper utilities for raw byte buffers.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function FindByte(const const: TBytes; AStart: Integer; AEnd: Integer; AByte: Byte): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function FindCRLF(const const: TBytes; AStart: Integer; AEnd: Integer): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function CompareBytesCI(const const: TBytes; AStart: Integer; ALen: Integer; const const: string): Boolean</div></div>
 </div>
 <hr>
 

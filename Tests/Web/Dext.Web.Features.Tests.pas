@@ -14,7 +14,9 @@ uses
   Dext.Resilience,
   Dext.Web.Interfaces,
   Dext.WebHost,
-  System.SyncObjs;
+  System.SyncObjs,
+  Dext.Web.Controllers,
+  Dext.Web.Routing.Attributes;
 
 type
   [TestFixture('Web Extension Features Tests (Phase 3)')]
@@ -43,17 +45,51 @@ type
 
     [Test('Should return binary response correctly without hanging')]
     procedure TestBinaryResponseStream;
+
+    [Test('Should compress response body when compression middleware is used on Native Server (HTTP.sys)')]
+    procedure TestNativeServerCompression;
+  end;
+
+  [ApiController, Route('/gzip-controller')]
+  TGzipTestController = class(TInterfacedObject)
+  public
+    [HttpGet]
+    function GetLargeHtml: IResult;
+
+    [HttpGet, Route('/direct')]
+    procedure GetDirect(const Ctx: IHttpContext);
   end;
 
 implementation
 
 uses
-  Dext.Web.Indy;
+  Dext.Web.Indy,
+  Dext.Web.Middleware.Compression,
+  Dext,
+  Dext.Web,
+  Dext.Web.Results,
+  Dext.Server.Engine.Types,
+  System.TypInfo,
+  System.Rtti;
 
 type
   TTRestRequestHack = record
     Data: IRestRequestData;
   end;
+
+{ TGzipTestController }
+
+function TGzipTestController.GetLargeHtml: IResult;
+begin
+  Result := Results.Html(StringOfChar('A', 40000) + '<h1>Hello World from Controller!</h1>' + StringOfChar('B', 7000));
+end;
+
+procedure TGzipTestController.GetDirect(const Ctx: IHttpContext);
+begin
+  WriteLn('DEBUG: Ctx.Response ClassName = ' + TObject(Ctx.Response).ClassName);
+  Ctx.Response.SetContentType('text/html');
+  Ctx.Response.Write(StringOfChar('A', 40000) + '<h1>Hello World from Direct Controller!</h1>' + StringOfChar('B', 7000));
+end;
 
 { TWebFeaturesTests }
 
@@ -366,5 +402,68 @@ begin
     Host.Stop;
   end;
 end;
+
+procedure TWebFeaturesTests.TestNativeServerCompression;
+var
+  Builder: IWebHostBuilder;
+  Host: IWebHost;
+  Resp: IRestResponse;
+begin
+  TGzipTestController.Create.Free; // Force linker to keep TGzipTestController
+
+  Builder := TWebHost.CreateDefaultBuilder
+    .UseUrls('http://localhost:58374');
+  (Builder as TWebHostBuilder).ConfigureServicesExtended(procedure(Services: TDextServices)
+    begin
+      Services.AddControllers;
+    end);
+
+  Builder.Configure(procedure(App: IApplicationBuilder)
+    begin
+      App.UseMiddleware(TCompressionMiddleware);
+    end);
+
+  var Options: TServerEngineOptions;
+  Host := Builder.Build;
+  (Host as IWebApplication).MapControllers;
+  Options := TServerEngineOptions.Default.WithBindAddress('127.0.0.1');
+  (Host as IWebApplication).UseNativeServer(Options);
+  Host.Start;
+  try
+    try
+      // 1. Test standard Controller Action (returns IResult)
+      Resp := RestClient('http://localhost:' + Host.Port.ToString)
+        .Header('Accept-Encoding', 'gzip')
+        .Get('/gzip-controller')
+        .Await;
+
+      WriteLn('CLIENT RECEIVED (Standard): Status=' + Resp.StatusCode.ToString + ', Content-Length=' + Resp.ContentStream.Size.ToString);
+      Should(Resp.StatusCode).Be(200);
+      Should(Resp.GetHeader('Content-Encoding')).Be('gzip');
+      Should(Resp.ContentStream.Size).BeLessThan(4000); // Verify it is compressed
+
+      // 2. Test direct write Controller Action (writes directly to Ctx.Response)
+      Resp := RestClient('http://localhost:' + Host.Port.ToString)
+        .Header('Accept-Encoding', 'gzip')
+        .Get('/gzip-controller/direct')
+        .Await;
+
+      WriteLn('CLIENT RECEIVED (Direct): Status=' + Resp.StatusCode.ToString + ', Content-Length=' + Resp.ContentStream.Size.ToString);
+      Should(Resp.StatusCode).Be(200);
+      Should(Resp.GetHeader('Content-Encoding')).Be('gzip');
+      Should(Resp.ContentStream.Size).BeLessThan(4000); // Verify it is compressed
+    except
+      on E: Exception do
+      begin
+        raise Exception.Create('CRASH: ' + E.ClassName + ': ' + E.Message + sLineBreak + E.StackTrace);
+      end;
+    end;
+  finally
+    Host.Stop;
+  end;
+end;
+
+initialization
+  TGzipTestController.ClassName;
 
 end.

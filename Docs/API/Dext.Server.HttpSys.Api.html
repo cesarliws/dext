@@ -392,6 +392,8 @@ class HTTP_SSL_INFO {}
 class HTTP_REQUEST_INFO {}
 class HTTP_REQUEST {}
 class HTTP_DATA_CHUNK_INMEMORY {}
+class HTTP_BYTE_RANGE {}
+class HTTP_DATA_CHUNK_FILEHANDLE {}
 class HTTP_RESPONSE {}
 class HTTP_STATE_INFO {}
 class HTTP_QOS_SETTING_INFO {}
@@ -439,6 +441,12 @@ class HTTP_BINDING_INFO {}
 <hr>
 <div class="class-header">
 <h3>record HTTP_DATA_CHUNK_INMEMORY</h3><a name="HTTP_DATA_CHUNK_INMEMORY"></a></div>
+<hr>
+<div class="class-header">
+<h3>record HTTP_BYTE_RANGE</h3><a name="HTTP_BYTE_RANGE"></a><div class="description">Represents a range of bytes within a file.</div></div>
+<hr>
+<div class="class-header">
+<h3>record HTTP_DATA_CHUNK_FILEHANDLE</h3><a name="HTTP_DATA_CHUNK_FILEHANDLE"></a><div class="description">Represents a data chunk from a file handle for http.sys transmission.</div></div>
 <hr>
 <div class="class-header">
 <h3>record HTTP_RESPONSE</h3><a name="HTTP_RESPONSE"></a></div>
@@ -538,6 +546,8 @@ class HTTP_BINDING_INFO {}
 <div class="api-signature">type THttpChunkType = enumeration</div><div class="enum-values">Values: hctFromMemory, hctFromFileHandle, hctFromFragmentCache</div></div>
 <div class="api-item">
 <div class="api-signature">type PHTTP_DATA_CHUNK_INMEMORY = pointer</div></div>
+<div class="api-item">
+<div class="api-signature">type PHTTP_DATA_CHUNK_FILEHANDLE = pointer</div></div>
 <div class="api-item">
 <div class="api-signature">type PHTTP_RESPONSE = pointer</div></div>
 <div class="api-item">
