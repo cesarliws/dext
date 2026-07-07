@@ -90,9 +90,18 @@ end;
 constructor AuthorizeAttribute.Create(const ARoles: string);
 begin
   inherited Create;
-  FRoles := ARoles;
-  FScheme := '';
   FPolicy := '';
+  if SameText(ARoles, 'Bearer') or SameText(ARoles, 'Basic') or
+     SameText(ARoles, 'OAuth2') or SameText(ARoles, 'OpenID') then
+  begin
+    FScheme := ARoles;
+    FRoles := '';
+  end
+  else
+  begin
+    FRoles := ARoles;
+    FScheme := '';
+  end;
 end;
 
 constructor AuthorizeAttribute.Create(const ARoles, AScheme: string);

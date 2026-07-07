@@ -205,6 +205,7 @@ type
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FEndpointMetadata: TEndpointMetadata;
   public
     /// <summary>Initializes a new request context with the native connection/request/response.</summary>
     constructor Create(
@@ -238,12 +239,16 @@ type
     function GetItems: IDictionary<string, TValue>;
     /// <summary>Returns the active session interface, if configured.</summary>
     function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
 
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
     property Items: IDictionary<string, TValue> read GetItems;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
   /// <summary>
@@ -755,6 +760,18 @@ procedure TDextNativeHttpContext.SetServices(const AValue: IServiceProvider); be
 function TDextNativeHttpContext.GetUser: IClaimsPrincipal; begin Result := FUser; end;
 procedure TDextNativeHttpContext.SetUser(const AValue: IClaimsPrincipal); begin FUser := AValue; end;
 function TDextNativeHttpContext.GetSession: IStreamableSession; begin Result := nil; end;
+
+function TDextNativeHttpContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TDextNativeHttpContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
+end;
 
 procedure TDextNativeHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
 begin

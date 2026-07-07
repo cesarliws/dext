@@ -87,7 +87,6 @@
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_CBuilderOutput>All</DCC_CBuilderOutput>
         <SanitizedProjectName>Dext_Net_Core</SanitizedProjectName>
         <DCC_RunTimeTypeInfo>true</DCC_RunTimeTypeInfo>
         <DCC_Description>Dext Framework - High Performance Networking</DCC_Description>
@@ -175,6 +174,7 @@
         <DCCReference Include="..\..\Sources\Net\Dext.Net.Udp.pas"/>
         <DCCReference Include="..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas"/>
         <DCCReference Include="..\..\Sources\Net\Dext.Net.Mqtt.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Redis.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

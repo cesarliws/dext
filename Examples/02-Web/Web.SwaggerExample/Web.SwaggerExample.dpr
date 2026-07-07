@@ -36,7 +36,7 @@ begin
     begin
       Writeln('❌ Error: ', E.Message);
       Writeln('Press Enter to exit...');
-      Readln;
     end;
   end;
+  ConsolePause;
 end.

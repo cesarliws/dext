@@ -110,19 +110,67 @@ type
   ///   Default implementation of the route matcher.
   ///   Manages API versioning and prioritizes literal (exact) routes over parameterized routes.
   /// </summary>
+  /// <summary>
+  ///   Represents a leaf node in the routing tree, representing a configured endpoint.
+  /// </summary>
+  TRouteLeaf = class
+  public
+    /// <summary>HTTP method/verb (e.g. GET, POST) of the route.</summary>
+    Method: string;
+    /// <summary>The delegate handler invoked when the route is matched.</summary>
+    Handler: TRequestDelegate;
+    /// <summary>Endpoint metadata (authorization, CORS, etc.) for this route.</summary>
+    Metadata: TEndpointMetadata;
+    /// <summary>Initializes a new route leaf.</summary>
+    constructor Create(
+      const AMethod: string;
+      AHandler: TRequestDelegate;
+      const AMetadata: TEndpointMetadata
+    );
+  end;
+
+  /// <summary>
+  ///   Represents a segment node in the Radix routing tree.
+  /// </summary>
+  TRouteNode = class
+  public
+    /// <summary>The path segment string represented by this node.</summary>
+    Segment: string;
+    /// <summary>Indicates if this node is a route parameter (e.g. {id}).</summary>
+    IsParameter: Boolean;
+    /// <summary>The name of the parameter if IsParameter is True.</summary>
+    ParameterName: string;
+    /// <summary>List of child nodes branch-off from this path segment.</summary>
+    Children: IList<TRouteNode>;
+    /// <summary>List of configured endpoint leaves at this path level.</summary>
+    Leaves: IList<TRouteLeaf>;
+    /// <summary>Initializes a new route node with a segment name.</summary>
+    constructor Create(const ASegment: string);
+    /// <summary>Cleans up child nodes and leaves lists.</summary>
+    destructor Destroy; override;
+  end;
+
   TRouteMatcher = class(TInterfacedObject, IRouteMatcher)
   private
     FRoutes: IList<TRouteDefinition>;
+    FRoot: TRouteNode;
+    procedure AddRouteToTree(const ARoute: TRouteDefinition);
     function GetRequestedApiVersion(const AContext: IHttpContext): string;
-    function IsVersionMatch(const RequestedVersion: string; const SupportedVersions: TArray<string>): Boolean;
+    function IsVersionMatch(
+      const RequestedVersion: string;
+      const SupportedVersions: TArray<string>
+    ): Boolean;
+    function MatchNode(
+      Node: TRouteNode;
+      const ASegments: TArray<string>;
+      ASegIdx: Integer;
+      const AMethod, AVersion: string;
+      out ALeaf: TRouteLeaf;
+      var AParams: TRouteValueDictionary
+    ): Boolean;
   public
-    /// <summary>Creates a matcher from a list of route definitions.</summary>
     constructor Create(const ARoutes: IList<TRouteDefinition>);
     destructor Destroy; override;
-    /// <summary>
-    ///   Finds the matching route for the current context.
-    ///   Matching order: HTTP Verb -> API Version -> Path (Literal > Parameter).
-    /// </summary>
     function FindMatchingRoute(const AContext: IHttpContext;
       out AHandler: TRequestDelegate;
       out ARouteParams: TRouteValueDictionary;
@@ -289,6 +337,44 @@ begin
   inherited;
 end;
 
+{ TRouteLeaf }
+
+constructor TRouteLeaf.Create(
+  const AMethod: string;
+  AHandler: TRequestDelegate;
+  const AMetadata: TEndpointMetadata
+);
+begin
+  inherited Create;
+  Method := AMethod;
+  Handler := AHandler;
+  Metadata := AMetadata;
+end;
+
+{ TRouteNode }
+
+constructor TRouteNode.Create(const ASegment: string);
+begin
+  inherited Create;
+  Segment := ASegment;
+  IsParameter := (Length(ASegment) >= 2) and
+                 (ASegment[1] = '{') and
+                 (ASegment[Length(ASegment)] = '}');
+  if IsParameter then
+    ParameterName := Copy(ASegment, 2, Length(ASegment) - 2)
+  else
+    ParameterName := '';
+  Children := TCollections.CreateList<TRouteNode>(True);
+  Leaves := TCollections.CreateList<TRouteLeaf>(True);
+end;
+
+destructor TRouteNode.Destroy;
+begin
+  Children := nil;
+  Leaves := nil;
+  inherited;
+end;
+
 { TRouteMatcher }
 
 constructor TRouteMatcher.Create(const ARoutes: IList<TRouteDefinition>);
@@ -297,74 +383,189 @@ var
   NewRoute: TRouteDefinition;
 begin
   inherited Create;
-  FRoutes := TCollections.CreateList<TRouteDefinition>(True); // Owns objects
-  
-  // Clone routes to ensure thread safety and independence
+  FRoutes := TCollections.CreateList<TRouteDefinition>(True);
+  FRoot := TRouteNode.Create('');
+
   for Route in ARoutes do
   begin
-    NewRoute := TRouteDefinition.Create(Route.Method, Route.Path, Route.Handler);
+    NewRoute := TRouteDefinition.Create(
+      Route.Method, Route.Path, Route.Handler
+    );
     NewRoute.Metadata := Route.Metadata;
     FRoutes.Add(NewRoute);
+    AddRouteToTree(NewRoute);
   end;
 end;
 
 destructor TRouteMatcher.Destroy;
 begin
+  FRoot.Free;
   FRoutes := nil;
   inherited;
 end;
 
-function TRouteMatcher.GetRequestedApiVersion(const AContext: IHttpContext): string;
+procedure TRouteMatcher.AddRouteToTree(const ARoute: TRouteDefinition);
+var
+  Path: string;
+  Segments: TArray<string>;
+  CurrNode: TRouteNode;
+  Segment: string;
+  i: Integer;
+  FoundChild: TRouteNode;
+  Child: TRouteNode;
+  Found: Boolean;
 begin
-  // First check Query string, then Header
+  Path := ARoute.Path;
+  if (Length(Path) > 1) and (Path[Length(Path)] = '/') then
+    Path := Copy(Path, 1, Length(Path) - 1);
+  if (Length(Path) > 0) and (Path[1] = '/') then
+    Path := Copy(Path, 2, Length(Path) - 1);
+
+  if Path = '' then
+    Segments := nil
+  else
+    Segments := Path.Split(['/']);
+
+  CurrNode := FRoot;
+  for Segment in Segments do
+  begin
+    Found := False;
+    FoundChild := nil;
+    for i := 0 to CurrNode.Children.Count - 1 do
+    begin
+      Child := CurrNode.Children[i];
+      if SameText(Child.Segment, Segment) then
+      begin
+        FoundChild := Child;
+        Found := True;
+        Break;
+      end;
+    end;
+
+    if not Found then
+    begin
+      FoundChild := TRouteNode.Create(Segment);
+      CurrNode.Children.Add(FoundChild);
+    end;
+    CurrNode := FoundChild;
+  end;
+
+  CurrNode.Leaves.Add(
+    TRouteLeaf.Create(ARoute.Method, ARoute.Handler, ARoute.Metadata)
+  );
+end;
+
+function TRouteMatcher.GetRequestedApiVersion(
+  const AContext: IHttpContext
+): string;
+begin
   if AContext.Request.Query.TryGetValue('api-version', Result) then
     Exit;
-    
   if AContext.Request.Headers.TryGetValue('X-Version', Result) then
     Exit;
-    
   Result := '';
 end;
 
-function TRouteMatcher.IsVersionMatch(const RequestedVersion: string; const SupportedVersions: TArray<string>): Boolean;
+function TRouteMatcher.IsVersionMatch(
+  const RequestedVersion: string;
+  const SupportedVersions: TArray<string>
+): Boolean;
 var
   V: string;
 begin
-  // If no version requested, match anything that DOESN'T require a specific version?
-  // Or match typically V1?
-  // Policy: If route has NO versions defined, it matches any request (implicit neutral).
-  // If route HAS versions, request MUST match one of them.
-  
   if Length(SupportedVersions) = 0 then
-    Exit(True); // Route is version neutral
-    
+    Exit(True);
+
   if RequestedVersion = '' then
-  begin
-    // If no version requested, do we match versioned routes?
-    // Maybe default to '1.0' or reject?
-    // For now: assume neutral match only if requested matches. 
-    // If requested is empty, we only match neutral routes (Length=0 check matches).
-    // What if we want default version?
-    // Let's assume empty request only matches neutral routes.
-    Exit(False); 
-  end;
-    
+    Exit(False);
+
   for V in SupportedVersions do
     if SameText(V, RequestedVersion) then
       Exit(True);
-      
+
   Result := False;
 end;
 
-function TRouteMatcher.FindMatchingRoute(const AContext: IHttpContext;
+function TRouteMatcher.MatchNode(
+  Node: TRouteNode;
+  const ASegments: TArray<string>;
+  ASegIdx: Integer;
+  const AMethod, AVersion: string;
+  out ALeaf: TRouteLeaf;
+  var AParams: TRouteValueDictionary
+): Boolean;
+var
+  i: Integer;
+  Child: TRouteNode;
+  Segment: string;
+begin
+  if ASegIdx > High(ASegments) then
+  begin
+    for i := 0 to Node.Leaves.Count - 1 do
+    begin
+      if (Node.Leaves[i].Method = AMethod) and
+         IsVersionMatch(AVersion, Node.Leaves[i].Metadata.ApiVersions) then
+      begin
+        ALeaf := Node.Leaves[i];
+        Exit(True);
+      end;
+    end;
+
+    for i := 0 to Node.Leaves.Count - 1 do
+    begin
+      if (Node.Leaves[i].Method = AMethod) and
+         (AVersion = '') and
+         (Length(Node.Leaves[i].Metadata.ApiVersions) = 0) then
+      begin
+        ALeaf := Node.Leaves[i];
+        Exit(True);
+      end;
+    end;
+    Exit(False);
+  end;
+
+  Segment := ASegments[ASegIdx];
+
+  for i := 0 to Node.Children.Count - 1 do
+  begin
+    Child := Node.Children[i];
+    if (not Child.IsParameter) and SameText(Child.Segment, Segment) then
+    begin
+      if MatchNode(
+        Child, ASegments, ASegIdx + 1, AMethod, AVersion, ALeaf, AParams
+      ) then
+        Exit(True);
+    end;
+  end;
+
+  for i := 0 to Node.Children.Count - 1 do
+  begin
+    Child := Node.Children[i];
+    if Child.IsParameter then
+    begin
+      if MatchNode(
+        Child, ASegments, ASegIdx + 1, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        AParams.Add(Child.ParameterName, Segment);
+        Exit(True);
+      end;
+    end;
+  end;
+
+  Result := False;
+end;
+
+function TRouteMatcher.FindMatchingRoute(
+  const AContext: IHttpContext;
   out AHandler: TRequestDelegate;
   out ARouteParams: TRouteValueDictionary;
-  out AMetadata: TEndpointMetadata): Boolean;
+  out AMetadata: TEndpointMetadata
+): Boolean;
 var
-  Route: TRouteDefinition;
   Method, Path, RequestVersion: string;
-  BestLiteral, BestPattern: TRouteDefinition;
-  BestLiteralNeutral, BestPatternNeutral: TRouteDefinition;
+  Segments: TArray<string>;
+  Leaf: TRouteLeaf;
   AllowMethods: string;
   AcceptQuery: string;
   MatchingRoute: TRouteDefinition;
@@ -376,67 +577,62 @@ begin
   Method := AContext.Request.Method;
   Path := AContext.Request.Path;
   RequestVersion := GetRequestedApiVersion(AContext);
-  
-  // Normalize path: remove trailing slash (except for root "/")
+
   if (Length(Path) > 1) and (Path[Length(Path)] = '/') then
     Path := Copy(Path, 1, Length(Path) - 1);
-  
-  // Single-pass: find best literal and best pattern match directly
-  BestLiteral := nil;
-  BestPattern := nil;
-  BestLiteralNeutral := nil;
-  BestPatternNeutral := nil;
+  if (Length(Path) > 0) and (Path[1] = '/') then
+    Path := Copy(Path, 2, Length(Path) - 1);
 
-  for Route in FRoutes do
+  if Path = '' then
+    Segments := nil
+  else
+    Segments := Path.Split(['/']);
+
+  if MatchNode(
+    FRoot, Segments, 0, Method, RequestVersion, Leaf, ARouteParams
+  ) then
   begin
-    if Route.Method <> Method then
-      Continue;
-
-    if (Route.Pattern = nil) and (Route.Path = Path) then
-    begin
-      // Literal match
-      if (BestLiteral = nil) and IsVersionMatch(RequestVersion, Route.Metadata.ApiVersions) then
-        BestLiteral := Route
-      else if (BestLiteralNeutral = nil) and (RequestVersion = '') and (Length(Route.Metadata.ApiVersions) = 0) then
-        BestLiteralNeutral := Route;
-    end
-    else if (Route.Pattern <> nil) and Route.Pattern.Match(Path, ARouteParams) then
-    begin
-      // Pattern match - clear params for now, we'll re-extract for the winner
-      ARouteParams.Clear;
-      if (BestPattern = nil) and IsVersionMatch(RequestVersion, Route.Metadata.ApiVersions) then
-        BestPattern := Route
-      else if (BestPatternNeutral = nil) and (RequestVersion = '') and (Length(Route.Metadata.ApiVersions) = 0) then
-        BestPatternNeutral := Route;
-    end;
+    AHandler := Leaf.Handler;
+    AMetadata := Leaf.Metadata;
+    Result := True;
+    Exit;
   end;
 
-  // Priority: Literal versioned > Pattern versioned > Literal neutral > Pattern neutral
-  if BestLiteral <> nil then
-    Route := BestLiteral
-  else if BestPattern <> nil then
-    Route := BestPattern
-  else if BestLiteralNeutral <> nil then
-    Route := BestLiteralNeutral
-  else if BestPatternNeutral <> nil then
-    Route := BestPatternNeutral
-  else
-    Route := nil;
-
-  if (Route = nil) and (Method = 'OPTIONS') then
+  if Method = 'OPTIONS' then
   begin
     AllowMethods := 'OPTIONS';
     AcceptQuery := '';
     HasQuery := False;
-    
+
     for MatchingRoute in FRoutes do
     begin
-      if ((MatchingRoute.Pattern = nil) and (MatchingRoute.Path = Path)) or
-         ((MatchingRoute.Pattern <> nil) and MatchingRoute.Pattern.Match(Path, ARouteParams)) then
+      if MatchingRoute.Pattern = nil then
       begin
+        if MatchingRoute.Path = AContext.Request.Path then
+        begin
+          if not AllowMethods.Contains(MatchingRoute.Method) then
+            AllowMethods := AllowMethods + ', ' + MatchingRoute.Method;
+          if MatchingRoute.Method = 'QUERY' then
+          begin
+            HasQuery := True;
+            if Length(MatchingRoute.Metadata.AcceptQueryTypes) > 0 then
+            begin
+              for i := 0 to High(MatchingRoute.Metadata.AcceptQueryTypes) do
+              begin
+                if AcceptQuery <> '' then
+                  AcceptQuery := AcceptQuery + ', ';
+                AcceptQuery := AcceptQuery +
+                  MatchingRoute.Metadata.AcceptQueryTypes[i];
+              end;
+            end;
+          end;
+        end;
+      end
+      else if MatchingRoute.Pattern.Match(Path, ARouteParams) then
+      begin
+        ARouteParams.Clear;
         if not AllowMethods.Contains(MatchingRoute.Method) then
           AllowMethods := AllowMethods + ', ' + MatchingRoute.Method;
-          
         if MatchingRoute.Method = 'QUERY' then
         begin
           HasQuery := True;
@@ -446,14 +642,14 @@ begin
             begin
               if AcceptQuery <> '' then
                 AcceptQuery := AcceptQuery + ', ';
-              AcceptQuery := AcceptQuery + MatchingRoute.Metadata.AcceptQueryTypes[i];
+              AcceptQuery := AcceptQuery +
+                MatchingRoute.Metadata.AcceptQueryTypes[i];
             end;
           end;
         end;
       end;
     end;
-    
-    // If we found any matching routes, return a dynamic OPTIONS handler
+
     if AllowMethods <> 'OPTIONS' then
     begin
       AHandler := procedure(Ctx: IHttpContext)
@@ -463,33 +659,20 @@ begin
           if HasQuery then
           begin
             if AcceptQuery = '' then
-              AcceptQuery := 'application/json'; // Default format
+              AcceptQuery := 'application/json';
             Ctx.Response.AddHeader('Accept-Query', AcceptQuery);
           end;
           Ctx.Response.Write('');
         end;
-      
-      // Fill dummy/default metadata
+
       FillChar(AMetadata, SizeOf(AMetadata), 0);
       AMetadata.Method := 'OPTIONS';
       AMetadata.Path := Path;
-      
+
       Result := True;
       Exit;
     end;
   end;
-
-  if Route = nil then
-    Exit;
-
-  AHandler := Route.Handler;
-  AMetadata := Route.Metadata;
-
-  // Re-generate params for the winner
-  if Route.Pattern <> nil then
-    Route.Pattern.Match(Path, ARouteParams);
-
-  Result := True;
 end;
 
 end.

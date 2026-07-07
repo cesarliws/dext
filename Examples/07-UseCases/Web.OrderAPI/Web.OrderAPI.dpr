@@ -1,4 +1,4 @@
-program Web.OrderAPI;
+﻿program Web.OrderAPI;
 
 {***************************************************************************}
 {                                                                           }
@@ -57,5 +57,5 @@ begin
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
-  ReadLn;
+  ConsolePause;
 end.

@@ -16,6 +16,7 @@ uses
   Dext.Net.Authentication,
   Dext.Threading.Async,
   Dext.Threading.CancellationToken,
+  Dext.Utils,
   Dext.Json;
 
 const
@@ -250,5 +251,5 @@ begin
   
   WriteLn;
   WriteLn('Press Enter to exit...');
-  ReadLn;
+  ConsolePause;
 end.

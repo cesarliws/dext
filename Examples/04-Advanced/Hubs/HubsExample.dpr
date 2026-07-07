@@ -10,6 +10,7 @@ uses
   System.Classes,
   System.Rtti,
   Dext,
+  Dext.Utils,
   Dext.Web,
   Dext.Web.Hubs,
   Dext.Web.Hubs.Extensions;
@@ -211,7 +212,7 @@ begin
     on E: Exception do
     begin
       WriteLn('Error: ', E.ClassName, ': ', E.Message);
-      ReadLn;
     end;
   end;
+  ConsolePause;
 end.

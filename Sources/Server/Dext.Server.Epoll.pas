@@ -445,7 +445,7 @@ begin
   FSendFileFd := -1;
   FSendFileOffset := 0;
   FSendFileLen := 0;
-  FLastActive := GetTickCount64;
+  FLastActive := TThread.GetTickCount64;
 end;
  
 { TDextEpollHttpParser }
@@ -981,27 +981,49 @@ begin
 end;
 
 procedure TDextEpollResponse.SendHeaders;
+  procedure AppendStr(const AStr: string; var AOffset: Integer);
+  var
+    i, StrLen: Integer;
+  begin
+    StrLen := Length(AStr);
+    if StrLen = 0 then Exit;
+    if AOffset + StrLen > Length(FResponseBuffer) then
+      SetLength(FResponseBuffer, (AOffset + StrLen) * 2);
+    for i := 1 to StrLen do
+    begin
+      FResponseBuffer[AOffset] := Byte(AStr[i]);
+      Inc(AOffset);
+    end;
+  end;
 var
-  SB: TStringBuilder;
+  BufferOffset: Integer;
   Pair: TPair<string, string>;
 begin
   if FHeadersSent then Exit;
 
-  SB := TStringBuilder.Create;
-  try
-    SB.Append('HTTP/1.1 ').Append(FStatusCode).Append(' ').Append(FReason).Append(#13#10);
-    
-    if not FHeaders.ContainsKey('Content-Type') then
-      FHeaders.Add('Content-Type', 'text/plain');
+  if not FHeaders.ContainsKey('Content-Type') then
+    FHeaders.Add('Content-Type', 'text/plain');
 
-    for Pair in FHeaders do
-      SB.Append(Pair.Key).Append(': ').Append(Pair.Value).Append(#13#10);
+  SetLength(FResponseBuffer, 512);
+  BufferOffset := 0;
 
-    SB.Append(#13#10);
-    FResponseBuffer := TEncoding.UTF8.GetBytes(SB.ToString);
-  finally
-    SB.Free;
+  AppendStr('HTTP/1.1 ', BufferOffset);
+  AppendStr(IntToStr(FStatusCode), BufferOffset);
+  AppendStr(' ', BufferOffset);
+  AppendStr(FReason, BufferOffset);
+  AppendStr(#13#10, BufferOffset);
+
+  for Pair in FHeaders do
+  begin
+    AppendStr(Pair.Key, BufferOffset);
+    AppendStr(': ', BufferOffset);
+    AppendStr(Pair.Value, BufferOffset);
+    AppendStr(#13#10, BufferOffset);
   end;
+
+  AppendStr(#13#10, BufferOffset);
+
+  SetLength(FResponseBuffer, BufferOffset);
   FHeadersSent := True;
 end;
 
@@ -1210,6 +1232,7 @@ procedure TDextEpollWorker.ProcessRequestAsync(
   AConnection: IDextServerConnection;
   ARequest: IDextRawRequest;
   AResponse: IDextRawResponse
+);
 var
   LLocalEpollFd: Integer;
   LProc: TProc;
@@ -1363,7 +1386,7 @@ begin
               Context.FSendFileFd := -1;
               Context.FSendFileOffset := 0;
               Context.FSendFileLen := 0;
-              Context.FLastActive := GetTickCount64;
+              Context.FLastActive := TThread.GetTickCount64;
             end
             else
               Context := TDextEpollContext.Create(ClientFd, FEpollFd);
@@ -1397,7 +1420,7 @@ begin
         else
         begin
           Context := TDextEpollContext(Event.data.ptr);
-          Context.FLastActive := GetTickCount64;
+          Context.FLastActive := TThread.GetTickCount64;
 
           if (Event.events and EPOLLOUT) <> 0 then
           begin
@@ -1604,7 +1627,7 @@ begin
       end;
 
       // Keep-Alive connection timeout sweep
-      NowTicks := GetTickCount64;
+      NowTicks := TThread.GetTickCount64;
       for j := FActiveContexts.Count - 1 downto 0 do
       begin
         Ctx := TDextEpollContext(FActiveContexts[j]);

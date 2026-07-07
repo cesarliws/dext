@@ -82,9 +82,7 @@ begin
   end;
   
   Log.Info('Back to Global Scope', []);
-  
   Writeln('Press Enter to flush and exit...');
-  Readln;
 end;
 
 begin
@@ -95,4 +93,5 @@ begin
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
+  ConsolePause;
 end.
