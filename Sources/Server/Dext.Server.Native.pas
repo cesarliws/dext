@@ -134,6 +134,7 @@ type
     FRawResponse: IDextRawResponse;
     FHtmx: IHtmxResponse;
     FHeaders: IStringDictionary;
+    FStatusCode: Integer;
   public
     /// <summary>Initializes a new instance of the native HTTP response adapter.</summary>
     constructor Create(const ARawResponse: IDextRawResponse);
@@ -533,6 +534,7 @@ constructor TDextNativeHttpResponse.Create(const ARawResponse: IDextRawResponse)
 begin
   inherited Create;
   FRawResponse := ARawResponse;
+  FStatusCode := 200;
 end;
 
 destructor TDextNativeHttpResponse.Destroy;
@@ -546,8 +548,7 @@ end;
 procedure TDextNativeHttpResponse.AddHeader(const AName, AValue: string);
 begin
   FRawResponse.SetHeader(AName, AValue);
-  if FHeaders <> nil then
-    FHeaders.AddOrSetValue(AName, AValue);
+  GetHeaders.AddOrSetValue(AName, AValue);
 end;
 
 procedure TDextNativeHttpResponse.AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions);
@@ -617,6 +618,7 @@ end;
 
 procedure TDextNativeHttpResponse.SetStatusCode(AValue: Integer);
 begin
+  FStatusCode := AValue;
   FRawResponse.SetStatus(AValue);
 end;
 
@@ -712,7 +714,7 @@ end;
 
 function TDextNativeHttpResponse.GetStatusCode: Integer;
 begin
-  Result := 200; // Native engine status code tracking could be added if needed, default to 200
+  Result := FStatusCode;
 end;
 
 { TDextNativeHttpContext }

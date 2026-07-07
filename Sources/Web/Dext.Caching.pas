@@ -76,6 +76,15 @@ type
   end;
 
   /// <summary>
+  ///   Holds full HTTP response state for caching.
+  /// </summary>
+  TCachedResponse = record
+    StatusCode: Integer;
+    ContentType: string;
+    Body: string;
+  end;
+
+  /// <summary>
   ///   In-memory cache store implementation (default).
   /// </summary>
   TMemoryCacheStore = class(TInterfacedObject, ICacheStore)
@@ -602,14 +611,35 @@ begin
   end;
 end;
 
-function TResponseCacheMiddleware.TryServeFromCache(AContext: IHttpContext; const AKey: string): Boolean;
+function TResponseCacheMiddleware.TryServeFromCache(
+  AContext: IHttpContext;
+  const AKey: string
+): Boolean;
 var
   CachedValue: string;
+  CachedResponse: TCachedResponse;
 begin
   if FStore.TryGet(AKey, CachedValue) then
   begin
     AContext.Response.AddHeader('X-Cache', 'HIT');
-    // Simple detection of JSON vs Text
+    if CachedValue.StartsWith('{"StatusCode":') or
+       CachedValue.StartsWith('{"statusCode":') then
+    begin
+      try
+        CachedResponse := TDextJson.Deserialize<TCachedResponse>(
+          CachedValue
+        );
+        AContext.Response.SetStatusCode(CachedResponse.StatusCode);
+        if CachedResponse.ContentType <> '' then
+          AContext.Response.SetContentType(CachedResponse.ContentType);
+        AContext.Response.Write(CachedResponse.Body);
+        Exit(True);
+      except
+        // Fallback on deserialization failure
+      end;
+    end;
+
+    // Legacy fallback
     if CachedValue.StartsWith('{') or CachedValue.StartsWith('[') then
       AContext.Response.Json(CachedValue)
     else
@@ -620,15 +650,24 @@ begin
     Result := False;
 end;
 
-procedure TResponseCacheMiddleware.CacheResponse(AContext: IHttpContext; const AKey: string; AWrapper: TResponseCaptureWrapper);
+procedure TResponseCacheMiddleware.CacheResponse(
+  AContext: IHttpContext;
+  const AKey: string;
+  AWrapper: TResponseCaptureWrapper
+);
 var
   Body: string;
+  CachedResponse: TCachedResponse;
+  Serialized: string;
 begin
-  // Store the captured body in the cache
   Body := AWrapper.GetCapturedBody;
   if not Body.IsEmpty then
   begin
-    FStore.SetValue(AKey, Body, FOptions.DefaultDuration);
+    CachedResponse.StatusCode := AWrapper.GetStatusCode;
+    CachedResponse.ContentType := AWrapper.GetContentType;
+    CachedResponse.Body := Body;
+    Serialized := TDextJson.Serialize(CachedResponse);
+    FStore.SetValue(AKey, Serialized, FOptions.DefaultDuration);
   end;
 end;
 

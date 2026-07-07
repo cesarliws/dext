@@ -94,6 +94,12 @@ type
     constructor Create(const APath: string = '');
   end;
 
+  /// <summary>Marks a method as handling HTTP QUERY requests.</summary>
+  HttpQueryAttribute = class(RouteAttribute)
+  public
+    constructor Create(const APath: string = '');
+  end;
+
   // ===========================================================================
   // CONTROLLER ATTRIBUTE
   // ===========================================================================
@@ -216,6 +222,13 @@ end;
 constructor HttpOptionsAttribute.Create(const APath: string);
 begin
   inherited Create(APath, 'OPTIONS');
+end;
+
+{ HttpQueryAttribute }
+
+constructor HttpQueryAttribute.Create(const APath: string);
+begin
+  inherited Create(APath, 'QUERY');
 end;
 
 { ApiControllerAttribute }
