@@ -90,8 +90,8 @@ begin
         AContext.SetRouteParams(RouteParams);
       end;
 
-      // Store Metadata in Context.Items if available for other middlewares (e.g. Auth)
-      AContext.Items.AddOrSetValue('endpoint_metadata', TValue.From<TEndpointMetadata>(Metadata));
+      // Store Metadata directly in Context to avoid RTTI/TValue overhead
+      AContext.EndpointMetadata := Metadata;
 
       // Authorization Check
       if (Length(Metadata.Security) > 0) and not Metadata.AllowAnonymous then

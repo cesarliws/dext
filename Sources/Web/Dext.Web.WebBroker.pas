@@ -153,6 +153,7 @@ type
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FEndpointMetadata: TEndpointMetadata;
   public
     /// <summary>
     ///   Takes pre-created request/response objects so callers can keep
@@ -172,6 +173,8 @@ type
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
     /// <summary>
     ///   Sets the route parameters for the request.
     /// </summary>
@@ -182,6 +185,8 @@ type
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
     property Items: IDictionary<string, TValue> read GetItems;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
   // -------------------------------------------------------------------------
@@ -706,6 +711,18 @@ end;
 function TDextWebBrokerContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
+end;
+
+function TDextWebBrokerContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TDextWebBrokerContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
 end;
 
 procedure TDextWebBrokerContext.SetRouteParams(const AParams: TRouteValueDictionary);

@@ -1,4 +1,4 @@
-program Dext.Entity.UnitTests;
+﻿program Dext.Entity.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -33,7 +33,8 @@ uses
   Dext.Entity.Validation.Tests in 'Dext.Entity.Validation.Tests.pas',
   Dext.Entity.BulkBatchSize.Tests in 'Dext.Entity.BulkBatchSize.Tests.pas',
   Dext.Entity.DynamicQueryFilter.Tests in 'Dext.Entity.DynamicQueryFilter.Tests.pas',
-  Dext.Entity.Sequences.Tests in 'Dext.Entity.Sequences.Tests.pas';
+  Dext.Entity.Sequences.Tests in 'Dext.Entity.Sequences.Tests.pas',
+  Dext.Grpc.Tests in 'Dext.Grpc.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -78,7 +79,8 @@ begin
         TFluentQueryTests,
         TDynamicQueryFilterUnitTests,
         TDynamicQueryFilterIntegrationTests,
-        TEntitySequencesTests
+        TEntitySequencesTests,
+        TGrpcTests
       ]));
   except
     on E: Exception do

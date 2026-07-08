@@ -90,6 +90,7 @@ type
     FResponse: IHttpResponse;
     FServices: IServiceProvider;
     FItems: IDictionary<string, TValue>;
+    FEndpointMetadata: TEndpointMetadata;
   public
     constructor Create(AReq: IHttpRequest; ARes: IHttpResponse; AServices: IServiceProvider);
     destructor Destroy; override;
@@ -104,6 +105,11 @@ type
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
     procedure SetRouteParams(const AParams: TRouteValueDictionary);
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
+
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
 var
@@ -213,6 +219,18 @@ procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin FS
 function TMockHttpContext.GetUser: IClaimsPrincipal; begin Result := nil; end;
 procedure TMockHttpContext.SetUser(const AValue: IClaimsPrincipal); begin end;
 function TMockHttpContext.GetSession: IStreamableSession; begin Result := nil; end;
+
+function TMockHttpContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TMockHttpContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
+end;
 
 function TMockHttpContext.GetItems: IDictionary<string, TValue>;
 begin
@@ -419,7 +437,9 @@ begin
      SameText(AEngine, '-epoll') or SameText(AEngine, 'epoll') or
      SameText(AEngine, '-native') or SameText(AEngine, 'native') then
   begin
-    Host.UseNativeServer;
+    var Options := TServerEngineOptions.Default;
+    Options.BindAddress := '127.0.0.1';
+    Host.UseNativeServer(Options);
     {$IFDEF MSWINDOWS}
     Writeln('Starting http.sys server on http://127.0.0.1:8085/ping');
     {$ELSE}

@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{91C712FD-E03E-4D5F-BBE0-85845CE00424}</ProjectGuid>
         <MainSource>TestSqlGenerationAdv.dpr</MainSource>

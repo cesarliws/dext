@@ -115,6 +115,22 @@ App.MapGroup('/api/v1', procedure(Group: IRouteGroup)
   end);
 ```
 
+## Performance do Motor de Roteamento (Radix Tree)
+
+O Dext utiliza um algoritmo otimizado de **Árvore Radix (Trie)** para o roteamento.
+Em vez de realizar uma busca linear (`O(N)`) por todas as rotas registradas a cada
+requisição, as rotas são compiladas em uma árvore de segmentos de caminho.
+
+Principais características:
+- **Complexidade de Busca O(L)**: O tempo de resolução de rotas depende estritamente
+  da profundidade/segmentos do caminho da URL (`L`), e não do número de rotas (`N`).
+- **Backtracking de Segmentos**: Suporte para segmentos literais, parâmetros (`{id}`)
+  e curingas com backtracking para garantir que rotas exatas tenham prioridade.
+- **Mapeamento de Metadados Zero-Allocation**: O motor evita o empacotamento pesado
+  de RTTI/TValue ao resolver metadados de endpoint, atribuindo os valores
+  diretamente por meio da propriedade `IHttpContext.EndpointMetadata`.
+
 ---
 
 [← Model Binding](model-binding.md) | [Próximo: Middleware →](middleware.md)
+

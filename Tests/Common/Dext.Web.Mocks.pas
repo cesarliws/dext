@@ -97,6 +97,7 @@ type
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FEndpointMetadata: TEndpointMetadata;
   public
     constructor Create(ARequest: IHttpRequest; AResponse: IHttpResponse; AServices: IServiceProvider);
 
@@ -107,6 +108,8 @@ type
     function GetServices: IServiceProvider;
     function GetUser: IClaimsPrincipal;
     function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
 
     procedure SetResponse(const AValue: IHttpResponse);
     procedure SetServices(const AValue: IServiceProvider);
@@ -119,6 +122,8 @@ type
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
 { Helper }
@@ -398,6 +403,18 @@ end;
 function TStatefulMockHttpContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
+end;
+
+function TStatefulMockHttpContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TStatefulMockHttpContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
 end;
 
 procedure TStatefulMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);

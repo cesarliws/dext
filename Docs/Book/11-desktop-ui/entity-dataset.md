@@ -84,6 +84,49 @@ Dext ensures that the design-time state doesn't pollute your source files:
 - **Persistence Safety:** The `Active` property is automatically handled so that it's never saved as `True` in the DFM, preventing "Connection Error" popups when opening forms.
 - **Smart Cleanup:** Changing the `EntityClassName` property automatically triggers a full field rebuild to prevent metadata contamination.
 
+## 💾 Change Tracking & Remote Sync
+
+The dataset natively records insertions, updates, and deletions, making
+it easy to synchronize changes with a remote REST API.
+
+### Native Change Log
+
+When a user edits, inserts, or deletes records, `TEntityDataSet` tracks
+these actions automatically in the `Changes` property.
+
+```pascal
+var
+  Change: TEntityChange;
+begin
+  for Change in DataSet.Changes do
+  begin
+    case Change.State of
+      ersInserted: // New record
+      ersModified: // Modified (Change.DirtyFields list available)
+      ersDeleted:  // Tombstone (Change.Key primary key map available)
+    end;
+  end;
+end;
+```
+
+After successfully saving changes, call `AcceptChanges` to clear the log:
+
+```pascal
+DataSet.AcceptChanges;
+```
+
+### Auto-Generated REST Endpoints
+
+On the server, you can map the entity directly to create agreed endpoints:
+
+```pascal
+App.MapEntityDataSet<TCustomer>('/api/customers', TMyDbContext);
+```
+
+This registers the conventional routes:
+- `GET /api/customers` to fetch the entity list.
+- `POST /api/customers/apply` to apply the change-log payload.
+
 ---
 
 ## 🏆 Key Features

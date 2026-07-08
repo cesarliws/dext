@@ -125,7 +125,10 @@
         <DCCReference Include="Dext.Entity.FormatSettings.Tests.pas"/>
         <DCCReference Include="Dext.Entity.SoftDelete.Tests.pas"/>
         <DCCReference Include="Dext.Entity.Validation.Tests.pas"/>
+        <DCCReference Include="Dext.Entity.BulkBatchSize.Tests.pas"/>
         <DCCReference Include="Dext.Entity.DynamicQueryFilter.Tests.pas"/>
+        <DCCReference Include="Dext.Entity.Sequences.Tests.pas"/>
+        <DCCReference Include="Dext.Grpc.Tests.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

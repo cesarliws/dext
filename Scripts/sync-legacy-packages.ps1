@@ -202,8 +202,8 @@ foreach ($ver in $Versions) {
 
     $targetDir = Join-Path $PackagesDir $ver.Folder
 
-    Write-Host "â”Œâ”€ [$($ver.Folder)]" -ForegroundColor Cyan
-    Write-Host "â”‚  ProductVersion = $($ver.ProductVersion)  |  AutoSuffix = $($ver.UseAutoSuffix)  |  DllSuffix = $($ver.DllSuffix)"
+    Write-Host "+-- [$($ver.Folder)]" -ForegroundColor Cyan
+    Write-Host "|  ProductVersion = $($ver.ProductVersion)  |  AutoSuffix = $($ver.UseAutoSuffix)  |  DllSuffix = $($ver.DllSuffix)"
 
     # Phase 3: Clean and (re)create target folder
     if (Test-Path $targetDir) {
@@ -212,10 +212,10 @@ foreach ($ver in $Versions) {
             $_.Extension -in @('.dpk', '.dproj', '.res') -or
             $_.Name -eq 'DextFramework.groupproj'
         } | Remove-Item -Force
-        Write-Host "â”‚  Cleaned managed files in existing folder."
+        Write-Host "|  Cleaned managed files in existing folder."
     } else {
         New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-        Write-Host "â”‚  Created folder."
+        Write-Host "|  Created folder."
     }
 
     $fileCount = 0
@@ -258,8 +258,8 @@ foreach ($ver in $Versions) {
         $fileCount++
     }
 
-    Write-Host "â”‚  $fileCount files written." -ForegroundColor Green
-    Write-Host "â””â”€"
+    Write-Host "|  $fileCount files written." -ForegroundColor Green
+    Write-Host "+--"
     Write-Host ''
 
     $totalVersions++

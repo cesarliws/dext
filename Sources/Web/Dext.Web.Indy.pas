@@ -162,6 +162,7 @@ type
     FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
     FContext: TIdContext;
+    FEndpointMetadata: TEndpointMetadata;
   public
     constructor Create(AContext: TIdContext; ARequestInfo: TIdHTTPRequestInfo;
       AResponseInfo: TIdHTTPResponseInfo; const AServices: IServiceProvider);
@@ -177,12 +178,16 @@ type
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
     property Items: IDictionary<string, TValue> read GetItems;
     property Context: TIdContext read FContext;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
 implementation
@@ -1077,6 +1082,18 @@ begin
   if FItems = nil then
     FItems := TCollections.CreateDictionary<string, TValue>;
   Result := FItems;
+end;
+
+function TDextIndyHttpContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TDextIndyHttpContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
 end;
 
 procedure TDextIndyHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);

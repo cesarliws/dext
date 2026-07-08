@@ -241,6 +241,8 @@
         <DCCReference Include="..\..\Sources\Core\Dext.BackgroundJobs.Config.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.BackgroundJobs.Server.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Configuration.Core.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Grpc.Attributes.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Serialization.Protobuf.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

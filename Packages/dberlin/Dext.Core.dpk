@@ -130,7 +130,9 @@ contains
   Dext.BackgroundJobs.Storage.InMemory in '..\..\Sources\Core\Dext.BackgroundJobs.Storage.InMemory.pas',
   Dext.BackgroundJobs.Config in '..\..\Sources\Core\Dext.BackgroundJobs.Config.pas',
   Dext.BackgroundJobs.Server in '..\..\Sources\Core\Dext.BackgroundJobs.Server.pas',
-  Dext.Configuration.Core in '..\..\Sources\Core\Dext.Configuration.Core.pas';
+  Dext.Configuration.Core in '..\..\Sources\Core\Dext.Configuration.Core.pas',
+  Dext.Grpc.Attributes in '..\..\Sources\Core\Dext.Grpc.Attributes.pas',
+  Dext.Serialization.Protobuf in '..\..\Sources\Core\Dext.Serialization.Protobuf.pas';
 
 end.
 

@@ -495,10 +495,20 @@ begin
 end;
 
 function TypeInfoToFieldType(ATypeInfo: PTypeInfo): TFieldType;
+var
+  TypeName: string;
 begin
   if ATypeInfo = nil then Exit(ftUnknown);
   case ATypeInfo.Kind of
-    tkInteger: Result := ftInteger;
+    tkInteger:
+    begin
+      TypeName := string(ATypeInfo.Name);
+      if SameText(TypeName, 'SmallInt') then Result := ftSmallint
+      else if SameText(TypeName, 'Byte') then Result := ftByte
+      else if SameText(TypeName, 'ShortInt') then Result := ftShortint
+      else if SameText(TypeName, 'Word') then Result := ftWord
+      else Result := ftInteger;
+    end;
     tkChar, tkWChar, tkLString, tkWString, tkUString: Result := ftWideString;
     tkFloat:
     begin

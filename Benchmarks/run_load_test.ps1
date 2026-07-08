@@ -12,8 +12,11 @@ if (-not (Test-Path $BombardierPath)) {
 
 $ExePath = Join-Path $PSScriptRoot "Dext.Benchmarks.exe"
 if (-not (Test-Path $ExePath)) {
-    Write-Host "Dext.Benchmarks.exe not found. Building project..." -ForegroundColor Yellow
-    & Powershell -ExecutionPolicy Bypass -File "$PSScriptRoot\..\..\DelphiBuildDPROJ.ps1" -ProjectFile "$PSScriptRoot\Dext.Benchmarks.dproj" -Config Debug -Platform Win32
+    Write-Host "Building project..." -ForegroundColor Yellow
+    & Powershell -ExecutionPolicy Bypass `
+        -File "$PSScriptRoot\..\..\DelphiBuildDPROJ.ps1" `
+        -ProjectFile "$PSScriptRoot\Dext.Benchmarks.dproj" `
+        -Config Release -Platform Win64
 }
 
 # Define test settings

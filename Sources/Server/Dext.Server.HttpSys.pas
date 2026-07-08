@@ -106,6 +106,8 @@ type
     FReasonBuffer: array[0..127] of AnsiChar;
     FReasonLen: Integer;
     FBodyBuffer: TMemoryStream;
+    FUnknownHeaders: array[0..31] of HTTP_UNKNOWN_HEADER;
+    FUnknownHeadersCount: Integer;
     procedure SendHeadersInternal(AMoreData: Boolean);
     function _Release: Integer; stdcall;
     procedure SetHeaderInt(AIndex: Integer; AValue: Int64);
@@ -652,6 +654,8 @@ begin
 
   FHeaderDataLen := 0;
   FillChar(FHeaderValues, SizeOf(FHeaderValues), 0);
+  FUnknownHeadersCount := 0;
+  FillChar(FUnknownHeaders, SizeOf(FUnknownHeaders), 0);
 
   if Assigned(FEngine) then
     FBodyBuffer := FEngine.BufferPool.Acquire
@@ -686,6 +690,8 @@ begin
 
   FHeaderDataLen := 0;
   FillChar(FHeaderValues, SizeOf(FHeaderValues), 0);
+  FUnknownHeadersCount := 0;
+  FillChar(FUnknownHeaders, SizeOf(FUnknownHeaders), 0);
 
   if FBodyBuffer = nil then
   begin
@@ -786,6 +792,12 @@ begin
       end;
     end;
 
+    if FUnknownHeadersCount > 0 then
+    begin
+      Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
+      Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
+    end;
+
     if (FBodyBuffer <> nil) and (FBodyBuffer.Position > 0) then
     begin
       FillChar(Chunk, SizeOf(Chunk), 0);
@@ -882,6 +894,12 @@ begin
     end;
   end;
 
+  if FUnknownHeadersCount > 0 then
+  begin
+    Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
+    Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
+  end;
+
   if (FBodyBuffer <> nil) and (FBodyBuffer.Position > 0) then
   begin
     FillChar(Chunk, SizeOf(Chunk), 0);
@@ -945,6 +963,12 @@ begin
     end;
   end;
 
+  if FUnknownHeadersCount > 0 then
+  begin
+    Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
+    Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
+  end;
+
   if AMoreData then
     Flags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
   else
@@ -973,6 +997,7 @@ procedure TDextHttpSysResponse.SetHeader(const AName, AValue: string);
 var
   Index: Integer;
   Written: Integer;
+  WName: Integer;
 begin
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
@@ -982,7 +1007,11 @@ begin
     if FHeaderDataLen + Length(AValue) * 3 + 1 >= SizeOf(FHeaderData) then
       Exit;
 
-    Written := WideCharToMultiByte(CP_UTF8, 0, PChar(AValue), Length(AValue), @FHeaderData[FHeaderDataLen], SizeOf(FHeaderData) - FHeaderDataLen - 1, nil, nil);
+    Written := WideCharToMultiByte(
+      CP_UTF8, 0, PChar(AValue), Length(AValue),
+      @FHeaderData[FHeaderDataLen],
+      SizeOf(FHeaderData) - FHeaderDataLen - 1, nil, nil
+    );
     if Written > 0 then
     begin
       FHeaderData[FHeaderDataLen + Written] := #0;
@@ -992,6 +1021,50 @@ begin
     end;
     Exit;
   end;
+
+  if FUnknownHeadersCount >= Length(FUnknownHeaders) then
+    Exit;
+
+  if FHeaderDataLen + (Length(AName) + Length(AValue)) * 3 + 2 >=
+     SizeOf(FHeaderData) then
+    Exit;
+
+  WName := WideCharToMultiByte(
+    CP_UTF8, 0, PChar(AName), Length(AName),
+    @FHeaderData[FHeaderDataLen],
+    SizeOf(FHeaderData) - FHeaderDataLen - 1, nil, nil
+  );
+  if WName <= 0 then
+    Exit;
+
+  FHeaderData[FHeaderDataLen + WName] := #0;
+  FUnknownHeaders[FUnknownHeadersCount].pName := @FHeaderData[FHeaderDataLen];
+  FUnknownHeaders[FUnknownHeadersCount].NameLength := WName;
+  FHeaderDataLen := FHeaderDataLen + WName + 1;
+
+  Written := WideCharToMultiByte(
+    CP_UTF8, 0, PChar(AValue), Length(AValue),
+    @FHeaderData[FHeaderDataLen],
+    SizeOf(FHeaderData) - FHeaderDataLen - 1, nil, nil
+  );
+  if Written > 0 then
+  begin
+    FHeaderData[FHeaderDataLen + Written] := #0;
+    FUnknownHeaders[FUnknownHeadersCount].pRawValue :=
+      @FHeaderData[FHeaderDataLen];
+    FUnknownHeaders[FUnknownHeadersCount].RawValueLength := Written;
+    FHeaderDataLen := FHeaderDataLen + Written + 1;
+  end
+  else
+  begin
+    FHeaderData[FHeaderDataLen] := #0;
+    FUnknownHeaders[FUnknownHeadersCount].pRawValue :=
+      @FHeaderData[FHeaderDataLen];
+    FUnknownHeaders[FUnknownHeadersCount].RawValueLength := 0;
+    FHeaderDataLen := FHeaderDataLen + 1;
+  end;
+
+  Inc(FUnknownHeadersCount);
 end;
 
 procedure TDextHttpSysResponse.SetStatus(ACode: Integer; const AReason: string);

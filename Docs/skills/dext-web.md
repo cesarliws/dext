@@ -317,6 +317,12 @@ begin
 end;
 ```
 
+## Routing & Performance Rules
+
+Dext uses an optimized Radix Tree router:
+- Always use the `IHttpContext.EndpointMetadata` property directly to get or set metadata details instead of invoking slow RTTI dictionary packaging or `TValue`.
+- Route matching complexity is O(L), depending strictly on the number of path segments instead of the total number of registered routes.
+
 ## HTTP Methods Reference
 
 | Dext Method | HTTP Verb |

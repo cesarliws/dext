@@ -325,6 +325,23 @@ uses Dext.Caching.Redis;
 App.UseRedisCache('127.0.0.1', 6379, 'password_if_any', 0 { database }, 60 { duration seconds });
 ```
 
+---
 
+## Native gRPC & Protocol Buffers (gRPC Integration)
 
+High-performance binary communication stack based on gRPC and Protocol Buffers (proto3).
 
+```pascal
+uses
+  Dext.Serialization.Protobuf,
+  Dext.Grpc.Codec,
+  Dext.Entity.GrpcProvider;
+
+// Serialize dynamic entities with zero-heap allocations
+var Serializer := TProtobufSerializer.Create;
+var Bytes := Serializer.Serialize(MyObject);
+
+// Low-level gRPC Client call
+var Client := TgRpcClient.Create('http://localhost:50051');
+var Response := Client.Invoke('dext.services.UserService/GetUser', RequestBytes);
+```

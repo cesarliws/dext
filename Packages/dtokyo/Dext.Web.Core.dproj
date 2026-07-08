@@ -149,6 +149,7 @@
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
         <DCCReference Include="Dext.EF.Core.dcp"/>
+        <DCCReference Include="Dext.Net.Core.dcp"/>
         <DCCReference Include="RESTComponents.dcp"/>
         <DCCReference Include="inet.dcp"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Engine.Types.pas"/>
@@ -167,6 +168,7 @@
         <DCCReference Include="..\..\Sources\Web\Dext.Auth.JWT.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Auth.Middleware.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Caching.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Caching.Redis.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.DI.Middleware.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Filters.BuiltIn.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Filters.pas"/>
@@ -211,6 +213,7 @@
         <DCCReference Include="..\..\Sources\Web\Dext.Web.ModelBinding.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.MultiTenancy.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.EntityDataSetApi.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Pipeline.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Results.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Routing.Attributes.pas"/>
@@ -229,6 +232,9 @@
         <DCCReference Include="..\..\Sources\Server\Dext.Http2.Framing.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Http2.Hpack.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Http2.Stream.pas"/>
+        <DCCReference Include="..\..\Sources\Server\Dext.Grpc.Codec.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.Grpc.Server.pas"/>
+        <DCCReference Include="..\..\Sources\Data\Dext.Entity.GrpcProvider.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -1000,4 +1000,63 @@ Dext features a native, high-performance Redis client library supporting RESP2/R
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: July 06, 2026).*
+## 🛣️ 25. High-Performance Radix Tree Routing Engine (`Sources\Web`)
+
+- **Radix Tree (Trie) Routing Matching** — Path segment route scanning replaced with an optimized `TRouteNode` tree structure, achieving $O(L)$ path matching complexity (where $L$ is path segment depth) and deterministic route resolution.
+- **Backtracking Segment Traversal** — Fully supports literal matching, path parameters (`{param}`), and wildcard parameters with segment-by-segment backtracking to resolve overlaps.
+- **Zero-Allocation Request Metadata Mapping** — Bypasses RTTI-heavy dynamic wrapping (eliminating dictionary and `TValue` heap allocations) by directly exposing and assigning `EndpointMetadata` via `IHttpContext` properties on matched routes.
+
+---
+
+## 💾 26. Remote TEntityDataSet Sync & Transparent Decompression (S51)
+
+Exposes delta-tracking mechanisms and transport decompression.
+
+### 26.1 Native Change-Log Tracking in TEntityDataSet
+- **Row State Tracking** — Native change tracking via `TEntityRowState` 
+  and change list property `Changes` (`TEntityChange`).
+- **Tombstones for Deletion** — Retains primary key maps (`Key`) of deleted
+  entities during `Delete`, enabling synchronization of removals.
+- **Transactional Consolidating** — Native `AcceptChanges` API to clear
+  accumulated change logs after successful updates.
+
+### 26.2 Server-side agreed service mapping
+- **Automated Routing Endpoints** — Native `MapEntityDataSet<T>` exposing
+  `GET` for fetching and `POST` `/apply` for persisting the change list.
+- **Custom Persistence Engine** — Pluggable `IEntityDataSetStore` interface
+  defaulting to `TDbContextEntityDataSetStore` (`DbContext.SaveChanges`).
+
+### 26.3 Transparent Network Transport Decompression
+- **Transparent Inbound Decompression** — `TRestClient` advertises
+  `Accept-Encoding` and decompresses response streams dynamically.
+- **Raw Stream Preservation** — Preserves raw compressed bytes via
+  `RawContentStream` property for audit or direct byte checking.
+
+
+---
+
+## 📡 27. Modernizer: gRPC & Protocol Buffers (S02)
+
+High-performance binary transport protocol implementation.
+
+### 27.1 Protobuf Serialization Engine (`Dext.Serialization.Protobuf`)
+- **TProtobufSerializer** — High-speed, zero-allocation binary serialization engine for Protocol Buffers (proto3).
+- **Format Handlers** — Supports Varint, Fixed32, Fixed64, and Length-Prefixed formatting types using high-performance `TSpan` memory representations.
+- **Entity Binding via RTTI** — Marshals Delphi objects directly to Protobuf binary format, evaluating attributes such as `[ProtoMember]` and field ordinals.
+
+### 27.2 Length-Prefixed Message Codec (`Dext.Grpc.Codec`)
+- **TGrpcCodec** — Framing codec for gRPC Length-Prefixed Messages (LPM).
+- **Compression Support** — Compression flag handling (1-byte compressed flag, 4-byte big-endian message length) for HTTP/2 transmission.
+
+### 27.3 gRPC Server Engine (`Dext.Web.Grpc.Server`)
+- **TGrpcDispatcher** — Decodes HTTP/2 frames and maps incoming `application/grpc` requests to the registered service handlers.
+- **Service Mappings** — Dynamic routing and method dispatch via reflection and interface lookup tables.
+
+### 27.4 Client & DataSet Integration (`Dext.Entity.GrpcProvider`)
+- **TEntitygRpcProvider** — Pluggable gRPC sync provider for `TEntityDataSet`, enabling bi-directional remote synchronization.
+- **TgRpcClient** — Low-level client engine sending Protobuf streams and parsing gRPC binary responses.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 2026).*
+

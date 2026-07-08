@@ -352,6 +352,8 @@ type
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
     
     /// <summary>
     ///   Injects the route parameters resolved by the router into the request.
@@ -372,6 +374,8 @@ type
     property Items: IDictionary<string, TValue> read GetItems;
     /// <summary>Resolved streamable session (if enabled and matching Dext-Session-Id).</summary>
     property Session: IStreamableSession read GetSession;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
   IMiddleware = interface

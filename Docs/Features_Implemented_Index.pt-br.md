@@ -821,4 +821,63 @@ O Dext inclui uma biblioteca cliente nativa e de alta performance para o Redis, 
 
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 06, 2026).*
+## 🛣️ 25. Motor de Roteamento Baseado em Árvore Radix (`Sources\Web`)
+
+- **Roteamento por Árvore Radix (Trie)** — Busca linear de rotas substituída por uma estrutura em árvore otimizada com `TRouteNode`, alcançando complexidade de correspondência de caminhos de $O(L)$ (onde $L$ é a profundidade de segmentos) e resolução determinística.
+- **Backtracking de Segmentos** — Suporte completo a segmentos fixos (literais), parâmetros de rota (`{param}`) e parâmetros curinga com backtracking segmento a segmento para resolução de sobreposições.
+- **Mapeamento de Metadados de Requisição Zero-Allocation** — Evita o encapsulamento dinâmico pesado com RTTI (eliminando alocações de dicionários e `TValue` no heap) ao expor e atribuir `EndpointMetadata` diretamente nas propriedades de `IHttpContext` das rotas correspondidas.
+
+---
+
+## 💾 26. Sincronização do TEntityDataSet e Descompressão no RestClient (S51)
+
+Oferece controle de alterações distribuído e descompressão de rede.
+
+### 26.1 Registro Nativo de Alterações (Change-Log) no TEntityDataSet
+- **Rastreamento de Estados de Linha** — Controle de modificações usando
+  `TEntityRowState` exposto pela lista `Changes` (`TEntityChange`).
+- **Tombstones para Exclusão** — Preserva chaves primárias (`Key`) dos registros
+  excluídos, permitindo sincronizar remoções com o servidor.
+- **Gestão Transacional** — API nativa `AcceptChanges` para consolidar o estado
+  em memória pós-sincronização bem-sucedida.
+
+### 26.2 Mapeamento de Endpoints "Agreed Service"
+- **Roteamento Automático** — Mapeamento via `MapEntityDataSet<T>` expõe
+  `GET` para listagem e `POST` `/apply` para persistência das alterações.
+- **Persistência Customizável** — Interface plugável `IEntityDataSetStore`
+  integrada ao ciclo transacional do ORM (`DbContext.SaveChanges`).
+
+### 26.3 Descompressão Transparente de Rede
+- **Negociação Automática** — O `TRestClient` sinaliza `Accept-Encoding`
+  e realiza a descompactação via `TZDecompressionStream` de forma transparente.
+- **Preservação de Stream Bruto** — Mantém o stream compactado original
+  disponível em `RawContentStream` para inspeção e auditoria.
+
+
+---
+
+## 📡 27. Modernizer: gRPC & Protocol Buffers (S02)
+
+Implementação do protocolo de transporte binário de alta performance.
+
+### 27.1 Serializador Protobuf (`Dext.Serialization.Protobuf`)
+- **TProtobufSerializer** — Engine de serialização binária de alta velocidade e zero alocação no heap para Protocol Buffers (proto3).
+- **Formatadores Específicos** — Suporte a formatação Varint, Fixed32, Fixed64 e Length-Prefixed usando a abstração de memória de alto desempenho `TSpan`.
+- **Marshalling via RTTI** — Serialização direta de objetos Delphi baseada em mapeamento de atributos `[ProtoMember]` e ordinais de campo.
+
+### 27.2 Codec de Mensagens gRPC (`Dext.Grpc.Codec`)
+- **TGrpcCodec** — Implementação do codec de enquadramento (framing) para mensagens gRPC Length-Prefixed Message (LPM).
+- **Suporte a Compressão** — Tratamento do flag de compressão de 1 byte seguido de tamanho em big-endian de 4 bytes para entrega segura em streams HTTP/2.
+
+### 27.3 Servidor gRPC (`Dext.Web.Grpc.Server`)
+- **TGrpcDispatcher** — Decodificador de frames HTTP/2 que despacha requisições `application/grpc` para os respectivos métodos e classes de serviço registrados.
+- **Mapeamento RTTI** — Resolução e chamada dinâmica de serviços baseados em interfaces usando tabelas de roteamento otimizadas.
+
+### 27.4 Integração Cliente e DataSet (`Dext.Entity.GrpcProvider`)
+- **TEntitygRpcProvider** — Provedor de sincronização remota gRPC integrado para `TEntityDataSet`, possibilitando persistência bidirecional estruturada.
+- **TgRpcClient** — Cliente gRPC de baixo nível responsável pelo transporte de streams Protobuf e recebimento de payloads binários de resposta.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 2026).*
+

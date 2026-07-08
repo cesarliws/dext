@@ -207,6 +207,7 @@ type
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FEndpointMetadata: TEndpointMetadata;
   public
     constructor Create(const ARequest: IHttpRequest; const AResponse: IHttpResponse;
       const AServices: IServiceProvider);
@@ -221,6 +222,9 @@ type
     function GetUser: IClaimsPrincipal;
     procedure SetUser(const AValue: IClaimsPrincipal);
     function GetItems: IDictionary<string, TValue>;
+    function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
     /// <summary>
     ///   Sets the route parameters for the request.
     /// </summary>
@@ -230,6 +234,8 @@ type
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
     property Items: IDictionary<string, TValue> read GetItems;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
   // -------------------------------------------------------------------------
@@ -789,6 +795,34 @@ end;
 function TDextDCSContext.GetItems: IDictionary<string, TValue>;
 begin
   Result := FItems;
+end;
+
+function TDextDCSContext.GetSession: IStreamableSession;
+var
+  LManager: IStreamableSessionManager;
+  LId: string;
+begin
+  LId := FRequest.GetHeader('Dext-Session-Id');
+  if LId = '' then
+    Exit(nil);
+    
+  LManager := TDextServices.GetService<IStreamableSessionManager>(FServices);
+  if LManager <> nil then
+    Result := LManager.GetSession(LId)
+  else
+    Result := nil;
+end;
+
+function TDextDCSContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TDextDCSContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
 end;
 
 procedure TDextDCSContext.SetRouteParams(const AParams: TRouteValueDictionary);

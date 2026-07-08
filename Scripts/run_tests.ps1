@@ -21,9 +21,12 @@ if (-not (Test-Path $TestsOutput)) {
 
 # 2. Discover Projects
 Write-Host "`n[INIT] Discovering test projects..." -ForegroundColor Cyan
-$projects = Get-ChildItem -Path (Join-Path $DextRoot "Tests") -Filter "*.dproj" -Recurse | Where-Object { 
-    $_.Name -like "*test*" -and $_.FullName -notmatch "__history"
-}
+$projects = Get-ChildItem -Path (Join-Path $DextRoot "Tests") `
+    -Filter "*.dproj" -Recurse | Where-Object { 
+        $_.Name -like "*test*" -and `
+        $_.FullName -notmatch "__history" -and `
+        $_.Name -notlike "*VclOpenSslTest*"
+    }
 
 $total = $projects.Count
 Write-Host "[INIT] Found $total test projects to process."

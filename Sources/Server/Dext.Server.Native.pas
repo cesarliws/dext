@@ -134,6 +134,7 @@ type
     FRawResponse: IDextRawResponse;
     FHtmx: IHtmxResponse;
     FHeaders: IStringDictionary;
+    FStatusCode: Integer;
   public
     /// <summary>Initializes a new instance of the native HTTP response adapter.</summary>
     constructor Create(const ARawResponse: IDextRawResponse);
@@ -205,6 +206,7 @@ type
     FServices: IServiceProvider;
     FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FEndpointMetadata: TEndpointMetadata;
   public
     /// <summary>Initializes a new request context with the native connection/request/response.</summary>
     constructor Create(
@@ -238,12 +240,16 @@ type
     function GetItems: IDictionary<string, TValue>;
     /// <summary>Returns the active session interface, if configured.</summary>
     function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
 
     property Request: IHttpRequest read GetRequest;
     property Response: IHttpResponse read GetResponse write SetResponse;
     property Services: IServiceProvider read GetServices write SetServices;
     property User: IClaimsPrincipal read GetUser write SetUser;
     property Items: IDictionary<string, TValue> read GetItems;
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
   /// <summary>
@@ -528,6 +534,7 @@ constructor TDextNativeHttpResponse.Create(const ARawResponse: IDextRawResponse)
 begin
   inherited Create;
   FRawResponse := ARawResponse;
+  FStatusCode := 200;
 end;
 
 destructor TDextNativeHttpResponse.Destroy;
@@ -541,8 +548,7 @@ end;
 procedure TDextNativeHttpResponse.AddHeader(const AName, AValue: string);
 begin
   FRawResponse.SetHeader(AName, AValue);
-  if FHeaders <> nil then
-    FHeaders.AddOrSetValue(AName, AValue);
+  GetHeaders.AddOrSetValue(AName, AValue);
 end;
 
 procedure TDextNativeHttpResponse.AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions);
@@ -612,6 +618,7 @@ end;
 
 procedure TDextNativeHttpResponse.SetStatusCode(AValue: Integer);
 begin
+  FStatusCode := AValue;
   FRawResponse.SetStatus(AValue);
 end;
 
@@ -707,7 +714,7 @@ end;
 
 function TDextNativeHttpResponse.GetStatusCode: Integer;
 begin
-  Result := 200; // Native engine status code tracking could be added if needed, default to 200
+  Result := FStatusCode;
 end;
 
 { TDextNativeHttpContext }
@@ -755,6 +762,18 @@ procedure TDextNativeHttpContext.SetServices(const AValue: IServiceProvider); be
 function TDextNativeHttpContext.GetUser: IClaimsPrincipal; begin Result := FUser; end;
 procedure TDextNativeHttpContext.SetUser(const AValue: IClaimsPrincipal); begin FUser := AValue; end;
 function TDextNativeHttpContext.GetSession: IStreamableSession; begin Result := nil; end;
+
+function TDextNativeHttpContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TDextNativeHttpContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
+end;
 
 procedure TDextNativeHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
 begin

@@ -52,6 +52,7 @@ type
   TMockHttpContext = class(TInterfacedObject, IHttpContext)
   private
     FRequest: IHttpRequest;
+    FEndpointMetadata: TEndpointMetadata;
   public
     constructor Create(ARequest: IHttpRequest);
     function GetConnection: IDextServerConnection;
@@ -65,11 +66,16 @@ type
     function GetItems: IDictionary<string, TValue>;
     function GetSession: IStreamableSession;
     procedure SetRouteParams(const AParams: TRouteValueDictionary);
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
+
+    property EndpointMetadata: TEndpointMetadata
+      read GetEndpointMetadata write SetEndpointMetadata;
   end;
 
   { Test Models }
 
-  {$RTTI EXPLICIT FIELDS([vcPrivate..vcPublic]) PROPERTIES([vcPrivate..vcPublic])}
+  {$M+}{$RTTI EXPLICIT FIELDS([vcPrivate..vcPublic]) PROPERTIES([vcPrivate..vcPublic])}
   TTestRecord = record
     [DefaultValue('John Doe')]
     Name: string;
@@ -78,6 +84,7 @@ type
     [DefaultValue('2024-01-01')]
     JoinDate: TDateTime;
   end;
+  {$M-}
 
   TTestClass = class
   private
@@ -190,6 +197,18 @@ function TMockHttpContext.GetUser: IClaimsPrincipal; begin Result := nil; end;
 procedure TMockHttpContext.SetResponse(const AValue: IHttpResponse); begin end;
 procedure TMockHttpContext.SetUser(const AValue: IClaimsPrincipal); begin end;
 procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin end;
+
+function TMockHttpContext.GetEndpointMetadata: TEndpointMetadata;
+begin
+  Result := FEndpointMetadata;
+end;
+
+procedure TMockHttpContext.SetEndpointMetadata(
+  const AMetadata: TEndpointMetadata
+);
+begin
+  FEndpointMetadata := AMetadata;
+end;
 
 procedure TMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary);
 begin

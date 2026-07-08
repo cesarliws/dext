@@ -45,14 +45,14 @@ Status | Task | Spec | Description
 ## 🔴 Wave 3: Enterprise & Modernization (Stability)
 Status | Task | Spec | Description
 :---: | :--- | :---: | :---
-🟡 | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Code-first Protobuf services and TEntityDataSet/TEntitygRpcProvider integration.
+✅ | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Code-first Protobuf services and TEntityDataSet/TEntitygRpcProvider integration.
 ✅ | **Native Server Engine** | [S39](Specs/S39-Native-Server-Engine.md) | 100% Pascal High-performance server engine (http.sys, epoll sockets).
 ✅ | **WebSocket & SignalR** | [S40](Specs/S40-WebSocket-SignalR.md) | RFC 6455 protocol codec and SignalR-compatible Hub transport integration.
 ✅ | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | HTTP/2 HPACK compression, frame codec, and stream multiplexing for gRPC.
-🟡 | **OAuth2 & OIDC** | [S06](Specs/S06-Security-Identity.md) | Native support for JWT, Google, and Microsoft Login.
+✅ | **OAuth2 & OIDC** | [S06](Specs/S06-Security-Identity.md) | Native support for JWT, Google, and Microsoft Login.
 ✅ | **Live Tracing (Core)** | [S03](Specs/S03-Live-Observability.md) | Real-time instrumentation infrastructure (TDiagnosticSource).
 🟡 | **Observability Dashboard**| - | Built-in web UI for real-time log and SQL visualization.
-🔴 | **EntityDataSet Providers** | - | Pluggable providers (REST/gRPC) for EntityDataSet.
+✅ | **EntityDataSet Providers** | [S51](Specs/S51-EntityDataSet-Remote-Sync.md) | Pluggable providers (REST/gRPC) for EntityDataSet.
 ✅ | **Redis Client (Dext.Redis)** | [S13](Specs/S13-Redis-Client.md) | High-performance async Redis client with RESP3 and RedisJSON support.
 🟡 | **SOA via Interfaces** | [S14](Specs/S14-SOA-Interfaces.md) | Transparent Code-First gRPC mapping for Delphi Interfaces.
 ✅ | **APM & Telemetry Sinks** | [S35](Specs/S35-APM-Log-Sinks.md) | Asynchronous batch-oriented telemetry sinks targeting Seq and OpenTelemetry (OTLP) collectors.
@@ -108,14 +108,14 @@ Status | Tarefa | Spec | Descrição
 ## 🔴 Onda 3: Enterprise & Modernização (Estabilidade)
 Status | Tarefa | Spec | Descrição
 :---: | :--- | :---: | :---
-🟡 | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Motor nativo IOCP/EPOLL para comunicação binária.
+✅ | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Motor nativo IOCP/EPOLL para comunicação binária.
 ✅ | **Motor de Servidor Nativo** | [S39](Specs/S39-Native-Server-Engine.md) | Motor de servidor de alta performance 100% Pascal (http.sys, epoll sockets).
 ✅ | **WebSocket & SignalR** | [S40](Specs/S40-WebSocket-SignalR.md) | Codec do protocolo RFC 6455 e integração do transporte de Hub compatível com SignalR.
 ✅ | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | Compressão HPACK HTTP/2, codec de frames e multiplexação de streams para gRPC.
-🟡 | **OAuth2 & OIDC** | [S06](Specs/S06-Security-Identity.md) | Suporte nativo a JWT, Google/Microsoft Login.
+✅ | **OAuth2 & OIDC** | [S06](Specs/S06-Security-Identity.md) | Suporte nativo a JWT, Google/Microsoft Login.
 ✅ | **Live Tracing (Core)** | [S03](Specs/S03-Live-Observability.md) | Infraestrutura de instrumentação em tempo real.
 🟡 | **Dashboard Log Live** | - | Interface web para visualização de logs e SQL em tempo real.
-🔴 | **Provider de EntityDataSet** | - | Providers plugáveis (REST/gRPC) para o EntityDataSet.
+✅ | **Provider de EntityDataSet** | [S51](Specs/S51-EntityDataSet-Remote-Sync.md) | Providers plugáveis (REST/gRPC) para o EntityDataSet.
 ✅ | **Redis Client (Dext.Redis)** | [S13](Specs/S13-Redis-Client.md) | Client Redis async de alta performance com suporte a RESP3 e RedisJSON.
 🟡 | **SOA via Interfaces** | [S14](Specs/S14-SOA-Interfaces.md) | SOA e RPC via gRPC Code-First transparente para interfaces Delphi.
 ✅ | **APM & Telemetry Sinks** | [S35](Specs/S35-APM-Log-Sinks.md) | Envio assíncrono em lotes de telemetria e logs para Seq e coletores OpenTelemetry (OTLP).
@@ -134,4 +134,4 @@ Status | Tarefa | Spec | Descrição
 - UI Nativo com Skia
 
 ---
-*Last update: June 2026*
+*Last update: July 2026*

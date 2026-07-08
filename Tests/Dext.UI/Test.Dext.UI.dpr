@@ -40,7 +40,7 @@ begin
       WriteLn('FATAL ERROR: ', E.ClassName, ': ', E.Message);
       ExitCode := 1;
       WriteLn('Press Enter to exit...');
-      ReadLn;
     end;
   end;
+  ConsolePause;
 end.

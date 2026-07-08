@@ -122,6 +122,7 @@
 <a href="Dext.Entity.Drivers.FireDAC.Phys.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Phys</a>
 <a href="Dext.Entity.Drivers.Interfaces.html" class="nav-item">Dext.Entity.Drivers.Interfaces</a>
 <a href="Dext.Entity.Grouping.html" class="nav-item">Dext.Entity.Grouping</a>
+<a href="Dext.Entity.GrpcProvider.html" class="nav-item">Dext.Entity.GrpcProvider</a>
 <a href="Dext.Entity.Joining.html" class="nav-item">Dext.Entity.Joining</a>
 <a href="Dext.Entity.LazyLoader.html" class="nav-item">Dext.Entity.LazyLoader</a>
 <a href="Dext.Entity.LazyLoading.html" class="nav-item">Dext.Entity.LazyLoading</a>
@@ -159,6 +160,8 @@
 <a href="Dext.Events.Testing.html" class="nav-item">Dext.Events.Testing</a>
 <a href="Dext.Filters.html" class="nav-item">Dext.Filters</a>
 <a href="Dext.Filters.BuiltIn.html" class="nav-item">Dext.Filters.BuiltIn</a>
+<a href="Dext.Grpc.Attributes.html" class="nav-item">Dext.Grpc.Attributes</a>
+<a href="Dext.Grpc.Codec.html" class="nav-item">Dext.Grpc.Codec</a>
 <a href="Dext.HealthChecks.html" class="nav-item">Dext.HealthChecks</a>
 <a href="Dext.Hosting.html" class="nav-item">Dext.Hosting</a>
 <a href="Dext.Hosting.ApplicationLifetime.html" class="nav-item">Dext.Hosting.ApplicationLifetime</a>
@@ -233,6 +236,7 @@
 <a href="Dext.RateLimiting.Policy.html" class="nav-item">Dext.RateLimiting.Policy</a>
 <a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
 <a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
+<a href="Dext.Serialization.Protobuf.html" class="nav-item">Dext.Serialization.Protobuf</a>
 <a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
 <a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
 <a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
@@ -309,10 +313,12 @@
 <a href="Dext.Web.DataApi.Resolver.html" class="nav-item">Dext.Web.DataApi.Resolver</a>
 <a href="Dext.Web.DataApi.Utils.html" class="nav-item">Dext.Web.DataApi.Utils</a>
 <a href="Dext.Web.DCS.html" class="nav-item">Dext.Web.DCS</a>
+<a href="Dext.Web.EntityDataSetApi.html" class="nav-item">Dext.Web.EntityDataSetApi</a>
 <a href="Dext.Web.Extensions.html" class="nav-item">Dext.Web.Extensions</a>
 <a href="Dext.Web.Formatters.Interfaces.html" class="nav-item">Dext.Web.Formatters.Interfaces</a>
 <a href="Dext.Web.Formatters.Json.html" class="nav-item">Dext.Web.Formatters.Json</a>
 <a href="Dext.Web.Formatters.Selector.html" class="nav-item">Dext.Web.Formatters.Selector</a>
+<a href="Dext.Web.Grpc.Server.html" class="nav-item">Dext.Web.Grpc.Server</a>
 <a href="Dext.Web.HandlerInvoker.html" class="nav-item">Dext.Web.HandlerInvoker</a>
 <a href="Dext.Web.Hubs.html" class="nav-item">Dext.Web.Hubs</a>
 <a href="Dext.Web.Hubs.Client.html" class="nav-item">Dext.Web.Hubs.Client</a>
@@ -398,8 +404,17 @@ class TRouteDefinition {    +Create()
 TObject <|-- TRouteDefinition
 class IRouteMatcher {    +FindMatchingRoute()
 }
-class TRouteMatcher {    +GetRequestedApiVersion()
+class TRouteLeaf {    +Create()
+}
+TObject <|-- TRouteLeaf
+class TRouteNode {    +Create()
+    +Destroy()
+}
+TObject <|-- TRouteNode
+class TRouteMatcher {    +AddRouteToTree()
+    +GetRequestedApiVersion()
     +IsVersionMatch()
+    +MatchNode()
     +Create()
     +Destroy()
     +FindMatchingRoute()
@@ -455,18 +470,36 @@ Exception <|-- ERouteException
 </div>
 <hr>
 <div class="class-header">
-<h3>class TRouteMatcher</h3><a name="TRouteMatcher"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Default implementation of the route matcher. Manages API versioning and prioritizes literal (exact) routes over parameterized routes.</div></div>
+<h3>class TRouteLeaf</h3><a name="TRouteLeaf"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Default implementation of the route matcher. Manages API versioning and prioritizes literal (exact) routes over parameterized routes.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: IList)</div><div class="description">Creates a matcher from a list of route definitions.</div></div>
+<div class="api-signature">constructor Create(const const: string; AHandler: TRequestDelegate; const const: TEndpointMetadata)</div><div class="description">Initializes a new route leaf.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TRouteNode</h3><a name="TRouteNode"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Represents a segment node in the Radix routing tree.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: string)</div><div class="description">Initializes a new route node with a segment name.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div><div class="description">Cleans up child nodes and leaves lists.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TRouteMatcher</h3><a name="TRouteMatcher"></a><div class="ancestor">Inherits from: TInterfacedObject</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: IList)</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
-<div class="api-signature">function FindMatchingRoute(const const: IHttpContext; out out: TRequestDelegate; out out: TRouteValueDictionary; out out: TEndpointMetadata): Boolean</div><div class="description">Finds the matching route for the current context. Matching order: HTTP Verb -> API Version -> Path (Literal > Parameter).</div></div>
+<div class="api-signature">function FindMatchingRoute(const const: IHttpContext; out out: TRequestDelegate; out out: TRouteValueDictionary; out out: TEndpointMetadata): Boolean</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure AddRouteToTree(const const: TRouteDefinition)</div></div>
+<div class="api-item">
 <div class="api-signature">function GetRequestedApiVersion(const const: IHttpContext): string</div></div>
 <div class="api-item">
 <div class="api-signature">function IsVersionMatch(const const: string; const const: TArray): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function MatchNode(Node: TRouteNode; const const: TArray; ASegIdx: Integer; const const: string; const const: string; out out: TRouteLeaf; var var: TRouteValueDictionary): Boolean</div></div>
 </div>
 <hr>
 <div class="class-header">

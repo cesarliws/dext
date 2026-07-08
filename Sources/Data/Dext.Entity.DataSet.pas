@@ -32,6 +32,17 @@ type
   PBytes = ^TBytes;
   PObject = ^TObject;
 
+  TEntityRowState = (ersUnchanged, ersInserted, ersModified, ersDeleted);
+
+  TEntityChange = record
+    State: TEntityRowState;
+    Entity: TObject;
+    OriginalIndex: Integer;
+    Key: TArray<Dext.Collections.Dict.TPair<string, Variant>>;
+    DirtyFields: TArray<string>;
+    OriginalValues: TArray<Dext.Collections.Dict.TPair<string, Variant>>;
+  end;
+
   /// <summary>
   ///   Record header for TEntityDataSet's internal buffer.
   ///   Stores row state metadata, bookmarks, and modification masks.
@@ -107,8 +118,20 @@ type
     FOnPrepareField: TPrepareFieldEvent;
     FStringFieldKind: TStringFieldKind;
     FFilterExpression: IExpression;
+    FTrackedChanges: IList<TEntityChange>;
+    FCurrentDirtyFields: IList<string>;
+    // Tracks objects the dataset itself created via Append/Insert
+    // so they can be freed on Destroy even when FOwnsItems=False.
+    FDataSetCreatedItems: IList<TObject>;
+    // True only when FItems is an internal non-owning wrapper (Load<T> path).
+    // Indicates that objects added via Append have no external owner.
+    FItemsIsNonOwningWrapper: Boolean;
+    // Temporarily holds deleted objects to allow local rollback (RejectChanges).
+    FDeletedItemsCache: IList<TObject>;
 
     procedure SetFilterExpression(const Value: IExpression);
+    procedure RecordOriginalValue(AEntity: TObject; Field: TField);
+    procedure RemoveFromItems(AEntity: TObject; AFreeInstance: Boolean);
 
     function CompareObjectsInternal(A, B: TObject; const APropNames: TArray<string>; RttiType: TRttiType): Integer;
     function CreateNewEntity: TObject;
@@ -191,6 +214,16 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
+
+    function GetChanges: IList<TEntityChange>;
+    procedure AcceptChanges;
+    procedure RejectChanges;
+    procedure ClearChanges;
+    function GetEntityKeys(AEntity: TObject):
+      TArray<Dext.Collections.Dict.TPair<string, Variant>>;
+    function ReadPropertyValue(AEntity: TObject;
+      PropMap: TPropertyMap; out AValue: Variant): Boolean;
+    property Changes: IList<TEntityChange> read GetChanges;
 
     function AsJsonArray: string;
     function AsJsonObject: string;
@@ -477,6 +510,10 @@ function TEntityDataSet.StringToFieldType(const ATypeName: string): TFieldType;
 begin
   if SameText(ATypeName, 'string') or SameText(ATypeName, 'StringType') then Result := ResolveTextFieldType
   else if SameText(ATypeName, 'Integer') or SameText(ATypeName, 'Int32') or SameText(ATypeName, 'IntType') then Result := ftInteger
+  else if SameText(ATypeName, 'SmallInt') then Result := ftSmallint
+  else if SameText(ATypeName, 'Byte') then Result := ftByte
+  else if SameText(ATypeName, 'ShortInt') then Result := ftShortint
+  else if SameText(ATypeName, 'Word') then Result := ftWord
   else if SameText(ATypeName, 'LargeInt') or SameText(ATypeName, 'Int64') or SameText(ATypeName, 'Int64Type') or SameText(ATypeName, 'LargeIntType') then Result := ftLargeint
   else if SameText(ATypeName, 'Double') or SameText(ATypeName, 'Float') or SameText(ATypeName, 'FloatType') then Result := ftFloat
   else if SameText(ATypeName, 'Currency') or SameText(ATypeName, 'Money') or SameText(ATypeName, 'CurrencyType') then Result := ftCurrency
@@ -613,6 +650,10 @@ begin
   FPropertyCache := TDictionary<string, TRttiProperty>.Create;
   FDetailDataSets := TDictionary<string, TDataSet>.Create;
   FStringFieldKind := sfAuto;
+  FTrackedChanges := TCollections.CreateList<TEntityChange>;
+  FCurrentDirtyFields := TCollections.CreateList<string>;
+  FDataSetCreatedItems := TCollections.CreateList<TObject>(True);
+  FDeletedItemsCache := TCollections.CreateList<TObject>(True);
 end;
 
 destructor TEntityDataSet.Destroy;
@@ -620,10 +661,10 @@ var
   Dict: TDictionary<string, Variant>;
 begin
   Close; // Garante que InternalClose rode enquanto as estruturas estao vivas
-  
+
   if Assigned(FDataProvider) then
     FDataProvider.UnregisterDataSet(Self);
-    
+
   FreeAndNil(FPropertyCache);
   FreeAndNil(FCalcOffsets);
   FreeAndNil(FDetailDataSets);
@@ -632,14 +673,22 @@ begin
   for Dict in FPreviewData do
     Dict.Free;
   SetLength(FPreviewData, 0);
-    
+
+  // FDataSetCreatedItems holds objects created by the dataset via Append/Insert.
+  // Freeing this list releases those objects regardless of FOwnsItems.
+  FDataSetCreatedItems := nil;
+  // Freeing this list releases all deleted objects that were cached.
+  FDeletedItemsCache := nil;
+
   FItems := nil;
-  
+  FTrackedChanges := nil;
+  FCurrentDirtyFields := nil;
+
   if Assigned(FEntityMap) and FOwnsEntityMap then
     FreeAndNil(FEntityMap);
 
   FreeAndNil(FMasterLink);
-    
+
   inherited Destroy;
 end;
 
@@ -780,6 +829,8 @@ begin
   FItems := AItems;
   FEntityClass := AClass;
   FOwnsItems := AOwns;
+  // Direct load via IObjectList: external list manages object lifetime.
+  FItemsIsNonOwningWrapper := False;
   EnsureEntityMapResolved;
   
   if Active then
@@ -859,6 +910,10 @@ begin
   for i := 0 to AItems.Count - 1 do
     ListObj.Add(TObject(AItems[i]));
   Load(ListObj as IObjectList, AClass, AOwns);
+  // Set AFTER Load() call — Load() resets this flag to False.
+  // When AOwns=False, the wrapper is non-owning: Append-created objects
+  // have no external owner and must be tracked in FDataSetCreatedItems.
+  FItemsIsNonOwningWrapper := not AOwns;
 end;
 
 procedure TEntityDataSet.LoadFromJson(const AJson: string; AClass: TClass);
@@ -943,8 +998,16 @@ begin
                   case PropMap.DataType of
                     ftString, ftWideString:
                       PString(PValue)^ := Reader.GetString;
-                    ftInteger, ftSmallint:
+                    ftInteger:
                       PInteger(PValue)^ := Reader.GetInt32;
+                    ftSmallint:
+                      PSmallInt(PValue)^ := SmallInt(Reader.GetInt32);
+                    ftShortint:
+                      PShortInt(PValue)^ := ShortInt(Reader.GetInt32);
+                    ftByte:
+                      PByte(PValue)^ := Byte(Reader.GetInt32);
+                    ftWord:
+                      PWord(PValue)^ := Word(Reader.GetInt32);
                     ftLargeint:
                       PInt64(PValue)^ := Reader.GetInt64;
                     ftFloat:
@@ -959,58 +1022,75 @@ begin
                         PDateTime(PValue)^ := DateValue;
                     end;
                   end;
-                end
-                else if RttiType <> nil then
-                begin
-                  // RTTI fallback para classes que usam campos privados padrão
-                  RttiProp := RttiType.GetProperty(PropName);
-                  if RttiProp <> nil then
-                  begin
-                    case Reader.TokenType of
-                      TJsonTokenType.StringValue:
-                      begin
-                        if RttiProp.PropertyType.Handle = TypeInfo(TDateTime) then
-                        begin
-                          if TryParseISODateTime(Reader.GetString, DateValue) then
-                            RttiProp.SetValue(CurrentObj, DateValue);
-                        end
-                        else if RttiProp.PropertyType.Handle = TypeInfo(TDate) then
-                        begin
-                          if TryParseISODateTime(Reader.GetString, DateValue) then
-                            RttiProp.SetValue(CurrentObj, Trunc(DateValue));
-                        end
-                        else if RttiProp.PropertyType.Handle = TypeInfo(TTime) then
-                        begin
-                          if TryParseISODateTime(Reader.GetString, DateValue) then
-                            RttiProp.SetValue(CurrentObj, Frac(DateValue));
-                        end
-                        else
-                          RttiProp.SetValue(CurrentObj, Reader.GetString);
-                      end;
-                      TJsonTokenType.Number:
-                      begin
-                        if RttiProp.PropertyType.Handle = TypeInfo(Integer) then
-                          RttiProp.SetValue(CurrentObj, Reader.GetInt32)
-                        else if RttiProp.PropertyType.Handle = TypeInfo(Int64) then
-                          RttiProp.SetValue(CurrentObj, Reader.GetInt64)
-                        else
-                          RttiProp.SetValue(CurrentObj, TValue.From<Double>(Reader.GetDouble));
-                      end;
-                      TJsonTokenType.TrueValue, TJsonTokenType.FalseValue:
-                        RttiProp.SetValue(CurrentObj, Reader.GetBoolean);
-                    end;
-                  end;
                 end;
               end
-              else
-                Reader.Skip; // propriedade não mapeada, pula valor/objeto
-            end;
+              else if RttiType <> nil then
+              begin
+                // RTTI fallback para classes que usam campos privados padrao
+                RttiProp := RttiType.GetProperty(PropName);
+                if RttiProp <> nil then
+                begin
+                  case Reader.TokenType of
+                    TJsonTokenType.StringValue:
+                    begin
+                      if RttiProp.PropertyType.Handle = TypeInfo(TDateTime) then
+                      begin
+                        if TryParseISODateTime(Reader.GetString, DateValue) then
+                          RttiProp.SetValue(CurrentObj, DateValue);
+                      end
+                      else if RttiProp.PropertyType.Handle = TypeInfo(TDate) then
+                      begin
+                        if TryParseISODateTime(Reader.GetString, DateValue) then
+                          RttiProp.SetValue(CurrentObj, Trunc(DateValue));
+                      end
+                      else if RttiProp.PropertyType.Handle = TypeInfo(TTime) then
+                      begin
+                        if TryParseISODateTime(Reader.GetString, DateValue) then
+                          RttiProp.SetValue(CurrentObj, Frac(DateValue));
+                      end
+                      else
+                        RttiProp.SetValue(CurrentObj, Reader.GetString);
+                    end;
+                    TJsonTokenType.Number:
+                    begin
+                      if RttiProp.PropertyType.Handle = TypeInfo(Integer) then
+                        RttiProp.SetValue(CurrentObj, Reader.GetInt32)
+                      else if RttiProp.PropertyType.Handle = TypeInfo(Int64) then
+                        RttiProp.SetValue(CurrentObj, Reader.GetInt64)
+                      else if RttiProp.PropertyType.Handle =
+                        TypeInfo(SmallInt) then
+                        RttiProp.SetValue(CurrentObj,
+                          SmallInt(Reader.GetInt32))
+                      else if RttiProp.PropertyType.Handle =
+                        TypeInfo(Byte) then
+                        RttiProp.SetValue(CurrentObj,
+                          Byte(Reader.GetInt32))
+                      else if RttiProp.PropertyType.Handle =
+                        TypeInfo(ShortInt) then
+                        RttiProp.SetValue(CurrentObj,
+                          ShortInt(Reader.GetInt32))
+                      else if RttiProp.PropertyType.Handle =
+                        TypeInfo(Word) then
+                        RttiProp.SetValue(CurrentObj,
+                          Word(Reader.GetInt32))
+                      else
+                        RttiProp.SetValue(CurrentObj,
+                          TValue.From<Double>(Reader.GetDouble));
+                    end;
+                    TJsonTokenType.TrueValue, TJsonTokenType.FalseValue:
+                      RttiProp.SetValue(CurrentObj, Reader.GetBoolean);
+                  end;
+                end;
+              end;
+            end
+            else
+              Reader.Skip; // propriedade nao mapeada, pula valor/objeto
           end;
         end;
       end;
     end;
 
-  // Ativar o dataset e reconstruir visão virtual
+  // Ativar o dataset e reconstruirvisao virtual
   Load(FItems, AClass, True);
 end;
 
@@ -1956,6 +2036,12 @@ procedure TEntityDataSet.InternalDelete;
 var
   ActualRow: Integer;
   TargetIdx: Integer;
+  TargetObj: TObject;
+  IsTrackedInsert: Boolean;
+  NewChange: TEntityChange;
+  i: Integer;
+  Collection: Dext.Collections.Base.ICollection;
+  IsOwnedByList: Boolean;
 begin
   if not Assigned(FItems) then Exit;
 
@@ -1967,10 +2053,68 @@ begin
     // 2. Identificar o índice real na lista física
     ActualRow := FVirtualIndex[TargetIdx];
     
+    TargetObj := FItems[ActualRow];
+    IsTrackedInsert := False;
+    if FTrackedChanges <> nil then
+    begin
+      for i := FTrackedChanges.Count - 1 downto 0 do
+      begin
+        if FTrackedChanges[i].Entity = TargetObj then
+        begin
+          if FTrackedChanges[i].State = ersInserted then
+            IsTrackedInsert := True;
+          FTrackedChanges.Delete(i);
+        end;
+      end;
+
+      if not IsTrackedInsert then
+      begin
+        NewChange.State := ersDeleted;
+        NewChange.Entity := TargetObj;
+        NewChange.OriginalIndex := ActualRow;
+        NewChange.Key := GetEntityKeys(TargetObj);
+        NewChange.DirtyFields := nil;
+        NewChange.OriginalValues := nil;
+        FTrackedChanges.Add(NewChange);
+      end;
+    end;
+
     // 3. Remover das listas
     FVirtualIndex.RemoveAt(TargetIdx);
-    FItems.Delete(ActualRow);
-    
+
+    // If it was created by the dataset, remove from created tracking
+    if (FDataSetCreatedItems <> nil) and (TargetObj <> nil) then
+      FDataSetCreatedItems.Extract(TargetObj);
+
+    // Determine if the backing physical list owns its elements
+    IsOwnedByList := False;
+    if Supports(FItems, Dext.Collections.Base.ICollection, Collection) then
+      IsOwnedByList := Collection.OwnsObjects;
+
+    if TargetObj <> nil then
+    begin
+      // If the backing list owns its elements, extracting avoids freeing the instance immediately.
+      // We store it in FDeletedItemsCache so it can be restored on RejectChanges,
+      // or freed on AcceptChanges / Destroy.
+      if IsOwnedByList and (not IsTrackedInsert) then
+      begin
+        RemoveFromItems(TargetObj, False);
+        if FDeletedItemsCache <> nil then
+          FDeletedItemsCache.Add(TargetObj);
+      end
+      else if IsOwnedByList and IsTrackedInsert then
+      begin
+        // Inserted then deleted: free immediately
+        RemoveFromItems(TargetObj, True);
+      end
+      else
+      begin
+        // Backing list does not own objects.
+        // Just remove from list (lifetime is managed by the external caller).
+        RemoveFromItems(TargetObj, False);
+      end;
+    end;
+
     // 4. Reconstruir a visão virtual (necessário se houver filtros ou sorteio ativos)
     ApplyFilterAndSort;
 
@@ -1997,6 +2141,14 @@ var
   PhysicalIdx: Integer;
   TargetIdx: Integer;
   TargetPos: Integer;
+  NewChange: TEntityChange;
+  CurrentObj: TObject;
+  AlreadyTracked: Boolean;
+  ExistingChange: TEntityChange;
+  FieldName: string;
+  FieldExists: Boolean;
+  i: Integer;
+  j: Integer;
 begin
   if State = dsInsert then
   begin
@@ -2042,11 +2194,24 @@ begin
       end;
 
       FInsertObjRef := FInsertObj;
-      FInsertObj := nil; 
-      FIsAppending := False; 
+      FInsertObj := nil;
+      FIsAppending := False;
       FPositionBeforeAction := -2;
 
+      // Track dataset-created objects so they are freed on Destroy
+      // even when FOwnsItems=False (external list does not own new items).
+      if (FDataSetCreatedItems <> nil) and FItemsIsNonOwningWrapper then
+        FDataSetCreatedItems.Add(FInsertObjRef);
+
       // 2. Update Virtual View and track new object
+      if FTrackedChanges <> nil then
+      begin
+        NewChange.State := ersInserted;
+        NewChange.Entity := FInsertObjRef;
+        NewChange.Key := nil;
+        NewChange.DirtyFields := nil;
+        FTrackedChanges.Add(NewChange);
+      end;
       ApplyFilterAndSort(Filtered, FInsertObjRef);
       FInsertObjRef := nil;
 
@@ -2062,7 +2227,8 @@ begin
   else if State = dsEdit then
   begin
     Header := PEntityRecordHeader(ActiveBuffer);
-    if (Header <> nil) and (Header.BookmarkIndex >= 0) and (Header.BookmarkIndex < FVirtualIndex.Count) then
+    if (Header <> nil) and (Header.BookmarkIndex >= 0) and
+      (Header.BookmarkIndex < FVirtualIndex.Count) then
     begin
       PhysicalIdx := FVirtualIndex[Header.BookmarkIndex];
       if FCalcAreaSize > 0 then
@@ -2070,8 +2236,59 @@ begin
         if PhysicalIdx >= Length(FInternalCalcStorage) then 
           SetLength(FInternalCalcStorage, PhysicalIdx + 10);
         SetLength(FInternalCalcStorage[PhysicalIdx], FCalcAreaSize);
-        Move(PByte(NativeInt(ActiveBuffer) + SizeOf(TEntityRecordHeader))^, FInternalCalcStorage[PhysicalIdx][0], FCalcAreaSize);
+        Move(PByte(NativeInt(ActiveBuffer) + SizeOf(TEntityRecordHeader))^,
+          FInternalCalcStorage[PhysicalIdx][0], FCalcAreaSize);
       end;
+
+      CurrentObj := FItems[PhysicalIdx];
+      if (FTrackedChanges <> nil) and (FCurrentDirtyFields.Count > 0) then
+      begin
+        AlreadyTracked := False;
+        for i := 0 to FTrackedChanges.Count - 1 do
+        begin
+          if FTrackedChanges[i].Entity = CurrentObj then
+          begin
+            AlreadyTracked := True;
+            if FTrackedChanges[i].State = ersModified then
+            begin
+              ExistingChange := FTrackedChanges[i];
+              for FieldName in FCurrentDirtyFields do
+              begin
+                FieldExists := False;
+                for j := 0 to High(ExistingChange.DirtyFields) do
+                begin
+                  if SameText(ExistingChange.DirtyFields[j], FieldName) then
+                  begin
+                    FieldExists := True;
+                    Break;
+                  end;
+                end;
+                if not FieldExists then
+                begin
+                  SetLength(ExistingChange.DirtyFields,
+                    Length(ExistingChange.DirtyFields) + 1);
+                  ExistingChange.DirtyFields[
+                    High(ExistingChange.DirtyFields)] := FieldName;
+                end;
+              end;
+              FTrackedChanges[i] := ExistingChange;
+            end;
+            Break;
+          end;
+        end;
+
+        if not AlreadyTracked then
+        begin
+          NewChange.State := ersModified;
+          NewChange.Entity := CurrentObj;
+          NewChange.Key := GetEntityKeys(CurrentObj);
+          SetLength(NewChange.DirtyFields, FCurrentDirtyFields.Count);
+          for i := 0 to FCurrentDirtyFields.Count - 1 do
+            NewChange.DirtyFields[i] := FCurrentDirtyFields[i];
+          FTrackedChanges.Add(NewChange);
+        end;
+      end;
+      FCurrentDirtyFields.Clear;
     end;
     ApplyFilterAndSort;
   end;
@@ -2462,6 +2679,14 @@ procedure TEntityDataSet.InternalInitFieldDefs;
         TypeName := string(ATypeInfo^.Name);
         if (ATypeInfo = TypeInfo(Boolean)) or (TypeName = 'Boolean') or (TypeName = 'WordBool') or (TypeName = 'ByteBool') or (TypeName = 'LongBool') then
           Exit(ftBoolean)
+        else if SameText(TypeName, 'SmallInt') then
+          Exit(ftSmallint)
+        else if SameText(TypeName, 'Byte') then
+          Exit(ftByte)
+        else if SameText(TypeName, 'ShortInt') then
+          Exit(ftShortint)
+        else if SameText(TypeName, 'Word') then
+          Exit(ftWord)
         else
           Exit(ftInteger);
       end;
@@ -3233,8 +3458,16 @@ begin
   case LPropMap.DataType of
     ftString, ftWideString, ftMemo, ftWideMemo:
       Value := PString(PValue)^;
-    ftInteger, ftSmallint, ftWord:
+    ftInteger:
       Value := PInteger(PValue)^;
+    ftSmallint:
+      Value := PSmallInt(PValue)^;
+    ftShortint:
+      Value := PShortInt(PValue)^;
+    ftByte:
+      Value := PByte(PValue)^;
+    ftWord:
+      Value := PWord(PValue)^;
     ftLargeint:
       Value := PInt64(PValue)^;
     ftDataSet:
@@ -3423,6 +3656,106 @@ begin
   Result := GetFieldData(Field, @Buffer[0]);
 end;
 
+procedure TEntityDataSet.RemoveFromItems(AEntity: TObject; AFreeInstance: Boolean);
+var
+  Idx: Integer;
+  Collection: Dext.Collections.Base.ICollection;
+  WasOwns: Boolean;
+begin
+  if (FItems = nil) or (AEntity = nil) then Exit;
+
+  Idx := FItems.IndexOf(AEntity);
+  if Idx >= 0 then
+  begin
+    if Supports(FItems, Dext.Collections.Base.ICollection, Collection) then
+    begin
+      WasOwns := Collection.OwnsObjects;
+      try
+        Collection.OwnsObjects := AFreeInstance;
+        FItems.Delete(Idx);
+      finally
+        Collection.OwnsObjects := WasOwns;
+      end;
+    end
+    else
+    begin
+      FItems.Delete(Idx);
+      if AFreeInstance then
+        AEntity.Free;
+    end;
+  end;
+end;
+
+procedure TEntityDataSet.RecordOriginalValue(AEntity: TObject; Field: TField);
+var
+  i: Integer;
+  j: Integer;
+  Change: TEntityChange;
+  Found: Boolean;
+  OriginalVal: Variant;
+  ValPair: Dext.Collections.Dict.TPair<string, Variant>;
+begin
+  if (FTrackedChanges = nil) or (AEntity = nil) or (Field = nil) then Exit;
+
+  Found := False;
+  for i := 0 to FTrackedChanges.Count - 1 do
+  begin
+    if FTrackedChanges[i].Entity = AEntity then
+    begin
+      Change := FTrackedChanges[i];
+      Found := True;
+      Break;
+    end;
+  end;
+
+  if not Found then
+  begin
+    Change.State := ersModified;
+    Change.Entity := AEntity;
+    Change.OriginalIndex := -1;
+    Change.Key := GetEntityKeys(AEntity);
+    Change.DirtyFields := nil;
+    Change.OriginalValues := nil;
+  end;
+
+  Found := False;
+  if Change.OriginalValues <> nil then
+  begin
+    for j := 0 to High(Change.OriginalValues) do
+    begin
+      if SameText(Change.OriginalValues[j].Key, Field.FieldName) then
+      begin
+        Found := True;
+        Break;
+      end;
+    end;
+  end;
+
+  if not Found then
+  begin
+    if ReadFieldValue(Field, OriginalVal) then
+    begin
+      SetLength(Change.OriginalValues, Length(Change.OriginalValues) + 1);
+      ValPair.Key := Field.FieldName;
+      ValPair.Value := OriginalVal;
+      Change.OriginalValues[High(Change.OriginalValues)] := ValPair;
+
+      Found := False;
+      for i := 0 to FTrackedChanges.Count - 1 do
+      begin
+        if FTrackedChanges[i].Entity = AEntity then
+        begin
+          FTrackedChanges[i] := Change;
+          Found := True;
+          Break;
+        end;
+      end;
+      if not Found then
+        FTrackedChanges.Add(Change);
+    end;
+  end;
+end;
+
 procedure TEntityDataSet.SetFieldData(Field: TField; Buffer: Pointer);
 var
   BufferPtr: Pointer;
@@ -3434,6 +3767,8 @@ var
   RttiProp: TRttiProperty;
   RttiType: TRttiType;
   V: TValue;
+  FieldExists: Boolean;
+  i: Integer;
 begin
   if not Assigned(Field) then
     Exit;
@@ -3487,6 +3822,11 @@ begin
 
   if (CurrentObj = nil) or (FEntityMap = nil) then
     Exit;
+
+  // Record original value for modified tracking if in dsEdit state
+  if State = dsEdit then
+    RecordOriginalValue(CurrentObj, Field);
+
   if not FEntityMap.Properties.TryGetValue(Field.FieldName, LPropMap) then
     Exit;
 
@@ -3494,7 +3834,8 @@ begin
   if LPropMap.IsShadow and (FDbContext <> nil) then
   begin
     if Buffer = nil then
-      FDbContext.Entry(CurrentObj).Member(Field.FieldName).SetCurrentValue(TValue.Empty)
+      FDbContext.Entry(CurrentObj).Member(Field.FieldName)
+        .SetCurrentValue(TValue.Empty)
     else
     begin
       case Field.DataType of
@@ -3512,6 +3853,20 @@ begin
       FDbContext.Entry(CurrentObj).Member(Field.FieldName).SetCurrentValue(V);
     end;
     SetModified(True);
+    if (State = dsEdit) and (FCurrentDirtyFields <> nil) then
+    begin
+      FieldExists := False;
+      for i := 0 to FCurrentDirtyFields.Count - 1 do
+      begin
+        if SameText(FCurrentDirtyFields[i], Field.FieldName) then
+        begin
+          FieldExists := True;
+          Break;
+        end;
+      end;
+      if not FieldExists then
+        FCurrentDirtyFields.Add(Field.FieldName);
+    end;
     DataEvent(deFieldChange, NativeInt(Field));
     Exit;
   end;
@@ -3529,9 +3884,15 @@ begin
         ftBoolean:
           PBoolean(P)^ := PBoolean(Buffer)^;
         ftDateTime, ftDate, ftTime:
-          PDateTime(P)^ := TimeStampToDateTime(MSecsToTimeStamp(Trunc(PDouble(Buffer)^)));
+          PDateTime(P)^ := TimeStampToDateTime(
+            MSecsToTimeStamp(Trunc(PDouble(Buffer)^)));
         ftCurrency:
           PCurrency(P)^ := PDouble(Buffer)^;
+        ftShortint: PShortint(P)^ := PShortint(Buffer)^;
+        ftByte: PByte(P)^ := PByte(Buffer)^;
+        ftSmallint: PSmallint(P)^ := PSmallint(Buffer)^;
+        ftWord: PWord(P)^ := PWord(Buffer)^;
+        ftInteger: PInteger(P)^ := PInteger(Buffer)^;
       else
         Move(Buffer^, P^, Field.DataSize);
       end;
@@ -3545,6 +3906,20 @@ begin
       PBoolean(P)^ := (Buffer <> nil);
     end;
     SetModified(True);
+    if (State = dsEdit) and (FCurrentDirtyFields <> nil) then
+    begin
+      FieldExists := False;
+      for i := 0 to FCurrentDirtyFields.Count - 1 do
+      begin
+        if SameText(FCurrentDirtyFields[i], Field.FieldName) then
+        begin
+          FieldExists := True;
+          Break;
+        end;
+      end;
+      if not FieldExists then
+        FCurrentDirtyFields.Add(Field.FieldName);
+    end;
     DataEvent(deFieldChange, NativeInt(Field));
   end
   else if (CurrentObj <> nil) then
@@ -3671,6 +4046,173 @@ begin
         DetailProp := DetailType.GetProperty(DetailLinkFields[I].Trim);
         if DetailProp <> nil then
           DetailProp.SetValue(AEntity, TValue.FromVariant(MasterVal));
+      end;
+    end;
+  end;
+end;
+
+function TEntityDataSet.GetChanges: IList<TEntityChange>;
+begin
+  Result := FTrackedChanges;
+end;
+
+procedure TEntityDataSet.AcceptChanges;
+begin
+  if FTrackedChanges <> nil then
+    FTrackedChanges.Clear;
+  if FDeletedItemsCache <> nil then
+    FDeletedItemsCache.Clear;
+end;
+
+procedure TEntityDataSet.RejectChanges;
+var
+  i: Integer;
+  j: Integer;
+  Change: TEntityChange;
+  Prop: TRttiProperty;
+  RttiType: TRttiType;
+begin
+  if FTrackedChanges = nil then Exit;
+
+  // Process in reverse to maintain index correctness for insertions/deletions
+  for i := FTrackedChanges.Count - 1 downto 0 do
+  begin
+    Change := FTrackedChanges[i];
+    case Change.State of
+      ersInserted:
+        begin
+          if Change.Entity <> nil then
+          begin
+            if FItems <> nil then
+              RemoveFromItems(Change.Entity, False);
+            if FDataSetCreatedItems <> nil then
+            begin
+              FDataSetCreatedItems.Extract(Change.Entity);
+              Change.Entity.Free;
+            end;
+          end;
+        end;
+
+      ersDeleted:
+        begin
+          if (Change.Entity <> nil) and (FItems <> nil) and (Change.OriginalIndex >= 0) then
+          begin
+            if FDeletedItemsCache <> nil then
+              FDeletedItemsCache.Extract(Change.Entity);
+
+            if Change.OriginalIndex >= FItems.Count then
+              FItems.Add(Change.Entity)
+            else
+              FItems.Insert(Change.OriginalIndex, Change.Entity);
+          end;
+        end;
+
+      ersModified:
+        begin
+          if (Change.Entity <> nil) and (Change.OriginalValues <> nil) then
+          begin
+            RttiType := TReflection.Context.GetType(Change.Entity.ClassType);
+            if RttiType <> nil then
+            begin
+              for j := 0 to High(Change.OriginalValues) do
+              begin
+                Prop := RttiType.GetProperty(Change.OriginalValues[j].Key);
+                if Prop <> nil then
+                  Prop.SetValue(Change.Entity, TValue.FromVariant(Change.OriginalValues[j].Value));
+              end;
+            end;
+          end;
+        end;
+    end;
+  end;
+
+  FTrackedChanges.Clear;
+  if FDeletedItemsCache <> nil then
+    FDeletedItemsCache.Clear;
+  ApplyFilterAndSort;
+  Resync([]);
+end;
+
+procedure TEntityDataSet.ClearChanges;
+begin
+  if FTrackedChanges <> nil then
+    FTrackedChanges.Clear;
+end;
+
+function TEntityDataSet.GetEntityKeys(AEntity: TObject):
+  TArray<Dext.Collections.Dict.TPair<string, Variant>>;
+var
+  Pair: Dext.Collections.Dict.TPair<string, TPropertyMap>;
+  Val: Variant;
+  KeysList: IList<Dext.Collections.Dict.TPair<string, Variant>>;
+begin
+  KeysList := TCollections.CreateList<
+    Dext.Collections.Dict.TPair<string, Variant>>;
+  if (AEntity <> nil) and (FEntityMap <> nil) then
+  begin
+    for Pair in FEntityMap.Properties do
+    begin
+      if Pair.Value.IsPK then
+      begin
+        if ReadPropertyValue(AEntity, Pair.Value, Val) then
+          KeysList.Add(
+            Dext.Collections.Dict.TPair<string, Variant>.Create(
+              Pair.Key, Val));
+      end;
+    end;
+  end;
+  Result := KeysList.ToArray;
+end;
+
+function TEntityDataSet.ReadPropertyValue(AEntity: TObject;
+  PropMap: TPropertyMap; out AValue: Variant): Boolean;
+var
+  PValue: Pointer;
+  RttiType: TRttiType;
+  RttiProp: TRttiProperty;
+  Val: TValue;
+begin
+  Result := False;
+  if (AEntity = nil) or (PropMap = nil) then Exit;
+
+  if PropMap.FieldValueOffset > 0 then
+  begin
+    if (PropMap.FieldOffset > 0) and not
+      PBoolean(Pointer(PByte(AEntity) + PropMap.FieldOffset))^ then
+    begin
+      AValue := Null;
+      Exit(True);
+    end;
+
+    PValue := Pointer(PByte(AEntity) + PropMap.FieldValueOffset);
+    case PropMap.DataType of
+      ftInteger, ftAutoInc: AValue := PInteger(PValue)^;
+      ftSmallint: AValue := PSmallInt(PValue)^;
+      ftShortint: AValue := PShortInt(PValue)^;
+      ftByte: AValue := PByte(PValue)^;
+      ftWord: AValue := PWord(PValue)^;
+      ftLargeint: AValue := PInt64(PValue)^;
+      ftString, ftWideString: AValue := PString(PValue)^;
+      ftFloat: AValue := PDouble(PValue)^;
+      ftCurrency: AValue := PCurrency(PValue)^;
+      ftBoolean: AValue := PBoolean(PValue)^;
+      ftDateTime, ftDate, ftTime: AValue := PDateTime(PValue)^;
+    else
+      Exit(False);
+    end;
+    Result := True;
+  end
+  else
+  begin
+    RttiType := TReflection.Context.GetType(AEntity.ClassType);
+    if RttiType <> nil then
+    begin
+      RttiProp := RttiType.GetProperty(PropMap.PropertyName);
+      if RttiProp <> nil then
+      begin
+        Val := RttiProp.GetValue(AEntity);
+        AValue := Val.AsVariant;
+        Result := True;
       end;
     end;
   end;
