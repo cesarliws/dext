@@ -35,6 +35,17 @@ type
     property Status: Byte read FStatus write FStatus;
   end;
 
+  TRow = class
+  private
+    FUID: Integer;
+    FCOGNOME: string;
+    FANNO: Integer;
+  public
+    property UID: Integer read FUID write FUID;
+    property COGNOME: string read FCOGNOME write FCOGNOME;
+    property ANNO: Integer read FANNO write FANNO;
+  end;
+
   // Hacker para o TDataLink (permitir acesso a membros publicos/protegidos)
   TMyDataLink = class(TDataLink)
   public
@@ -65,6 +76,8 @@ type
     procedure Test_ChangeLog_Tracking;
     [Test]
     procedure Test_RejectChanges_Rollback;
+    [Test]
+    procedure Test_LoadFromJson_PlainDTO_Regression;
   end;
 
 implementation
@@ -311,6 +324,24 @@ begin
 
   // Não deve achar o registro que foi inserido e descartado
   Should(FDataSet.Locate('Id', 3, [])).BeFalse;
+end;
+
+procedure TEntityDataSetFeaturesTests.Test_LoadFromJson_PlainDTO_Regression;
+var
+  JsonData: string;
+  Span: TByteSpan;
+  Bytes: TBytes;
+begin
+  JsonData := '[{"UID":11,"COGNOME":"ROSSI","ANNO":2024}]';
+  Bytes := TEncoding.UTF8.GetBytes(JsonData);
+  Span := TByteSpan.FromBytes(Bytes);
+  FDataSet.LoadFromUtf8Json<TRow>(Span);
+  FDataSet.Open;
+
+  Should(FDataSet.RecordCount).Be(1);
+  Should(FDataSet.FieldByName('UID').AsInteger).Be(11);
+  Should(FDataSet.FieldByName('COGNOME').AsString).Be('ROSSI');
+  Should(FDataSet.FieldByName('ANNO').AsInteger).Be(2024);
 end;
 
 end.
