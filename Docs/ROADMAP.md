@@ -68,6 +68,7 @@ Status | Task | Spec | Description
 - [ ] **GraphQL**: Native layer for data graphs.
 - [ ] **Microservices Mesh**: Service discovery and native Load Balancing.
 - [ ] **SOCKS5 Proxy Support**: [S52](Specs/S52-Net-Proxy-Socks5.md) client tunnels, Socks over TLS, and SOCKS5 server backlog.
+- [ ] **Cloud Object Storage & Services**: [S53](Specs/S53-Storage-ObjectStorage.md) S3-Compatible storage (AWS, OCI, MinIO) and cloud integrations backlog (Queues, Email, Document DBs).
 
 ---
 
@@ -132,6 +133,7 @@ Status | Tarefa | Spec | Descrição
 - [ ] **GraphQL**: Camada nativa para exposição de grafos de dados.
 - [ ] **Microservices Mesh**: Service discovery e Load Balancing nativo.
 - [ ] **Proxy SOCKS5**: [S52](Specs/S52-Net-Proxy-Socks5.md) suporte a túneis de cliente, Socks over TLS e servidor SOCKS5.
+- [ ] **Cloud Object Storage & Serviços**: [S53](Specs/S53-Storage-ObjectStorage.md) armazenamento S3-Compatível (AWS, OCI, MinIO) e backlog de integrações cloud (Filas, E-mail, Document DBs).
 
 - UI Nativo com Skia
 
