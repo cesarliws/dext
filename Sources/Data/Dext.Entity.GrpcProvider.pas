@@ -103,8 +103,13 @@ type
 
 implementation
 
+uses
+  System.Net.HttpClient, System.Net.URLClient, System.Diagnostics,
+  System.JSON, Dext.Logging.Global, Dext.Logging.Telemetry,
+  Dext.Logging.Tracing;
+
 type
-  TMockHttpRequest = class(TInterfacedObject, IHttpRequest)
+  TMockHttpRequest = class(TInterfacedObject, Dext.Web.Interfaces.IHttpRequest)
   private
     FPath: string;
     FBody: TStream;
@@ -125,7 +130,7 @@ type
     function GetFiles: IFormFileCollection;
   end;
 
-  TMockHttpResponse = class(TInterfacedObject, IHttpResponse)
+  TMockHttpResponse = class(TInterfacedObject, Dext.Web.Interfaces.IHttpResponse)
   private
     FStatusCode: Integer;
     FContentType: string;
@@ -136,7 +141,7 @@ type
     destructor Destroy; override;
     function GetStatusCode: Integer;
     function GetContentType: string;
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): Dext.Web.Interfaces.IHttpResponse;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
@@ -162,18 +167,19 @@ type
     property Headers: IStringDictionary read FHeaders;
   end;
 
-  TMockHttpContext = class(TInterfacedObject, IHttpContext)
+  TMockHttpContext = class(TInterfacedObject, Dext.Web.Interfaces.IHttpContext)
   private
-    FRequest: IHttpRequest;
-    FResponse: IHttpResponse;
+    FRequest: Dext.Web.Interfaces.IHttpRequest;
+    FResponse: Dext.Web.Interfaces.IHttpResponse;
     FItems: IDictionary<string, TValue>;
   public
-    constructor Create(AReq: IHttpRequest; ARes: IHttpResponse);
+    constructor Create(AReq: Dext.Web.Interfaces.IHttpRequest;
+      ARes: Dext.Web.Interfaces.IHttpResponse);
     destructor Destroy; override;
     function GetConnection: IDextServerConnection;
-    function GetRequest: IHttpRequest;
-    function GetResponse: IHttpResponse;
-    procedure SetResponse(const AValue: IHttpResponse);
+    function GetRequest: Dext.Web.Interfaces.IHttpRequest;
+    function GetResponse: Dext.Web.Interfaces.IHttpResponse;
+    procedure SetResponse(const AValue: Dext.Web.Interfaces.IHttpResponse);
     function GetServices: IServiceProvider;
     procedure SetServices(const AValue: IServiceProvider);
     function GetUser: IClaimsPrincipal;
@@ -238,7 +244,7 @@ end;
 
 function TMockHttpResponse.GetStatusCode: Integer; begin Result := FStatusCode; end;
 function TMockHttpResponse.GetContentType: string; begin Result := FContentType; end;
-function TMockHttpResponse.Status(AValue: Integer): IHttpResponse;
+function TMockHttpResponse.Status(AValue: Integer): Dext.Web.Interfaces.IHttpResponse;
 begin
   FStatusCode := AValue;
   Result := Self;
@@ -277,7 +283,8 @@ function TMockHttpResponse.GetHeaders: IStringDictionary; begin Result := FHeade
 
 { TMockHttpContext }
 
-constructor TMockHttpContext.Create(AReq: IHttpRequest; ARes: IHttpResponse);
+constructor TMockHttpContext.Create(AReq: Dext.Web.Interfaces.IHttpRequest;
+  ARes: Dext.Web.Interfaces.IHttpResponse);
 begin
   FRequest := AReq;
   FResponse := ARes;
@@ -291,9 +298,9 @@ end;
 
 // Interface method mappings omitted for space, inline:
 function TMockHttpContext.GetConnection: IDextServerConnection; begin Result := nil; end;
-function TMockHttpContext.GetRequest: IHttpRequest; begin Result := FRequest; end;
-function TMockHttpContext.GetResponse: IHttpResponse; begin Result := FResponse; end;
-procedure TMockHttpContext.SetResponse(const AValue: IHttpResponse); begin FResponse := AValue; end;
+function TMockHttpContext.GetRequest: Dext.Web.Interfaces.IHttpRequest; begin Result := FRequest; end;
+function TMockHttpContext.GetResponse: Dext.Web.Interfaces.IHttpResponse; begin Result := FResponse; end;
+procedure TMockHttpContext.SetResponse(const AValue: Dext.Web.Interfaces.IHttpResponse); begin FResponse := AValue; end;
 function TMockHttpContext.GetServices: IServiceProvider; begin Result := nil; end;
 procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin end;
 function TMockHttpContext.GetUser: IClaimsPrincipal; begin Result := nil; end;
@@ -328,7 +335,7 @@ procedure TGrpcClient.CallMethod(const AServiceName, AMethodName: string;
   ARequest, AResponse: TObject);
 var
   Compressed: Boolean;
-  Context: IHttpContext;
+  Context: Dext.Web.Interfaces.IHttpContext;
   FramedReq: TBytes;
   MockReq: TMockHttpRequest;
   MockRes: TMockHttpResponse;
@@ -338,46 +345,259 @@ var
   ReqBytes: TBytes;
   ResBytes: TBytes;
   StatusVal: string;
+  Sw: TStopwatch;
+  SwSub: TStopwatch;
+  LClient: THTTPClient;
+  LResponse: IHTTPResponse;
+  LReqStream, LResStream: TMemoryStream;
+  LUrl: string;
+  Span: TSpan;
+  Payload: TJSONObject;
 begin
-  ReqBytes := TProtobufSerializer.Serialize(ARequest);
-  FramedReq := TGrpcMessageCodec.Encode(ReqBytes);
-
-  if Assigned(FDispatcher) then
-  begin
-    MockReq := TMockHttpRequest.Create('/' + AServiceName + '/' + AMethodName,
-      FramedReq);
-    MockRes := TMockHttpResponse.Create;
-    Context := TMockHttpContext.Create(MockReq, MockRes);
-
-    FDispatcher.Invoke(Context);
-
-    if MockRes.Headers.TryGetValue('grpc-status', StatusVal) and
-       (StatusVal <> '0') then
+  Span := TTracer.BeginSpan('gRPC Client ' + AServiceName + '/' + AMethodName,
+    'gRPC');
+  try
+    SwSub := TStopwatch.StartNew;
+    ReqBytes := TProtobufSerializer.Serialize(ARequest);
+    SwSub.Stop;
+    if TDiagnosticSource.Instance.Enabled then
     begin
-      MockRes.Headers.TryGetValue('grpc-message', MsgVal);
-      raise Exception.CreateFmt('gRPC Remote Error: %s (Status: %s)',
-        [MsgVal, StatusVal]);
+      Payload := TJSONObject.Create;
+      Payload.AddPair('service', AServiceName);
+      Payload.AddPair('method', AMethodName);
+      Payload.AddPair('size', TJSONNumber.Create(Length(ReqBytes)));
+      TDiagnosticSource.Instance.Write('gRPC.Client.Serialize', Payload,
+        'gRPC', SwSub.ElapsedMilliseconds);
     end;
 
-    if MockRes.Body.Size > 0 then
+    SwSub := TStopwatch.StartNew;
+    FramedReq := TGrpcMessageCodec.Encode(ReqBytes);
+    SwSub.Stop;
+    if TDiagnosticSource.Instance.Enabled then
     begin
-      SetLength(ResBytes, MockRes.Body.Size);
-      MockRes.Body.Position := 0;
-      MockRes.Body.Read(ResBytes[0], MockRes.Body.Size);
+      Payload := TJSONObject.Create;
+      Payload.AddPair('service', AServiceName);
+      Payload.AddPair('method', AMethodName);
+      Payload.AddPair('size', TJSONNumber.Create(Length(FramedReq)));
+      TDiagnosticSource.Instance.Write('gRPC.Client.Encode', Payload,
+        'gRPC', SwSub.ElapsedMilliseconds);
+    end;
+
+    Sw := TStopwatch.StartNew;
+
+    if Assigned(FDispatcher) then
+    begin
+      MockReq := TMockHttpRequest.Create('/' + AServiceName + '/' + AMethodName,
+        FramedReq);
+      MockRes := TMockHttpResponse.Create;
+      Context := TMockHttpContext.Create(MockReq, MockRes);
+
+      FDispatcher.Invoke(Context);
+
+      Sw.Stop;
+
+      if MockRes.Headers.TryGetValue('grpc-status', StatusVal) and
+         (StatusVal <> '0') then
+      begin
+        MockRes.Headers.TryGetValue('grpc-message', MsgVal);
+        Log.Error('[gRPC-Client] In-Process Error: {Msg} (Status: {Status})',
+          [MsgVal, StatusVal]);
+
+        Span.SetStatus('Error', MsgVal);
+        if TDiagnosticSource.Instance.Enabled then
+        begin
+          Payload := TJSONObject.Create;
+          Payload.AddPair('service', AServiceName);
+          Payload.AddPair('method', AMethodName);
+          Payload.AddPair('transport', 'in-process');
+          Payload.AddPair('status', StatusVal);
+          Payload.AddPair('error', MsgVal);
+          TDiagnosticSource.Instance.Write('gRPC.Client.Error', Payload,
+            'gRPC', Sw.ElapsedMilliseconds);
+        end;
+
+        raise Exception.CreateFmt('gRPC Remote Error: %s (Status: %s)',
+          [MsgVal, StatusVal]);
+      end;
+
+      if MockRes.Body.Size > 0 then
+      begin
+        SetLength(ResBytes, MockRes.Body.Size);
+        MockRes.Body.Position := 0;
+        MockRes.Body.Read(ResBytes[0], MockRes.Body.Size);
+      end
+      else
+        SetLength(ResBytes, 0);
+
+      Log.Info('[gRPC-Client] In-Process Call: {Service}/{Method} | ' +
+        'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
+        [AServiceName, AMethodName, Sw.ElapsedMilliseconds, Length(FramedReq),
+         Length(ResBytes)]);
+
+      Span.SetStatus('Success');
+      if TDiagnosticSource.Instance.Enabled then
+      begin
+        Payload := TJSONObject.Create;
+        Payload.AddPair('service', AServiceName);
+        Payload.AddPair('method', AMethodName);
+        Payload.AddPair('transport', 'in-process');
+        Payload.AddPair('req_size', TJSONNumber.Create(Length(FramedReq)));
+        Payload.AddPair('res_size', TJSONNumber.Create(Length(ResBytes)));
+        TDiagnosticSource.Instance.Write('gRPC.Client.Call', Payload, 'gRPC',
+          Sw.ElapsedMilliseconds);
+      end;
     end
     else
-      SetLength(ResBytes, 0);
+    begin
+      LClient := THTTPClient.Create;
+      LReqStream := TMemoryStream.Create;
+      LResStream := TMemoryStream.Create;
+      try
+        if Length(FramedReq) > 0 then
+          LReqStream.WriteBuffer(FramedReq[0], Length(FramedReq));
+        LReqStream.Position := 0;
+
+        LUrl := Format('http://%s:%d/%s/%s', [FHost, FPort, AServiceName,
+          AMethodName]);
+
+        LClient.ContentType := 'application/grpc';
+
+        SwSub := TStopwatch.StartNew;
+        LResponse := LClient.Post(LUrl, LReqStream, LResStream);
+        SwSub.Stop;
+
+        Sw.Stop;
+
+        if TDiagnosticSource.Instance.Enabled then
+        begin
+          Payload := TJSONObject.Create;
+          Payload.AddPair('service', AServiceName);
+          Payload.AddPair('method', AMethodName);
+          Payload.AddPair('url', LUrl);
+          Payload.AddPair('status_code',
+            TJSONNumber.Create(LResponse.StatusCode));
+          TDiagnosticSource.Instance.Write('gRPC.Client.Transport', Payload,
+            'gRPC', SwSub.ElapsedMilliseconds);
+        end;
+
+        if LResponse.StatusCode <> 200 then
+        begin
+          Log.Error('[gRPC-Client] HTTP Error {Code}: {Text} | {Service}/{Method}',
+            [LResponse.StatusCode, LResponse.StatusText, AServiceName,
+             AMethodName]);
+
+          Span.SetStatus('Error', LResponse.StatusText);
+          if TDiagnosticSource.Instance.Enabled then
+          begin
+            Payload := TJSONObject.Create;
+            Payload.AddPair('service', AServiceName);
+            Payload.AddPair('method', AMethodName);
+            Payload.AddPair('transport', 'network');
+            Payload.AddPair('http_status',
+              TJSONNumber.Create(LResponse.StatusCode));
+            Payload.AddPair('error', LResponse.StatusText);
+            TDiagnosticSource.Instance.Write('gRPC.Client.Error', Payload,
+              'gRPC', Sw.ElapsedMilliseconds);
+          end;
+
+          raise Exception.CreateFmt('HTTP Error: %d %s',
+            [LResponse.StatusCode, LResponse.StatusText]);
+        end;
+
+        StatusVal := LResponse.HeaderValue['grpc-status'];
+        if (StatusVal <> '') and (StatusVal <> '0') then
+        begin
+          MsgVal := LResponse.HeaderValue['grpc-message'];
+          Log.Error('[gRPC-Client] Remote Error: {Msg} (Status: {Status})',
+            [MsgVal, StatusVal]);
+
+          Span.SetStatus('Error', MsgVal);
+          if TDiagnosticSource.Instance.Enabled then
+          begin
+            Payload := TJSONObject.Create;
+            Payload.AddPair('service', AServiceName);
+            Payload.AddPair('method', AMethodName);
+            Payload.AddPair('transport', 'network');
+            Payload.AddPair('status', StatusVal);
+            Payload.AddPair('error', MsgVal);
+            TDiagnosticSource.Instance.Write('gRPC.Client.Error', Payload,
+              'gRPC', Sw.ElapsedMilliseconds);
+          end;
+
+          raise Exception.CreateFmt('gRPC Remote Error: %s (Status: %s)',
+            [MsgVal, StatusVal]);
+        end;
+
+        if LResStream.Size > 0 then
+        begin
+          SetLength(ResBytes, LResStream.Size);
+          LResStream.Position := 0;
+          LResStream.ReadBuffer(ResBytes[0], LResStream.Size);
+        end
+        else
+          SetLength(ResBytes, 0);
+
+        Log.Info('[gRPC-Client] HTTP Call: {Service}/{Method} | ' +
+          'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
+          [AServiceName, AMethodName, Sw.ElapsedMilliseconds, Length(FramedReq),
+           Length(ResBytes)]);
+
+        Span.SetStatus('Success');
+        if TDiagnosticSource.Instance.Enabled then
+        begin
+          Payload := TJSONObject.Create;
+          Payload.AddPair('service', AServiceName);
+          Payload.AddPair('method', AMethodName);
+          Payload.AddPair('transport', 'network');
+          Payload.AddPair('req_size', TJSONNumber.Create(Length(FramedReq)));
+          Payload.AddPair('res_size', TJSONNumber.Create(Length(ResBytes)));
+          TDiagnosticSource.Instance.Write('gRPC.Client.Call', Payload,
+            'gRPC', Sw.ElapsedMilliseconds);
+        end;
+      finally
+        LReqStream.Free;
+        LResStream.Free;
+        LClient.Free;
+      end;
+    end;
 
     Offset := 0;
+    SwSub := TStopwatch.StartNew;
     if TGrpcMessageCodec.TryDecode(ResBytes, Offset, Compressed, MsgBytes) then
-      TProtobufSerializer.Deserialize(MsgBytes, AResponse)
+    begin
+      SwSub.Stop;
+      if TDiagnosticSource.Instance.Enabled then
+      begin
+        Payload := TJSONObject.Create;
+        Payload.AddPair('service', AServiceName);
+        Payload.AddPair('method', AMethodName);
+        Payload.AddPair('size', TJSONNumber.Create(Length(MsgBytes)));
+        TDiagnosticSource.Instance.Write('gRPC.Client.Decode', Payload,
+          'gRPC', SwSub.ElapsedMilliseconds);
+      end;
+
+      SwSub := TStopwatch.StartNew;
+      TProtobufSerializer.Deserialize(MsgBytes, AResponse);
+      SwSub.Stop;
+      if TDiagnosticSource.Instance.Enabled then
+      begin
+        Payload := TJSONObject.Create;
+        Payload.AddPair('service', AServiceName);
+        Payload.AddPair('method', AMethodName);
+        TDiagnosticSource.Instance.Write('gRPC.Client.Deserialize', Payload,
+          'gRPC', SwSub.ElapsedMilliseconds);
+      end;
+    end
     else
+    begin
       raise Exception.Create('Failed to unpack gRPC response frame');
-  end
-  else
-  begin
-    raise Exception.Create(
-      'Remote transport not implemented yet. Use in-process dispatcher.');
+    end;
+  except
+    on E: Exception do
+    begin
+      Span.SetStatus('Error', E.Message);
+      raise;
+    end;
   end;
 end;
 

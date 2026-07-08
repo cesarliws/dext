@@ -6,9 +6,21 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
   Vcl.Grids, Vcl.DBGrids, Vcl.StdCtrls, Vcl.ExtCtrls, Data.DB,
-  Dext.Collections, Dext.Entity.DataSet, Dext.Entity.GrpcProvider,
-  Dext.Serialization.Protobuf, Dext.Grpc.Codec, Dext.Grpc.Attributes,
-  Dext.Web.Grpc.Server, Dext.Collections.Dict, Dext.Entity.Attributes;
+  System.Diagnostics, System.IOUtils, System.JSON,
+
+  Dext.Collections,
+  Dext.Collections.Dict,
+  Dext.Entity.Attributes,
+  Dext.Entity.DataSet,
+  Dext.Entity.GrpcProvider,
+  Dext.Grpc.Attributes,
+  Dext.Grpc.Codec,
+  Dext.Serialization.Protobuf,
+  Dext.Server.Engine.Types,
+  Dext.Web.Grpc.Server,
+  Dext.Web.Interfaces,
+  Dext.Web.WebApplication,
+  Dext.Logging.Telemetry;
 
 type
   [GrpcMessage]
@@ -145,7 +157,18 @@ type
     FDispatcher: TDextGrpcDispatcher;
     FClient: TGrpcClient;
     FProvider: IEntityDataProvider<TCompany>;
+    FApp: IWebApplication;
+    FTelemetryObserver: ITelemetryObserver;
+    FTraceFile: string;
     procedure Log(const AMsg: string);
+  end;
+
+  TFileTelemetryObserver = class(TInterfacedObject, ITelemetryObserver)
+  private
+    FFilePath: string;
+  public
+    constructor Create(const AFilePath: string);
+    procedure OnEvent(const AEvent: TTelemetryEvent);
   end;
 
 var
@@ -154,6 +177,55 @@ var
 implementation
 
 {$R *.dfm}
+
+{ TFileTelemetryObserver }
+
+constructor TFileTelemetryObserver.Create(const AFilePath: string);
+begin
+  inherited Create;
+  FFilePath := AFilePath;
+end;
+
+procedure TFileTelemetryObserver.OnEvent(const AEvent: TTelemetryEvent);
+var
+  Obj: TJSONObject;
+  Line: string;
+  FS: TFileStream;
+  Bytes: TBytes;
+begin
+  Obj := TJSONObject.Create;
+  try
+    Obj.AddPair('timestamp', FormatDateTime('yyyy-mm-dd"T"hh:nn:ss.zzz',
+      AEvent.Timestamp));
+    Obj.AddPair('name', AEvent.Name);
+    Obj.AddPair('category', AEvent.Category);
+    Obj.AddPair('duration_ms', TJSONNumber.Create(AEvent.DurationMs));
+    Obj.AddPair('status', AEvent.Status);
+    if AEvent.ErrorMessage <> '' then
+      Obj.AddPair('error_message', AEvent.ErrorMessage);
+    if Assigned(AEvent.Data) then
+      Obj.AddPair('data', AEvent.Data.Clone as TJSONObject);
+    if AEvent.TraceId <> '' then
+      Obj.AddPair('trace_id', AEvent.TraceId);
+
+    Line := Obj.ToJSON + sLineBreak;
+    Bytes := TEncoding.UTF8.GetBytes(Line);
+
+    if TFile.Exists(FFilePath) then
+      FS := TFileStream.Create(FFilePath, fmOpenWrite or fmShareDenyWrite)
+    else
+      FS := TFileStream.Create(FFilePath, fmCreate);
+    try
+      FS.Seek(0, TSeekOrigin.soEnd);
+      if Length(Bytes) > 0 then
+        FS.WriteBuffer(Bytes[0], Length(Bytes));
+    finally
+      FS.Free;
+    end;
+  finally
+    Obj.Free;
+  end;
+end;
 
 { TCompany }
 
@@ -214,13 +286,31 @@ end;
 
 { TCompanyService }
 
+const
+  MOCK_RECORD_COUNT = 10000;
+  NAMES: array[0..9] of string = (
+    'TechCorp', 'InnoSoft', 'AlphaSystems', 'ByteForge', 'DataPrime',
+    'QuantumLabs', 'CloudBase', 'NetWorks', 'LogicFlow', 'DevCore'
+  );
+  COUNTRIES: array[0..4] of string = (
+    'Brazil', 'USA', 'Germany', 'Canada', 'Japan'
+  );
+
 class constructor TCompanyService.Create;
+var
+  i: Integer;
 begin
+  Randomize;
   FDB := TList<TCompany>.Create;
-  // Populate initial mock data
-  FDB.Add(TCompany.Create(1, 'Google', 'USA', True));
-  FDB.Add(TCompany.Create(2, 'Embarcadero', 'USA', True));
-  FDB.Add(TCompany.Create(3, 'Dext Corp', 'Brazil', True));
+  for i := 1 to MOCK_RECORD_COUNT do
+  begin
+    FDB.Add(TCompany.Create(
+      i,
+      Format('%s %d', [NAMES[Random(10)], i]),
+      COUNTRIES[Random(5)],
+      True
+    ));
+  end;
 end;
 
 class destructor TCompanyService.Destroy;
@@ -343,22 +433,51 @@ end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
+  // Register file telemetry observer to save all traces
+  FTraceFile := TPath.Combine(TPath.GetDirectoryName(ParamStr(0)),
+    'traces.json');
+  if TFile.Exists(FTraceFile) then
+    TFile.Delete(FTraceFile);
+  FTelemetryObserver := TFileTelemetryObserver.Create(FTraceFile);
+  TDiagnosticSource.Instance.Subscribe(FTelemetryObserver);
+
   // 1. Initialize In-process gRPC Server Dispatcher
   FDispatcher := TDextGrpcDispatcher.Create;
   FDispatcher.RegisterService(ICompanyService, TCompanyService);
 
-  // 2. Initialize Client linked to dispatcher
-  FClient := TGrpcClient.Create(FDispatcher);
+  // 2. Start Web Application with Native (HTTP.sys) Server
+  FApp := TWebApplication.Create;
+  FApp.UseNativeServer;
+  
+  FApp.GetApplicationBuilder.MapPost(
+    '/dext.services.CompanyService/FetchAll',
+    procedure(Ctx: IHttpContext)
+    begin
+      FDispatcher.Invoke(Ctx);
+    end);
 
-  // 3. Initialize Custom Provider
+  FApp.GetApplicationBuilder.MapPost(
+    '/dext.services.CompanyService/ApplyChanges',
+    procedure(Ctx: IHttpContext)
+    begin
+      FDispatcher.Invoke(Ctx);
+    end);
+
+  FApp.Start(8080);
+
+  // 3. Initialize Client linked to localhost port 8080
+  FClient := TGrpcClient.Create('localhost', 8080);
+
+  // 4. Initialize Custom Provider
   FProvider := TDemoGrpcProvider.Create(FClient);
 
-  // 4. Setup TEntityDataSet
+  // 5. Setup TEntityDataSet
   FDataSet := TEntityDataSet.Create(Self);
   CompanyDataSource.DataSet := FDataSet;
   CompanyDBGrid.DataSource := CompanyDataSource;
 
-  Log('gRPC server and client dispatcher loaded in memory.');
+  Log('gRPC HTTP.sys native server running on port 8080.');
+  Log('gRPC client connected to localhost:8080.');
   Log('Ready to load data.');
 
   if FindCmdLineSwitch('auto') then
@@ -379,7 +498,11 @@ end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  if Assigned(FTelemetryObserver) then
+    TDiagnosticSource.Instance.Unsubscribe(FTelemetryObserver);
   FClient.Free;
+  if Assigned(FApp) then
+    FApp.Stop;
   FDispatcher.Free;
 end;
 
@@ -394,14 +517,28 @@ end;
 procedure TFormMain.LoadButtonClick(Sender: TObject);
 var
   Items: TList<TCompany>;
+  Sw: TStopwatch;
+  GrpcTime: Int64;
+  LoadTime: Int64;
 begin
   Log('Calling gRPC FetchAll...');
+  Sw := TStopwatch.StartNew;
   Items := FProvider.FetchAll('');
+  Sw.Stop;
+  GrpcTime := Sw.ElapsedMilliseconds;
+
   try
+    Sw := TStopwatch.StartNew;
     FDataSet.Close;
     FDataSet.Load<TCompany>(Items, True); // DataSet takes ownership
     FDataSet.Open;
-    Log(Format('Loaded %d companies into TEntityDataSet.', [Items.Count]));
+    Sw.Stop;
+    LoadTime := Sw.ElapsedMilliseconds;
+
+    Log(Format(
+      'Loaded %d companies: gRPC Fetch=%d ms | DataSet Load=%d ms | ' +
+      'Total=%d ms',
+      [Items.Count, GrpcTime, LoadTime, GrpcTime + LoadTime]));
   finally
     Items.Free;
   end;
@@ -548,21 +685,20 @@ procedure TFormMain.CodeOnlyButtonClick(Sender: TObject);
 var
   Req: TCompanyQueryRequest;
   Res: TCompanyListResponse;
-  Item: TCompany;
+  Sw: TStopwatch;
 begin
   Log('[CODE-ONLY] Starting raw gRPC client call test...');
   Req := TCompanyQueryRequest.Create;
   Req.Query := 'all';
   Res := TCompanyListResponse.Create;
   try
+    Sw := TStopwatch.StartNew;
     // Invoke gRPC method directly via client
     FClient.CallMethod('dext.services.CompanyService', 'FetchAll', Req, Res);
-    Log(Format('[CODE-ONLY] Received %d items:', [Res.Items.Count]));
-    for Item in Res.Items do
-    begin
-      Log(Format('  - ID: %d | Name: %s | Country: %s | Active: %s',
-        [Item.Id, Item.Name, Item.Country, BoolToStr(Item.Active, True)]));
-    end;
+    Sw.Stop;
+    Log(Format(
+      '[CODE-ONLY] Received %d items in %d ms (raw gRPC client)',
+      [Res.Items.Count, Sw.ElapsedMilliseconds]));
   finally
     Req.Free;
     Res.Free;

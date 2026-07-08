@@ -14,6 +14,7 @@ uses
   System.Classes,
   System.Rtti,
   System.TypInfo,
+  System.SyncObjs,
   Dext.Collections.Dict,
   Dext.Collections,
   Dext.Core.Reflection,
@@ -22,6 +23,12 @@ uses
 type
   TProtobufSerializer = class
   private
+    class var FCache: IDictionary<TClass, IDictionary<Integer, IPropertyHandler>>;
+    class var FLock: TCriticalSection;
+    class constructor Create;
+    class destructor Destroy;
+    class function GetTagMap(AClass: TClass): IDictionary<Integer,
+      IPropertyHandler>; static;
     class procedure WriteVarint(Stream: TStream; Value: UInt64); static;
     class function ReadVarint(Stream: TStream): UInt64; static;
     class procedure WriteTag(Stream: TStream; Tag: Integer;
@@ -42,6 +49,57 @@ type
 implementation
 
 { TProtobufSerializer }
+
+class constructor TProtobufSerializer.Create;
+begin
+  FCache := TCollections.CreateDictionary<TClass, IDictionary<Integer,
+    IPropertyHandler>>;
+  FLock := TCriticalSection.Create;
+end;
+
+class destructor TProtobufSerializer.Destroy;
+begin
+  FLock.Free;
+end;
+
+class function TProtobufSerializer.GetTagMap(AClass: TClass):
+  IDictionary<Integer, IPropertyHandler>;
+var
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
+  Attr: TCustomAttribute;
+  ProtoAttr: ProtoMemberAttribute;
+begin
+  FLock.Acquire;
+  try
+    if not FCache.TryGetValue(AClass, Result) then
+    begin
+      Result := TCollections.CreateDictionary<Integer, IPropertyHandler>;
+      Meta := TReflection.GetMetadata(AClass.ClassInfo);
+      if Assigned(Meta) then
+      begin
+        for Handler in Meta.PropertyHandlers do
+        begin
+          if Assigned(Handler.Member) then
+          begin
+            for Attr in Handler.Member.GetAttributes do
+            begin
+              if Attr is ProtoMemberAttribute then
+              begin
+                ProtoAttr := ProtoMemberAttribute(Attr);
+                Result.Add(ProtoAttr.Tag, Handler);
+                Break;
+              end;
+            end;
+          end;
+        end;
+      end;
+      FCache.Add(AClass, Result);
+    end;
+  finally
+    FLock.Release;
+  end;
+end;
 
 class procedure TProtobufSerializer.WriteVarint(Stream: TStream; Value: UInt64);
 var
@@ -312,98 +370,56 @@ end;
 
 class function TProtobufSerializer.Serialize(Obj: TObject): TBytes;
 var
-  Stream: TMemoryStream;
-  Context: TRttiContext;
-  RttiType: TRttiType;
-  Props: TArray<TRttiProperty>;
-  Prop: TRttiProperty;
-  Attr: TCustomAttribute;
-  ProtoAttr: ProtoMemberAttribute;
+  Stream: TBytesStream;
+  TagMap: IDictionary<Integer, IPropertyHandler>;
+  Key: Integer;
+  Handler: IPropertyHandler;
   Val: TValue;
+  Len: NativeInt;
 begin
   if not Assigned(Obj) then
     Exit(nil);
 
-  Stream := TMemoryStream.Create;
+  Stream := TBytesStream.Create(nil);
   try
-    Context := TReflection.Context;
-    RttiType := Context.GetType(Obj.ClassType);
-    if Assigned(RttiType) then
+    TagMap := GetTagMap(Obj.ClassType);
+    for Key in TagMap.Keys do
     begin
-      Props := RttiType.GetProperties;
-      for Prop in Props do
-      begin
-        for Attr in Prop.GetAttributes do
-        begin
-          if Attr is ProtoMemberAttribute then
-          begin
-            ProtoAttr := ProtoMemberAttribute(Attr);
-            Val := Prop.GetValue(Obj);
-            SerializeField(Stream, ProtoAttr.Tag, Val);
-            Break;
-          end;
-        end;
-      end;
+      Handler := TagMap[Key];
+      Val := Handler.GetValue(Obj);
+      SerializeField(Stream, Key, Val);
     end;
-    SetLength(Result, Stream.Size);
-    if Stream.Size > 0 then
-      Move(Stream.Memory^, Result[0], Stream.Size);
+
+    Result := Stream.Bytes;
+    Len := Stream.Size;
   finally
     Stream.Free;
   end;
+  SetLength(Result, Len);
 end;
 
 class procedure TProtobufSerializer.Deserialize(const Bytes: TBytes;
   Obj: TObject);
 var
   Stream: TBytesStream;
-  Context: TRttiContext;
-  RttiType: TRttiType;
-  Props: TArray<TRttiProperty>;
-  Prop: TRttiProperty;
-  Attr: TCustomAttribute;
-  ProtoAttr: ProtoMemberAttribute;
-  TagMap: IDictionary<Integer, TRttiProperty>;
+  TagMap: IDictionary<Integer, IPropertyHandler>;
   Tag: Integer;
   WireType: Integer;
   Header: UInt64;
   Decoded: TValue;
   ListObj: TObject;
   ObjList: IObjectList;
-  TypeName: string;
-  StartPos: Integer;
-  EndPos: Integer;
-  ItemTypeName: string;
-  ItemType: TRttiType;
-  t: TRttiType;
-  ShortName: string;
-  DotPos: Integer;
   ListIntf: IInterface;
+  Handler: IPropertyHandler;
+  Prop: TRttiProperty;
+  PropMeta: TTypeMetadata;
 begin
   if (Length(Bytes) = 0) or not Assigned(Obj) then
     Exit;
 
   Stream := TBytesStream.Create(Bytes);
-  TagMap := TCollections.CreateDictionary<Integer, TRttiProperty>;
   try
-    Context := TReflection.Context;
-    RttiType := Context.GetType(Obj.ClassType);
-    if Assigned(RttiType) then
-    begin
-      Props := RttiType.GetProperties;
-      for Prop in Props do
-      begin
-        for Attr in Prop.GetAttributes do
-        begin
-          if Attr is ProtoMemberAttribute then
-          begin
-            ProtoAttr := ProtoMemberAttribute(Attr);
-            TagMap.Add(ProtoAttr.Tag, Prop);
-            Break;
-          end;
-        end;
-      end;
-    end;
+    TagMap := GetTagMap(Obj.ClassType);
 
     while Stream.Position < Stream.Size do
     begin
@@ -411,74 +427,49 @@ begin
       Tag := Header shr 3;
       WireType := Header and 7;
 
-      if TagMap.TryGetValue(Tag, Prop) then
+      if TagMap.TryGetValue(Tag, Handler) then
       begin
+        Prop := TRttiProperty(Handler.Member);
         if (Prop.PropertyType.TypeKind = tkClass) or
            (Prop.PropertyType.TypeKind = tkInterface) then
         begin
           ObjList := nil;
           if Prop.PropertyType.TypeKind = tkInterface then
           begin
-            ListIntf := Prop.GetValue(Obj).AsInterface;
+            ListIntf := Handler.GetValue(Obj).AsInterface;
             if Assigned(ListIntf) then
               Supports(ListIntf, IObjectList, ObjList);
           end
           else
           begin
-            ListObj := Prop.GetValue(Obj).AsObject;
+            ListObj := Handler.GetValue(Obj).AsObject;
             if not Assigned(ListObj) then
             begin
               ListObj := TRttiInstanceType(Prop.PropertyType)
                 .MetaclassType.Create;
-              Prop.SetValue(Obj, ListObj);
+              Handler.SetValue(Obj, ListObj);
             end;
             Supports(ListObj, IObjectList, ObjList);
           end;
 
           if Assigned(ObjList) then
           begin
-            TypeName := Prop.PropertyType.Name;
-            StartPos := Pos('<', TypeName);
-            EndPos := Pos('>', TypeName);
-            if (StartPos > 0) and (EndPos > StartPos) then
+            PropMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
+            if PropMeta.IsList and Assigned(PropMeta.ElementType) then
             begin
-              ItemTypeName := Copy(TypeName, StartPos + 1,
-                EndPos - StartPos - 1);
-              ItemType := Context.FindType(ItemTypeName);
-              if not Assigned(ItemType) then
-              begin
-                ShortName := ItemTypeName;
-                DotPos := LastDelimiter('.', ItemTypeName);
-                if DotPos > 0 then
-                  ShortName := Copy(ItemTypeName, DotPos + 1, MaxInt);
-
-                for t in Context.GetTypes do
-                begin
-                  if SameText(t.QualifiedName, ItemTypeName) or
-                     SameText(t.Name, ShortName) then
-                  begin
-                    ItemType := t;
-                    Break;
-                  end;
-                end;
-              end;
-
-              if Assigned(ItemType) then
-              begin
-                Decoded := DeserializeField(Stream, WireType,
-                  ItemType.Handle);
-                if not Decoded.IsEmpty then
-                  ObjList.Add(Decoded.AsObject);
-              end
-              else
-              begin
-                case WireType of
-                  0: ReadVarint(Stream);
-                  1: Stream.Position := Stream.Position + 8;
-                  2: Stream.Position := Stream.Position +
-                       Int64(ReadVarint(Stream));
-                  5: Stream.Position := Stream.Position + 4;
-                end;
+              Decoded := DeserializeField(Stream, WireType,
+                PropMeta.ElementType);
+              if not Decoded.IsEmpty then
+                ObjList.Add(Decoded.AsObject);
+            end
+            else
+            begin
+              case WireType of
+                0: ReadVarint(Stream);
+                1: Stream.Position := Stream.Position + 8;
+                2: Stream.Position := Stream.Position +
+                     Int64(ReadVarint(Stream));
+                5: Stream.Position := Stream.Position + 4;
               end;
             end;
           end
@@ -487,7 +478,7 @@ begin
             Decoded := DeserializeField(Stream, WireType,
               Prop.PropertyType.Handle);
             if not Decoded.IsEmpty then
-              Prop.SetValue(Obj, Decoded);
+              Handler.SetValue(Obj, Decoded);
           end;
         end
         else
@@ -495,7 +486,7 @@ begin
           Decoded := DeserializeField(Stream, WireType,
             Prop.PropertyType.Handle);
           if not Decoded.IsEmpty then
-            Prop.SetValue(Obj, Decoded);
+            Handler.SetValue(Obj, Decoded);
         end;
       end
       else
