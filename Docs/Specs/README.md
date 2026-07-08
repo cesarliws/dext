@@ -57,6 +57,7 @@ ID | Title | Status | Goal
 **S49** | [HTTP QUERY Method](S49-Http-Query-Method.md) | ✅ Finalized | Standardized HTTP QUERY method support (RFC 10008) on client and server.
 **S50** | [Linux Epoll Server Engine Evolution](S50-Linux-Epoll-Evolution.md) | ✅ Finalized | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, lock-free buffer pooling, and keep-alive timing wheels.
 **S51** | [EntityDataSet Remote Sync](S51-EntityDataSet-Remote-Sync.md) | ✅ Finalized | Remote tracking, delta packaging, and transport decompression.
+**S52** | [SOCKS5 Proxy Client & Server](S52-Net-Proxy-Socks5.md) | 📝 Draft | Support SOCKS5 client tunnels, Socks over TLS, and SOCKS5 server backlog.
 
 ---
 

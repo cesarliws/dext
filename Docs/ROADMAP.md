@@ -67,6 +67,7 @@ Status | Task | Spec | Description
 - [ ] **OData Support**: Full OData query support.
 - [ ] **GraphQL**: Native layer for data graphs.
 - [ ] **Microservices Mesh**: Service discovery and native Load Balancing.
+- [ ] **SOCKS5 Proxy Support**: [S52](Specs/S52-Net-Proxy-Socks5.md) client tunnels, Socks over TLS, and SOCKS5 server backlog.
 
 ---
 
@@ -130,6 +131,7 @@ Status | Tarefa | Spec | Descrição
 - [ ] **Suporte a OData**: Suporte completo a queries OData.
 - [ ] **GraphQL**: Camada nativa para exposição de grafos de dados.
 - [ ] **Microservices Mesh**: Service discovery e Load Balancing nativo.
+- [ ] **Proxy SOCKS5**: [S52](Specs/S52-Net-Proxy-Socks5.md) suporte a túneis de cliente, Socks over TLS e servidor SOCKS5.
 
 - UI Nativo com Skia
 
