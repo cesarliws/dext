@@ -103,11 +103,15 @@ end;
 class procedure TProtobufSerializer.SerializeField(Stream: TStream;
   Tag: Integer; const Value: TValue);
 var
-  TypeInfoVal: PTypeInfo;
-  Str: string;
   Bytes: TBytes;
-  NestedObj: TObject;
+  i: Integer;
+  ItemVal: TValue;
   NestedBytes: TBytes;
+  NestedObj: TObject;
+  ObjList: IObjectList;
+  Str: string;
+  TypeInfoVal: PTypeInfo;
+  Intf: IInterface;
 begin
   if Value.IsEmpty then Exit;
 
@@ -168,11 +172,37 @@ begin
       NestedObj := Value.AsObject;
       if Assigned(NestedObj) then
       begin
-        NestedBytes := Serialize(NestedObj);
-        WriteTag(Stream, Tag, 2);
-        WriteVarint(Stream, Length(NestedBytes));
-        if Length(NestedBytes) > 0 then
-          Stream.Write(NestedBytes[0], Length(NestedBytes));
+        if Supports(NestedObj, IObjectList, ObjList) then
+        begin
+          for i := 0 to ObjList.Count - 1 do
+          begin
+            ItemVal := TValue.From<TObject>(ObjList.GetItem(i));
+            SerializeField(Stream, Tag, ItemVal);
+          end;
+        end
+        else
+        begin
+          NestedBytes := Serialize(NestedObj);
+          WriteTag(Stream, Tag, 2);
+          WriteVarint(Stream, Length(NestedBytes));
+          if Length(NestedBytes) > 0 then
+            Stream.Write(NestedBytes[0], Length(NestedBytes));
+        end;
+      end;
+    end;
+    tkInterface:
+    begin
+      Intf := Value.AsInterface;
+      if Assigned(Intf) then
+      begin
+        if Supports(Intf, IObjectList, ObjList) then
+        begin
+          for i := 0 to ObjList.Count - 1 do
+          begin
+            ItemVal := TValue.From<TObject>(ObjList.GetItem(i));
+            SerializeField(Stream, Tag, ItemVal);
+          end;
+        end;
       end;
     end;
     tkDynArray:
@@ -338,6 +368,17 @@ var
   WireType: Integer;
   Header: UInt64;
   Decoded: TValue;
+  ListObj: TObject;
+  ObjList: IObjectList;
+  TypeName: string;
+  StartPos: Integer;
+  EndPos: Integer;
+  ItemTypeName: string;
+  ItemType: TRttiType;
+  t: TRttiType;
+  ShortName: string;
+  DotPos: Integer;
+  ListIntf: IInterface;
 begin
   if (Length(Bytes) = 0) or not Assigned(Obj) then
     Exit;
@@ -372,9 +413,90 @@ begin
 
       if TagMap.TryGetValue(Tag, Prop) then
       begin
-        Decoded := DeserializeField(Stream, WireType, Prop.PropertyType.Handle);
-        if not Decoded.IsEmpty then
-          Prop.SetValue(Obj, Decoded);
+        if (Prop.PropertyType.TypeKind = tkClass) or
+           (Prop.PropertyType.TypeKind = tkInterface) then
+        begin
+          ObjList := nil;
+          if Prop.PropertyType.TypeKind = tkInterface then
+          begin
+            ListIntf := Prop.GetValue(Obj).AsInterface;
+            if Assigned(ListIntf) then
+              Supports(ListIntf, IObjectList, ObjList);
+          end
+          else
+          begin
+            ListObj := Prop.GetValue(Obj).AsObject;
+            if not Assigned(ListObj) then
+            begin
+              ListObj := TRttiInstanceType(Prop.PropertyType)
+                .MetaclassType.Create;
+              Prop.SetValue(Obj, ListObj);
+            end;
+            Supports(ListObj, IObjectList, ObjList);
+          end;
+
+          if Assigned(ObjList) then
+          begin
+            TypeName := Prop.PropertyType.Name;
+            StartPos := Pos('<', TypeName);
+            EndPos := Pos('>', TypeName);
+            if (StartPos > 0) and (EndPos > StartPos) then
+            begin
+              ItemTypeName := Copy(TypeName, StartPos + 1,
+                EndPos - StartPos - 1);
+              ItemType := Context.FindType(ItemTypeName);
+              if not Assigned(ItemType) then
+              begin
+                ShortName := ItemTypeName;
+                DotPos := LastDelimiter('.', ItemTypeName);
+                if DotPos > 0 then
+                  ShortName := Copy(ItemTypeName, DotPos + 1, MaxInt);
+
+                for t in Context.GetTypes do
+                begin
+                  if SameText(t.QualifiedName, ItemTypeName) or
+                     SameText(t.Name, ShortName) then
+                  begin
+                    ItemType := t;
+                    Break;
+                  end;
+                end;
+              end;
+
+              if Assigned(ItemType) then
+              begin
+                Decoded := DeserializeField(Stream, WireType,
+                  ItemType.Handle);
+                if not Decoded.IsEmpty then
+                  ObjList.Add(Decoded.AsObject);
+              end
+              else
+              begin
+                case WireType of
+                  0: ReadVarint(Stream);
+                  1: Stream.Position := Stream.Position + 8;
+                  2: Stream.Position := Stream.Position +
+                       Int64(ReadVarint(Stream));
+                  5: Stream.Position := Stream.Position + 4;
+                end;
+              end;
+            end;
+          end
+          else if Prop.PropertyType.TypeKind = tkClass then
+          begin
+            Decoded := DeserializeField(Stream, WireType,
+              Prop.PropertyType.Handle);
+            if not Decoded.IsEmpty then
+              Prop.SetValue(Obj, Decoded);
+          end;
+        end
+        else
+        begin
+          Decoded := DeserializeField(Stream, WireType,
+            Prop.PropertyType.Handle);
+          if not Decoded.IsEmpty then
+            Prop.SetValue(Obj, Decoded);
+        end;
       end
       else
       begin

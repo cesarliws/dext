@@ -38,6 +38,7 @@ uses
   Dext.Collections.Dict,
   Dext.Collections,
   Dext.Core.Reflection,
+  Dext.Core.Activator,
   Dext.Web.Interfaces,
   Dext.Grpc.Attributes,
   Dext.Grpc.Codec,
@@ -261,7 +262,7 @@ begin
     Exit;
   end;
 
-  Request := Method.RequestClass.Create;
+  Request := TActivator.CreateInstance(Method.RequestClass, []);
   try
     TProtobufSerializer.Deserialize(MsgBytes, Request);
 

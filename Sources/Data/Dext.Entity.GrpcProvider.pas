@@ -327,17 +327,17 @@ end;
 procedure TGrpcClient.CallMethod(const AServiceName, AMethodName: string;
   ARequest, AResponse: TObject);
 var
-  ReqBytes: TBytes;
+  Compressed: Boolean;
+  Context: IHttpContext;
   FramedReq: TBytes;
   MockReq: TMockHttpRequest;
   MockRes: TMockHttpResponse;
-  Context: IHttpContext;
-  ResBytes: TBytes;
-  Offset: Integer;
-  Compressed: Boolean;
   MsgBytes: TBytes;
-  StatusVal: string;
   MsgVal: string;
+  Offset: Integer;
+  ReqBytes: TBytes;
+  ResBytes: TBytes;
+  StatusVal: string;
 begin
   ReqBytes := TProtobufSerializer.Serialize(ARequest);
   FramedReq := TGrpcMessageCodec.Encode(ReqBytes);
