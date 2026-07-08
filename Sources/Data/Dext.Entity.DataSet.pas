@@ -118,6 +118,12 @@ type
     FFilterExpression: IExpression;
     FTrackedChanges: IList<TEntityChange>;
     FCurrentDirtyFields: IList<string>;
+    // Tracks objects the dataset itself created via Append/Insert
+    // so they can be freed on Destroy even when FOwnsItems=False.
+    FDataSetCreatedItems: IList<TObject>;
+    // True only when FItems is an internal non-owning wrapper (Load<T> path).
+    // Indicates that objects added via Append have no external owner.
+    FItemsIsNonOwningWrapper: Boolean;
 
     procedure SetFilterExpression(const Value: IExpression);
 
@@ -640,6 +646,7 @@ begin
   FStringFieldKind := sfAuto;
   FTrackedChanges := TCollections.CreateList<TEntityChange>;
   FCurrentDirtyFields := TCollections.CreateList<string>;
+  FDataSetCreatedItems := TCollections.CreateList<TObject>(True);
 end;
 
 destructor TEntityDataSet.Destroy;
@@ -647,10 +654,10 @@ var
   Dict: TDictionary<string, Variant>;
 begin
   Close; // Garante que InternalClose rode enquanto as estruturas estao vivas
-  
+
   if Assigned(FDataProvider) then
     FDataProvider.UnregisterDataSet(Self);
-    
+
   FreeAndNil(FPropertyCache);
   FreeAndNil(FCalcOffsets);
   FreeAndNil(FDetailDataSets);
@@ -659,16 +666,20 @@ begin
   for Dict in FPreviewData do
     Dict.Free;
   SetLength(FPreviewData, 0);
-    
+
+  // FDataSetCreatedItems holds objects created by the dataset via Append/Insert.
+  // Freeing this list releases those objects regardless of FOwnsItems.
+  FDataSetCreatedItems := nil;
+
   FItems := nil;
   FTrackedChanges := nil;
   FCurrentDirtyFields := nil;
-  
+
   if Assigned(FEntityMap) and FOwnsEntityMap then
     FreeAndNil(FEntityMap);
 
   FreeAndNil(FMasterLink);
-    
+
   inherited Destroy;
 end;
 
@@ -809,6 +820,8 @@ begin
   FItems := AItems;
   FEntityClass := AClass;
   FOwnsItems := AOwns;
+  // Direct load via IObjectList: external list manages object lifetime.
+  FItemsIsNonOwningWrapper := False;
   EnsureEntityMapResolved;
   
   if Active then
@@ -888,6 +901,10 @@ begin
   for i := 0 to AItems.Count - 1 do
     ListObj.Add(TObject(AItems[i]));
   Load(ListObj as IObjectList, AClass, AOwns);
+  // Set AFTER Load() call — Load() resets this flag to False.
+  // When AOwns=False, the wrapper is non-owning: Append-created objects
+  // have no external owner and must be tracked in FDataSetCreatedItems.
+  FItemsIsNonOwningWrapper := not AOwns;
 end;
 
 procedure TEntityDataSet.LoadFromJson(const AJson: string; AClass: TClass);
@@ -2051,8 +2068,13 @@ begin
 
     // 3. Remover das listas
     FVirtualIndex.RemoveAt(TargetIdx);
+    // If the deleted object was created by the dataset itself, remove it from
+    // FDataSetCreatedItems so it is freed here (via FItems.Delete when owned)
+    // and not again on Destroy.
+    if (FDataSetCreatedItems <> nil) and (TargetObj <> nil) then
+      FDataSetCreatedItems.Extract(TargetObj);
     FItems.Delete(ActualRow);
-    
+
     // 4. Reconstruir a visão virtual (necessário se houver filtros ou sorteio ativos)
     ApplyFilterAndSort;
 
@@ -2132,9 +2154,14 @@ begin
       end;
 
       FInsertObjRef := FInsertObj;
-      FInsertObj := nil; 
-      FIsAppending := False; 
+      FInsertObj := nil;
+      FIsAppending := False;
       FPositionBeforeAction := -2;
+
+      // Track dataset-created objects so they are freed on Destroy
+      // even when FOwnsItems=False (external list does not own new items).
+      if (FDataSetCreatedItems <> nil) and FItemsIsNonOwningWrapper then
+        FDataSetCreatedItems.Add(FInsertObjRef);
 
       // 2. Update Virtual View and track new object
       if FTrackedChanges <> nil then

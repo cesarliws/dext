@@ -1032,7 +1032,31 @@ Exposes delta-tracking mechanisms and transport decompression.
 - **Raw Stream Preservation** — Preserves raw compressed bytes via
   `RawContentStream` property for audit or direct byte checking.
 
+
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 07, 2026).*
+## 📡 27. Modernizer: gRPC & Protocol Buffers (S02)
+
+High-performance binary transport protocol implementation.
+
+### 27.1 Protobuf Serialization Engine (`Dext.Serialization.Protobuf`)
+- **TProtobufSerializer** — High-speed, zero-allocation binary serialization engine for Protocol Buffers (proto3).
+- **Format Handlers** — Supports Varint, Fixed32, Fixed64, and Length-Prefixed formatting types using high-performance `TSpan` memory representations.
+- **Entity Binding via RTTI** — Marshals Delphi objects directly to Protobuf binary format, evaluating attributes such as `[ProtoMember]` and field ordinals.
+
+### 27.2 Length-Prefixed Message Codec (`Dext.Grpc.Codec`)
+- **TGrpcCodec** — Framing codec for gRPC Length-Prefixed Messages (LPM).
+- **Compression Support** — Compression flag handling (1-byte compressed flag, 4-byte big-endian message length) for HTTP/2 transmission.
+
+### 27.3 gRPC Server Engine (`Dext.Web.Grpc.Server`)
+- **TGrpcDispatcher** — Decodes HTTP/2 frames and maps incoming `application/grpc` requests to the registered service handlers.
+- **Service Mappings** — Dynamic routing and method dispatch via reflection and interface lookup tables.
+
+### 27.4 Client & DataSet Integration (`Dext.Entity.GrpcProvider`)
+- **TEntitygRpcProvider** — Pluggable gRPC sync provider for `TEntityDataSet`, enabling bi-directional remote synchronization.
+- **TgRpcClient** — Low-level client engine sending Protobuf streams and parsing gRPC binary responses.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 2026).*
 

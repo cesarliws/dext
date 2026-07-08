@@ -853,7 +853,31 @@ Oferece controle de alterações distribuído e descompressão de rede.
 - **Preservação de Stream Bruto** — Mantém o stream compactado original
   disponível em `RawContentStream` para inspeção e auditoria.
 
+
 ---
 
-*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 07, 2026).*
+## 📡 27. Modernizer: gRPC & Protocol Buffers (S02)
+
+Implementação do protocolo de transporte binário de alta performance.
+
+### 27.1 Serializador Protobuf (`Dext.Serialization.Protobuf`)
+- **TProtobufSerializer** — Engine de serialização binária de alta velocidade e zero alocação no heap para Protocol Buffers (proto3).
+- **Formatadores Específicos** — Suporte a formatação Varint, Fixed32, Fixed64 e Length-Prefixed usando a abstração de memória de alto desempenho `TSpan`.
+- **Marshalling via RTTI** — Serialização direta de objetos Delphi baseada em mapeamento de atributos `[ProtoMember]` e ordinais de campo.
+
+### 27.2 Codec de Mensagens gRPC (`Dext.Grpc.Codec`)
+- **TGrpcCodec** — Implementação do codec de enquadramento (framing) para mensagens gRPC Length-Prefixed Message (LPM).
+- **Suporte a Compressão** — Tratamento do flag de compressão de 1 byte seguido de tamanho em big-endian de 4 bytes para entrega segura em streams HTTP/2.
+
+### 27.3 Servidor gRPC (`Dext.Web.Grpc.Server`)
+- **TGrpcDispatcher** — Decodificador de frames HTTP/2 que despacha requisições `application/grpc` para os respectivos métodos e classes de serviço registrados.
+- **Mapeamento RTTI** — Resolução e chamada dinâmica de serviços baseados em interfaces usando tabelas de roteamento otimizadas.
+
+### 27.4 Integração Cliente e DataSet (`Dext.Entity.GrpcProvider`)
+- **TEntitygRpcProvider** — Provedor de sincronização remota gRPC integrado para `TEntityDataSet`, possibilitando persistência bidirecional estruturada.
+- **TgRpcClient** — Cliente gRPC de baixo nível responsável pelo transporte de streams Protobuf e recebimento de payloads binários de resposta.
+
+---
+
+*Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 2026).*
 

@@ -64,37 +64,50 @@ function IsFastMMEnabled: Boolean;
 
 implementation
 
+{$IFDEF DEXT_USE_FASTMM5}
+uses
+  System.SysUtils;
+{$ENDIF}
+
 procedure EnableMemoryLeakReporting;
 begin
-  {$IFDEF DEXT_USE_FASTMM5}
+{$IFDEF DEXT_USE_FASTMM5}
+  // File-only output: no message box so console apps don't hang
+  FastMM5.FastMM_EnterDebugMode;
+  FastMM5.FastMM_OutputDebugStringEvents :=
+    [mmetUnexpectedMemoryLeakDetail,
+     mmetUnexpectedMemoryLeakSummary];
+  // Write .leak report next to the executable
+  FastMM5.FastMM_LogToFileEvents :=
+    [mmetUnexpectedMemoryLeakDetail,
+     mmetUnexpectedMemoryLeakSummary];
+  // Never show message boxes (would block console / automated runs)
+  FastMM5.FastMM_MessageBoxEvents := [];
   ReportMemoryLeaksOnShutdown := True;
-  {$ELSE}
-  // No-op when FastMM5 is not enabled
-  // Standard Delphi memory manager does not support detailed leak reporting
+{$ELSE}
   System.ReportMemoryLeaksOnShutdown := True;
-  {$ENDIF}
+{$ENDIF}
 end;
 
 procedure DisableMemoryLeakReporting;
 begin
-  {$IFDEF DEXT_USE_FASTMM5}
+{$IFDEF DEXT_USE_FASTMM5}
   ReportMemoryLeaksOnShutdown := False;
-  {$ELSE}
+{$ELSE}
   System.ReportMemoryLeaksOnShutdown := False;
-  {$ENDIF}
+{$ENDIF}
 end;
 
 function IsFastMMEnabled: Boolean;
 begin
-  {$IFDEF DEXT_USE_FASTMM5}
+{$IFDEF DEXT_USE_FASTMM5}
   Result := True;
-  {$ELSE}
+{$ELSE}
   Result := False;
-  {$ENDIF}
+{$ENDIF}
 end;
 
 initialization
-  // By default, enable memory leak reporting in DEBUG builds
   {$IFDEF DEBUG}
   EnableMemoryLeakReporting;
   {$ENDIF}

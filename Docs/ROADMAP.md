@@ -45,7 +45,7 @@ Status | Task | Spec | Description
 ## 🔴 Wave 3: Enterprise & Modernization (Stability)
 Status | Task | Spec | Description
 :---: | :--- | :---: | :---
-🟡 | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Code-first Protobuf services and TEntityDataSet/TEntitygRpcProvider integration.
+✅ | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Code-first Protobuf services and TEntityDataSet/TEntitygRpcProvider integration.
 ✅ | **Native Server Engine** | [S39](Specs/S39-Native-Server-Engine.md) | 100% Pascal High-performance server engine (http.sys, epoll sockets).
 ✅ | **WebSocket & SignalR** | [S40](Specs/S40-WebSocket-SignalR.md) | RFC 6455 protocol codec and SignalR-compatible Hub transport integration.
 ✅ | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | HTTP/2 HPACK compression, frame codec, and stream multiplexing for gRPC.
@@ -108,7 +108,7 @@ Status | Tarefa | Spec | Descrição
 ## 🔴 Onda 3: Enterprise & Modernização (Estabilidade)
 Status | Tarefa | Spec | Descrição
 :---: | :--- | :---: | :---
-🟡 | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Motor nativo IOCP/EPOLL para comunicação binária.
+✅ | **gRPC & Protobuf** | [S02](Specs/S02-Modernizer-gRPC.md) | Motor nativo IOCP/EPOLL para comunicação binária.
 ✅ | **Motor de Servidor Nativo** | [S39](Specs/S39-Native-Server-Engine.md) | Motor de servidor de alta performance 100% Pascal (http.sys, epoll sockets).
 ✅ | **WebSocket & SignalR** | [S40](Specs/S40-WebSocket-SignalR.md) | Codec do protocolo RFC 6455 e integração do transporte de Hub compatível com SignalR.
 ✅ | **HTTP/2 Framing** | [S41](Specs/S41-Http2-Framing.md) | Compressão HPACK HTTP/2, codec de frames e multiplexação de streams para gRPC.
@@ -134,4 +134,4 @@ Status | Tarefa | Spec | Descrição
 - UI Nativo com Skia
 
 ---
-*Last update: June 2026*
+*Last update: July 2026*

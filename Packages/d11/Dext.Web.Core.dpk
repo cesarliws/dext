@@ -121,7 +121,10 @@ contains
   Dext.Http2.Connection in '..\..\Sources\Server\Dext.Http2.Connection.pas',
   Dext.Http2.Framing in '..\..\Sources\Server\Dext.Http2.Framing.pas',
   Dext.Http2.Hpack in '..\..\Sources\Server\Dext.Http2.Hpack.pas',
-  Dext.Http2.Stream in '..\..\Sources\Server\Dext.Http2.Stream.pas';
+  Dext.Http2.Stream in '..\..\Sources\Server\Dext.Http2.Stream.pas',
+  Dext.Grpc.Codec in '..\..\Sources\Server\Dext.Grpc.Codec.pas',
+  Dext.Web.Grpc.Server in '..\..\Sources\Web\Dext.Web.Grpc.Server.pas',
+  Dext.Entity.GrpcProvider in '..\..\Sources\Data\Dext.Entity.GrpcProvider.pas';
 
 end.
 

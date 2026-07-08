@@ -232,6 +232,9 @@
         <DCCReference Include="..\..\Sources\Server\Dext.Http2.Framing.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Http2.Hpack.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Http2.Stream.pas"/>
+        <DCCReference Include="..\..\Sources\Server\Dext.Grpc.Codec.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.Grpc.Server.pas"/>
+        <DCCReference Include="..\..\Sources\Data\Dext.Entity.GrpcProvider.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
