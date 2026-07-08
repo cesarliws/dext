@@ -37,8 +37,10 @@ type
   TEntityChange = record
     State: TEntityRowState;
     Entity: TObject;
+    OriginalIndex: Integer;
     Key: TArray<Dext.Collections.Dict.TPair<string, Variant>>;
     DirtyFields: TArray<string>;
+    OriginalValues: TArray<Dext.Collections.Dict.TPair<string, Variant>>;
   end;
 
   /// <summary>
@@ -124,8 +126,12 @@ type
     // True only when FItems is an internal non-owning wrapper (Load<T> path).
     // Indicates that objects added via Append have no external owner.
     FItemsIsNonOwningWrapper: Boolean;
+    // Temporarily holds deleted objects to allow local rollback (RejectChanges).
+    FDeletedItemsCache: IList<TObject>;
 
     procedure SetFilterExpression(const Value: IExpression);
+    procedure RecordOriginalValue(AEntity: TObject; Field: TField);
+    procedure RemoveFromItems(AEntity: TObject; AFreeInstance: Boolean);
 
     function CompareObjectsInternal(A, B: TObject; const APropNames: TArray<string>; RttiType: TRttiType): Integer;
     function CreateNewEntity: TObject;
@@ -647,6 +653,7 @@ begin
   FTrackedChanges := TCollections.CreateList<TEntityChange>;
   FCurrentDirtyFields := TCollections.CreateList<string>;
   FDataSetCreatedItems := TCollections.CreateList<TObject>(True);
+  FDeletedItemsCache := TCollections.CreateList<TObject>(True);
 end;
 
 destructor TEntityDataSet.Destroy;
@@ -670,6 +677,8 @@ begin
   // FDataSetCreatedItems holds objects created by the dataset via Append/Insert.
   // Freeing this list releases those objects regardless of FOwnsItems.
   FDataSetCreatedItems := nil;
+  // Freeing this list releases all deleted objects that were cached.
+  FDeletedItemsCache := nil;
 
   FItems := nil;
   FTrackedChanges := nil;
@@ -2031,6 +2040,8 @@ var
   IsTrackedInsert: Boolean;
   NewChange: TEntityChange;
   i: Integer;
+  Collection: Dext.Collections.Base.ICollection;
+  IsOwnedByList: Boolean;
 begin
   if not Assigned(FItems) then Exit;
 
@@ -2059,21 +2070,50 @@ begin
       if not IsTrackedInsert then
       begin
         NewChange.State := ersDeleted;
-        NewChange.Entity := nil;
+        NewChange.Entity := TargetObj;
+        NewChange.OriginalIndex := ActualRow;
         NewChange.Key := GetEntityKeys(TargetObj);
         NewChange.DirtyFields := nil;
+        NewChange.OriginalValues := nil;
         FTrackedChanges.Add(NewChange);
       end;
     end;
 
     // 3. Remover das listas
     FVirtualIndex.RemoveAt(TargetIdx);
-    // If the deleted object was created by the dataset itself, remove it from
-    // FDataSetCreatedItems so it is freed here (via FItems.Delete when owned)
-    // and not again on Destroy.
+
+    // If it was created by the dataset, remove from created tracking
     if (FDataSetCreatedItems <> nil) and (TargetObj <> nil) then
       FDataSetCreatedItems.Extract(TargetObj);
-    FItems.Delete(ActualRow);
+
+    // Determine if the backing physical list owns its elements
+    IsOwnedByList := False;
+    if Supports(FItems, Dext.Collections.Base.ICollection, Collection) then
+      IsOwnedByList := Collection.OwnsObjects;
+
+    if TargetObj <> nil then
+    begin
+      // If the backing list owns its elements, extracting avoids freeing the instance immediately.
+      // We store it in FDeletedItemsCache so it can be restored on RejectChanges,
+      // or freed on AcceptChanges / Destroy.
+      if IsOwnedByList and (not IsTrackedInsert) then
+      begin
+        RemoveFromItems(TargetObj, False);
+        if FDeletedItemsCache <> nil then
+          FDeletedItemsCache.Add(TargetObj);
+      end
+      else if IsOwnedByList and IsTrackedInsert then
+      begin
+        // Inserted then deleted: free immediately
+        RemoveFromItems(TargetObj, True);
+      end
+      else
+      begin
+        // Backing list does not own objects.
+        // Just remove from list (lifetime is managed by the external caller).
+        RemoveFromItems(TargetObj, False);
+      end;
+    end;
 
     // 4. Reconstruir a visão virtual (necessário se houver filtros ou sorteio ativos)
     ApplyFilterAndSort;
@@ -3616,6 +3656,106 @@ begin
   Result := GetFieldData(Field, @Buffer[0]);
 end;
 
+procedure TEntityDataSet.RemoveFromItems(AEntity: TObject; AFreeInstance: Boolean);
+var
+  Idx: Integer;
+  Collection: Dext.Collections.Base.ICollection;
+  WasOwns: Boolean;
+begin
+  if (FItems = nil) or (AEntity = nil) then Exit;
+
+  Idx := FItems.IndexOf(AEntity);
+  if Idx >= 0 then
+  begin
+    if Supports(FItems, Dext.Collections.Base.ICollection, Collection) then
+    begin
+      WasOwns := Collection.OwnsObjects;
+      try
+        Collection.OwnsObjects := AFreeInstance;
+        FItems.Delete(Idx);
+      finally
+        Collection.OwnsObjects := WasOwns;
+      end;
+    end
+    else
+    begin
+      FItems.Delete(Idx);
+      if AFreeInstance then
+        AEntity.Free;
+    end;
+  end;
+end;
+
+procedure TEntityDataSet.RecordOriginalValue(AEntity: TObject; Field: TField);
+var
+  i: Integer;
+  j: Integer;
+  Change: TEntityChange;
+  Found: Boolean;
+  OriginalVal: Variant;
+  ValPair: Dext.Collections.Dict.TPair<string, Variant>;
+begin
+  if (FTrackedChanges = nil) or (AEntity = nil) or (Field = nil) then Exit;
+
+  Found := False;
+  for i := 0 to FTrackedChanges.Count - 1 do
+  begin
+    if FTrackedChanges[i].Entity = AEntity then
+    begin
+      Change := FTrackedChanges[i];
+      Found := True;
+      Break;
+    end;
+  end;
+
+  if not Found then
+  begin
+    Change.State := ersModified;
+    Change.Entity := AEntity;
+    Change.OriginalIndex := -1;
+    Change.Key := GetEntityKeys(AEntity);
+    Change.DirtyFields := nil;
+    Change.OriginalValues := nil;
+  end;
+
+  Found := False;
+  if Change.OriginalValues <> nil then
+  begin
+    for j := 0 to High(Change.OriginalValues) do
+    begin
+      if SameText(Change.OriginalValues[j].Key, Field.FieldName) then
+      begin
+        Found := True;
+        Break;
+      end;
+    end;
+  end;
+
+  if not Found then
+  begin
+    if ReadFieldValue(Field, OriginalVal) then
+    begin
+      SetLength(Change.OriginalValues, Length(Change.OriginalValues) + 1);
+      ValPair.Key := Field.FieldName;
+      ValPair.Value := OriginalVal;
+      Change.OriginalValues[High(Change.OriginalValues)] := ValPair;
+
+      Found := False;
+      for i := 0 to FTrackedChanges.Count - 1 do
+      begin
+        if FTrackedChanges[i].Entity = AEntity then
+        begin
+          FTrackedChanges[i] := Change;
+          Found := True;
+          Break;
+        end;
+      end;
+      if not Found then
+        FTrackedChanges.Add(Change);
+    end;
+  end;
+end;
+
 procedure TEntityDataSet.SetFieldData(Field: TField; Buffer: Pointer);
 var
   BufferPtr: Pointer;
@@ -3682,6 +3822,11 @@ begin
 
   if (CurrentObj = nil) or (FEntityMap = nil) then
     Exit;
+
+  // Record original value for modified tracking if in dsEdit state
+  if State = dsEdit then
+    RecordOriginalValue(CurrentObj, Field);
+
   if not FEntityMap.Properties.TryGetValue(Field.FieldName, LPropMap) then
     Exit;
 
@@ -3915,12 +4060,77 @@ procedure TEntityDataSet.AcceptChanges;
 begin
   if FTrackedChanges <> nil then
     FTrackedChanges.Clear;
+  if FDeletedItemsCache <> nil then
+    FDeletedItemsCache.Clear;
 end;
 
 procedure TEntityDataSet.RejectChanges;
+var
+  i: Integer;
+  j: Integer;
+  Change: TEntityChange;
+  Prop: TRttiProperty;
+  RttiType: TRttiType;
 begin
-  if FTrackedChanges <> nil then
-    FTrackedChanges.Clear;
+  if FTrackedChanges = nil then Exit;
+
+  // Process in reverse to maintain index correctness for insertions/deletions
+  for i := FTrackedChanges.Count - 1 downto 0 do
+  begin
+    Change := FTrackedChanges[i];
+    case Change.State of
+      ersInserted:
+        begin
+          if Change.Entity <> nil then
+          begin
+            if FItems <> nil then
+              RemoveFromItems(Change.Entity, False);
+            if FDataSetCreatedItems <> nil then
+            begin
+              FDataSetCreatedItems.Extract(Change.Entity);
+              Change.Entity.Free;
+            end;
+          end;
+        end;
+
+      ersDeleted:
+        begin
+          if (Change.Entity <> nil) and (FItems <> nil) and (Change.OriginalIndex >= 0) then
+          begin
+            if FDeletedItemsCache <> nil then
+              FDeletedItemsCache.Extract(Change.Entity);
+
+            if Change.OriginalIndex >= FItems.Count then
+              FItems.Add(Change.Entity)
+            else
+              FItems.Insert(Change.OriginalIndex, Change.Entity);
+          end;
+        end;
+
+      ersModified:
+        begin
+          if (Change.Entity <> nil) and (Change.OriginalValues <> nil) then
+          begin
+            RttiType := TReflection.Context.GetType(Change.Entity.ClassType);
+            if RttiType <> nil then
+            begin
+              for j := 0 to High(Change.OriginalValues) do
+              begin
+                Prop := RttiType.GetProperty(Change.OriginalValues[j].Key);
+                if Prop <> nil then
+                  Prop.SetValue(Change.Entity, TValue.FromVariant(Change.OriginalValues[j].Value));
+              end;
+            end;
+          end;
+        end;
+    end;
+  end;
+
+  FTrackedChanges.Clear;
+  if FDeletedItemsCache <> nil then
+    FDeletedItemsCache.Clear;
+  ApplyFilterAndSort;
+  Resync([]);
 end;
 
 procedure TEntityDataSet.ClearChanges;

@@ -37,14 +37,6 @@ uses
   Dext.Grpc.Tests in 'Dext.Grpc.Tests.pas';
 
 begin
-  // FastMM5: file-only output - never show message boxes in console/CI mode
-  FastMM_OutputDebugStringEvents :=
-    [mmetUnexpectedMemoryLeakDetail, mmetUnexpectedMemoryLeakSummary];
-  FastMM_LogToFileEvents :=
-    [mmetUnexpectedMemoryLeakDetail, mmetUnexpectedMemoryLeakSummary];
-  FastMM_MessageBoxEvents := [];
-  ReportMemoryLeaksOnShutdown := True;
-
   SetConsoleCharSet();
   try
     SafeWriteLn;

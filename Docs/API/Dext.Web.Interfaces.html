@@ -122,6 +122,7 @@
 <a href="Dext.Entity.Drivers.FireDAC.Phys.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Phys</a>
 <a href="Dext.Entity.Drivers.Interfaces.html" class="nav-item">Dext.Entity.Drivers.Interfaces</a>
 <a href="Dext.Entity.Grouping.html" class="nav-item">Dext.Entity.Grouping</a>
+<a href="Dext.Entity.GrpcProvider.html" class="nav-item">Dext.Entity.GrpcProvider</a>
 <a href="Dext.Entity.Joining.html" class="nav-item">Dext.Entity.Joining</a>
 <a href="Dext.Entity.LazyLoader.html" class="nav-item">Dext.Entity.LazyLoader</a>
 <a href="Dext.Entity.LazyLoading.html" class="nav-item">Dext.Entity.LazyLoading</a>
@@ -159,6 +160,8 @@
 <a href="Dext.Events.Testing.html" class="nav-item">Dext.Events.Testing</a>
 <a href="Dext.Filters.html" class="nav-item">Dext.Filters</a>
 <a href="Dext.Filters.BuiltIn.html" class="nav-item">Dext.Filters.BuiltIn</a>
+<a href="Dext.Grpc.Attributes.html" class="nav-item">Dext.Grpc.Attributes</a>
+<a href="Dext.Grpc.Codec.html" class="nav-item">Dext.Grpc.Codec</a>
 <a href="Dext.HealthChecks.html" class="nav-item">Dext.HealthChecks</a>
 <a href="Dext.Hosting.html" class="nav-item">Dext.Hosting</a>
 <a href="Dext.Hosting.ApplicationLifetime.html" class="nav-item">Dext.Hosting.ApplicationLifetime</a>
@@ -233,6 +236,7 @@
 <a href="Dext.RateLimiting.Policy.html" class="nav-item">Dext.RateLimiting.Policy</a>
 <a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
 <a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
+<a href="Dext.Serialization.Protobuf.html" class="nav-item">Dext.Serialization.Protobuf</a>
 <a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
 <a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
 <a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
@@ -309,10 +313,12 @@
 <a href="Dext.Web.DataApi.Resolver.html" class="nav-item">Dext.Web.DataApi.Resolver</a>
 <a href="Dext.Web.DataApi.Utils.html" class="nav-item">Dext.Web.DataApi.Utils</a>
 <a href="Dext.Web.DCS.html" class="nav-item">Dext.Web.DCS</a>
+<a href="Dext.Web.EntityDataSetApi.html" class="nav-item">Dext.Web.EntityDataSetApi</a>
 <a href="Dext.Web.Extensions.html" class="nav-item">Dext.Web.Extensions</a>
 <a href="Dext.Web.Formatters.Interfaces.html" class="nav-item">Dext.Web.Formatters.Interfaces</a>
 <a href="Dext.Web.Formatters.Json.html" class="nav-item">Dext.Web.Formatters.Json</a>
 <a href="Dext.Web.Formatters.Selector.html" class="nav-item">Dext.Web.Formatters.Selector</a>
+<a href="Dext.Web.Grpc.Server.html" class="nav-item">Dext.Web.Grpc.Server</a>
 <a href="Dext.Web.HandlerInvoker.html" class="nav-item">Dext.Web.HandlerInvoker</a>
 <a href="Dext.Web.Hubs.html" class="nav-item">Dext.Web.Hubs</a>
 <a href="Dext.Web.Hubs.Client.html" class="nav-item">Dext.Web.Hubs.Client</a>
@@ -497,6 +503,8 @@ class IHttpContext {    +GetConnection()
     +SetUser()
     +GetItems()
     +GetSession()
+    +GetEndpointMetadata()
+    +SetEndpointMetadata()
     +SetRouteParams()
     +Connection
     +Request
@@ -505,6 +513,7 @@ class IHttpContext {    +GetConnection()
     +User
     +Items
     +Session
+    +EndpointMetadata
 }
 class IMiddleware {    +Invoke()
 }
@@ -855,6 +864,10 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-item">
 <div class="api-signature">function GetSession: IStreamableSession</div></div>
 <div class="api-item">
+<div class="api-signature">function GetEndpointMetadata: TEndpointMetadata</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetEndpointMetadata(const const: TEndpointMetadata)</div></div>
+<div class="api-item">
 <div class="api-signature">procedure SetRouteParams(const const: TRouteValueDictionary)</div><div class="description">Injects the route parameters resolved by the router into the request.</div></div>
 <div class="api-item">
 <div class="api-signature">property Connection: </div><div class="description">Access to the underlying network connection.</div></div>
@@ -870,6 +883,8 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">property Items: </div><div class="description">Dictionary of useful items to share state between middlewares.</div></div>
 <div class="api-item">
 <div class="api-signature">property Session: </div><div class="description">Resolved streamable session (if enabled and matching Dext-Session-Id).</div></div>
+<div class="api-item">
+<div class="api-signature">property EndpointMetadata: </div></div>
 </div>
 <hr>
 <div class="class-header">

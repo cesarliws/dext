@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.DataSet.NewFeatures.Tests;
+unit Dext.Entity.DataSet.NewFeatures.Tests;
 
 interface
 
@@ -63,6 +63,8 @@ type
     procedure Test_SmallOrdinals_Serialization;
     [Test]
     procedure Test_ChangeLog_Tracking;
+    [Test]
+    procedure Test_RejectChanges_Rollback;
   end;
 
 implementation
@@ -244,6 +246,71 @@ begin
   // 5. AcceptChanges
   FDataSet.AcceptChanges;
   Should(FDataSet.Changes.Count).Be(0);
+end;
+
+procedure TEntityDataSetFeaturesTests.Test_RejectChanges_Rollback;
+var
+  List: IList<TProductFeaturesTest>;
+  Prod1: TProductFeaturesTest;
+  Prod2: TProductFeaturesTest;
+begin
+  List := TCollections.CreateList<TProductFeaturesTest>(True);
+  Prod1 := TProductFeaturesTest.Create;
+  Prod1.Id := 1;
+  Prod1.Name := 'Product 1';
+  Prod1.Stock := 10;
+  Prod1.Status := 1;
+  List.Add(Prod1);
+
+  Prod2 := TProductFeaturesTest.Create;
+  Prod2.Id := 2;
+  Prod2.Name := 'Product 2';
+  Prod2.Stock := 20;
+  Prod2.Status := 1;
+  List.Add(Prod2);
+
+  // Load dataset
+  FDataSet.Load<TProductFeaturesTest>(List);
+  FDataSet.Open;
+
+  // 1. Executa modificações locais
+  // A. Modificar existente (Prod1)
+  FDataSet.First;
+  FDataSet.Edit;
+  FDataSet.FieldByName('Name').AsString := 'Modified Name';
+  FDataSet.Post;
+
+  // B. Inserir novo registro
+  FDataSet.Append;
+  FDataSet.FieldByName('Id').AsInteger := 3;
+  FDataSet.FieldByName('Name').AsString := 'Inserted Product';
+  FDataSet.Post;
+
+  // C. Deletar existente (Prod2)
+  FDataSet.Locate('Id', 2, []);
+  FDataSet.Delete;
+
+  // Verifica estado intermediário antes do rollback
+  Should(FDataSet.RecordCount).Be(2); // Modificado + Inserido (Deletado sumiu)
+  Should(FDataSet.Changes.Count).Be(3); // Modificado, Inserido e Deletado
+
+  // 2. Executa o Rollback
+  FDataSet.RejectChanges;
+
+  // 3. Validações pós-rollback
+  Should(FDataSet.RecordCount).Be(2); // Deve voltar ao tamanho original (Prod1 + Prod2)
+  Should(FDataSet.Changes.Count).Be(0); // Lista de alterações deve estar vazia
+
+  // Deve achar Prod1 e seu valor original deve estar restaurado
+  FDataSet.Locate('Id', 1, []);
+  Should(FDataSet.FieldByName('Name').AsString).Be('Product 1');
+
+  // Deve achar Prod2 (que havia sido deletado e foi restaurado)
+  Should(FDataSet.Locate('Id', 2, [])).BeTrue;
+  Should(FDataSet.FieldByName('Name').AsString).Be('Product 2');
+
+  // Não deve achar o registro que foi inserido e descartado
+  Should(FDataSet.Locate('Id', 3, [])).BeFalse;
 end;
 
 end.
