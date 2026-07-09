@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -66,6 +66,8 @@ type
     NativeKind: TDextNativeKind;
     TypeInfo: PTypeInfo;
     ElementType: PTypeInfo;
+    ElementNativeKind: TDextNativeKind;
+    ListOwnsObjects: Boolean;
     WireType: Byte;
     Offset: NativeInt;
     ValueOffset: NativeInt;
@@ -108,6 +110,8 @@ type
     class function ProtobufWireType(AKind: TDextNativeKind): Byte; static;
     /// <summary>Indicates whether a native kind can be accessed directly by offset.</summary>
     class function IsDirectKind(AKind: TDextNativeKind): Boolean; static;
+    /// <summary>Indicates whether a native kind is a direct reference container.</summary>
+    class function IsDirectReferenceKind(AKind: TDextNativeKind): Boolean; static;
     /// <summary>Clears the cached codec plans.</summary>
     class procedure ClearCache; static;
   end;
@@ -201,6 +205,12 @@ begin
     nkDateTime,
     nkString
   ];
+end;
+
+
+class function TDextTypeModel.IsDirectReferenceKind(AKind: TDextNativeKind): Boolean;
+begin
+  Result := AKind in [nkObject, nkList];
 end;
 
 class function TDextTypeModel.NativeKindOf(AType: PTypeInfo): TDextNativeKind;
@@ -324,10 +334,18 @@ begin
       Plan.IsObject := Prop.PropertyType.TypeKind in [tkClass, tkInterface];
       Plan.IsList := TReflection.IsListType(Plan.TypeInfo);
       if Plan.IsList and Assigned(TReflection.GetListElementType(Plan.TypeInfo)) then
+      begin
         Plan.ElementType := TReflection.GetListElementType(Plan.TypeInfo);
+        Plan.ElementNativeKind := TDextTypeModel.NativeKindOf(Plan.ElementType);
+        Plan.ListOwnsObjects := (Plan.ElementNativeKind = nkObject) and
+          (Plan.ElementType.Kind = tkClass);
+      end;
 
       Field := FindBackingField(RttiType, Prop);
-      if (Field <> nil) and TDextTypeModel.IsDirectKind(Plan.NativeKind) then
+      if (Field <> nil) and
+         ((TDextTypeModel.IsDirectKind(Plan.NativeKind)) or
+          ((Plan.NativeKind = nkObject) and (Plan.TypeInfo <> nil) and (Plan.TypeInfo.Kind = tkClass)) or
+          ((Plan.NativeKind = nkList) and (Plan.TypeInfo <> nil) and (Plan.TypeInfo.Kind in [tkClass, tkInterface]))) then
       begin
         Plan.Offset := Field.Offset;
         Plan.AccessMode := amDirectField;
@@ -343,8 +361,15 @@ begin
       Plan.IsObject := Field.FieldType.TypeKind in [tkClass, tkInterface];
       Plan.IsList := TReflection.IsListType(Plan.TypeInfo);
       if Plan.IsList then
+      begin
         Plan.ElementType := TReflection.GetListElementType(Plan.TypeInfo);
-      if TDextTypeModel.IsDirectKind(Plan.NativeKind) then
+        Plan.ElementNativeKind := TDextTypeModel.NativeKindOf(Plan.ElementType);
+        Plan.ListOwnsObjects := (Plan.ElementNativeKind = nkObject) and
+          (Plan.ElementType.Kind = tkClass);
+      end;
+      if (TDextTypeModel.IsDirectKind(Plan.NativeKind)) or
+         ((Plan.NativeKind = nkObject) and (Plan.TypeInfo <> nil) and (Plan.TypeInfo.Kind = tkClass)) or
+         ((Plan.NativeKind = nkList) and (Plan.TypeInfo <> nil) and (Plan.TypeInfo.Kind in [tkClass, tkInterface])) then
       begin
         Plan.Offset := Field.Offset;
         Plan.AccessMode := amDirectField;
@@ -449,5 +474,4 @@ begin
 end;
 
 end.
-
 

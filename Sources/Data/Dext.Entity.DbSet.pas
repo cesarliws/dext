@@ -897,7 +897,7 @@ begin
       Item.UseDirect := False;
       if (PropMap <> nil) and (Converter = nil) and (PropMap.FieldValueOffset > 0) and
          (PropMap.FieldOffset < 0) and (not PropMap.IsLazy) and
-         (PropMap.NativeKind in [nkInt32, nkInt64, nkBoolean, nkSingle, nkDouble, nkDateTime, nkString]) then
+         (TDextTypeModel.IsDirectKind(PropMap.NativeKind)) then
       begin
         Item.DirectOffset := PropMap.FieldValueOffset;
         Item.DirectKind := PropMap.NativeKind;

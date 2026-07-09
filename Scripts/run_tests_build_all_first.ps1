@@ -1,4 +1,4 @@
-# Dext Tests Automated Runner
+﻿# Dext Tests Automated Runner
 # This script robustly discovers, builds, and verifies all unit tests.
 
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -50,7 +50,7 @@ foreach ($proj in $TestProjects) {
         $buildText = $buildOutput -join [Environment]::NewLine
         if ($buildText -match 'because it is being used by another process') {
             Write-Host '  [RETRY] Temporary file lock detected, retrying once...' -ForegroundColor Yellow
-            Start-Sleep -Seconds 1
+            Start-Sleep -Seconds 3
             $buildOutput = & msbuild @MSBuildArgs 2>&1
         }
     }

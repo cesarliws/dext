@@ -1,4 +1,4 @@
-# set_env.ps1 - Common environment setup for Dext Framework Build Scripts
+﻿# set_env.ps1 - Common environment setup for Dext Framework Build Scripts
 # Replaces set_env.bat with a native PowerShell implementation.
 #
 # USAGE:
@@ -106,6 +106,13 @@ elseif ($env:DEXT_PROJECT_TYPE -eq "Tests") { $ProjOutput = "Tests\Output" }
 
 $env:OUTPUT_PATH = Join-Path $env:DEXT "$ProjOutput\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
 
+# 7. Build Temp Isolation
+$BuildTempPath = Join-Path $env:DEXT "Temp\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
+if (-not (Test-Path $BuildTempPath)) {
+    New-Item -ItemType Directory -Path $BuildTempPath -Force | Out-Null
+}
+$env:TEMP = $BuildTempPath
+$env:TMP = $BuildTempPath
 # 7. Context-Aware Search Paths
 $FrameDCU = Join-Path $env:DEXT "Output\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
 $FrameBin = Join-Path $env:DEXT "Output\Bin\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"

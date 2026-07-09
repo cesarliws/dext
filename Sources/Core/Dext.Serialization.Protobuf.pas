@@ -10,14 +10,16 @@ unit Dext.Serialization.Protobuf;
 interface
 
 uses
-  System.SysUtils,
   System.Classes,
   System.Rtti,
-  System.TypInfo,
   System.SyncObjs,
-  Dext.Collections.Dict,
-  Dext.Collections,
+  System.SysUtils,
+  System.TypInfo,
   Dext.Codecs.Registry,
+  Dext.Collections,
+  Dext.Collections.Base,
+  Dext.Collections.Dict,
+  Dext.Core.Activator,
   Dext.Core.DirectAccess,
   Dext.Core.Reflection,
   Dext.Core.TypeModel,
@@ -766,6 +768,12 @@ var
   VarintVal: UInt64;
   Len: UInt64;
   Bytes: TBytes;
+  NestedObj: TObject;
+  ListObj: TObject;
+  ListIntf: IInterface;
+  ObjList: IObjectList;
+  Collection: ICollection;
+  ItemObj: TObject;
   S: string;
   D: Double;
   F: Single;
@@ -817,6 +825,72 @@ begin
         else
           S := '';
         TDextDirectAccess.WriteString(Obj, Field.Offset, S);
+        Result := True;
+      end;
+    nkObject:
+      begin
+        Len := ReadVarint(Stream);
+        if Len > 0 then
+        begin
+          SetLength(Bytes, Len);
+          Stream.Read(Bytes[0], Len);
+        end;
+        NestedObj := TDextDirectAccess.ReadObject(Obj, Field.Offset);
+        if NestedObj = nil then
+        begin
+          NestedObj := TActivator.CreateInstance(nil, Field.TypeInfo).AsObject;
+          TDextDirectAccess.WriteObject(Obj, Field.Offset, NestedObj);
+        end;
+        if (NestedObj <> nil) and (Len > 0) then
+          Deserialize(Bytes, NestedObj);
+        Result := True;
+      end;
+    nkList:
+      begin
+        Len := ReadVarint(Stream);
+        if Len > 0 then
+        begin
+          SetLength(Bytes, Len);
+          Stream.Read(Bytes[0], Len);
+        end;
+
+        ObjList := nil;
+        if Field.TypeInfo <> nil then
+        begin
+          if Field.TypeInfo.Kind = tkClass then
+          begin
+            ListObj := TDextDirectAccess.ReadObject(Obj, Field.Offset);
+            if ListObj = nil then
+            begin
+              ListObj := TActivator.CreateInstance(nil, Field.TypeInfo).AsObject;
+              if Supports(ListObj, ICollection, Collection) then
+                Collection.OwnsObjects := Field.ListOwnsObjects;
+              TDextDirectAccess.WriteObject(Obj, Field.Offset, ListObj);
+            end;
+            Supports(ListObj, IObjectList, ObjList);
+          end
+          else if Field.TypeInfo.Kind = tkInterface then
+          begin
+            ListIntf := TDextDirectAccess.ReadInterface(Obj, Field.Offset);
+            if ListIntf = nil then
+            begin
+              ListIntf := TActivator.CreateInstance(nil, Field.TypeInfo).AsInterface;
+              if Supports(ListIntf, ICollection, Collection) then
+                Collection.OwnsObjects := Field.ListOwnsObjects;
+              TDextDirectAccess.WriteInterface(Obj, Field.Offset, ListIntf);
+            end;
+            Supports(ListIntf, IObjectList, ObjList);
+          end;
+        end;
+
+        if Assigned(ObjList) and (Field.ElementType <> nil) and
+           (Field.ElementType.Kind = tkClass) then
+        begin
+          ItemObj := TActivator.CreateInstance(nil, Field.ElementType).AsObject;
+          if Len > 0 then
+            Deserialize(Bytes, ItemObj);
+          ObjList.Add(ItemObj);
+        end;
         Result := True;
       end;
   end;
@@ -1053,3 +1127,7 @@ begin
 end;
 
 end.
+
+
+
+

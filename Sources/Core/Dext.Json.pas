@@ -257,6 +257,12 @@ type
     IsListType: Boolean;
     /// <summary>PTypeInfo of the property value type (after SmartProp unwrap).</summary>
     ValueTypeInfo: PTypeInfo;
+    /// <summary>PTypeInfo of the list element type when the property is a list.</summary>
+    ElementTypeInfo: PTypeInfo;
+    /// <summary>Shared native kind for the list element when available.</summary>
+    ElementNativeKind: TDextNativeKind;
+    /// <summary>Indicates whether a list field owns its objects.</summary>
+    ListOwnsObjects: Boolean;
     /// <summary>Physical field offset for direct scalar serialization when safe.</summary>
     DirectOffset: NativeInt;
     /// <summary>Native scalar kind associated with DirectOffset.</summary>
@@ -327,7 +333,8 @@ type
     function ValueToJson(const AValue: TValue): IDextJsonObject;
 
     function DeserializeArray(AJson: IDextJsonArray; AType: PTypeInfo): TValue;
-    function DeserializeList(AJson: IDextJsonArray; AType: PTypeInfo): TValue;
+    function DeserializeList(AJson: IDextJsonArray; AType: PTypeInfo): TValue; overload;
+    function DeserializeList(AJson: IDextJsonArray; AType: PTypeInfo; const AExisting: TValue): TValue; overload;
     function SerializeArray(const AValue: TValue): IDextJsonArray;
     function SerializeList(const AValue: TValue): IDextJsonArray;
 
@@ -861,6 +868,9 @@ begin
     Item.Handler := TReflection.GetHandler(AType, Prop.Name);
     Item.DirectOffset := -1;
     Item.DirectKind := nkUnknown;
+    Item.ElementTypeInfo := nil;
+    Item.ElementNativeKind := nkUnknown;
+    Item.ListOwnsObjects := False;
     Item.UseDirect := False;
 
     for TypeField in TypeFields do
@@ -868,7 +878,8 @@ begin
       if SameText(TypeField.Name, Prop.Name) and
          (TypeField.AccessMode = amDirectField) and
          (TypeField.Offset >= 0) and
-         (TypeField.NativeKind in [nkInt32, nkInt64, nkBoolean, nkSingle, nkDouble, nkDateTime, nkString]) then
+         (TDextTypeModel.IsDirectKind(TypeField.NativeKind) or
+          TDextTypeModel.IsDirectReferenceKind(TypeField.NativeKind)) then
       begin
         Item.DirectOffset := TypeField.Offset;
         Item.DirectKind := TypeField.NativeKind;
@@ -908,6 +919,13 @@ begin
     // Check if it's a list type
     Item.IsListType := (LTypeKind in [tkClass, tkInterface]) and (LTypeInfo <> nil) and
                         IsListType(LTypeInfo);
+    if Item.IsListType then
+    begin
+      Item.ElementTypeInfo := GetListElementType(LTypeInfo);
+      Item.ElementNativeKind := TDextTypeModel.NativeKindOf(Item.ElementTypeInfo);
+      Item.ListOwnsObjects := (Item.ElementNativeKind = nkObject) and
+        (Item.ElementTypeInfo <> nil) and (Item.ElementTypeInfo.Kind = tkClass);
+    end;
 
     // Classify serialization kind
     case LTypeKind of
@@ -1218,6 +1236,8 @@ var
   Item: PSerializationPlanItem;
   PropValue: TValue;
   Unwrapped: TValue;
+  NestedObj: TObject;
+  NestedIntf: IInterface;
 begin
   Result := TDextJson.Provider.CreateObject;
   if Obj = nil then Exit;
@@ -1244,10 +1264,49 @@ begin
             TDextDirectAccess.ReadDouble(Obj, Item^.DirectOffset)));
         nkString:
           Result.SetString(Item^.JsonName, TDextDirectAccess.ReadString(Obj, Item^.DirectOffset));
+        nkObject:
+          begin
+            if (Item^.ValueTypeInfo <> nil) and (Item^.ValueTypeInfo.Kind = tkClass) then
+            begin
+              NestedObj := TDextDirectAccess.ReadObject(Obj, Item^.DirectOffset);
+              if NestedObj = nil then
+                Result.SetNull(Item^.JsonName)
+              else
+                Result.SetObject(Item^.JsonName, SerializeObject(TValue.From<TObject>(NestedObj)));
+            end
+            else
+              Result.SetNull(Item^.JsonName);
+          end;
+        nkList:
+          begin
+            if (Item^.ValueTypeInfo <> nil) and (Item^.ValueTypeInfo.Kind = tkClass) then
+            begin
+              NestedObj := TDextDirectAccess.ReadObject(Obj, Item^.DirectOffset);
+              if NestedObj = nil then
+                Result.SetNull(Item^.JsonName)
+              else
+              begin
+                TValue.Make(@NestedObj, NestedObj.ClassInfo, PropValue);
+                Result.SetArray(Item^.JsonName, SerializeList(PropValue));
+              end;
+            end
+            else if (Item^.ValueTypeInfo <> nil) and (Item^.ValueTypeInfo.Kind = tkInterface) then
+            begin
+              NestedIntf := TDextDirectAccess.ReadInterface(Obj, Item^.DirectOffset);
+              if NestedIntf = nil then
+                Result.SetNull(Item^.JsonName)
+              else
+              begin
+                TValue.Make(@NestedIntf, Item^.ValueTypeInfo, PropValue);
+                Result.SetArray(Item^.JsonName, SerializeList(PropValue));
+              end;
+            end
+            else
+              Result.SetNull(Item^.JsonName);
+          end;
       end;
       Continue;
     end;
-
     // Get property value (handler is faster than RTTI GetProperty)
     if Item^.Handler <> nil then
       PropValue := (Item^.Handler as IPropertyHandler).GetValue(Pointer(Obj))
@@ -1367,6 +1426,7 @@ var
   Val: TValue;
   ExistingPropVal: TValue;
   ExistingObj: TObject;
+  ExistingIntf: IInterface;
   TypePlan: IDextTypeCodecPlan;
   TypeFields: TArray<TDextFieldPlan>;
   TypeField: TDextFieldPlan;
@@ -1440,6 +1500,8 @@ begin
       Node := AJson.GetNode(ActualPropName);
       if Node <> nil then
       begin
+        ExistingPropVal := TValue.Empty;
+        ExistingIntf := nil;
         DirectFound := False;
         DirectField := Default(TDextFieldPlan);
         for TypeField in TypeFields do
@@ -1447,7 +1509,8 @@ begin
           if SameText(TypeField.Name, Prop.Name) and
              (TypeField.AccessMode = amDirectField) and
              (TypeField.Offset >= 0) and
-             (TypeField.NativeKind in [nkInt32, nkInt64, nkBoolean, nkSingle, nkDouble, nkDateTime, nkString]) then
+             (TDextTypeModel.IsDirectKind(TypeField.NativeKind) or
+              TDextTypeModel.IsDirectReferenceKind(TypeField.NativeKind)) then
           begin
             DirectField := TypeField;
             DirectFound := True;
@@ -1503,6 +1566,54 @@ begin
               if Node.GetNodeType = jntString then
               begin
                 TDextDirectAccess.WriteString(Instance, DirectField.Offset, Node.AsString);
+                Continue;
+              end;
+            nkObject:
+              if (Node.GetNodeType = jntObject) and (DirectField.TypeInfo <> nil) and
+                 (DirectField.TypeInfo.Kind = tkClass) then
+              begin
+                ExistingObj := TDextDirectAccess.ReadObject(Instance, DirectField.Offset);
+                if ExistingObj <> nil then
+                begin
+                  DeserializeObject(Node as IDextJsonObject, ExistingObj.ClassInfo, ExistingObj);
+                end
+                else
+                begin
+                  Val := DeserializeObject(Node as IDextJsonObject, DirectField.TypeInfo);
+                  if not Val.IsEmpty and (Val.Kind = tkClass) and (Val.AsObject <> nil) then
+                    TDextDirectAccess.WriteObject(Instance, DirectField.Offset, Val.AsObject);
+                end;
+                Continue;
+              end;
+            nkList:
+              if (Node.GetNodeType = jntArray) and (DirectField.TypeInfo <> nil) then
+              begin
+                ExistingPropVal := TValue.Empty;
+                if DirectField.TypeInfo.Kind = tkClass then
+                begin
+                  ExistingObj := TDextDirectAccess.ReadObject(Instance, DirectField.Offset);
+                  if ExistingObj <> nil then
+                    ExistingPropVal := TValue.From<TObject>(ExistingObj);
+                end
+                else if DirectField.TypeInfo.Kind = tkInterface then
+                begin
+                  ExistingIntf := TDextDirectAccess.ReadInterface(Instance, DirectField.Offset);
+                  if ExistingIntf <> nil then
+                    ExistingPropVal := TValue.From<IInterface>(ExistingIntf);
+                end;
+
+                if ExistingPropVal.IsEmpty then
+                  Val := DeserializeList(Node as IDextJsonArray, DirectField.TypeInfo)
+                else
+                  Val := DeserializeList(Node as IDextJsonArray, DirectField.TypeInfo, ExistingPropVal);
+
+                if ExistingPropVal.IsEmpty then
+                begin
+                  if not Val.IsEmpty and (Val.Kind = tkClass) and (Val.AsObject <> nil) then
+                    TDextDirectAccess.WriteObject(Instance, DirectField.Offset, Val.AsObject)
+                  else if not Val.IsEmpty and (Val.Kind = tkInterface) and (Val.AsInterface <> nil) then
+                    TDextDirectAccess.WriteInterface(Instance, DirectField.Offset, Val.AsInterface);
+                end;
                 Continue;
               end;
           end;
@@ -1574,7 +1685,13 @@ begin
               if IsArrayType(Prop.PropertyType.Handle) then
                 Val := DeserializeArray(Node as IDextJsonArray, Prop.PropertyType.Handle)
               else if IsListType(Prop.PropertyType.Handle) then
-                Val := DeserializeList(Node as IDextJsonArray, Prop.PropertyType.Handle)
+              begin
+                ExistingPropVal := Prop.GetValue(Instance);
+                if ExistingPropVal.IsEmpty then
+                  Val := DeserializeList(Node as IDextJsonArray, Prop.PropertyType.Handle)
+                else
+                  Val := DeserializeList(Node as IDextJsonArray, Prop.PropertyType.Handle, ExistingPropVal);
+              end
               else
                 Val := TValue.Empty;
             end;
@@ -2319,6 +2436,7 @@ begin
     end;
 
     TValue.Make(@DynArray, AType, Result);
+    DynArrayClear(DynArray, AType);
     DynArray := nil;
   except
     if DynArray <> nil then
@@ -2328,6 +2446,11 @@ begin
 end;
 
 function TDextSerializer.DeserializeList(AJson: IDextJsonArray; AType: PTypeInfo): TValue;
+begin
+  Result := DeserializeList(AJson, AType, TValue.Empty);
+end;
+
+function TDextSerializer.DeserializeList(AJson: IDextJsonArray; AType: PTypeInfo; const AExisting: TValue): TValue;
 var
   ActualRttiType: TRttiType;
   AddMethod: TRttiMethod;
@@ -2337,52 +2460,44 @@ var
   I: Integer;
   InstObj: TObject;
   Intf: TRttiInterfaceType;
-  Obj: TObject;
   Method: TRttiMethod;
+  Obj: TObject;
   Node: IDextJsonNode;
   OwnsProp: TRttiProperty;
+  ClearMethod: TRttiMethod;
   RttiType: TRttiType;
   StrictValue: TValue;
   TargetInst: TValue;
 begin
-  // TODO : Refactory and optimize
   try
     ElementType := GetListElementType(AType);
     if ElementType = nil then
       raise EDextJsonException.CreateFmt('Could not determine element type for %s', [AType.NameFld.ToString]);
 
-    // Instantiate via Activator (Handles DI, Fallbacks and Factory)
-    Result := CreateInstanceForDeserialization(AType);
+    if AExisting.IsEmpty then
+      Result := CreateInstanceForDeserialization(AType)
+    else
+      Result := AExisting;
 
     RttiType := TReflection.GetMetadata(AType).RttiType;
 
-    // Ensure the list owns its objects if they are classes
-    if (ElementType.Kind = tkClass) then
+    if ElementType.Kind = tkClass then
     begin
-       if Result.Kind = tkInterface then
-       begin
-         if Supports(Result.AsInterface, ICollection, Collection) then
-           Collection.OwnsObjects := True;
-       end
-       else if Result.Kind = tkClass then
-       begin
-         // Try fetching via RTTI directly to avoid reference counting premature destruction
-         OwnsProp := RttiType.GetProperty('OwnsObjects');
-         if (OwnsProp <> nil) and (OwnsProp.PropertyType.Handle = TypeInfo(Boolean)) then
-           OwnsProp.SetValue(Result.AsObject, True);
-       end;
+      if Result.Kind = tkInterface then
+      begin
+        if Supports(Result.AsInterface, ICollection, Collection) then
+          Collection.OwnsObjects := True;
+      end
+      else if Result.Kind = tkClass then
+      begin
+        OwnsProp := RttiType.GetProperty('OwnsObjects');
+        if (OwnsProp <> nil) and (OwnsProp.PropertyType.Handle = TypeInfo(Boolean)) then
+          OwnsProp.SetValue(Result.AsObject, True);
+      end;
     end;
 
     InstObj := nil;
-    if Result.Kind = tkInterface then
-    begin
-      try
-        InstObj := Result.AsInterface as TObject;
-      except
-        InstObj := nil;
-      end;
-    end
-    else if Result.Kind = tkClass then
+    if Result.Kind = tkClass then
       InstObj := Result.AsObject;
 
     if Assigned(InstObj) then
@@ -2391,8 +2506,36 @@ begin
       ActualRttiType := RttiType;
 
     AddMethod := nil;
+    ClearMethod := nil;
 
-    // First try concrete instance type
+    if not AExisting.IsEmpty then
+    begin
+      if ActualRttiType is TRttiInstanceType then
+        ClearMethod := ActualRttiType.GetMethod('Clear')
+      else if RttiType is TRttiInterfaceType then
+      begin
+        Intf := TRttiInterfaceType(RttiType);
+        while (Intf <> nil) and (ClearMethod = nil) do
+        begin
+          for Method in Intf.GetMethods do
+            if (Method.Name = 'Clear') and (Length(Method.GetParameters) = 0) then
+            begin
+              ClearMethod := Method;
+              Break;
+            end;
+          if ClearMethod <> nil then
+            Break;
+          if Intf.BaseType is TRttiInterfaceType then
+            Intf := TRttiInterfaceType(Intf.BaseType)
+          else
+            Intf := nil;
+        end;
+      end;
+
+      if ClearMethod <> nil then
+        ClearMethod.Invoke(Result, []);
+    end;
+
     if ActualRttiType is TRttiInstanceType then
     begin
       for Method in ActualRttiType.GetMethods do
@@ -2403,7 +2546,6 @@ begin
         end;
     end;
 
-    // Fallback to interface hierarchy
     if not Assigned(AddMethod) and (RttiType is TRttiInterfaceType) then
     begin
       Intf := TRttiInterfaceType(RttiType);
@@ -2415,7 +2557,8 @@ begin
             AddMethod := Method;
             Break;
           end;
-        if Assigned(AddMethod) then Break;
+        if Assigned(AddMethod) then
+          Break;
         if Intf.BaseType is TRttiInterfaceType then
           Intf := TRttiInterfaceType(Intf.BaseType)
         else
@@ -2426,67 +2569,75 @@ begin
     if not Assigned(AddMethod) then
       raise EDextJsonException.CreateFmt('Could not find Add method for list type %s', [AType.NameFld.ToString]);
 
-    try
-      for I := 0 to AJson.GetCount - 1 do
+    for I := 0 to AJson.GetCount - 1 do
+    begin
+      Node := AJson.GetNode(I);
+      if (Node <> nil) and (Node.GetNodeType = jntObject) then
       begin
-        Node := AJson.GetNode(I);
-        if (Node <> nil) and (Node.GetNodeType = jntObject) then
-        begin
-          if (ElementType.Kind = tkClass) or (ElementType.Kind = tkInterface) then
-            ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
-          else
-            ElementValue := DeserializeRecord(Node as IDextJsonObject, ElementType);
-        end
+        if (ElementType.Kind = tkClass) or (ElementType.Kind = tkInterface) then
+          ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
         else
-        begin
-          case ElementType.Kind of
-            tkInteger: ElementValue := TValue.From<Integer>(AJson.GetInteger(I));
-            tkInt64: ElementValue := TValue.From<Int64>(AJson.GetInt64(I));
-            tkFloat: ElementValue := TValue.From<Double>(AJson.GetDouble(I));
-            tkString, tkLString, tkWString, tkUString:
-              ElementValue := TValue.From<string>(AJson.GetString(I));
-            tkEnumeration:
-              if ElementType = TypeInfo(Boolean) then
-                ElementValue := TValue.From<Boolean>(AJson.GetBoolean(I))
-              else
-                ElementValue := TValue.Empty;
-            tkRecord:
-              if ElementType = TypeInfo(TGUID) then
-                ElementValue := TValue.From<TGUID>(StringToGUID(AJson.GetString(I)))
-              else if ElementType = TypeInfo(TUUID) then
-                ElementValue := TValue.From<TUUID>(TUUID.FromString(AJson.GetString(I)))
-              else
-                ElementValue := TValue.Empty;
-            tkDynArray:
-              begin
-                if (Node <> nil) and (Node.GetNodeType = jntArray) then
-                   ElementValue := DeserializeArray(Node as IDextJsonArray, ElementType)
-                else
-                   ElementValue := TValue.Empty;
-              end;
+          ElementValue := DeserializeRecord(Node as IDextJsonObject, ElementType);
+      end
+      else
+      begin
+        case ElementType.Kind of
+          tkInteger: ElementValue := TValue.From<Integer>(AJson.GetInteger(I));
+          tkInt64: ElementValue := TValue.From<Int64>(AJson.GetInt64(I));
+          tkFloat:
+            if ElementType = TypeInfo(TDateTime) then
+              ElementValue := TValue.From<TDateTime>(ISO8601ToDate(AJson.GetString(I)))
+            else
+              ElementValue := TValue.From<Double>(AJson.GetDouble(I));
+          tkString, tkLString, tkWString, tkUString:
+            ElementValue := TValue.From<string>(AJson.GetString(I));
+          tkEnumeration:
+            if ElementType = TypeInfo(Boolean) then
+              ElementValue := TValue.From<Boolean>(AJson.GetBoolean(I))
+            else
+              ElementValue := TValue.FromOrdinal(ElementType, GetEnumValue(ElementType, AJson.GetString(I)));
+          tkRecord:
+            if ElementType = TypeInfo(TGUID) then
+              ElementValue := TValue.From<TGUID>(StringToGUID(AJson.GetString(I)))
+            else if ElementType = TypeInfo(TUUID) then
+              ElementValue := TValue.From<TUUID>(TUUID.FromString(AJson.GetString(I)))
             else
               ElementValue := TValue.Empty;
-          end;
-        end;
-
-        if not ElementValue.IsEmpty then
-        begin
-          if Assigned(InstObj) and (AddMethod.Parent.IsInstance) then
-            TargetInst := InstObj
-          else
-            TargetInst := Result;
-
-          StrictValue := ElementValue;
-          if (ElementType.Kind = tkClass) and (StrictValue.AsObject <> nil) then
-          begin
-            Obj := StrictValue.AsObject;
-            TValue.Make(@Obj, ElementType, StrictValue);
-          end;
-
-          AddMethod.Invoke(TargetInst, [StrictValue]);
+          tkClass:
+            begin
+              if (Node <> nil) and (Node.GetNodeType = jntObject) then
+                ElementValue := DeserializeObject(Node as IDextJsonObject, ElementType)
+              else
+                ElementValue := TValue.Empty;
+            end;
+          tkDynArray:
+            begin
+              if (Node <> nil) and (Node.GetNodeType = jntArray) then
+                ElementValue := DeserializeArray(Node as IDextJsonArray, ElementType)
+              else
+                ElementValue := TValue.Empty;
+            end;
+        else
+          ElementValue := TValue.Empty;
         end;
       end;
-    finally
+
+      if not ElementValue.IsEmpty then
+      begin
+        if Assigned(InstObj) and (AddMethod.Parent.IsInstance) then
+          TargetInst := InstObj
+        else
+          TargetInst := Result;
+
+        StrictValue := ElementValue;
+        if (ElementType.Kind = tkClass) and (StrictValue.AsObject <> nil) then
+        begin
+          Obj := StrictValue.AsObject;
+          TValue.Make(@Obj, ElementType, StrictValue);
+        end;
+
+        AddMethod.Invoke(TargetInst, [StrictValue]);
+      end;
     end;
 
     Exit(Result);
@@ -2632,6 +2783,7 @@ begin
   end;
 end;
 
+
 function TDextSerializer.SerializeArray(const AValue: TValue): IDextJsonArray;
 var
   ElementType: PTypeInfo;
@@ -2685,6 +2837,7 @@ begin
     end;
   end;
 end;
+
 
 function TDextSerializer.SerializeList(const AValue: TValue): IDextJsonArray;
 var
@@ -2989,4 +3142,3 @@ finalization
   TDextJson.FInterfaceMappings := nil;
 
 end.
-

@@ -1,4 +1,4 @@
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{D1BC7A10-19F2-4394-A84F-3C1413871ADF}</ProjectGuid>
         <MainSource>Dext.Core.UnitTests.dpr</MainSource>
@@ -150,6 +150,9 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="..\..\..\Sources\Hosting\CLI\Dext.Hosting.CLI.Args.pas"/>
+        <DCCReference Include="..\..\..\Apps\CLI\Commands\Dext.Hosting.CLI.Commands.Codecs.pas"/>
+        <DCCReference Include="Dext.Codecs.S54.Tests.pas"/>
         <DCCReference Include="Dext.Json.Refactored.Tests.pas"/>
         <DCCReference Include="Dext.Configuration.Features.Tests.pas"/>
         <DCCReference Include="Dext.Configuration.Hashing.Tests.pas"/>
@@ -1087,8 +1090,3 @@
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
 </Project>
-
-
-
-
-

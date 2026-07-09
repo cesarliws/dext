@@ -28,9 +28,13 @@ uses
   System.Rtti,
   System.SysUtils,
   Dext.Collections,
+  Dext.Core.Activator,
   Dext.Core.DirectAccess,
   Dext.Core.TypeModel,
   Dext.Core.ValueConverters,
+  Dext.Entity.Dialects,
+  Dext.Entity.TypeConverters,
+  Dext.Serialization.Protobuf,
   Dext.Grpc.Attributes,
   Dext.Hosting.CLI.Args,
   Dext.Hosting.CLI.Commands.Codecs,
@@ -69,8 +73,23 @@ type
     FValues: IList<Integer>;
   public
     constructor Create;
+    destructor Destroy; override;
     [ProtoMember(1)]
     property Values: IList<Integer> read FValues write FValues;
+  end;
+
+  [GrpcMessage]
+  TCodecNestedRoot = class
+  private
+    FChild: TCodecChild;
+    FItems: IList<TCodecChild>;
+  public
+    constructor Create;
+    destructor Destroy; override;
+    [ProtoMember(1)]
+    property Child: TCodecChild read FChild write FChild;
+    [ProtoMember(2)]
+    property Items: IList<TCodecChild> read FItems write FItems;
   end;
 
   TDirectTarget = class
@@ -108,7 +127,11 @@ type
     [Test]
     procedure ShouldGenerateProtoAndStaticCodecsForNestedLists;
     [Test]
+    procedure ShouldSerializeAndDeserializeNestedObjectWithDirectCodec;
+    [Test]
     procedure ShouldGenerateGrpcInvokersForServices;
+    [Test]
+    procedure ShouldRoundtripNestedJsonColumnThroughConverter;
   end;
 
 implementation
@@ -121,6 +144,7 @@ end;
 
 destructor TCodecRoot.Destroy;
 begin
+  FItems := nil;
   inherited;
 end;
 
@@ -128,6 +152,26 @@ constructor TCodecScalarListRoot.Create;
 begin
   inherited Create;
   FValues := TCollections.CreateList<Integer>;
+end;
+
+destructor TCodecScalarListRoot.Destroy;
+begin
+  FValues := nil;
+  inherited;
+end;
+
+constructor TCodecNestedRoot.Create;
+begin
+  inherited Create;
+  FChild := TCodecChild.Create;
+  FItems := TCollections.CreateList<TCodecChild>(True);
+end;
+
+destructor TCodecNestedRoot.Destroy;
+begin
+  FChild.Free;
+  FItems := nil;
+  inherited;
 end;
 
 procedure TTypeModelTests.ShouldBuildPlansForDirectAndListFields;
@@ -239,8 +283,10 @@ begin
     '    function DummyCall(const ARequest: TGrpcRequest): TGrpcRequest;' + sLineBreak +
     '  end;' + sLineBreak + sLineBreak +
     'implementation' + sLineBreak + sLineBreak +
+    'initialization' + sLineBreak + sLineBreak +
+    '  TActivator.RegisterDefault<IList<TCodecChild>, TList<TCodecChild>>;' + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Integer>, TList<Integer>>;' + sLineBreak + sLineBreak +
     'end.';
-
   TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
 
   Lines := TStringList.Create;
@@ -266,6 +312,62 @@ begin
     Lines.Free;
   end;
 end;
+procedure TCodecsCommandTests.ShouldSerializeAndDeserializeNestedObjectWithDirectCodec;
+var
+  Source: TCodecChild;
+  Target: TCodecChild;
+  Bytes: TBytes;
+begin
+  Source := TCodecChild.Create;
+  Target := TCodecChild.Create;
+  try
+    Source.Name := 'Nested';
+
+    Bytes := TProtobufSerializer.Serialize(Source, pcmDirect);
+    TProtobufSerializer.Deserialize(Bytes, Target, pcmDirect);
+
+    Should(Target.Name).Be('Nested');
+  finally
+    Target.Free;
+    Source.Free;
+  end;
+end;
+
+procedure TCodecsCommandTests.ShouldRoundtripNestedJsonColumnThroughConverter;
+var
+  Converter: TJsonConverter;
+  JsonValue: TValue;
+  Root: TCodecNestedRoot;
+  Target: TCodecNestedRoot;
+  Deserialized: TValue;
+begin
+  Converter := TJsonConverter.Create(True);
+  Root := TCodecNestedRoot.Create;
+  Target := nil;
+  try
+    Root.Child.Name := 'Nested';
+    Root.Items.Add(TCodecChild.Create);
+    Root.Items[0].Name := 'Item1';
+
+    JsonValue := Converter.ToDatabase(TValue.From<TObject>(Root), ddPostgreSQL);
+    Should(JsonValue.IsEmpty).BeFalse;
+
+    Deserialized := Converter.FromDatabase(JsonValue, TypeInfo(TCodecNestedRoot));
+    Should(Deserialized.IsEmpty).BeFalse;
+
+    Target := Deserialized.AsObject as TCodecNestedRoot;
+    Should(Target <> nil).BeTrue;
+    Should(Target.Child <> nil).BeTrue;
+    Should(Target.Child.Name).Be('Nested');
+    Should(Target.Items.Count).Be(1);
+    Should(Target.Items[0].Name).Be('Item1');
+  finally
+    Target.Free;
+    Root.Free;
+    Converter.Free;
+  end;
+end;
+
 procedure TCodecsCommandTests.ShouldGenerateProtoAndStaticCodecsForNestedLists;
 var
   TempDir: string;
@@ -317,6 +419,9 @@ begin
     '  inherited Create;' + sLineBreak +
     '  FItems := TCollections.CreateList<TChild>(True);' + sLineBreak +
     'end;' + sLineBreak + sLineBreak +
+    'initialization' + sLineBreak + sLineBreak +
+    '  TActivator.RegisterDefault<IList<TCodecChild>, TList<TCodecChild>>;' + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Integer>, TList<Integer>>;' + sLineBreak + sLineBreak +
     'end.';
 
   TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
@@ -361,7 +466,9 @@ begin
   end;
 end;
 
-end.
+initialization
+  TActivator.RegisterDefault<IList<TCodecChild>, TList<TCodecChild>>;
 
+end.
 
 

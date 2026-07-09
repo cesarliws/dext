@@ -1,4 +1,4 @@
-# Dext Examples Automated Runner
+﻿# Dext Examples Automated Runner
 # This script robustly discovers, builds, and verifies all example projects.
 
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -17,9 +17,11 @@ function Invoke-MsBuildWithRetry {
         }
 
         $buildText = $buildOutput -join [Environment]::NewLine
-        if ($attempt -eq 1 -and $buildText -match 'because it is being used by another process') {
+        $lockDetected = ($buildText -match 'because it is being used by another process') -or
+                        (($buildText -match 'UnauthorizedAccessException') -and ($buildText -match 'tmp[0-9A-Fa-f]+\.tmp'))
+        if ($attempt -eq 1 -and $lockDetected) {
             Write-Host '  [RETRY] Temporary file lock detected, retrying once...' -ForegroundColor Yellow
-            Start-Sleep -Seconds 1
+            Start-Sleep -Seconds 3
             $attempt++
             continue
         }

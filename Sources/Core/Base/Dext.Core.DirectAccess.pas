@@ -27,6 +27,7 @@ uses
 
 type
   PObject = ^TObject;
+  PIInterface = ^IInterface;
 
   TDextDirectAccess = record
   public
@@ -60,6 +61,10 @@ type
     class function ReadObject(Instance: TObject; Offset: NativeInt): TObject; static; inline;
     /// <summary>Writes an object reference directly to the field offset.</summary>
     class procedure WriteObject(Instance: TObject; Offset: NativeInt; Value: TObject); static; inline;
+    /// <summary>Reads an interface reference directly from the field offset.</summary>
+    class function ReadInterface(Instance: TObject; Offset: NativeInt): IInterface; static; inline;
+    /// <summary>Writes an interface reference directly to the field offset.</summary>
+    class procedure WriteInterface(Instance: TObject; Offset: NativeInt; const Value: IInterface); static; inline;
   end;
 
 implementation
@@ -139,6 +144,15 @@ begin
   PObject(Ptr(Instance, Offset))^ := Value;
 end;
 
-end.
+class function TDextDirectAccess.ReadInterface(Instance: TObject; Offset: NativeInt): IInterface;
+begin
+  Result := PIInterface(Ptr(Instance, Offset))^;
+end;
 
+class procedure TDextDirectAccess.WriteInterface(Instance: TObject; Offset: NativeInt; const Value: IInterface);
+begin
+  PIInterface(Ptr(Instance, Offset))^ := Value;
+end;
+
+end.
 

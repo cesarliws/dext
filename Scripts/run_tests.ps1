@@ -1,4 +1,4 @@
-# Dext Tests Automated Runner V2
+﻿# Dext Tests Automated Runner V2
 # This script robustly discovers, builds, and executes unit tests individually.
 # Based on the dynamic feedback pattern of run_examples.ps1
 
@@ -22,9 +22,11 @@ function Invoke-MsBuildWithRetry {
         }
 
         $buildText = $buildOutput -join [Environment]::NewLine
-        if ($attempt -eq 1 -and $buildText -match 'because it is being used by another process') {
+        $lockDetected = ($buildText -match 'because it is being used by another process') -or
+                        (($buildText -match 'UnauthorizedAccessException') -and ($buildText -match 'tmp[0-9A-Fa-f]+\.tmp'))
+        if ($attempt -eq 1 -and $lockDetected) {
             Write-Host '  [RETRY] Temporary file lock detected, retrying once...' -ForegroundColor Yellow
-            Start-Sleep -Seconds 1
+            Start-Sleep -Seconds 3
             $attempt++
             continue
         }

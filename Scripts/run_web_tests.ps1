@@ -13,7 +13,7 @@ function Invoke-MsBuildWithRetry {
     param([string[]]$Arguments)
 
     $attempt = 1
-    while ($attempt -le 2) {
+    while ($attempt -le 4) {
         $buildOutput = & msbuild @Arguments 2>&1
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0) {
@@ -21,9 +21,11 @@ function Invoke-MsBuildWithRetry {
         }
 
         $buildText = $buildOutput -join [Environment]::NewLine
-        if ($attempt -eq 1 -and $buildText -match 'because it is being used by another process') {
-            Write-Host '  [RETRY] Temporary file lock detected, retrying once...' -ForegroundColor Yellow
-            Start-Sleep -Seconds 1
+        $lockDetected = ($buildText -match 'because it is being used by another process') -or
+                        (($buildText -match 'UnauthorizedAccessException') -and ($buildText -match 'tmp[0-9A-Fa-f]+\.tmp'))
+        if ($lockDetected -and $attempt -lt 4) {
+            Write-Host '  [RETRY] Temporary file lock detected, retrying...' -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
             $attempt++
             continue
         }
@@ -55,6 +57,8 @@ $msbuildArgs = @(
     '/t:Build',
     "/p:Configuration=$($env:BUILD_CONFIG)",
     "/p:Platform=$($env:PLATFORM)",
+    '/p:VerInfo_Keys=',
+    '/p:VerInfo_Locale=',
     "/p:DCC_ExeOutput=`"$TestsOutput`"",
     "/p:DCC_DcuOutput=`"$env:OUTPUT_PATH`"",
     "/p:DCC_UnitSearchPath=`"$($env:SEARCH_PATH)`"",

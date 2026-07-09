@@ -40,7 +40,7 @@ unit Dext.MM;
 
 interface
 
-{.$DEFINE DEXT_USE_FASTMM5}
+{$DEFINE DEXT_USE_FASTMM5}
 {$IFDEF DEXT_USE_FASTMM5}
 uses
   FastMM5;

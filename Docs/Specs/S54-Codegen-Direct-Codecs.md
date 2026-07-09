@@ -375,6 +375,21 @@ end;
 
 ## 10. Implementation Roadmap
 
+
+### 10.0 Prioritized Remaining Work
+
+When resuming the S54 from a stalled session, continue in this order to shrink the backlog quickly:
+
+1. Add S18 benchmark cases and store RTTI baselines for protobuf, JSON, ORM hydration, and `TEntityDataSet.Load<T>`.
+2. Add compatibility tests comparing generated, direct, and RTTI protobuf bytes.
+3. Finish `TDextCodecRegistry` plus the protobuf and gRPC hook points.
+4. Add service method invoker registration so `TRttiMethod.Invoke` becomes fallback only.
+5. Ship `dext codecs generate` for protobuf codecs and `.proto` export.
+6. Add the S15 IDE Expert surface for codec eligibility, generated paths, and fallback diagnostics.
+7. Move `TDextJson` plan building fully onto `TDextFieldPlan` and finish generated JSON codecs.
+8. Migrate ORM hydration and materialization hot paths to the shared field model.
+9. Close the remaining direct-offset edge cases, especially nested objects, nested lists, and SmartProp/Nullable fallbacks.
+
 ### Phase 1: Measurement and Guardrails
 
 - Add benchmark cases to S18 for Win32 and Win64: protobuf, JSON, ORM hydration, and `TEntityDataSet.Load<T>` with 10,000 objects/rows.
