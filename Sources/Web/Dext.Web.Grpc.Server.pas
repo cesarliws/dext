@@ -38,6 +38,7 @@ uses
   Dext.Collections.Dict,
   Dext.Collections,
   Dext.Core.Reflection,
+  Dext.Core.Activator,
   Dext.Web.Interfaces,
   Dext.Grpc.Attributes,
   Dext.Grpc.Codec,
@@ -79,6 +80,10 @@ type
   end;
 
 implementation
+
+uses
+  System.Diagnostics, System.JSON, Dext.Logging.Global,
+  Dext.Logging.Telemetry, Dext.Logging.Tracing;
 
 { TGrpcServiceMeta }
 
@@ -213,7 +218,12 @@ var
   Intf: IInterface;
   Serialized: TBytes;
   Framed: TBytes;
+  Sw: TStopwatch;
+  SwSub: TStopwatch;
+  Span: TSpan;
+  Payload: TJSONObject;
 begin
+  Sw := TStopwatch.StartNew;
   Path := AContext.Request.Path;
   Parts := Path.Split(['/']);
 
@@ -227,88 +237,195 @@ begin
   ServiceName := Parts[1].ToLower;
   MethodName := Parts[2].ToLower;
 
-  if not FServiceRegistry.TryGetValue(ServiceName, Service) then
-  begin
-    AContext.Response.StatusCode := 404;
-    AContext.Response.Write('Service not found: ' + Parts[1]);
-    Exit;
-  end;
-
-  if not Service.Methods.TryGetValue(MethodName, Method) then
-  begin
-    AContext.Response.StatusCode := 404;
-    AContext.Response.Write('Method not found: ' + Parts[2]);
-    Exit;
-  end;
-
-  Stream := AContext.Request.Body;
-  if Stream.Size = 0 then
-  begin
-    AContext.Response.StatusCode := 400;
-    AContext.Response.Write('Empty request body');
-    Exit;
-  end;
-
-  SetLength(Buffer, Stream.Size);
-  Stream.Position := 0;
-  Stream.Read(Buffer[0], Stream.Size);
-
-  Offset := 0;
-  if not TGrpcMessageCodec.TryDecode(Buffer, Offset, Compressed, MsgBytes) then
-  begin
-    AContext.Response.StatusCode := 400;
-    AContext.Response.Write('Invalid gRPC frame');
-    Exit;
-  end;
-
-  Request := Method.RequestClass.Create;
+  Span := TTracer.BeginSpan('gRPC Server ' + Parts[1] + '/' + Parts[2],
+    'gRPC');
   try
-    TProtobufSerializer.Deserialize(MsgBytes, Request);
-
-    ServiceInstance := nil;
-    Intf := nil;
-    if Assigned(AContext.Services) then
-      ServiceInstance := AContext.Services.GetService(
-        Service.ServiceImplClass);
-
-    if not Assigned(ServiceInstance) then
+    if FServiceRegistry.TryGetValue(ServiceName, Service) then
     begin
-      ServiceInstance := Service.ServiceImplClass.Create;
-      if not Supports(ServiceInstance, IInterface, Intf) then
-        Intf := nil;
+      if not Service.Methods.TryGetValue(MethodName, Method) then
+      begin
+        AContext.Response.StatusCode := 404;
+        AContext.Response.Write('Method not found: ' + Parts[2]);
+        Exit;
+      end;
+    end
+    else
+    begin
+      AContext.Response.StatusCode := 404;
+      AContext.Response.Write('Service not found: ' + Parts[1]);
+      Exit;
     end;
 
-    try
-      try
-        Response := Method.RttiMethod.Invoke(ServiceInstance,
-          [Request]).AsObject;
-        try
-          Serialized := TProtobufSerializer.Serialize(Response);
-          Framed := TGrpcMessageCodec.Encode(Serialized);
+    Stream := AContext.Request.Body;
+    if Stream.Size = 0 then
+    begin
+      AContext.Response.StatusCode := 400;
+      AContext.Response.Write('Empty request body');
+      Exit;
+    end;
 
-          AContext.Response.StatusCode := 200;
-          AContext.Response.ContentType := 'application/grpc';
-          AContext.Response.AddHeader('grpc-status', '0');
-          AContext.Response.AddHeader('grpc-message', 'OK');
-          AContext.Response.Write(Framed);
-        finally
-          Response.Free;
+    SetLength(Buffer, Stream.Size);
+    Stream.Position := 0;
+    Stream.Read(Buffer[0], Stream.Size);
+
+    Offset := 0;
+    SwSub := TStopwatch.StartNew;
+    if not TGrpcMessageCodec.TryDecode(Buffer, Offset, Compressed, MsgBytes) then
+    begin
+      AContext.Response.StatusCode := 400;
+      AContext.Response.Write('Invalid gRPC frame');
+      Exit;
+    end;
+    SwSub.Stop;
+
+    if TDiagnosticSource.Instance.Enabled then
+    begin
+      Payload := TJSONObject.Create;
+      Payload.AddPair('service', Parts[1]);
+      Payload.AddPair('method', Parts[2]);
+      Payload.AddPair('size', TJSONNumber.Create(Length(MsgBytes)));
+      TDiagnosticSource.Instance.Write('gRPC.Server.Decode', Payload,
+        'gRPC', SwSub.ElapsedMilliseconds);
+    end;
+
+    Request := TActivator.CreateInstance(Method.RequestClass, []);
+    try
+      SwSub := TStopwatch.StartNew;
+      TProtobufSerializer.Deserialize(MsgBytes, Request);
+      SwSub.Stop;
+
+      if TDiagnosticSource.Instance.Enabled then
+      begin
+        Payload := TJSONObject.Create;
+        Payload.AddPair('service', Parts[1]);
+        Payload.AddPair('method', Parts[2]);
+        TDiagnosticSource.Instance.Write('gRPC.Server.Deserialize', Payload,
+          'gRPC', SwSub.ElapsedMilliseconds);
+      end;
+
+      ServiceInstance := nil;
+      Intf := nil;
+      if Assigned(AContext.Services) then
+        ServiceInstance := AContext.Services.GetService(
+          Service.ServiceImplClass);
+
+      if not Assigned(ServiceInstance) then
+      begin
+        ServiceInstance := Service.ServiceImplClass.Create;
+        if not Supports(ServiceInstance, IInterface, Intf) then
+          Intf := nil;
+      end;
+
+      try
+        try
+          SwSub := TStopwatch.StartNew;
+          Response := Method.RttiMethod.Invoke(ServiceInstance,
+            [Request]).AsObject;
+          SwSub.Stop;
+
+          if TDiagnosticSource.Instance.Enabled then
+          begin
+            Payload := TJSONObject.Create;
+            Payload.AddPair('service', Parts[1]);
+            Payload.AddPair('method', Parts[2]);
+            TDiagnosticSource.Instance.Write('gRPC.Server.InvokeMethod', Payload,
+              'gRPC', SwSub.ElapsedMilliseconds);
+          end;
+
+          try
+            SwSub := TStopwatch.StartNew;
+            Serialized := TProtobufSerializer.Serialize(Response);
+            SwSub.Stop;
+
+            if TDiagnosticSource.Instance.Enabled then
+            begin
+              Payload := TJSONObject.Create;
+              Payload.AddPair('service', Parts[1]);
+              Payload.AddPair('method', Parts[2]);
+              Payload.AddPair('size', TJSONNumber.Create(Length(Serialized)));
+              TDiagnosticSource.Instance.Write('gRPC.Server.Serialize', Payload,
+                'gRPC', SwSub.ElapsedMilliseconds);
+            end;
+
+            SwSub := TStopwatch.StartNew;
+            Framed := TGrpcMessageCodec.Encode(Serialized);
+            SwSub.Stop;
+
+            if TDiagnosticSource.Instance.Enabled then
+            begin
+              Payload := TJSONObject.Create;
+              Payload.AddPair('service', Parts[1]);
+              Payload.AddPair('method', Parts[2]);
+              Payload.AddPair('size', TJSONNumber.Create(Length(Framed)));
+              TDiagnosticSource.Instance.Write('gRPC.Server.Encode', Payload,
+                'gRPC', SwSub.ElapsedMilliseconds);
+            end;
+
+            AContext.Response.StatusCode := 200;
+            AContext.Response.ContentType := 'application/grpc';
+            AContext.Response.AddHeader('grpc-status', '0');
+            AContext.Response.AddHeader('grpc-message', 'OK');
+            AContext.Response.Write(Framed);
+
+            Sw.Stop;
+            Log.Info('[gRPC-Server] Invoke: {Service}/{Method} | ' +
+              'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
+              [Parts[1], Parts[2], Sw.ElapsedMilliseconds, Length(Buffer),
+               Length(Framed)]);
+
+            Span.SetStatus('Success');
+            if TDiagnosticSource.Instance.Enabled then
+            begin
+              Payload := TJSONObject.Create;
+              Payload.AddPair('service', Parts[1]);
+              Payload.AddPair('method', Parts[2]);
+              Payload.AddPair('req_size', TJSONNumber.Create(Length(Buffer)));
+              Payload.AddPair('res_size', TJSONNumber.Create(Length(Framed)));
+              TDiagnosticSource.Instance.Write('gRPC.Server.Invoke', Payload,
+                'gRPC', Sw.ElapsedMilliseconds);
+            end;
+          finally
+            Response.Free;
+          end;
+        except
+          on E: Exception do
+          begin
+            Sw.Stop;
+            Log.Error('[gRPC-Server] Invoke Error: {Service}/{Method} | ' +
+              'Duration: {Time} ms | Error: {Err}',
+              [Parts[1], Parts[2], Sw.ElapsedMilliseconds, E.Message]);
+
+            Span.SetStatus('Error', E.Message);
+            if TDiagnosticSource.Instance.Enabled then
+            begin
+              Payload := TJSONObject.Create;
+              Payload.AddPair('service', Parts[1]);
+              Payload.AddPair('method', Parts[2]);
+              Payload.AddPair('status', '13');
+              Payload.AddPair('error', E.Message);
+              TDiagnosticSource.Instance.Write('gRPC.Server.Error', Payload,
+                'gRPC', Sw.ElapsedMilliseconds);
+            end;
+
+            AContext.Response.StatusCode := 200;
+            AContext.Response.ContentType := 'application/grpc';
+            AContext.Response.AddHeader('grpc-status', '13'); // INTERNAL
+            AContext.Response.AddHeader('grpc-message', E.Message);
+          end;
         end;
-      except
-        on E: Exception do
-        begin
-          AContext.Response.StatusCode := 200;
-          AContext.Response.ContentType := 'application/grpc';
-          AContext.Response.AddHeader('grpc-status', '13'); // INTERNAL
-          AContext.Response.AddHeader('grpc-message', E.Message);
-        end;
+      finally
+        if not Assigned(AContext.Services) and not Assigned(Intf) then
+          ServiceInstance.Free;
       end;
     finally
-      if not Assigned(AContext.Services) and not Assigned(Intf) then
-        ServiceInstance.Free;
+      Request.Free;
     end;
-  finally
-    Request.Free;
+  except
+    on E: Exception do
+    begin
+      Span.SetStatus('Error', E.Message);
+      raise;
+    end;
   end;
 end;
 

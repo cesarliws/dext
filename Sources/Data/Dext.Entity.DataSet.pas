@@ -1022,6 +1022,75 @@ begin
                         PDateTime(PValue)^ := DateValue;
                     end;
                   end;
+                end
+                else if RttiType <> nil then
+                begin
+                  RttiProp := PropMap.Prop;
+                  if RttiProp = nil then
+                    RttiProp := RttiType.GetProperty(PropMap.PropertyName);
+                  if RttiProp <> nil then
+                  begin
+                    case Reader.TokenType of
+                      TJsonTokenType.StringValue:
+                      begin
+                        if RttiProp.PropertyType.Handle =
+                           TypeInfo(TDateTime) then
+                        begin
+                          if TryParseISODateTime(Reader.GetString,
+                                                 DateValue) then
+                            RttiProp.SetValue(CurrentObj, DateValue);
+                        end
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(TDate) then
+                        begin
+                          if TryParseISODateTime(Reader.GetString,
+                                                 DateValue) then
+                            RttiProp.SetValue(CurrentObj,
+                                              Trunc(DateValue));
+                        end
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(TTime) then
+                        begin
+                          if TryParseISODateTime(Reader.GetString,
+                                                 DateValue) then
+                            RttiProp.SetValue(CurrentObj,
+                                              Frac(DateValue));
+                        end
+                        else
+                          RttiProp.SetValue(CurrentObj, Reader.GetString);
+                      end;
+                      TJsonTokenType.Number:
+                      begin
+                        if RttiProp.PropertyType.Handle =
+                           TypeInfo(Integer) then
+                          RttiProp.SetValue(CurrentObj, Reader.GetInt32)
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(Int64) then
+                          RttiProp.SetValue(CurrentObj, Reader.GetInt64)
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(SmallInt) then
+                          RttiProp.SetValue(CurrentObj,
+                            SmallInt(Reader.GetInt32))
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(Byte) then
+                          RttiProp.SetValue(CurrentObj,
+                            Byte(Reader.GetInt32))
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(ShortInt) then
+                          RttiProp.SetValue(CurrentObj,
+                            ShortInt(Reader.GetInt32))
+                        else if RttiProp.PropertyType.Handle =
+                                TypeInfo(Word) then
+                          RttiProp.SetValue(CurrentObj,
+                            Word(Reader.GetInt32))
+                        else
+                          RttiProp.SetValue(CurrentObj,
+                            TValue.From<Double>(Reader.GetDouble));
+                      end;
+                      TJsonTokenType.TrueValue, TJsonTokenType.FalseValue:
+                        RttiProp.SetValue(CurrentObj, Reader.GetBoolean);
+                    end;
+                  end;
                 end;
               end
               else if RttiType <> nil then
@@ -2782,7 +2851,8 @@ begin
             ResolvedType := MapTypeToFieldType(Prop.PropertyType.Handle);
         end;
 
-        if (Prop = nil) or (ResolvedType = ftUnknown) then
+        if (Prop = nil) or (ResolvedType = ftUnknown) or
+           (LPropMap.FieldValueOffset <= 0) then
         begin
            // Search for field directly, then with F prefix, then normalized, then normalized with F
            RttiField := RttiType.GetField(LPropMap.PropertyName);

@@ -25,7 +25,7 @@ Specifically, this spec covers:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Dext.Web.Hubs (MessagePack Protocol & Payload Traversal)   │  <-- S43 Phase 1
+│  Dext.Web.Hubs (MessagePack Protocol & Payload Traversal)    │  <-- S43 Phase 1
 ├──────────────────────────────────────────────────────────────┤
 │  Dext.WebSocket.Protocol (RFC 7692 Permessage-Deflate GZIP)  │  <-- S43 Phase 2
 ├──────────────────────────────────────────────────────────────┤
