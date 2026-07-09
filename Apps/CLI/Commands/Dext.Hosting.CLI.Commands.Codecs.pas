@@ -60,6 +60,19 @@ type
     Members: TArray<TCodecMember>;
   end;
 
+  TGrpcMethod = record
+    Name: string;
+    GrpcName: string;
+    RequestType: string;
+    ResponseType: string;
+  end;
+
+  TGrpcService = record
+    Name: string;
+    InterfaceName: string;
+    Methods: TArray<TGrpcMethod>;
+  end;
+
 function StripTypePrefix(const TypeName: string): string;
 begin
   Result := TypeName.Trim;
@@ -196,6 +209,33 @@ begin
     Result := 'ReadString';
 end;
 
+function IsGrpcInterfaceDeclaration(const Line: string; out InterfaceName: string): Boolean;
+var
+  Match: TMatch;
+begin
+  Match := TRegEx.Match(Line, '^(I\w+)\s*=\s*interface\b', [roIgnoreCase]);
+  Result := Match.Success;
+  if Result then
+    InterfaceName := Match.Groups[1].Value;
+end;
+
+function ParseMethodDeclaration(const Line: string; out MethodName: string;
+  out RequestType: string; out ResponseType: string): Boolean;
+var
+  Match: TMatch;
+begin
+  Match := TRegEx.Match(Line,
+    '^(function|procedure)\s+(\w+)\s*\(\s*const\s+\w+\s*:\s*([^\)]+)\s*\)\s*:\s*([^;]+);',
+    [roIgnoreCase]);
+  Result := Match.Success;
+  if Result then
+  begin
+    MethodName := Match.Groups[2].Value;
+    RequestType := Match.Groups[3].Value.Trim;
+    ResponseType := Match.Groups[4].Value.Trim;
+  end;
+end;
+
 procedure ParseGrpcMessages(const AUnitFile: string; out AUnitName: string;
   out AClasses: TArray<TCodecClass>);
 var
@@ -279,6 +319,89 @@ begin
   end;
 end;
 
+procedure ParseGrpcServices(const AUnitFile: string; out AServices: TArray<TGrpcService>);
+var
+  Lines: TStringList;
+  i: Integer;
+  Line: string;
+  Match: TMatch;
+  InService: Boolean;
+  InInterface: Boolean;
+  PendingServiceName: string;
+  PendingGrpcMethodName: string;
+  Current: TGrpcService;
+  Method: TGrpcMethod;
+  InterfaceName: string;
+begin
+  AServices := [];
+  Lines := TStringList.Create;
+  try
+    Lines.LoadFromFile(AUnitFile);
+    InService := False;
+    InInterface := False;
+    PendingServiceName := '';
+    PendingGrpcMethodName := '';
+
+    for i := 0 to Lines.Count - 1 do
+    begin
+      Line := Lines[i].Trim;
+      Match := TRegEx.Match(Line, '^\[GrpcService\(''([^'']+)''\)\]', [roIgnoreCase]);
+      if Match.Success then
+      begin
+        PendingServiceName := Match.Groups[1].Value;
+        InService := True;
+        Continue;
+      end;
+
+      if InService and not InInterface then
+      begin
+        if IsGrpcInterfaceDeclaration(Line, InterfaceName) then
+        begin
+          Current := Default(TGrpcService);
+          Current.Name := PendingServiceName;
+          Current.InterfaceName := InterfaceName;
+          Current.Methods := [];
+          InInterface := True;
+        end;
+        Continue;
+      end;
+
+      if InInterface then
+      begin
+        if SameText(Line, 'end;') then
+        begin
+          SetLength(AServices, Length(AServices) + 1);
+          AServices[High(AServices)] := Current;
+          InService := False;
+          InInterface := False;
+          PendingServiceName := '';
+          PendingGrpcMethodName := '';
+          Continue;
+        end;
+
+        Match := TRegEx.Match(Line, '^\[GrpcMethod\(''([^'']+)''\)\]', [roIgnoreCase]);
+        if Match.Success then
+        begin
+          PendingGrpcMethodName := Match.Groups[1].Value;
+          Continue;
+        end;
+
+        if PendingGrpcMethodName <> '' then
+        begin
+          if ParseMethodDeclaration(Line, Method.Name, Method.RequestType, Method.ResponseType) then
+          begin
+            Method.GrpcName := PendingGrpcMethodName;
+            SetLength(Current.Methods, Length(Current.Methods) + 1);
+            Current.Methods[High(Current.Methods)] := Method;
+            PendingGrpcMethodName := '';
+          end;
+        end;
+      end;
+    end;
+  finally
+    Lines.Free;
+  end;
+end;
 procedure TCodecsCommand.ExportProto(const AUnitFile, AOutputFile: string);
 var
   UnitName: string;
@@ -314,12 +437,16 @@ procedure TCodecsCommand.GenerateCodecs(const AUnitFile, AOutputFile: string);
 var
   UnitName: string;
   Classes: TArray<TCodecClass>;
+  Services: TArray<TGrpcService>;
   C: TCodecClass;
   M: TCodecMember;
+  S: TGrpcService;
+  Method: TGrpcMethod;
   Output: TStringList;
   OutUnit: string;
 begin
   ParseGrpcMessages(AUnitFile, UnitName, Classes);
+  ParseGrpcServices(AUnitFile, Services);
   OutUnit := TPath.GetFileNameWithoutExtension(AOutputFile);
   Output := TStringList.Create;
   try
@@ -418,10 +545,25 @@ begin
       Output.Add('');
     end;
 
+    for S in Services do
+    begin
+      for Method in S.Methods do
+      begin
+        Output.Add(Format('function Invoke_%s_%s(AService: TObject; ARequest: TObject): TObject;', [S.InterfaceName, Method.Name]));
+        Output.Add('begin');
+        Output.Add(Format('  Result := %s(AService).%s(%s(ARequest));', [S.InterfaceName, Method.Name, Method.RequestType]));
+        Output.Add('end;');
+        Output.Add('');
+      end;
+    end;
+
     Output.Add('procedure RegisterDextCodecs;');
     Output.Add('begin');
     for C in Classes do
       Output.Add(Format('  TDextCodecRegistry.RegisterProtobuf<%s>(Write_%s, Read_%s);', [C.Name, C.Name, C.Name]));
+    for S in Services do
+      for Method in S.Methods do
+        Output.Add(Format('  TDextCodecRegistry.RegisterGrpcInvoker(''%s'', ''%s'', Invoke_%s_%s);', [S.Name, Method.GrpcName, S.InterfaceName, Method.Name]));
     Output.Add('end;');
     Output.Add('');
     Output.Add('initialization');
@@ -488,6 +630,7 @@ begin
 end;
 
 end.
+
 
 
 

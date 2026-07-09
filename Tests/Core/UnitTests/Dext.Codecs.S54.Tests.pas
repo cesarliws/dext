@@ -107,6 +107,8 @@ type
   public
     [Test]
     procedure ShouldGenerateProtoAndStaticCodecsForNestedLists;
+    [Test]
+    procedure ShouldGenerateGrpcInvokersForServices;
   end;
 
 implementation
@@ -200,6 +202,70 @@ begin
   Should(Converted.AsBoolean).BeFalse;
 end;
 
+procedure TCodecsCommandTests.ShouldGenerateGrpcInvokersForServices;
+var
+  TempDir: string;
+  InputFile: string;
+  GeneratedUnit: string;
+  SourceText: string;
+  Args: TCommandLineArgs;
+  Command: TCodecsCommand;
+  Lines: TStringList;
+begin
+  TempDir := TPath.Combine(TPath.GetTempPath, 'DextS54GrpcCodecs');
+  if not TDirectory.Exists(TempDir) then
+    TDirectory.CreateDirectory(TempDir);
+
+  InputFile := TPath.Combine(TempDir, 'GrpcInput.pas');
+  GeneratedUnit := TPath.Combine(TempDir, 'GrpcInput.DextCodecs.pas');
+
+  SourceText :=
+    'unit GrpcInput;' + sLineBreak + sLineBreak +
+    'interface' + sLineBreak + sLineBreak +
+    'uses Dext.Grpc.Attributes;' + sLineBreak + sLineBreak +
+    'type' + sLineBreak +
+    '  [GrpcMessage]' + sLineBreak +
+    '  TGrpcRequest = class' + sLineBreak +
+    '  private' + sLineBreak +
+    '    FId: Integer;' + sLineBreak +
+    '  public' + sLineBreak +
+    '    [ProtoMember(1)]' + sLineBreak +
+    '    property Id: Integer read FId write FId;' + sLineBreak +
+    '  end;' + sLineBreak + sLineBreak +
+    '  [GrpcService(''dext.test.v1.DummyService'')]' + sLineBreak +
+    '  IDummyService = interface(IInvokable)' + sLineBreak +
+    '    [''{E8F8B6C7-674A-4835-AB37-A3BA476C55AF}'']' + sLineBreak +
+    '    [GrpcMethod(''DummyCall'')]' + sLineBreak +
+    '    function DummyCall(const ARequest: TGrpcRequest): TGrpcRequest;' + sLineBreak +
+    '  end;' + sLineBreak + sLineBreak +
+    'implementation' + sLineBreak + sLineBreak +
+    'end.';
+
+  TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
+
+  Lines := TStringList.Create;
+  try
+    Args := TCommandLineArgs.Create;
+    try
+      Command := TCodecsCommand.Create;
+      try
+        Args.Parse(['codecs', 'generate', '--unit', InputFile, '--out', GeneratedUnit]);
+        Command.Execute(Args);
+        Should(TFile.Exists(GeneratedUnit)).BeTrue;
+        Lines.LoadFromFile(GeneratedUnit, TEncoding.UTF8);
+        Should(Lines.Text).Contain('function Invoke_IDummyService_DummyCall(AService: TObject; ARequest: TObject): TObject;');
+        Should(Lines.Text).Contain('Result := IDummyService(AService).DummyCall(TGrpcRequest(ARequest));');
+        Should(Lines.Text).Contain('TDextCodecRegistry.RegisterGrpcInvoker(''dext.test.v1.DummyService'', ''DummyCall'', Invoke_IDummyService_DummyCall);');
+      finally
+        Command.Free;
+      end;
+    finally
+      Args.Free;
+    end;
+  finally
+    Lines.Free;
+  end;
+end;
 procedure TCodecsCommandTests.ShouldGenerateProtoAndStaticCodecsForNestedLists;
 var
   TempDir: string;
@@ -296,4 +362,6 @@ begin
 end;
 
 end.
+
+
 
