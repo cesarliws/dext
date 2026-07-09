@@ -1,4 +1,4 @@
-﻿program Dext.Core.UnitTests;
+program Dext.Core.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -55,6 +55,7 @@ begin
         TSmartTypesCombinatorialTests,
         TTypeModelTests,
         TDirectAccessTests,
+        TArrayConverterTests,
         TCodecsCommandTests
       ]));
   except

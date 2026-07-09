@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -626,12 +626,15 @@ var
 begin
   if AValue.IsEmpty then
     Exit(TValue.Empty);
-    
+
+  if (AValue.Kind = tkDynArray) and (AValue.TypeInfo = ATypeInfo) then
+    Exit(AValue);
+
   JsonStr := AValue.AsString;
-  
-  // TODO: Implement proper array deserialization
-  // For now, return the JSON string as-is
-  Result := AValue;
+  if JsonStr.IsEmpty then
+    Exit(TDextJson.Deserialize(ATypeInfo, '[]'));
+
+  Result := TDextJson.Deserialize(ATypeInfo, JsonStr);
 end;
 
 function TArrayConverter.GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string;

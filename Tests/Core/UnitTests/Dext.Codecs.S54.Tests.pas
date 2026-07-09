@@ -122,6 +122,13 @@ type
     procedure ShouldConvertDatabaseValuesToBoolean;
   end;
 
+  [TestFixture('S54 - ArrayConverter')]
+  TArrayConverterTests = class
+  public
+    [Test]
+    procedure ShouldDeserializeJsonArrayIntoTypedArray;
+  end;
+
   [TestFixture('S54 - CLI Codecs')]
   TCodecsCommandTests = class
   public
@@ -279,6 +286,25 @@ begin
   Should(Converted.AsBoolean).BeFalse;
 end;
 
+procedure TArrayConverterTests.ShouldDeserializeJsonArrayIntoTypedArray;
+var
+  Converter: TArrayConverter;
+  Value: TValue;
+  Data: TArray<string>;
+begin
+  Converter := TArrayConverter.Create;
+  try
+    Value := Converter.FromDatabase(TValue.From<string>('["alpha","beta"]'), TypeInfo(TArray<string>));
+    Should(Value.IsEmpty).BeFalse;
+
+    Data := Value.AsType<TArray<string>>;
+    Should(Length(Data)).Be(2);
+    Should(Data[0]).Be('alpha');
+    Should(Data[1]).Be('beta');
+  finally
+    Converter.Free;
+  end;
+end;
 procedure TCodecsCommandTests.ShouldMatchRttiDirectAndGeneratedProtobufBytes;
 var
   Source: TCodecChild;
