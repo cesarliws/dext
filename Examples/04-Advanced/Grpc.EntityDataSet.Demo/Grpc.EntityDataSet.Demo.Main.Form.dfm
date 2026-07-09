@@ -2,8 +2,8 @@ object FormMain: TFormMain
   Left = 0
   Top = 0
   Caption = 'Dext Framework - gRPC & TEntityDataSet Integration Demo'
-  ClientHeight = 580
-  ClientWidth = 900
+  ClientHeight = 620
+  ClientWidth = 912
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -16,20 +16,23 @@ object FormMain: TFormMain
   TextHeight = 15
   object ContentSplitter: TSplitter
     Left = 0
-    Top = 377
-    Width = 900
+    Top = 411
+    Width = 912
     Height = 3
     Cursor = crVSplit
     Align = alBottom
+    ExplicitTop = 371
+    ExplicitWidth = 900
   end
   object TopPanel: TPanel
     Left = 0
     Top = 0
-    Width = 900
+    Width = 912
     Height = 65
     Align = alTop
     BevelOuter = bvNone
     TabOrder = 0
+    ExplicitWidth = 900
     object LoadButton: TButton
       Left = 16
       Top = 16
@@ -77,20 +80,24 @@ object FormMain: TFormMain
     end
   end
   object LogsMemo: TMemo
-    Left = 0
-    Top = 380
-    Width = 900
+    AlignWithMargins = True
+    Left = 3
+    Top = 417
+    Width = 906
     Height = 200
     Align = alBottom
     ReadOnly = True
     ScrollBars = ssVertical
     TabOrder = 1
+    ExplicitTop = 377
+    ExplicitWidth = 894
   end
   object CompanyDBGrid: TDBGrid
-    Left = 0
-    Top = 65
-    Width = 900
-    Height = 312
+    AlignWithMargins = True
+    Left = 3
+    Top = 68
+    Width = 906
+    Height = 340
     Align = alClient
     DataSource = CompanyDataSource
     TabOrder = 2
@@ -101,7 +108,7 @@ object FormMain: TFormMain
     TitleFont.Style = []
   end
   object CompanyDataSource: TDataSource
-    Left = 40
-    Top = 90
+    Left = 166
+    Top = 252
   end
 end

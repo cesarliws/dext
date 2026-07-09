@@ -37,6 +37,7 @@ uses
   System.TypInfo,
   Dext.Collections.Dict,
   Dext.Collections,
+  Dext.Codecs.Registry,
   Dext.Core.Reflection,
   Dext.Core.Activator,
   Dext.Web.Interfaces,
@@ -222,6 +223,7 @@ var
   SwSub: TStopwatch;
   Span: TSpan;
   Payload: TJSONObject;
+  Invoker: TDextGrpcMethodInvoker;
 begin
   Sw := TStopwatch.StartNew;
   Path := AContext.Request.Path;
@@ -319,8 +321,12 @@ begin
       try
         try
           SwSub := TStopwatch.StartNew;
-          Response := Method.RttiMethod.Invoke(ServiceInstance,
-            [Request]).AsObject;
+          if TDextCodecRegistry.TryGetGrpcInvoker(Service.ServiceName,
+            Method.MethodName, Invoker) then
+            Response := Invoker(ServiceInstance, Request)
+          else
+            Response := Method.RttiMethod.Invoke(ServiceInstance,
+              [Request]).AsObject;
           SwSub.Stop;
 
           if TDiagnosticSource.Instance.Enabled then

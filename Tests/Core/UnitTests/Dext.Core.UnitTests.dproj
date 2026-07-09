@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{D1BC7A10-19F2-4394-A84F-3C1413871ADF}</ProjectGuid>
         <MainSource>Dext.Core.UnitTests.dpr</MainSource>
@@ -70,7 +70,7 @@
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
-        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Sources\Core;..\..\..\Sources\Core\Base;..\..\..\Sources\Core\Json;..\..\..\Sources\Core\Interception;..\..\..\Sources\Data;..\..\..\Sources\Events;..\..\..\Sources\Debug;..\..\..\Sources\Testing;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>..\..\Output\$(ProductVersion)\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>..\..\Output</DCC_ExeOutput>
         <DCC_DebugDCUs>true</DCC_DebugDCUs>
@@ -1087,3 +1087,8 @@
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <Import Project="$(MSBuildProjectName).deployproj" Condition="Exists('$(MSBuildProjectName).deployproj')"/>
 </Project>
+
+
+
+
+

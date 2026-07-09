@@ -202,6 +202,9 @@
         <DCCReference Include="..\..\Sources\Core\Dext.DI.Attributes.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Core.SmartTypes.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Core.Reflection.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Base\Dext.Core.DirectAccess.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Core.TypeModel.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Codecs.Registry.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Configuration.Yaml.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Yaml.pas"/>
         <DCCReference Include="..\..\Sources\Core\Base\Dext.Core.Writers.pas"/>

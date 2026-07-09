@@ -1,4 +1,4 @@
-unit Grpc.EntityDataSet.Demo.Main.Form;
+﻿unit Grpc.EntityDataSet.Demo.Main.Form;
 
 interface
 
@@ -124,8 +124,7 @@ type
   end;
 
   // Custom data provider for TEntityDataSet
-  TDemoGrpcProvider = class(TInterfacedObject,
-    IEntityDataProvider<TCompany>)
+  TDemoGrpcProvider = class(TInterfacedObject, IEntityDataProvider<TCompany>)
   private
     FClient: TGrpcClient;
   public
@@ -516,17 +515,17 @@ end;
 
 procedure TFormMain.LoadButtonClick(Sender: TObject);
 var
-  Items: TList<TCompany>;
-  Sw: TStopwatch;
   GrpcTime: Int64;
+  Items: IList<TCompany>;
   LoadTime: Int64;
+  Sw: TStopwatch;
 begin
   Log('Calling gRPC FetchAll...');
   Sw := TStopwatch.StartNew;
   Items := FProvider.FetchAll('');
   Sw.Stop;
   GrpcTime := Sw.ElapsedMilliseconds;
-
+  FDataSet.DisableControls;
   try
     Sw := TStopwatch.StartNew;
     FDataSet.Close;
@@ -540,7 +539,7 @@ begin
       'Total=%d ms',
       [Items.Count, GrpcTime, LoadTime, GrpcTime + LoadTime]));
   finally
-    Items.Free;
+    FDataSet.EnableControls;
   end;
 end;
 
@@ -590,14 +589,14 @@ end;
 
 procedure TFormMain.SaveButtonClick(Sender: TObject);
 var
-  Req: TCompanyChangesRequest;
-  Res: TCompanySaveResponse;
-  ChangesList: IList<TEntityChange>;
   Change: TEntityChange;
-  StateStr: string;
+  ChangesList: IList<TEntityChange>;
   Comp: TCompany;
   DeletedId: Integer;
   Pair: Dext.Collections.Dict.TPair<string, Variant>;
+  Req: TCompanyChangesRequest;
+  Res: TCompanySaveResponse;
+  StateStr: string;
 begin
   if not FDataSet.Active then Exit;
 
@@ -643,8 +642,7 @@ begin
         begin
           Log(Format('  -> Serialization prep: State=%s, Id=%d, Name=%s, ' +
             'Country=%s, Active=%s',
-            [StateStr, Comp.Id, Comp.Name, Comp.Country,
-             BoolToStr(Comp.Active, True)]));
+            [StateStr, Comp.Id, Comp.Name, Comp.Country, BoolToStr(Comp.Active, True)]));
         end
         else
           Log('  -> Serialization prep: Entity is NIL!');
@@ -655,10 +653,7 @@ begin
       end;
     end;
 
-    Log(Format('Sending %d changes over gRPC to server...',
-      [Req.Changes.Count]));
-
-
+    Log(Format('Sending %d changes over gRPC to server...', [Req.Changes.Count]));
 
     Res := TCompanySaveResponse.Create;
     try
@@ -696,8 +691,7 @@ begin
     // Invoke gRPC method directly via client
     FClient.CallMethod('dext.services.CompanyService', 'FetchAll', Req, Res);
     Sw.Stop;
-    Log(Format(
-      '[CODE-ONLY] Received %d items in %d ms (raw gRPC client)',
+    Log(Format('[CODE-ONLY] Received %d items in %d ms (raw gRPC client)',
       [Res.Items.Count, Sw.ElapsedMilliseconds]));
   finally
     Req.Free;

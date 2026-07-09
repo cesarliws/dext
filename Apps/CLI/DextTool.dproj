@@ -126,6 +126,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Configuration.pas"/>
+        <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Codecs.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Doc.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Facade.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Index.pas"/>

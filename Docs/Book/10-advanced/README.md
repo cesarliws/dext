@@ -16,6 +16,7 @@ Deep dives into infrastructure and advanced patterns.
 10. [Persistent Background Jobs](background-jobs.md) - Out-of-process scheduled/delayed tasks
 11. [Dynamic Query Filters](dynamic-query-filters.md) - Bypassing Soft Delete & Multi-Tenancy filters on demand
 12. [Delphi64RTL Optimization (Win64)](performance-delphi64rtl.md) - Using optimized assembly and SIMD
+13. [Direct Codecs & Static Generation](direct-codecs-static-generation.md) - CLI generator and offset-based readers/writers
 
 ## Quick Examples
 

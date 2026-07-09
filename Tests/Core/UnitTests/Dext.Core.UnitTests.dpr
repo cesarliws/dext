@@ -1,4 +1,4 @@
-﻿program Dext.Core.UnitTests;
+program Dext.Core.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -11,6 +11,9 @@ uses
   Dext.Testing.Fluent,
   Dext.Testing,
   Dext.Utils,
+  Dext.Hosting.CLI.Args in '..\..\..\Sources\Hosting\CLI\Dext.Hosting.CLI.Args.pas',
+  Dext.Hosting.CLI.Commands.Codecs in '..\..\..\Apps\CLI\Commands\Dext.Hosting.CLI.Commands.Codecs.pas',
+  Dext.Codecs.S54.Tests in 'Dext.Codecs.S54.Tests.pas',
   Dext.Json.Refactored.Tests in 'Dext.Json.Refactored.Tests.pas',
   Dext.Configuration.Features.Tests in 'Dext.Configuration.Features.Tests.pas',
   Dext.Configuration.Hashing.Tests in 'Dext.Configuration.Hashing.Tests.pas',
@@ -49,7 +52,10 @@ begin
         TUtf8SerializerCurrencyTests,
         TValidationFluentTests,
         TBackgroundJobsTests,
-        TSmartTypesCombinatorialTests
+        TSmartTypesCombinatorialTests,
+        TTypeModelTests,
+        TDirectAccessTests,
+        TCodecsCommandTests
       ]));
   except
     on E: Exception do

@@ -37,6 +37,8 @@ uses
   Dext.Collections.Base,
   Dext.Collections.Dict,
   Dext.Core.Activator,
+  Dext.Core.DirectAccess,
+  Dext.Core.TypeModel,
   Dext.DI.Interfaces,
   Dext.Json.Types,
   Dext.Types.UUID;
@@ -255,6 +257,12 @@ type
     IsListType: Boolean;
     /// <summary>PTypeInfo of the property value type (after SmartProp unwrap).</summary>
     ValueTypeInfo: PTypeInfo;
+    /// <summary>Physical field offset for direct scalar serialization when safe.</summary>
+    DirectOffset: NativeInt;
+    /// <summary>Native scalar kind associated with DirectOffset.</summary>
+    DirectKind: TDextNativeKind;
+    /// <summary>True when JSON can read this property without TValue/RTTI.</summary>
+    UseDirect: Boolean;
   end;
   PSerializationPlanItem = ^TSerializationPlanItem;
 
@@ -767,6 +775,9 @@ var
   LTypeKind: TTypeKind;
   Item: TSerializationPlanItem;
   Idx: Integer;
+  TypePlan: IDextTypeCodecPlan;
+  TypeFields: TArray<TDextFieldPlan>;
+  TypeField: TDextFieldPlan;
 begin
   // Lock-free slot cache lookup
   for I := 0 to 15 do
@@ -799,6 +810,11 @@ begin
   // Slow path: build plan
   RttiType := TReflection.GetMetadata(AType).RttiType;
   Props := RttiType.GetProperties;
+  TypePlan := TDextTypeModel.GetPlan(AType);
+  if TypePlan <> nil then
+    TypeFields := TypePlan.GetFields
+  else
+    TypeFields := nil;
 
   Holder := TSerializationPlanHolder.Create;
   SetLength(Holder.Plan.Items, Length(Props));
@@ -843,6 +859,23 @@ begin
     Item.JsonName := PropName;
     Item.Prop := Prop;
     Item.Handler := TReflection.GetHandler(AType, Prop.Name);
+    Item.DirectOffset := -1;
+    Item.DirectKind := nkUnknown;
+    Item.UseDirect := False;
+
+    for TypeField in TypeFields do
+    begin
+      if SameText(TypeField.Name, Prop.Name) and
+         (TypeField.AccessMode = amDirectField) and
+         (TypeField.Offset >= 0) and
+         (TypeField.NativeKind in [nkInt32, nkInt64, nkBoolean, nkSingle, nkDouble, nkDateTime, nkString]) then
+      begin
+        Item.DirectOffset := TypeField.Offset;
+        Item.DirectKind := TypeField.NativeKind;
+        Item.UseDirect := True;
+        Break;
+      end;
+    end;
 
     // Determine the type info for classification
     if Prop.PropertyType <> nil then
@@ -1193,6 +1226,28 @@ begin
   begin
     Item := @Plan.Items[I];
 
+    if Item^.UseDirect then
+    begin
+      case Item^.DirectKind of
+        nkInt32:
+          Result.SetInt64(Item^.JsonName, TDextDirectAccess.ReadInt32(Obj, Item^.DirectOffset));
+        nkInt64:
+          Result.SetInt64(Item^.JsonName, TDextDirectAccess.ReadInt64(Obj, Item^.DirectOffset));
+        nkBoolean:
+          Result.SetBoolean(Item^.JsonName, TDextDirectAccess.ReadBoolean(Obj, Item^.DirectOffset));
+        nkSingle:
+          Result.SetDouble(Item^.JsonName, TDextDirectAccess.ReadSingle(Obj, Item^.DirectOffset));
+        nkDouble:
+          Result.SetDouble(Item^.JsonName, TDextDirectAccess.ReadDouble(Obj, Item^.DirectOffset));
+        nkDateTime:
+          Result.SetString(Item^.JsonName, FormatDateTime(FSettings.DateFormat,
+            TDextDirectAccess.ReadDouble(Obj, Item^.DirectOffset)));
+        nkString:
+          Result.SetString(Item^.JsonName, TDextDirectAccess.ReadString(Obj, Item^.DirectOffset));
+      end;
+      Continue;
+    end;
+
     // Get property value (handler is faster than RTTI GetProperty)
     if Item^.Handler <> nil then
       PropValue := (Item^.Handler as IPropertyHandler).GetValue(Pointer(Obj))
@@ -1312,6 +1367,11 @@ var
   Val: TValue;
   ExistingPropVal: TValue;
   ExistingObj: TObject;
+  TypePlan: IDextTypeCodecPlan;
+  TypeFields: TArray<TDextFieldPlan>;
+  TypeField: TDextFieldPlan;
+  DirectField: TDextFieldPlan;
+  DirectFound: Boolean;
 begin
   if AJson = nil then
     Exit(TValue.Empty);
@@ -1331,6 +1391,11 @@ begin
     Exit;
 
   RttiType := TReflection.GetMetadata(AType).RttiType;
+  TypePlan := TDextTypeModel.GetPlan(AType);
+  if TypePlan <> nil then
+    TypeFields := TypePlan.GetFields
+  else
+    TypeFields := nil;
   try
     for Prop in RttiType.GetProperties do
     begin
@@ -1375,6 +1440,73 @@ begin
       Node := AJson.GetNode(ActualPropName);
       if Node <> nil then
       begin
+        DirectFound := False;
+        DirectField := Default(TDextFieldPlan);
+        for TypeField in TypeFields do
+        begin
+          if SameText(TypeField.Name, Prop.Name) and
+             (TypeField.AccessMode = amDirectField) and
+             (TypeField.Offset >= 0) and
+             (TypeField.NativeKind in [nkInt32, nkInt64, nkBoolean, nkSingle, nkDouble, nkDateTime, nkString]) then
+          begin
+            DirectField := TypeField;
+            DirectFound := True;
+            Break;
+          end;
+        end;
+
+        if DirectFound then
+        begin
+          case DirectField.NativeKind of
+            nkInt32:
+              if Node.GetNodeType = jntNumber then
+              begin
+                TDextDirectAccess.WriteInt32(Instance, DirectField.Offset, Integer(Node.AsInt64));
+                Continue;
+              end;
+            nkInt64:
+              if Node.GetNodeType = jntNumber then
+              begin
+                TDextDirectAccess.WriteInt64(Instance, DirectField.Offset, Node.AsInt64);
+                Continue;
+              end;
+            nkBoolean:
+              if Node.GetNodeType = jntBoolean then
+              begin
+                TDextDirectAccess.WriteBoolean(Instance, DirectField.Offset, Node.AsBoolean);
+                Continue;
+              end;
+            nkSingle:
+              if Node.GetNodeType = jntNumber then
+              begin
+                TDextDirectAccess.WriteSingle(Instance, DirectField.Offset, Node.AsDouble);
+                Continue;
+              end;
+            nkDouble:
+              if Node.GetNodeType = jntNumber then
+              begin
+                TDextDirectAccess.WriteDouble(Instance, DirectField.Offset, Node.AsDouble);
+                Continue;
+              end;
+            nkDateTime:
+              if Node.GetNodeType = jntString then
+              begin
+                TDextDirectAccess.WriteDouble(Instance, DirectField.Offset, ISO8601ToDate(Node.AsString));
+                Continue;
+              end
+              else if Node.GetNodeType = jntNumber then
+              begin
+                TDextDirectAccess.WriteDouble(Instance, DirectField.Offset, Node.AsDouble);
+                Continue;
+              end;
+            nkString:
+              if Node.GetNodeType = jntString then
+              begin
+                TDextDirectAccess.WriteString(Instance, DirectField.Offset, Node.AsString);
+                Continue;
+              end;
+          end;
+        end;
         Handler := TReflection.GetHandler(AType, Prop.Name);
         Val := TValue.Empty;
         case Node.GetNodeType of
