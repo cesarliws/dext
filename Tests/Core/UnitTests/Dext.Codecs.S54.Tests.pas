@@ -32,6 +32,7 @@ uses
   Dext.Core.DirectAccess,
   Dext.Core.TypeModel,
   Dext.Core.ValueConverters,
+  Dext.Codecs.Registry,
   Dext.Entity.Dialects,
   Dext.Entity.TypeConverters,
   Dext.Serialization.Protobuf,
@@ -129,6 +130,8 @@ type
     [Test]
     procedure ShouldSerializeAndDeserializeNestedObjectWithDirectCodec;
     [Test]
+    procedure ShouldMatchRttiDirectAndGeneratedProtobufBytes;
+    [Test]
     procedure ShouldGenerateGrpcInvokersForServices;
     [Test]
     procedure ShouldRoundtripNestedJsonColumnThroughConverter;
@@ -172,6 +175,36 @@ begin
   FChild.Free;
   FItems := nil;
   inherited;
+end;
+
+procedure WriteCodecChild(AWriter: TObject; AObj: TObject);
+begin
+  TProtobufWriter(AWriter).WriteString(1, TCodecChild(AObj).Name);
+end;
+
+procedure ReadCodecChild(AReader: TObject; AObj: TObject);
+var
+  Reader: TProtobufReader;
+begin
+  Reader := TProtobufReader(AReader);
+  while Reader.ReadField do
+    case Reader.Tag of
+      1: TCodecChild(AObj).Name := Reader.ReadString;
+    else
+      Reader.SkipField;
+    end;
+end;
+
+function BytesEqual(const Left, Right: TBytes): Boolean;
+var
+  i: Integer;
+begin
+  if Length(Left) <> Length(Right) then
+    Exit(False);
+  for i := 0 to High(Left) do
+    if Left[i] <> Right[i] then
+      Exit(False);
+  Result := True;
 end;
 
 procedure TTypeModelTests.ShouldBuildPlansForDirectAndListFields;
@@ -244,6 +277,40 @@ begin
 
   Converted := TValueConverter.Convert(StringValue, TypeInfo(Boolean));
   Should(Converted.AsBoolean).BeFalse;
+end;
+
+procedure TCodecsCommandTests.ShouldMatchRttiDirectAndGeneratedProtobufBytes;
+var
+  Source: TCodecChild;
+  Target: TCodecChild;
+  AutoBytes: TBytes;
+  RttiBytes: TBytes;
+  DirectBytes: TBytes;
+  GeneratedBytes: TBytes;
+begin
+  TDextCodecRegistry.RegisterProtobuf<TCodecChild>(WriteCodecChild, ReadCodecChild);
+
+  Source := TCodecChild.Create;
+  Target := TCodecChild.Create;
+  try
+    Source.Name := 'Nested';
+
+    RttiBytes := TProtobufSerializer.Serialize(Source, pcmRtti);
+    DirectBytes := TProtobufSerializer.Serialize(Source, pcmDirect);
+    GeneratedBytes := TProtobufSerializer.Serialize(Source, pcmGenerated);
+    AutoBytes := TProtobufSerializer.Serialize(Source, pcmAuto);
+
+    Should(BytesEqual(RttiBytes, DirectBytes)).BeTrue;
+    Should(BytesEqual(RttiBytes, GeneratedBytes)).BeTrue;
+    Should(BytesEqual(DirectBytes, GeneratedBytes)).BeTrue;
+    Should(BytesEqual(GeneratedBytes, AutoBytes)).BeTrue;
+
+    TProtobufSerializer.Deserialize(GeneratedBytes, Target, pcmDirect);
+    Should(Target.Name).Be('Nested');
+  finally
+    Target.Free;
+    Source.Free;
+  end;
 end;
 
 procedure TCodecsCommandTests.ShouldGenerateGrpcInvokersForServices;
