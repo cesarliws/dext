@@ -56,6 +56,7 @@ begin
         TTypeModelTests,
         TDirectAccessTests,
         TArrayConverterTests,
+        TTypeConverterRegistryTests,
         TCodecsCommandTests
       ]));
   except

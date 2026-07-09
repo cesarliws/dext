@@ -567,57 +567,24 @@ end;
 { TArrayConverter }
 
 function TArrayConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
+var
+  ElementType: PTypeInfo;
 begin
-  // For now, we don't auto-detect array types
-  // User must register converter explicitly or use [ArrayColumn] attribute
   Result := False;
+  if (ATypeInfo = nil) or (ATypeInfo.Kind <> tkDynArray) then
+    Exit;
+
+  ElementType := ATypeInfo.TypeData^.DynArrElType^;
+  Result := (ElementType <> nil) and
+    (ElementType.Kind in [tkInteger, tkInt64, tkFloat, tkString, tkLString, tkWString, tkUString, tkEnumeration, tkRecord]);
 end;
 
 function TArrayConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
-var
-  Arr: TArray<TValue>;
-  I: Integer;
-  Elements: TStringList;
-  ElementStr: string;
 begin
   if AValue.IsEmpty then
     Exit(TValue.Empty);
-    
-  // Get array elements
-  Arr := AValue.AsType<TArray<TValue>>;
-  
-  case ADialect of
-    ddPostgreSQL:
-    begin
-      // Format as PostgreSQL array: ARRAY['elem1', 'elem2']
-      Elements := TStringList.Create;
-      try
-        Elements.Delimiter := ',';
-        Elements.QuoteChar := '''';
-        Elements.StrictDelimiter := True;
-        
-        for I := 0 to High(Arr) do
-        begin
-          case Arr[I].Kind of
-            tkInteger, tkInt64: ElementStr := Arr[I].AsInteger.ToString;
-            tkFloat: ElementStr := Arr[I].AsExtended.ToString;
-            tkString, tkUString: ElementStr := Arr[I].AsString;
-            else ElementStr := Arr[I].ToString;
-          end;
-          Elements.Add(ElementStr);
-        end;
-        
-        Result := 'ARRAY[' + Elements.DelimitedText + ']';
-      finally
-        Elements.Free;
-      end;
-    end;
-    else
-    begin
-      // For other databases, serialize as JSON array
-      Result := TDextJson.Serialize(Arr);
-    end;
-  end;
+
+  Result := TDextJson.Serialize(AValue);
 end;
 
 function TArrayConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
@@ -673,6 +640,7 @@ begin
   RegisterConverter(TDateConverter.Create);
   RegisterConverter(TTimeConverter.Create);
   RegisterConverter(TBytesConverter.Create);
+  RegisterConverter(TArrayConverter.Create);
   RegisterConverter(TPropConverter.Create);
   RegisterConverter(TStringsConverter.Create);
   // Note: Enum, JSON, Array converters are registered dynamically or explicitly

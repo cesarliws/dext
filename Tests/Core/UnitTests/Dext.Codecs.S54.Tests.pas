@@ -35,6 +35,7 @@ uses
   Dext.Codecs.Registry,
   Dext.Entity.Dialects,
   Dext.Entity.TypeConverters,
+  Dext.Json,
   Dext.Serialization.Protobuf,
   Dext.Grpc.Attributes,
   Dext.Hosting.CLI.Args,
@@ -129,6 +130,13 @@ type
     procedure ShouldDeserializeJsonArrayIntoTypedArray;
   end;
 
+  [TestFixture('S54 - TypeConverterRegistry')]
+  TTypeConverterRegistryTests = class
+  public
+    [Test]
+    procedure ShouldResolveArrayConverterAutomatically;
+  end;
+
   [TestFixture('S54 - CLI Codecs')]
   TCodecsCommandTests = class
   public
@@ -137,9 +145,13 @@ type
     [Test]
     procedure ShouldSerializeAndDeserializeNestedObjectWithDirectCodec;
     [Test]
+    procedure ShouldRoundtripNestedObjectThroughDirectJsonCodec;
+    [Test]
     procedure ShouldMatchRttiDirectAndGeneratedProtobufBytes;
     [Test]
     procedure ShouldGenerateGrpcInvokersForServices;
+    [Test]
+    procedure ShouldGenerateCodecsForNullableAndNestedListEdgeCases;
     [Test]
     procedure ShouldRoundtripNestedJsonColumnThroughConverter;
   end;
@@ -286,6 +298,32 @@ begin
   Should(Converted.AsBoolean).BeFalse;
 end;
 
+procedure TTypeConverterRegistryTests.ShouldResolveArrayConverterAutomatically;
+var
+  Converter: ITypeConverter;
+  InputValue: TValue;
+  OutputValue: TValue;
+  Data: TArray<string>;
+begin
+  Converter := TTypeConverterRegistry.Instance.GetConverter(TypeInfo(TArray<string>));
+  Should(Converter <> nil).BeTrue;
+  Should(Converter is TArrayConverter).BeTrue;
+
+  SetLength(Data, 2);
+  Data[0] := 'alpha';
+  Data[1] := 'beta';
+
+  InputValue := TValue.From<TArray<string>>(Data);
+  OutputValue := Converter.ToDatabase(InputValue, ddSQLite);
+  Should(OutputValue.IsEmpty).BeFalse;
+
+  OutputValue := Converter.FromDatabase(OutputValue, TypeInfo(TArray<string>));
+  Data := OutputValue.AsType<TArray<string>>;
+  Should(Length(Data)).Be(2);
+  Should(Data[0]).Be('alpha');
+  Should(Data[1]).Be('beta');
+end;
+
 procedure TArrayConverterTests.ShouldDeserializeJsonArrayIntoTypedArray;
 var
   Converter: TArrayConverter;
@@ -305,6 +343,7 @@ begin
     Converter.Free;
   end;
 end;
+
 procedure TCodecsCommandTests.ShouldMatchRttiDirectAndGeneratedProtobufBytes;
 var
   Source: TCodecChild;
@@ -426,6 +465,102 @@ begin
   end;
 end;
 
+procedure TCodecsCommandTests.ShouldRoundtripNestedObjectThroughDirectJsonCodec;
+var
+  Root: TCodecNestedRoot;
+  Target: TCodecNestedRoot;
+  JsonText: string;
+begin
+  Root := TCodecNestedRoot.Create;
+  Target := nil;
+  try
+    Root.Child.Name := 'Nested';
+    Root.Items.Add(TCodecChild.Create);
+    Root.Items[0].Name := 'Item1';
+
+    JsonText := TDextJson.Serialize<TCodecNestedRoot>(Root);
+    Should(JsonText).Contain('Nested');
+
+    Target := TDextJson.Deserialize<TCodecNestedRoot>(JsonText);
+    Should(Target <> nil).BeTrue;
+    Should(Target.Child <> nil).BeTrue;
+    Should(Target.Child.Name).Be('Nested');
+    Should(Target.Items.Count).Be(1);
+    Should(Target.Items[0].Name).Be('Item1');
+  finally
+    Target.Free;
+    Root.Free;
+  end;
+end;
+
+[Test]
+procedure TCodecsCommandTests.ShouldGenerateCodecsForNullableAndNestedListEdgeCases;
+var
+  TempDir: string;
+  InputFile: string;
+  GeneratedUnit: string;
+  SourceText: string;
+  Args: TCommandLineArgs;
+  Command: TCodecsCommand;
+  Lines: TStringList;
+begin
+  TempDir := TPath.Combine(TPath.GetTempPath, 'DextS54CodecEdgeCases');
+  if not TDirectory.Exists(TempDir) then
+    TDirectory.CreateDirectory(TempDir);
+
+  InputFile := TPath.Combine(TempDir, 'CodecInput.pas');
+  GeneratedUnit := TPath.Combine(TempDir, 'CodecInput.DextCodecs.pas');
+
+  SourceText :=
+    'unit CodecInput;' + sLineBreak + sLineBreak +
+    'interface' + sLineBreak + sLineBreak +
+    'uses Dext.Grpc.Attributes, Dext.Types.Nullable, Dext.Core.SmartTypes, Dext.Collections;' + sLineBreak + sLineBreak +
+    'type' + sLineBreak +
+    '  [GrpcMessage]' + sLineBreak +
+    '  TCodecEdgeCase = class' + sLineBreak +
+    '  private' + sLineBreak +
+    '    FAge: Nullable<Integer>;' + sLineBreak +
+    '    FName: Prop<string>;' + sLineBreak +
+    '    FTags: IList<Nullable<Integer>>;' + sLineBreak +
+    '  public' + sLineBreak +
+    '    [ProtoMember(1)]' + sLineBreak +
+    '    property Age: Nullable<Integer> read FAge write FAge;' + sLineBreak +
+    '    [ProtoMember(2)]' + sLineBreak +
+    '    property Name: Prop<string> read FName write FName;' + sLineBreak +
+    '    [ProtoMember(3)]' + sLineBreak +
+    '    property Tags: IList<Nullable<Integer>> read FTags write FTags;' + sLineBreak +
+    '  end;' + sLineBreak + sLineBreak +
+    'implementation' + sLineBreak + sLineBreak +
+    'initialization' + sLineBreak + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Nullable<Integer>>, TList<Nullable<Integer>>>;' + sLineBreak + sLineBreak +
+    'end.';
+  TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
+
+  Lines := TStringList.Create;
+  try
+    Args := TCommandLineArgs.Create;
+    try
+      Command := TCodecsCommand.Create;
+      try
+        Args.Parse(['codecs', 'generate', '--unit', InputFile, '--out', GeneratedUnit]);
+        Command.Execute(Args);
+        Should(TFile.Exists(GeneratedUnit)).BeTrue;
+        Lines.LoadFromFile(GeneratedUnit, TEncoding.UTF8);
+        Should(Lines.Text).Contain('if Obj.Age.HasValue then Writer.WriteInt32(1, Obj.Age.Value);');
+        Should(Lines.Text).Contain('Writer.WriteString(2, Obj.Name);');
+        Should(Lines.Text).Contain('if Obj.Tags[i].HasValue then Writer.WriteInt32(3, Obj.Tags[i].Value);');
+        Should(Lines.Text).Contain('Obj.Age := Reader.ReadInt32;');
+        Should(Lines.Text).Contain('Obj.Tags.Add(Reader.ReadInt32);');
+      finally
+        Command.Free;
+      end;
+    finally
+      Args.Free;
+    end;
+  finally
+    Lines.Free;
+  end;
+end;
 procedure TCodecsCommandTests.ShouldRoundtripNestedJsonColumnThroughConverter;
 var
   Converter: TJsonConverter;

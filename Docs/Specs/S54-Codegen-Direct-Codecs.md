@@ -8,6 +8,25 @@
 
 ---
 
+## 0. Active Task List
+
+This section tracks the concrete implementation slices that are being worked on or have already been closed. Keep it updated as the S54 evolves.
+
+- [x] Build `Dext.Core.TypeModel` and the shared `TDextFieldPlan` model.
+- [x] Add `Dext.Core.DirectAccess` helpers for safe offset reads and writes.
+- [x] Move protobuf serialization to direct-offset mode for supported primitives, strings, nested objects, and lists.
+- [x] Move `TDextJson` onto the shared codec plan for direct field access.
+- [x] Move ORM hydration/materialization onto the shared codec plan for direct field access.
+- [x] Add codec registry support for generated protobuf readers/writers and gRPC invokers.
+- [x] Add CLI support for `codecs generate` and `.proto` export.
+- [x] Add unit coverage for RTTI, direct, and generated protobuf compatibility.
+- [x] Add unit coverage for JSON roundtrip and ORM converter roundtrip using nested objects and lists.
+- [x] Add benchmark comparison cases for RTTI vs direct vs generated protobuf modes.
+- [ ] Extend the generated codec path for broader nested-list and SmartProp/Nullable edge cases.
+- [ ] Expand the IDE Expert surface for codec eligibility, fallback diagnostics, and generation status.
+- [ ] Capture updated baseline numbers in HISTORICAL_RESULTS.md after running the S54 benchmarks.
+
+---
 ## 1. Context
 
 S02 delivered the first complete gRPC/Protocol Buffers layer for Dext:

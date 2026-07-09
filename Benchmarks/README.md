@@ -48,6 +48,8 @@ Best benchmark results and noteworthy runs are tracked in [HISTORICAL_RESULTS.md
 These are the benchmark families that should be reported in the S54 roadmap and used for regression tracking:
 
 - `BM_S54_Protobuf_Direct_Roundtrip`
+- `BM_S54_Protobuf_Rtti_Roundtrip`
+- `BM_S54_Protobuf_Generated_Roundtrip`
 - `BM_S54_Json_Roundtrip`
 - `BM_S54_Orm_JsonConverter_Roundtrip`
 - Protobuf RTTI vs direct-offset vs generated codec paths.
@@ -230,3 +232,4 @@ To run the in-memory, routing, and ORM Google/Spring microbenchmarks on Linux:
 ./Dext.Benchmarks --benchmark_repetitions=3
 ```
 *The `ReadLn` console blocking is automatically bypassed on non-Windows platforms so the suite runs cleanly inside Linux shell scripts and CI environments without hanging.*
+
