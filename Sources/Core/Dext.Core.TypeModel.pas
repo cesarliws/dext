@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -41,6 +41,7 @@ type
     nkBoolean,
     nkSingle,
     nkDouble,
+    nkCurrency,
     nkDateTime,
     nkString,
     nkBytes,
@@ -202,8 +203,11 @@ begin
     nkBoolean,
     nkSingle,
     nkDouble,
+    nkCurrency,
     nkDateTime,
-    nkString
+    nkString,
+    nkGuid,
+    nkUuid
   ];
 end;
 
@@ -232,6 +236,8 @@ begin
     tkFloat:
       if AType = TypeInfo(Single) then
         Result := nkSingle
+      else if AType = TypeInfo(Currency) then
+        Result := nkCurrency
       else if AType = TypeInfo(TDateTime) then
         Result := nkDateTime
       else
@@ -263,7 +269,7 @@ begin
   case AKind of
     nkInt32, nkInt64, nkUInt32, nkUInt64, nkBoolean, nkEnum:
       Result := 0;
-    nkDouble, nkDateTime:
+    nkDouble, nkCurrency, nkDateTime:
       Result := 1;
     nkString, nkBytes, nkObject, nkList, nkGuid, nkUuid:
       Result := 2;

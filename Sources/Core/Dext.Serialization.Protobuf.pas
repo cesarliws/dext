@@ -23,6 +23,7 @@ uses
   Dext.Core.DirectAccess,
   Dext.Core.Reflection,
   Dext.Core.TypeModel,
+  Dext.Types.UUID,
   Dext.Grpc.Attributes;
 
 type
@@ -511,6 +512,27 @@ begin
         end;
       end;
     end;
+    tkRecord:
+    begin
+      if TypeInfoVal = TypeInfo(TGUID) then
+      begin
+        Str := GUIDToString(Value.AsType<TGUID>);
+        Bytes := TEncoding.UTF8.GetBytes(Str);
+        WriteTag(Stream, Tag, 2);
+        WriteVarint(Stream, Length(Bytes));
+        if Length(Bytes) > 0 then
+          Stream.Write(Bytes[0], Length(Bytes));
+      end
+      else if TypeInfoVal = TypeInfo(TUUID) then
+      begin
+        Str := Value.AsType<TUUID>.ToString;
+        Bytes := TEncoding.UTF8.GetBytes(Str);
+        WriteTag(Stream, Tag, 2);
+        WriteVarint(Stream, Length(Bytes));
+        if Length(Bytes) > 0 then
+          Stream.Write(Bytes[0], Length(Bytes));
+      end;
+    end;
     tkDynArray:
     begin
       if TypeInfoVal = TypeInfo(TBytes) then
@@ -597,6 +619,19 @@ begin
         end;
         Result := NestedObj;
       end;
+    end;
+    tkRecord:
+    begin
+      Len := ReadVarint(Stream);
+      if Len > 0 then
+      begin
+        SetLength(Bytes, Len);
+        Stream.Read(Bytes[0], Len);
+      end;
+      if TypeInfoVal = TypeInfo(TGUID) then
+        Result := TValue.From<TGUID>(StringToGUID(TEncoding.UTF8.GetString(Bytes)))
+      else if TypeInfoVal = TypeInfo(TUUID) then
+        Result := TValue.From<TUUID>(TUUID.FromString(TEncoding.UTF8.GetString(Bytes)));
     end;
     tkDynArray:
     begin
@@ -731,14 +766,33 @@ begin
         WriteTag(Stream, Field.ProtoTag, 5);
         WriteSingle(Stream, TDextDirectAccess.ReadSingle(Obj, Field.Offset));
       end;
-    nkDouble, nkDateTime:
+    nkDouble, nkCurrency, nkDateTime:
       begin
         WriteTag(Stream, Field.ProtoTag, 1);
-        WriteDouble(Stream, TDextDirectAccess.ReadDouble(Obj, Field.Offset));
+        if Field.NativeKind = nkCurrency then
+          WriteDouble(Stream, TDextDirectAccess.ReadCurrency(Obj, Field.Offset))
+        else
+          WriteDouble(Stream, TDextDirectAccess.ReadDouble(Obj, Field.Offset));
       end;
     nkString:
       begin
         Bytes := TEncoding.UTF8.GetBytes(TDextDirectAccess.ReadString(Obj, Field.Offset));
+        WriteTag(Stream, Field.ProtoTag, 2);
+        WriteVarint(Stream, Length(Bytes));
+        if Length(Bytes) > 0 then
+          Stream.Write(Bytes[0], Length(Bytes));
+      end;
+    nkGuid:
+      begin
+        Bytes := TEncoding.UTF8.GetBytes(GUIDToString(TDextDirectAccess.ReadGUID(Obj, Field.Offset)));
+        WriteTag(Stream, Field.ProtoTag, 2);
+        WriteVarint(Stream, Length(Bytes));
+        if Length(Bytes) > 0 then
+          Stream.Write(Bytes[0], Length(Bytes));
+      end;
+    nkUuid:
+      begin
+        Bytes := TEncoding.UTF8.GetBytes(TDextDirectAccess.ReadUUID(Obj, Field.Offset).ToString);
         WriteTag(Stream, Field.ProtoTag, 2);
         WriteVarint(Stream, Length(Bytes));
         if Length(Bytes) > 0 then
@@ -807,6 +861,12 @@ begin
         TDextDirectAccess.WriteSingle(Obj, Field.Offset, F);
         Result := True;
       end;
+    nkCurrency:
+      begin
+        D := ReadDouble(Stream);
+        TDextDirectAccess.WriteCurrency(Obj, Field.Offset, Currency(D));
+        Result := True;
+      end;
     nkDouble, nkDateTime:
       begin
         D := ReadDouble(Stream);
@@ -825,6 +885,34 @@ begin
         else
           S := '';
         TDextDirectAccess.WriteString(Obj, Field.Offset, S);
+        Result := True;
+      end;
+    nkGuid:
+      begin
+        Len := ReadVarint(Stream);
+        if Len > 0 then
+        begin
+          SetLength(Bytes, Len);
+          Stream.Read(Bytes[0], Len);
+          S := TEncoding.UTF8.GetString(Bytes);
+        end
+        else
+          S := '';
+        TDextDirectAccess.WriteGUID(Obj, Field.Offset, StringToGUID(S));
+        Result := True;
+      end;
+    nkUuid:
+      begin
+        Len := ReadVarint(Stream);
+        if Len > 0 then
+        begin
+          SetLength(Bytes, Len);
+          Stream.Read(Bytes[0], Len);
+          S := TEncoding.UTF8.GetString(Bytes);
+        end
+        else
+          S := '';
+        TDextDirectAccess.WriteUUID(Obj, Field.Offset, TUUID.FromString(S));
         Result := True;
       end;
     nkObject:
@@ -1127,7 +1215,4 @@ begin
 end;
 
 end.
-
-
-
 

@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,6 +33,7 @@ uses
   Dext.Core.TypeModel,
   Dext.Core.ValueConverters,
   Dext.Codecs.Registry,
+  Dext.Types.UUID,
   Dext.Entity.Dialects,
   Dext.Entity.TypeConverters,
   Dext.Json,
@@ -94,6 +95,16 @@ type
     property Items: IList<TCodecChild> read FItems write FItems;
   end;
 
+
+  TUuidTarget = class
+  private
+    FGuid: TGUID;
+    FUuid: TUUID;
+  public
+    property GuidValue: TGUID read FGuid write FGuid;
+    property UuidValue: TUUID read FUuid write FUuid;
+  end;
+
   TDirectTarget = class
   private
     FCount: Integer;
@@ -112,6 +123,8 @@ type
     procedure ShouldBuildPlansForDirectAndListFields;
     [Test]
     procedure ShouldClassifyNativeKinds;
+    [Test]
+    procedure ShouldRoundtripGuidAndUuidAcrossDirectPaths;
   end;
 
   [TestFixture('S54 - DirectAccess')]
@@ -121,6 +134,8 @@ type
     procedure ShouldReadAndWriteFieldsByOffset;
     [Test]
     procedure ShouldConvertDatabaseValuesToBoolean;
+    [Test]
+    procedure ShouldRoundtripGuidAndUuidAcrossDirectPaths;
   end;
 
   [TestFixture('S54 - ArrayConverter')]
@@ -152,6 +167,8 @@ type
     procedure ShouldGenerateGrpcInvokersForServices;
     [Test]
     procedure ShouldGenerateCodecsForNullableAndNestedListEdgeCases;
+    [Test]
+    procedure ShouldGenerateCodecsForGuidAndUuidFields;
     [Test]
     procedure ShouldRoundtripNestedJsonColumnThroughConverter;
   end;
@@ -253,6 +270,17 @@ begin
   Should(TDextTypeModel.NativeKindOf(TypeInfo(string))).Be(nkString);
 end;
 
+
+procedure TTypeModelTests.ShouldRoundtripGuidAndUuidAcrossDirectPaths;
+var
+  Plan: IDextTypeCodecPlan;
+begin
+  Should(TDextTypeModel.NativeKindOf(TypeInfo(TGUID))).Be(nkGuid);
+  Should(TDextTypeModel.NativeKindOf(TypeInfo(TUUID))).Be(nkUuid);
+  Plan := TDextTypeModel.GetPlan(TypeInfo(TUuidTarget));
+  Should(Plan <> nil).BeTrue;
+end;
+
 procedure TDirectAccessTests.ShouldReadAndWriteFieldsByOffset;
 var
   Target: TDirectTarget;
@@ -277,6 +305,36 @@ begin
     Should(TDextDirectAccess.ReadInt32(Target, FieldCount.Offset)).Be(42);
     Should(TDextDirectAccess.ReadString(Target, FieldName.Offset)).Be('Dext');
     Should(TDextDirectAccess.ReadBoolean(Target, FieldActive.Offset)).BeTrue;
+  finally
+    Target.Free;
+  end;
+end;
+
+procedure TDirectAccessTests.ShouldRoundtripGuidAndUuidAcrossDirectPaths;
+var
+  Target: TUuidTarget;
+  RttiContext: TRttiContext;
+  RttiType: TRttiType;
+  GuidField: TRttiField;
+  UuidField: TRttiField;
+  GuidValue: TGUID;
+  UuidValue: TUUID;
+begin
+  Target := TUuidTarget.Create;
+  try
+    RttiContext := TRttiContext.Create;
+    RttiType := RttiContext.GetType(TypeInfo(TUuidTarget));
+    GuidField := RttiType.GetField('FGuid');
+    UuidField := RttiType.GetField('FUuid');
+
+    GuidValue := StringToGUID('{6F9619FF-8B86-D011-B42D-00C04FC964FF}');
+    UuidValue := TUUID.FromString('6f9619ff-8b86-d011-b42d-00c04fc964ff');
+
+    TDextDirectAccess.WriteGUID(Target, GuidField.Offset, GuidValue);
+    TDextDirectAccess.WriteUUID(Target, UuidField.Offset, UuidValue);
+
+    Should(TDextDirectAccess.ReadGUID(Target, GuidField.Offset)).Be(GuidValue);
+    Should(TDextDirectAccess.ReadUUID(Target, UuidField.Offset)).Be(UuidValue);
   finally
     Target.Free;
   end;
@@ -522,6 +580,7 @@ begin
     '    FAge: Nullable<Integer>;' + sLineBreak +
     '    FName: Prop<string>;' + sLineBreak +
     '    FTags: IList<Nullable<Integer>>;' + sLineBreak +
+    '    FHistory: Nullable<IList<Integer>>;' + sLineBreak +
     '  public' + sLineBreak +
     '    [ProtoMember(1)]' + sLineBreak +
     '    property Age: Nullable<Integer> read FAge write FAge;' + sLineBreak +
@@ -529,10 +588,13 @@ begin
     '    property Name: Prop<string> read FName write FName;' + sLineBreak +
     '    [ProtoMember(3)]' + sLineBreak +
     '    property Tags: IList<Nullable<Integer>> read FTags write FTags;' + sLineBreak +
+    '    [ProtoMember(4)]' + sLineBreak +
+    '    property History: Nullable<IList<Integer>> read FHistory write FHistory;' + sLineBreak +
     '  end;' + sLineBreak + sLineBreak +
     'implementation' + sLineBreak + sLineBreak +
     'initialization' + sLineBreak + sLineBreak +
-    '  TActivator.RegisterDefault<IList<Nullable<Integer>>, TList<Nullable<Integer>>>;' + sLineBreak + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Nullable<Integer>>, TList<Nullable<Integer>>>;' + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Integer>, TList<Integer>>;' + sLineBreak + sLineBreak +
     'end.';
   TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
 
@@ -546,9 +608,14 @@ begin
         Command.Execute(Args);
         Should(TFile.Exists(GeneratedUnit)).BeTrue;
         Lines.LoadFromFile(GeneratedUnit, TEncoding.UTF8);
-        Should(Lines.Text).Contain('if Obj.Age.HasValue then Writer.WriteInt32(1, Obj.Age.Value);');
-        Should(Lines.Text).Contain('Writer.WriteString(2, Obj.Name);');
-        Should(Lines.Text).Contain('if Obj.Tags[i].HasValue then Writer.WriteInt32(3, Obj.Tags[i].Value);');
+        Should(Lines.Text).Contain('if Obj.Age.HasValue then');
+        Should(Lines.Text).Contain('Writer.WriteInt32(1, Obj.Age.Value);');
+        Should(Lines.Text).Contain('Writer.WriteString(2, Obj.Name.Value);');
+        Should(Lines.Text).Contain('if Obj.Tags[i].HasValue then');
+        Should(Lines.Text).Contain('Writer.WriteInt32(3, Obj.Tags[i].Value);');
+        Should(Lines.Text).Contain('if not Obj.History.HasValue then');
+        Should(Lines.Text).Contain('Obj.History := TCollections.CreateList<Integer>(False);');
+        Should(Lines.Text).Contain('Obj.History.Value.Add(Reader.ReadInt32);');
         Should(Lines.Text).Contain('Obj.Age := Reader.ReadInt32;');
         Should(Lines.Text).Contain('Obj.Tags.Add(Reader.ReadInt32);');
       finally
@@ -593,6 +660,90 @@ begin
     Target.Free;
     Root.Free;
     Converter.Free;
+  end;
+end;
+
+procedure TCodecsCommandTests.ShouldGenerateCodecsForGuidAndUuidFields;
+var
+  TempDir: string;
+  InputFile: string;
+  GeneratedUnit: string;
+  ProtoFile: string;
+  SourceText: string;
+  Args: TCommandLineArgs;
+  Command: TCodecsCommand;
+  Lines: TStringList;
+  ProtoText: string;
+begin
+  TempDir := TPath.Combine(TPath.GetTempPath, 'DextS54UuidCodecs');
+  if not TDirectory.Exists(TempDir) then
+    TDirectory.CreateDirectory(TempDir);
+
+  InputFile := TPath.Combine(TempDir, 'CodecInput.pas');
+  GeneratedUnit := TPath.Combine(TempDir, 'CodecInput.DextCodecs.pas');
+  ProtoFile := TPath.Combine(TempDir, 'CodecInput.proto');
+
+  SourceText :=
+    'unit CodecInput;' + sLineBreak + sLineBreak +
+    'interface' + sLineBreak + sLineBreak +
+    'uses Dext.Grpc.Attributes, Dext.Types.UUID;' + sLineBreak + sLineBreak +
+    'type' + sLineBreak +
+    '  [GrpcMessage]' + sLineBreak +
+    '  TCodecUuidRoot = class' + sLineBreak +
+    '  private' + sLineBreak +
+    '    FGuidValue: TGUID;' + sLineBreak +
+    '    FUuidValue: TUUID;' + sLineBreak +
+    '  public' + sLineBreak +
+    '    [ProtoMember(1)]' + sLineBreak +
+    '    property GuidValue: TGUID read FGuidValue write FGuidValue;' + sLineBreak +
+    '    [ProtoMember(2)]' + sLineBreak +
+    '    property UuidValue: TUUID read FUuidValue write FUuidValue;' + sLineBreak +
+    '  end;' + sLineBreak + sLineBreak +
+    'implementation' + sLineBreak + sLineBreak +
+    'end.';
+  TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
+
+  Lines := TStringList.Create;
+  try
+    Args := TCommandLineArgs.Create;
+    try
+      Command := TCodecsCommand.Create;
+      try
+        Args.Parse(['codecs', 'generate', '--unit', InputFile, '--out', GeneratedUnit]);
+        Command.Execute(Args);
+        Should(TFile.Exists(GeneratedUnit)).BeTrue;
+
+        Lines.LoadFromFile(GeneratedUnit, TEncoding.UTF8);
+        Should(Lines.Text).Contain('Dext.Types.UUID');
+        Should(Lines.Text).Contain('GUIDToString(Obj.GuidValue)');
+        Should(Lines.Text).Contain('Obj.UuidValue.ToString');
+        Should(Lines.Text).Contain('StringToGUID(Reader.ReadString)');
+        Should(Lines.Text).Contain('TUUID.FromString(Reader.ReadString)');
+      finally
+        Command.Free;
+      end;
+    finally
+      Args.Free;
+    end;
+
+    Args := TCommandLineArgs.Create;
+    try
+      Command := TCodecsCommand.Create;
+      try
+        Args.Parse(['codecs', 'proto', '--unit', InputFile, '--out', ProtoFile]);
+        Command.Execute(Args);
+        Should(TFile.Exists(ProtoFile)).BeTrue;
+        ProtoText := TFile.ReadAllText(ProtoFile, TEncoding.UTF8);
+        Should(ProtoText).Contain('string GuidValue = 1;');
+        Should(ProtoText).Contain('string UuidValue = 2;');
+      finally
+        Command.Free;
+      end;
+    finally
+      Args.Free;
+    end;
+  finally
+    Lines.Free;
   end;
 end;
 

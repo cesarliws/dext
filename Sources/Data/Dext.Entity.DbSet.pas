@@ -77,6 +77,7 @@ type
     ColumnName: string;
     DirectOffset: NativeInt;
     DirectKind: TDextNativeKind;
+    DirectDataType: TFieldType;
     UseDirect: Boolean;
   end;
 
@@ -894,6 +895,7 @@ begin
       Item.ColumnName := ColName;
       Item.DirectOffset := -1;
       Item.DirectKind := nkUnknown;
+      Item.DirectDataType := ftUnknown;
       Item.UseDirect := False;
       if (PropMap <> nil) and (Converter = nil) and (PropMap.FieldValueOffset > 0) and
          (PropMap.FieldOffset < 0) and (not PropMap.IsLazy) and
@@ -901,6 +903,7 @@ begin
       begin
         Item.DirectOffset := PropMap.FieldValueOffset;
         Item.DirectKind := PropMap.NativeKind;
+        Item.DirectDataType := PropMap.DataType;
         Item.UseDirect := True;
       end;
 
@@ -1051,6 +1054,8 @@ begin
               TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, TValueConverter.Convert(Val, TypeInfo(Boolean)).AsBoolean);
             nkSingle:
               TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
+            nkCurrency:
+              TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
             nkDouble:
               TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
             nkDateTime:

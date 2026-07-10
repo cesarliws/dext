@@ -458,8 +458,10 @@ begin
         Param.AsInteger := V.AsInteger;
     ftLargeint:
       Param.AsLargeInt := V.AsInt64;
-    ftFloat, ftCurrency, Data.DB.ftExtended:
+    ftFloat, Data.DB.ftExtended:
       Param.AsFloat := V.AsExtended;
+    ftCurrency:
+      Param.AsCurrency := V.AsType<Currency>;
     ftBCD:
       Param.AsBCD := V.AsType<Currency>;
     ftFMTBcd:
@@ -1451,4 +1453,3 @@ initialization
   Dext.Telemetry.Metrics.GActiveDbConnectionsFunc := DextGetActiveDbConnections;
 
 end.
-

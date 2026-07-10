@@ -1257,6 +1257,8 @@ begin
           Result.SetBoolean(Item^.JsonName, TDextDirectAccess.ReadBoolean(Obj, Item^.DirectOffset));
         nkSingle:
           Result.SetDouble(Item^.JsonName, TDextDirectAccess.ReadSingle(Obj, Item^.DirectOffset));
+        nkCurrency:
+          Result.SetDouble(Item^.JsonName, TDextDirectAccess.ReadCurrency(Obj, Item^.DirectOffset));
         nkDouble:
           Result.SetDouble(Item^.JsonName, TDextDirectAccess.ReadDouble(Obj, Item^.DirectOffset));
         nkDateTime:
@@ -1264,6 +1266,10 @@ begin
             TDextDirectAccess.ReadDouble(Obj, Item^.DirectOffset)));
         nkString:
           Result.SetString(Item^.JsonName, TDextDirectAccess.ReadString(Obj, Item^.DirectOffset));
+        nkGuid:
+          Result.SetString(Item^.JsonName, GUIDToString(TDextDirectAccess.ReadGUID(Obj, Item^.DirectOffset)));
+        nkUuid:
+          Result.SetString(Item^.JsonName, TDextDirectAccess.ReadUUID(Obj, Item^.DirectOffset).ToString);
         nkObject:
           begin
             if (Item^.ValueTypeInfo <> nil) and (Item^.ValueTypeInfo.Kind = tkClass) then
@@ -1545,6 +1551,12 @@ begin
                 TDextDirectAccess.WriteSingle(Instance, DirectField.Offset, Node.AsDouble);
                 Continue;
               end;
+            nkCurrency:
+              if Node.GetNodeType = jntNumber then
+              begin
+                TDextDirectAccess.WriteCurrency(Instance, DirectField.Offset, Currency(Node.AsDouble));
+                Continue;
+              end;
             nkDouble:
               if Node.GetNodeType = jntNumber then
               begin
@@ -1566,6 +1578,18 @@ begin
               if Node.GetNodeType = jntString then
               begin
                 TDextDirectAccess.WriteString(Instance, DirectField.Offset, Node.AsString);
+                Continue;
+              end;
+            nkGuid:
+              if Node.GetNodeType = jntString then
+              begin
+                TDextDirectAccess.WriteGUID(Instance, DirectField.Offset, StringToGUID(Node.AsString));
+                Continue;
+              end;
+            nkUuid:
+              if Node.GetNodeType = jntString then
+              begin
+                TDextDirectAccess.WriteUUID(Instance, DirectField.Offset, TUUID.FromString(Node.AsString));
                 Continue;
               end;
             nkObject:

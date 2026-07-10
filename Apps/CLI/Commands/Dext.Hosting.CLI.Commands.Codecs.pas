@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -28,7 +28,8 @@ uses
   System.RegularExpressions,
   System.SysUtils,
   Dext.Collections,
-  Dext.Hosting.CLI.Args;
+  Dext.Hosting.CLI.Args,
+  Dext.Types.UUID;
 
 type
   TCodecsCommand = class(TInterfacedObject, IConsoleCommand)
@@ -103,6 +104,16 @@ begin
     not SameText(T, 'TBytes') and not SameText(T, 'TDateTime');
 end;
 
+function IsGuidTypeName(const DelphiType: string): Boolean;
+begin
+  Result := SameText(NormalizeCodecTypeName(DelphiType), 'TGUID');
+end;
+
+function IsUuidTypeName(const DelphiType: string): Boolean;
+begin
+  Result := SameText(NormalizeCodecTypeName(DelphiType), 'TUUID');
+end;
+
 function IsListTypeName(const DelphiType: string): Boolean;
 var
   T: string;
@@ -131,7 +142,7 @@ var
 begin
   T := DelphiType.Trim.ToLower;
   Result := T.StartsWith('nullable<') or T.StartsWith('dext.types.nullable.nullable<') or
-    T.StartsWith('tnullable<') or T.Contains('nullable<');
+    T.StartsWith('tnullable<');
 end;
 
 function IsPropTypeName(const DelphiType: string): Boolean;
@@ -140,7 +151,7 @@ var
 begin
   T := DelphiType.Trim.ToLower;
   Result := T.StartsWith('prop<') or T.StartsWith('dext.core.smarttypes.prop<') or
-    T.StartsWith('tprop<') or T.Contains('prop<');
+    T.StartsWith('tprop<');
 end;
 
 function IsSmartValueTypeName(const DelphiType: string): Boolean;
@@ -178,7 +189,8 @@ begin
   Result := ((T = 'integer') or (T = 'smallint') or (T = 'shortint') or
     (T = 'int64') or (T = 'boolean') or (T = 'bool') or
     (T = 'single') or (T = 'double') or (T = 'datetime') or
-    (T = 'string') or (T = 'tbytes') or IsClassTypeName(BaseType) or
+    (T = 'string') or (T = 'tbytes') or IsGuidTypeName(BaseType) or
+    IsUuidTypeName(BaseType) or IsClassTypeName(BaseType) or
     IsListTypeName(BaseType));
 end;
 
@@ -210,6 +222,8 @@ begin
     else
       Result := 'repeated string';
   end
+  else if IsGuidTypeName(BaseType) or IsUuidTypeName(BaseType) then
+    Result := 'string'
   else if IsClassTypeName(BaseType) then
     Result := StripTypePrefix(BaseType)
   else
@@ -256,6 +270,154 @@ begin
     Result := 'ReadBytes'
   else
     Result := 'ReadString';
+end;
+
+
+function IndentText(Indent: Integer): string;
+begin
+  Result := StringOfChar(' ', Indent);
+end;
+
+procedure AppendGeneratedWriteValue(Output: TStringList; const Expr,
+  DelphiType: string; Tag, Indent: Integer);
+var
+  InnerType: string;
+  ElementType: string;
+  BaseType: string;
+begin
+  BaseType := NormalizeCodecTypeName(DelphiType);
+
+  if IsNullableTypeName(DelphiType) then
+  begin
+    InnerType := ExtractGenericArg(DelphiType);
+    Output.Add(IndentText(Indent) + Format('if %s.HasValue then', [Expr]));
+    AppendGeneratedWriteValue(Output, Expr + '.Value', InnerType, Tag, Indent + 2);
+    Exit;
+  end;
+
+  if IsPropTypeName(DelphiType) then
+  begin
+    InnerType := ExtractGenericArg(DelphiType);
+    AppendGeneratedWriteValue(Output, Expr + '.Value', InnerType, Tag, Indent);
+    Exit;
+  end;
+
+  if IsGuidTypeName(DelphiType) then
+  begin
+    Output.Add(IndentText(Indent) + Format('Writer.WriteString(%d, GUIDToString(%s));', [Tag, Expr]));
+    Exit;
+  end;
+
+  if IsUuidTypeName(DelphiType) then
+  begin
+    Output.Add(IndentText(Indent) + Format('Writer.WriteString(%d, %s.ToString);', [Tag, Expr]));
+    Exit;
+  end;
+
+  if IsListTypeName(BaseType) then
+  begin
+    ElementType := NormalizeCodecTypeName(ListElementTypeName(BaseType));
+    Output.Add(IndentText(Indent) + Format('if %s <> nil then', [Expr]));
+    Output.Add(IndentText(Indent) + 'begin');
+    Output.Add(IndentText(Indent + 2) + 'for i := 0 to ' + Expr + '.Count - 1 do');
+    if IsNullableTypeName(ListElementTypeName(BaseType)) then
+    begin
+      InnerType := ExtractGenericArg(ListElementTypeName(BaseType));
+      Output.Add(IndentText(Indent + 4) + Format('if %s[i].HasValue then', [Expr]));
+      AppendGeneratedWriteValue(Output, Expr + '[i].Value', InnerType, Tag, Indent + 6);
+    end
+    else if IsPropTypeName(ListElementTypeName(BaseType)) then
+      AppendGeneratedWriteValue(Output, Expr + '[i].Value', ExtractGenericArg(ListElementTypeName(BaseType)), Tag, Indent + 4)
+    else if IsGuidTypeName(ListElementTypeName(BaseType)) then
+      AppendGeneratedWriteValue(Output, Expr + '[i]', ListElementTypeName(BaseType), Tag, Indent + 4)
+    else if IsUuidTypeName(ListElementTypeName(BaseType)) then
+      AppendGeneratedWriteValue(Output, Expr + '[i]', ListElementTypeName(BaseType), Tag, Indent + 4)
+    else if IsClassTypeName(ElementType) then
+      Output.Add(IndentText(Indent + 4) + Format('if Assigned(%s[i]) then Writer.WriteMessage(%d, TProtobufSerializer.Serialize(%s[i], pcmGenerated));', [Expr, Tag, Expr]))
+    else
+      Output.Add(IndentText(Indent + 4) + Format('Writer.%s(%d, %s[i]);', [WriterMethodOf(ListElementTypeName(BaseType)), Tag, Expr]));
+    Output.Add(IndentText(Indent) + 'end;');
+    Exit;
+  end;
+
+  if IsClassTypeName(BaseType) then
+  begin
+    Output.Add(IndentText(Indent) + Format('if Assigned(%s) then Writer.WriteMessage(%d, TProtobufSerializer.Serialize(%s, pcmGenerated));', [Expr, Tag, Expr]));
+    Exit;
+  end;
+
+  Output.Add(IndentText(Indent) + Format('Writer.%s(%d, %s);', [WriterMethodOf(DelphiType), Tag, Expr]));
+end;
+
+procedure AppendGeneratedReadValue(Output: TStringList; const Expr,
+  DelphiType: string; Tag, Indent: Integer);
+var
+  InnerType: string;
+  ElementType: string;
+  BaseType: string;
+begin
+  BaseType := NormalizeCodecTypeName(DelphiType);
+
+  if IsNullableTypeName(DelphiType) then
+  begin
+    InnerType := ExtractGenericArg(DelphiType);
+    if IsListTypeName(NormalizeCodecTypeName(InnerType)) then
+    begin
+      Output.Add(IndentText(Indent) + Format('if not %s.HasValue then', [Expr]));
+      Output.Add(IndentText(Indent + 2) + Format('%s := TCollections.CreateList<%s>(%s);', [Expr, ListElementTypeName(NormalizeCodecTypeName(InnerType)), BoolToStr(ListOwnsObjects(NormalizeCodecTypeName(InnerType)), True)]));
+      AppendGeneratedReadValue(Output, Expr + '.Value', InnerType, Tag, Indent);
+      Exit;
+    end;
+
+    if IsClassTypeName(NormalizeCodecTypeName(InnerType)) then
+      Output.Add(IndentText(Indent) + Format('%s := %s(ReadMessageObject(Reader, %s.Create));', [Expr, NormalizeCodecTypeName(InnerType), NormalizeCodecTypeName(InnerType)]))
+    else
+      Output.Add(IndentText(Indent) + Format('%s := Reader.%s;', [Expr, ReaderMethodOf(InnerType)]));
+    Exit;
+  end;
+
+  if IsPropTypeName(DelphiType) then
+  begin
+    InnerType := ExtractGenericArg(DelphiType);
+    AppendGeneratedReadValue(Output, Expr + '.Value', InnerType, Tag, Indent);
+    Exit;
+  end;
+
+  if IsGuidTypeName(DelphiType) then
+  begin
+    Output.Add(IndentText(Indent) + Format('%s := StringToGUID(Reader.ReadString);', [Expr]));
+    Exit;
+  end;
+
+  if IsUuidTypeName(DelphiType) then
+  begin
+    Output.Add(IndentText(Indent) + Format('%s := TUUID.FromString(Reader.ReadString);', [Expr]));
+    Exit;
+  end;
+
+  if IsListTypeName(BaseType) then
+  begin
+    ElementType := NormalizeCodecTypeName(ListElementTypeName(BaseType));
+    Output.Add(IndentText(Indent) + Format('if %s = nil then', [Expr]));
+    Output.Add(IndentText(Indent + 2) + Format('%s := TCollections.CreateList<%s>(%s);', [Expr, ListElementTypeName(BaseType), BoolToStr(ListOwnsObjects(BaseType), True)]));
+    if IsClassTypeName(ElementType) then
+      Output.Add(IndentText(Indent) + Format('%s.Add(%s(ReadMessageObject(Reader, %s.Create)));', [Expr, ListElementTypeName(BaseType), ElementType]))
+    else if IsGuidTypeName(ListElementTypeName(BaseType)) then
+      Output.Add(IndentText(Indent) + Format('%s.Add(StringToGUID(Reader.ReadString));', [Expr]))
+    else if IsUuidTypeName(ListElementTypeName(BaseType)) then
+      Output.Add(IndentText(Indent) + Format('%s.Add(TUUID.FromString(Reader.ReadString));', [Expr]))
+    else
+      Output.Add(IndentText(Indent) + Format('%s.Add(Reader.%s);', [Expr, ReaderMethodOf(ListElementTypeName(BaseType))]));
+    Exit;
+  end;
+
+  if IsClassTypeName(BaseType) then
+  begin
+    Output.Add(IndentText(Indent) + Format('%s := %s(ReadMessageObject(Reader, %s.Create));', [Expr, BaseType, BaseType]));
+    Exit;
+  end;
+
+  Output.Add(IndentText(Indent) + Format('%s := Reader.%s;', [Expr, ReaderMethodOf(DelphiType)]));
 end;
 
 function IsGrpcInterfaceDeclaration(const Line: string; out InterfaceName: string): Boolean;
@@ -507,6 +669,7 @@ begin
     Output.Add('  System.SysUtils,');
     Output.Add('  Dext.Collections,');
     Output.Add('  Dext.Codecs.Registry,');
+    Output.Add('  Dext.Types.UUID,');
     Output.Add('  Dext.Serialization.Protobuf,');
     Output.Add('  ' + UnitName + ';');
     Output.Add('');
@@ -538,29 +701,8 @@ begin
       begin
         if not IsGeneratedSupportedType(M.DelphiType) then
           Output.Add(Format('  // %s is not supported by the initial static codec generator.', [M.Name]))
-        else if IsListTypeName(M.DelphiType) then
-        begin
-          Output.Add(Format('  if Obj.%s <> nil then', [M.Name]));
-          Output.Add('  begin');
-          Output.Add(Format('    for i := 0 to Obj.%s.Count - 1 do', [M.Name]));
-          if IsNullableTypeName(ListElementTypeName(M.DelphiType)) then
-            Output.Add(Format('      if Obj.%s[i].HasValue then Writer.%s(%d, Obj.%s[i].Value);', [M.Name, WriterMethodOf(ListElementTypeName(M.DelphiType)), M.Tag, M.Name]))
-          else if IsPropTypeName(ListElementTypeName(M.DelphiType)) then
-            Output.Add(Format('      Writer.%s(%d, Obj.%s[i]);', [WriterMethodOf(ListElementTypeName(M.DelphiType)), M.Tag, M.Name]))
-          else if IsClassTypeName(NormalizeCodecTypeName(ListElementTypeName(M.DelphiType))) then
-            Output.Add(Format('      if Assigned(Obj.%s[i]) then Writer.WriteMessage(%d, TProtobufSerializer.Serialize(Obj.%s[i], pcmGenerated));', [M.Name, M.Tag, M.Name]))
-          else
-            Output.Add(Format('      Writer.%s(%d, Obj.%s[i]);', [WriterMethodOf(ListElementTypeName(M.DelphiType)), M.Tag, M.Name]));
-          Output.Add('  end;');
-        end
-        else if IsNullableTypeName(M.DelphiType) then
-          Output.Add(Format('  if Obj.%s.HasValue then Writer.%s(%d, Obj.%s.Value);', [M.Name, WriterMethodOf(M.DelphiType), M.Tag, M.Name]))
-        else if IsPropTypeName(M.DelphiType) then
-          Output.Add(Format('  Writer.%s(%d, Obj.%s);', [WriterMethodOf(M.DelphiType), M.Tag, M.Name]))
-        else if IsClassTypeName(NormalizeCodecTypeName(M.DelphiType)) then
-          Output.Add(Format('  if Obj.%s <> nil then Writer.WriteMessage(%d, TProtobufSerializer.Serialize(Obj.%s, pcmGenerated));', [M.Name, M.Tag, M.Name]))
         else
-          Output.Add(Format('  Writer.%s(%d, Obj.%s);', [WriterMethodOf(M.DelphiType), M.Tag, M.Name]));
+          AppendGeneratedWriteValue(Output, 'Obj.' + M.Name, M.DelphiType, M.Tag, 2);
       end;
       Output.Add('end;');
       Output.Add('');
@@ -578,22 +720,13 @@ begin
       begin
         if not IsGeneratedSupportedType(M.DelphiType) then
           Output.Add(Format('      %d: Reader.SkipField;', [M.Tag]))
-        else if IsListTypeName(M.DelphiType) then
+        else
         begin
           Output.Add(Format('      %d:', [M.Tag]));
           Output.Add('      begin');
-          Output.Add(Format('        if Obj.%s = nil then', [M.Name]));
-          Output.Add(Format('          Obj.%s := TCollections.CreateList<%s>(%s);', [M.Name, ListElementTypeName(M.DelphiType), BoolToStr(ListOwnsObjects(M.DelphiType), True)]));
-          if IsClassTypeName(NormalizeCodecTypeName(ListElementTypeName(M.DelphiType))) then
-            Output.Add(Format('        Obj.%s.Add(%s(ReadMessageObject(Reader, %s.Create)));', [M.Name, ListElementTypeName(M.DelphiType), NormalizeCodecTypeName(ListElementTypeName(M.DelphiType))]))
-          else
-            Output.Add(Format('        Obj.%s.Add(Reader.%s);', [M.Name, ReaderMethodOf(ListElementTypeName(M.DelphiType))]));
+          AppendGeneratedReadValue(Output, 'Obj.' + M.Name, M.DelphiType, M.Tag, 8);
           Output.Add('      end;');
-        end
-        else if IsClassTypeName(NormalizeCodecTypeName(M.DelphiType)) then
-          Output.Add(Format('      %d: Obj.%s := %s(ReadMessageObject(Reader, %s.Create));', [M.Tag, M.Name, NormalizeCodecTypeName(M.DelphiType), NormalizeCodecTypeName(M.DelphiType)]))
-        else
-          Output.Add(Format('      %d: Obj.%s := Reader.%s;', [M.Tag, M.Name, ReaderMethodOf(M.DelphiType)]));
+        end;
       end;
       Output.Add('    else');
       Output.Add('      Reader.SkipField;');

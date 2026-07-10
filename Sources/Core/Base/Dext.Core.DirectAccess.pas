@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -23,7 +23,8 @@ unit Dext.Core.DirectAccess;
 interface
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  Dext.Types.UUID;
 
 type
   PObject = ^TObject;
@@ -53,6 +54,10 @@ type
     class function ReadDouble(Instance: TObject; Offset: NativeInt): Double; static; inline;
     /// <summary>Writes a Double value directly to the field offset.</summary>
     class procedure WriteDouble(Instance: TObject; Offset: NativeInt; Value: Double); static; inline;
+    /// <summary>Reads a Currency value directly from the field offset.</summary>
+    class function ReadCurrency(Instance: TObject; Offset: NativeInt): Currency; static; inline;
+    /// <summary>Writes a Currency value directly to the field offset.</summary>
+    class procedure WriteCurrency(Instance: TObject; Offset: NativeInt; Value: Currency); static; inline;
     /// <summary>Reads a managed string directly from the field offset.</summary>
     class function ReadString(Instance: TObject; Offset: NativeInt): string; static; inline;
     /// <summary>Writes a managed string directly to the field offset.</summary>
@@ -64,6 +69,15 @@ type
     /// <summary>Reads an interface reference directly from the field offset.</summary>
     class function ReadInterface(Instance: TObject; Offset: NativeInt): IInterface; static; inline;
     /// <summary>Writes an interface reference directly to the field offset.</summary>
+
+    /// <summary>Reads a GUID value directly from the field offset.</summary>
+    class function ReadGUID(Instance: TObject; Offset: NativeInt): TGUID; static; inline;
+    /// <summary>Writes a GUID value directly to the field offset.</summary>
+    class procedure WriteGUID(Instance: TObject; Offset: NativeInt; const Value: TGUID); static; inline;
+    /// <summary>Reads a UUID value directly from the field offset.</summary>
+    class function ReadUUID(Instance: TObject; Offset: NativeInt): TUUID; static; inline;
+    /// <summary>Writes a UUID value directly to the field offset.</summary>
+    class procedure WriteUUID(Instance: TObject; Offset: NativeInt; const Value: TUUID); static; inline;
     class procedure WriteInterface(Instance: TObject; Offset: NativeInt; const Value: IInterface); static; inline;
   end;
 
@@ -124,6 +138,16 @@ begin
   PDouble(Ptr(Instance, Offset))^ := Value;
 end;
 
+class function TDextDirectAccess.ReadCurrency(Instance: TObject; Offset: NativeInt): Currency;
+begin
+  Result := PCurrency(Ptr(Instance, Offset))^;
+end;
+
+class procedure TDextDirectAccess.WriteCurrency(Instance: TObject; Offset: NativeInt; Value: Currency);
+begin
+  PCurrency(Ptr(Instance, Offset))^ := Value;
+end;
+
 class function TDextDirectAccess.ReadString(Instance: TObject; Offset: NativeInt): string;
 begin
   Result := PString(Ptr(Instance, Offset))^;
@@ -152,6 +176,26 @@ end;
 class procedure TDextDirectAccess.WriteInterface(Instance: TObject; Offset: NativeInt; const Value: IInterface);
 begin
   PIInterface(Ptr(Instance, Offset))^ := Value;
+end;
+
+class function TDextDirectAccess.ReadGUID(Instance: TObject; Offset: NativeInt): TGUID;
+begin
+  Result := PGUID(Ptr(Instance, Offset))^;
+end;
+
+class procedure TDextDirectAccess.WriteGUID(Instance: TObject; Offset: NativeInt; const Value: TGUID);
+begin
+  PGUID(Ptr(Instance, Offset))^ := Value;
+end;
+
+class function TDextDirectAccess.ReadUUID(Instance: TObject; Offset: NativeInt): TUUID;
+begin
+  Move(Ptr(Instance, Offset)^, Result, SizeOf(TUUID));
+end;
+
+class procedure TDextDirectAccess.WriteUUID(Instance: TObject; Offset: NativeInt; const Value: TUUID);
+begin
+  Move(Value, Ptr(Instance, Offset)^, SizeOf(TUUID));
 end;
 
 end.
