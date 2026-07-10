@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -27,9 +27,12 @@ uses
   Dext.Types.UUID;
 
 type
+  /// <summary>Pointer alias used to read and write object references by field offset.</summary>
   PObject = ^TObject;
+  /// <summary>Pointer alias used to read and write interface references by field offset.</summary>
   PIInterface = ^IInterface;
 
+  /// <summary>Low-level typed helpers for reading and writing validated object fields by physical offset.</summary>
   TDextDirectAccess = record
   public
     /// <summary>Calculates the raw pointer to the field at the given offset.</summary>
@@ -69,7 +72,7 @@ type
     /// <summary>Reads an interface reference directly from the field offset.</summary>
     class function ReadInterface(Instance: TObject; Offset: NativeInt): IInterface; static; inline;
     /// <summary>Writes an interface reference directly to the field offset.</summary>
-
+    class procedure WriteInterface(Instance: TObject; Offset: NativeInt; const Value: IInterface); static; inline;
     /// <summary>Reads a GUID value directly from the field offset.</summary>
     class function ReadGUID(Instance: TObject; Offset: NativeInt): TGUID; static; inline;
     /// <summary>Writes a GUID value directly to the field offset.</summary>
@@ -78,7 +81,6 @@ type
     class function ReadUUID(Instance: TObject; Offset: NativeInt): TUUID; static; inline;
     /// <summary>Writes a UUID value directly to the field offset.</summary>
     class procedure WriteUUID(Instance: TObject; Offset: NativeInt; const Value: TUUID); static; inline;
-    class procedure WriteInterface(Instance: TObject; Offset: NativeInt; const Value: IInterface); static; inline;
   end;
 
 implementation
@@ -199,4 +201,3 @@ begin
 end;
 
 end.
-

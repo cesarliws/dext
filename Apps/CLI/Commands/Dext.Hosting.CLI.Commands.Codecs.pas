@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -32,6 +32,7 @@ uses
   Dext.Types.UUID;
 
 type
+  /// <summary>CLI command that exports proto3 contracts and generated Dext codec units.</summary>
   TCodecsCommand = class(TInterfacedObject, IConsoleCommand)
   private
     /// <summary>Generates a Pascal unit with static codec registrations and readers/writers.</summary>
@@ -832,12 +833,3 @@ begin
 end;
 
 end.
-
-
-
-
-
-
-
-
-

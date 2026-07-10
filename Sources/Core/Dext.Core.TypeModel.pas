@@ -32,6 +32,7 @@ uses
   Dext.Core.Reflection;
 
 type
+  /// <summary>Normalized native type classification used by direct codecs, JSON, protobuf, and ORM hydration.</summary>
   TDextNativeKind = (
     nkUnknown,
     nkInt32,
@@ -480,4 +481,3 @@ begin
 end;
 
 end.
-

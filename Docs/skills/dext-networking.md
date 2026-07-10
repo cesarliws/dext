@@ -345,3 +345,12 @@ var Bytes := Serializer.Serialize(MyObject);
 var Client := TgRpcClient.Create('http://localhost:50051');
 var Response := Client.Invoke('dext.services.UserService/GetUser', RequestBytes);
 ```
+## S54 Direct and Generated gRPC Codecs
+
+For gRPC/protobuf DTOs, prefer the S54 codec tiers:
+
+- RTTI fallback for dynamic or unsupported members.
+- Direct-offset protobuf for validated field-backed members.
+- Generated Pascal codecs via `dext codecs generate` and `.proto` export via `dext codecs export-proto`.
+
+Supported generated shapes include native scalars, `string`, `TBytes`, `TGUID`, `TUUID`, nested `[GrpcMessage]` classes, `IList<T>`, `Nullable<T>`, `Prop<T>`, `Nullable<IList<T>>`, `IList<Nullable<T>>`, and `IList<Prop<T>>`. Keep unsupported wrappers, unclear ownership, custom accessors, and `Lazy<T>` out of generated paths until diagnostics explicitly allow them.

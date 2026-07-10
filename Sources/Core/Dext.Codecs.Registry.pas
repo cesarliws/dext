@@ -29,10 +29,14 @@ uses
   Dext.Collections.Dict;
 
 type
+  /// <summary>Procedure signature used by generated protobuf writers.</summary>
   TDextCodecWriteProc = procedure(AWriter: TObject; AObj: TObject);
+  /// <summary>Procedure signature used by generated protobuf readers.</summary>
   TDextCodecReadProc = procedure(AReader: TObject; AObj: TObject);
+  /// <summary>Function signature used by generated gRPC service invokers.</summary>
   TDextGrpcMethodInvoker = function(AService: TObject; ARequest: TObject): TObject;
 
+  /// <summary>Pair of generated protobuf read and write procedures for one Delphi type.</summary>
   TDextCodecPair = record
     WriteProc: TDextCodecWriteProc;
     ReadProc: TDextCodecReadProc;

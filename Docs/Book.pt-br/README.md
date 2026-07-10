@@ -99,6 +99,7 @@
 - [Serialização e Globalização](10-avancado/serializacao-globalizacao.md) ⭐ **NOVO** - Lidar com locales e formatos JSON
 - [Pipeline de Resiliência (S32)](10-avancado/resiliencia.md) ⭐ **NOVO** - Tratamento de falhas estilo Polly (Retry, Circuit Breaker, Fallback, Timeout)
 - [Otimização com Delphi64RTL (Win64)](10-avancado/performance-delphi64rtl.md) ⭐ **NOVO** - Usando assembly otimizado e SIMD
+- [Codecs Diretos & Geração Estática](10-avancado/codecs-diretos-geracao-estatica.md) ⭐ **NOVO** - Caminhos por offset direto e codecs gerados
 
 #### [11. Desktop UI (Dext.UI)](11-desktop-ui/README.md) ⭐ NOVO
 

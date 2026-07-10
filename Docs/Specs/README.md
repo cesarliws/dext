@@ -59,7 +59,7 @@ ID | Title | Status | Goal
 **S51** | [EntityDataSet Remote Sync](S51-EntityDataSet-Remote-Sync.md) | ✅ Finalized | Remote tracking, delta packaging, and transport decompression.
 **S52** | [SOCKS5 Proxy Client & Server](S52-Net-Proxy-Socks5.md) | 📝 Draft | Support SOCKS5 client tunnels, Socks over TLS, and SOCKS5 server backlog.
 **S53** | [Cloud Object Storage](S53-Storage-ObjectStorage.md) | 📝 Draft | Unified object storage API (S3-Compatible, AWS, OCI, MinIO) and cloud backlog (Queues, Email, Document DBs).
-**S54** | [Direct Codecs & Static Code Generation](S54-Codegen-Direct-Codecs.md) | ✅ Finalized | Shared direct-offset and generated-code codec architecture for gRPC, REST/JSON, ORM, and EntityDataSet.
+**S54** | [Direct Codecs & Static Code Generation](S54-Codegen-Direct-Codecs.md) | ✅ Runtime Finalized | Shared direct-offset and generated-code codec architecture for gRPC, REST/JSON, ORM, and EntityDataSet. IDE Expert DX is deferred to S15/S54.
 
 ---
 
@@ -77,5 +77,3 @@ For a high-level view of all roadmap items and their current waves, see the [Mas
 
 ---
 *Last update: June 2026*
-
-

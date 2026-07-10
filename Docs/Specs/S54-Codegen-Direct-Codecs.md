@@ -25,6 +25,7 @@ This section tracks the concrete implementation slices that are being worked on 
 - [x] Capture updated baseline numbers in HISTORICAL_RESULTS.md after running the S54 benchmarks.
 - [x] Extend the generated codec path for broader nested-list and SmartProp/Nullable edge cases.
   - Covers `Nullable<T>`, `Prop<T>`, `Nullable<IList<T>>`, `IList<Nullable<T>>`, `IList<Prop<T>>`, nested object lists, `TGUID`, `TUUID`, and matching `.proto` repeated type normalization.
+- [x] Complete post-development documentation: Book pt/en, AI skills, Specs README, ROADMAP, and implemented feature indexes.
 - [ ] Expand the IDE Expert surface for codec eligibility, fallback diagnostics, and generation status.
 
 ### 0.1 Deferred Expert DX Scope
@@ -492,6 +493,21 @@ The only remaining S54-related work is the IDE Expert DX surface, intentionally 
 | Generated code drift | Regenerate deterministically from YAML/project metadata and compare in CI. |
 | Too many metadata systems | Make `Dext.Core.TypeModel` the only shared codec plan; protobuf/JSON/ORM decorate it, not duplicate it. |
 | Premature unsafe optimization | Gate each phase with S18 benchmark and compatibility tests. |
+
+### 11.1 Known Limitations and Future Evaluation Points
+
+These points do not reopen the finalized S54 runtime scope. They document where the current implementation is intentionally pragmatic and where future S15/S54 Expert work should improve safety, diagnostics, and developer experience.
+
+- The CLI generator is intentionally simple and optimized for controlled Dext DTO/code-first shapes. It is not yet a full Delphi parser and should not be presented as supporting every arbitrary Delphi type declaration.
+- Generated codecs are best suited for DTOs with clear `[GrpcMessage]`, `[ProtoMember]`, field-backed properties, supported native types, supported Dext SmartProp/Nullable shapes, and explicit list ownership. Unsupported shapes must keep deterministic fallback behavior.
+- Direct-offset access is safe only after `TDextFieldPlan` validates the physical field, native kind, managed-type assignment requirements, list ownership, and converter/custom-accessor constraints. The Expert must make every fallback reason visible instead of silently promising direct/generated mode.
+- Ownership remains the most sensitive area for nested objects and lists. The current runtime covers the supported object/list paths, but the Expert must surface ownership assumptions, list factory requirements, and object lifetime consequences before generation.
+- SmartProp/Nullable support covers the current known shapes (`Nullable<T>`, `Prop<T>`, `Nullable<IList<T>>`, `IList<Nullable<T>>`, `IList<Prop<T>>`, nested object lists, `TGUID`, and `TUUID`). More complex wrappers, nested wrappers, lazy proxies, custom records, and domain-specific value objects require explicit eligibility checks before being added to generated paths.
+- `Lazy<T>` is intentionally not treated as a data shape for generated codecs. It is a loading proxy and should generally remain an ORM/materialization concern unless a future design defines a clear serialization contract.
+- JSON and ORM now share the same plan model, but generated JSON codecs are still a future optimization layer. The current win is shared direct-field planning and fewer RTTI/TValue operations, not a complete generated JSON pipeline.
+- Benchmarks show the most meaningful gains on Win32, where `TValue` and RTTI invocation costs dominate. Win64/RDP gains are expected to be smaller and must be evaluated by workload instead of assumed.
+- The Expert should treat generated mode as an explainable optimization, not a binary feature switch. A type can mix generated, direct, and RTTI fallback paths by member when that is the safest result.
+- Before expanding generated support to broad ORM/REST models, add diagnostics and fixtures for custom getters/setters, converters, missing proto tags, ambiguous list element types, unsupported wrapper shapes, field offset validation failures, and cross-version Delphi compatibility.
 
 ---
 
