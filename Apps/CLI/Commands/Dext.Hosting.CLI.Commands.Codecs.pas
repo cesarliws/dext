@@ -101,7 +101,8 @@ var
 begin
   T := DelphiType.Trim;
   Result := (T.Length > 1) and (T[1] = 'T') and
-    not SameText(T, 'TBytes') and not SameText(T, 'TDateTime');
+    not SameText(T, 'TBytes') and not SameText(T, 'TDateTime') and
+    not SameText(T, 'TGUID') and not SameText(T, 'TUUID');
 end;
 
 function IsGuidTypeName(const DelphiType: string): Boolean;
@@ -133,7 +134,8 @@ var
 begin
   T := NormalizeCodecTypeName(ListElementTypeName(DelphiType)).Trim;
   Result := (T.Length > 1) and (T[1] = 'T') and
-    not SameText(T, 'TBytes') and not SameText(T, 'TDateTime');
+    not SameText(T, 'TBytes') and not SameText(T, 'TDateTime') and
+    not SameText(T, 'TGUID') and not SameText(T, 'TUUID');
 end;
 
 function IsNullableTypeName(const DelphiType: string): Boolean;
@@ -218,7 +220,7 @@ begin
   begin
     ElementType := NormalizeCodecTypeName(ListElementTypeName(BaseType));
     if ElementType <> '' then
-      Result := 'repeated ' + StripTypePrefix(ElementType)
+      Result := 'repeated ' + ProtoTypeOf(ElementType)
     else
       Result := 'repeated string';
   end
@@ -354,6 +356,7 @@ procedure AppendGeneratedReadValue(Output: TStringList; const Expr,
 var
   InnerType: string;
   ElementType: string;
+  ElementSourceType: string;
   BaseType: string;
 begin
   BaseType := NormalizeCodecTypeName(DelphiType);
@@ -371,6 +374,10 @@ begin
 
     if IsClassTypeName(NormalizeCodecTypeName(InnerType)) then
       Output.Add(IndentText(Indent) + Format('%s := %s(ReadMessageObject(Reader, %s.Create));', [Expr, NormalizeCodecTypeName(InnerType), NormalizeCodecTypeName(InnerType)]))
+    else if IsGuidTypeName(InnerType) then
+      Output.Add(IndentText(Indent) + Format('%s := StringToGUID(Reader.ReadString);', [Expr]))
+    else if IsUuidTypeName(InnerType) then
+      Output.Add(IndentText(Indent) + Format('%s := TUUID.FromString(Reader.ReadString);', [Expr]))
     else
       Output.Add(IndentText(Indent) + Format('%s := Reader.%s;', [Expr, ReaderMethodOf(InnerType)]));
     Exit;
@@ -397,17 +404,22 @@ begin
 
   if IsListTypeName(BaseType) then
   begin
-    ElementType := NormalizeCodecTypeName(ListElementTypeName(BaseType));
+    ElementSourceType := ListElementTypeName(BaseType);
+    ElementType := NormalizeCodecTypeName(ElementSourceType);
     Output.Add(IndentText(Indent) + Format('if %s = nil then', [Expr]));
-    Output.Add(IndentText(Indent + 2) + Format('%s := TCollections.CreateList<%s>(%s);', [Expr, ListElementTypeName(BaseType), BoolToStr(ListOwnsObjects(BaseType), True)]));
+    Output.Add(IndentText(Indent + 2) + Format('%s := TCollections.CreateList<%s>(%s);', [Expr, ElementSourceType, BoolToStr(ListOwnsObjects(BaseType), True)]));
     if IsClassTypeName(ElementType) then
-      Output.Add(IndentText(Indent) + Format('%s.Add(%s(ReadMessageObject(Reader, %s.Create)));', [Expr, ListElementTypeName(BaseType), ElementType]))
-    else if IsGuidTypeName(ListElementTypeName(BaseType)) then
+      Output.Add(IndentText(Indent) + Format('%s.Add(%s(ReadMessageObject(Reader, %s.Create)));', [Expr, ElementType, ElementType]))
+    else if IsGuidTypeName(ElementSourceType) then
       Output.Add(IndentText(Indent) + Format('%s.Add(StringToGUID(Reader.ReadString));', [Expr]))
-    else if IsUuidTypeName(ListElementTypeName(BaseType)) then
+    else if IsUuidTypeName(ElementSourceType) then
+      Output.Add(IndentText(Indent) + Format('%s.Add(TUUID.FromString(Reader.ReadString));', [Expr]))
+    else if IsGuidTypeName(ElementType) then
+      Output.Add(IndentText(Indent) + Format('%s.Add(StringToGUID(Reader.ReadString));', [Expr]))
+    else if IsUuidTypeName(ElementType) then
       Output.Add(IndentText(Indent) + Format('%s.Add(TUUID.FromString(Reader.ReadString));', [Expr]))
     else
-      Output.Add(IndentText(Indent) + Format('%s.Add(Reader.%s);', [Expr, ReaderMethodOf(ListElementTypeName(BaseType))]));
+      Output.Add(IndentText(Indent) + Format('%s.Add(Reader.%s);', [Expr, ReaderMethodOf(ElementSourceType)]));
     Exit;
   end;
 

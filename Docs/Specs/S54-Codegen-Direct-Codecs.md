@@ -1,6 +1,6 @@
 # S54: Direct Codecs & Static Code Generation
 
-**Status:** Finalized  
+**Status:** Runtime Finalized; IDE Expert DX Deferred to S15  
 **Owner:** Cesar Romero & Engineering Team  
 **Created:** 2026-07-08  
 **Depends on:** S02, S07, S15, S18, S20, S51  
@@ -22,9 +22,34 @@ This section tracks the concrete implementation slices that are being worked on 
 - [x] Add unit coverage for RTTI, direct, and generated protobuf compatibility.
 - [x] Add unit coverage for JSON roundtrip and ORM converter roundtrip using nested objects and lists.
 - [x] Add benchmark comparison cases for RTTI vs direct vs generated protobuf modes.
-- [ ] Extend the generated codec path for broader nested-list and SmartProp/Nullable edge cases.
+- [x] Capture updated baseline numbers in HISTORICAL_RESULTS.md after running the S54 benchmarks.
+- [x] Extend the generated codec path for broader nested-list and SmartProp/Nullable edge cases.
+  - Covers `Nullable<T>`, `Prop<T>`, `Nullable<IList<T>>`, `IList<Nullable<T>>`, `IList<Prop<T>>`, nested object lists, `TGUID`, `TUUID`, and matching `.proto` repeated type normalization.
 - [ ] Expand the IDE Expert surface for codec eligibility, fallback diagnostics, and generation status.
-- [ ] Capture updated baseline numbers in HISTORICAL_RESULTS.md after running the S54 benchmarks.
+
+### 0.1 Deferred Expert DX Scope
+
+The S54 runtime and CLI generation work are considered finalized. IDE Expert work is intentionally deferred to a dedicated S15/S54 integration session so the UX can be designed as a cohesive developer experience instead of a thin wrapper over the CLI.
+
+The Expert should provide:
+
+- Codec discovery for `[GrpcMessage]`, `[ProtoMember]`, `[GrpcService]`, `[GrpcMethod]`, ORM `[Table]` entities, JSON DTOs, and REST request/response models.
+- A Codecs dashboard grouped by project, unit, type, and service.
+- Per-type status: RTTI fallback, direct-offset eligible, generated codec available, generated codec stale, unsupported, or error.
+- Per-member diagnostics explaining fallback reasons, including custom getter/setter, converter attached, unsupported native kind, missing proto tag, ambiguous list element type, unsupported SmartProp/Nullable shape, non-field-backed property, and ownership ambiguity.
+- A preview of generated Pascal codec units and `.proto` output before writing files.
+- A deterministic regeneration workflow that calls `dext codecs generate` instead of implementing codegen inside the Expert.
+- Buttons/actions for generate selected type, generate project codecs, export proto, open generated file, open diagnostics, and run S54 benchmarks.
+- Integration with benchmark history, showing the latest local run and whether historical baselines are present in `Benchmarks/HISTORICAL_RESULTS.md`.
+- Clear display of generated file paths, include paths, package requirements, and units that must be added to initialization.
+- A "why not generated?" explanation for every type that remains on RTTI fallback.
+- A "safe direct access" explanation for every member using offsets, including managed type assignment notes for strings/interfaces/dynamic arrays.
+- A dry-run mode that reports planned changes without touching source files.
+- YAML or project metadata persistence for reviewed generation settings, output folders, target modes, and excluded types.
+- Git-friendly deterministic formatting and regeneration markers.
+- Background execution with progress, compiler-style diagnostics, cancellation, and copied CLI command line for reproducibility.
+- Compatibility checks for multiple Delphi targets, especially Win32/Win64 and older package folders.
+- A one-click path from failed diagnostics to documentation explaining the relevant rule and recommended fix.
 
 ---
 ## 1. Context
@@ -395,19 +420,11 @@ end;
 ## 10. Implementation Roadmap
 
 
-### 10.0 Prioritized Remaining Work
+### 10.0 Remaining Work
 
-When resuming the S54 from a stalled session, continue in this order to shrink the backlog quickly:
+The S54 runtime, CLI generator, direct codecs, generated protobuf path, JSON adoption, ORM hydration adoption, benchmark coverage, and edge-case support are finalized for the current implementation scope.
 
-1. Add S18 benchmark cases and store RTTI baselines for protobuf, JSON, ORM hydration, and `TEntityDataSet.Load<T>`.
-2. Add compatibility tests comparing generated, direct, and RTTI protobuf bytes.
-3. Finish `TDextCodecRegistry` plus the protobuf and gRPC hook points.
-4. Add service method invoker registration so `TRttiMethod.Invoke` becomes fallback only.
-5. Ship `dext codecs generate` for protobuf codecs and `.proto` export.
-6. Add the S15 IDE Expert surface for codec eligibility, generated paths, and fallback diagnostics.
-7. Move `TDextJson` plan building fully onto `TDextFieldPlan` and finish generated JSON codecs.
-8. Migrate ORM hydration and materialization hot paths to the shared field model.
-9. Close the remaining direct-offset edge cases, especially nested objects, nested lists, and SmartProp/Nullable fallbacks.
+The only remaining S54-related work is the IDE Expert DX surface, intentionally deferred to a dedicated S15/S54 integration session. That session should use the deferred Expert DX scope in section 0.1 as its design checklist.
 
 ### Phase 1: Measurement and Guardrails
 
@@ -487,7 +504,7 @@ When resuming the S54 from a stalled session, continue in this order to shrink t
 - [x] JSON serialization can use the shared field plan without changing `TDextJson` public API.
 - [x] ORM hydration can use the shared field plan while preserving converters and SmartProp/Nullable behavior.
 - [x] CLI can generate Pascal protobuf codecs and `.proto` files from code-first classes.
-- [x] IDE Expert can surface generation status and fallback diagnostics without doing codegen internally.
+- [ ] IDE Expert can surface generation status and fallback diagnostics without doing codegen internally. Deferred to the S15/S54 Expert DX session.
 
 ---
 
@@ -502,4 +519,3 @@ Start with the narrowest slice:
 5. Benchmark Win32 and Win64 before expanding.
 
 This validates the core hypothesis with minimal blast radius. Once proven, lift the implementation into `Dext.Core.TypeModel` and generalize it for code generation, JSON, and ORM.
-

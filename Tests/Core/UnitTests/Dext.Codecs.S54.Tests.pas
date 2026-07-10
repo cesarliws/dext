@@ -557,10 +557,13 @@ var
   TempDir: string;
   InputFile: string;
   GeneratedUnit: string;
+  ProtoFile: string;
   SourceText: string;
   Args: TCommandLineArgs;
+  ProtoArgs: TCommandLineArgs;
   Command: TCodecsCommand;
   Lines: TStringList;
+  ProtoText: string;
 begin
   TempDir := TPath.Combine(TPath.GetTempPath, 'DextS54CodecEdgeCases');
   if not TDirectory.Exists(TempDir) then
@@ -568,12 +571,21 @@ begin
 
   InputFile := TPath.Combine(TempDir, 'CodecInput.pas');
   GeneratedUnit := TPath.Combine(TempDir, 'CodecInput.DextCodecs.pas');
+  ProtoFile := TPath.Combine(TempDir, 'CodecInput.proto');
 
   SourceText :=
     'unit CodecInput;' + sLineBreak + sLineBreak +
     'interface' + sLineBreak + sLineBreak +
-    'uses Dext.Grpc.Attributes, Dext.Types.Nullable, Dext.Core.SmartTypes, Dext.Collections;' + sLineBreak + sLineBreak +
+    'uses Dext.Grpc.Attributes, Dext.Types.Nullable, Dext.Core.SmartTypes, Dext.Collections, Dext.Types.UUID;' + sLineBreak + sLineBreak +
     'type' + sLineBreak +
+    '  [GrpcMessage]' + sLineBreak +
+    '  TCodecEdgeChild = class' + sLineBreak +
+    '  private' + sLineBreak +
+    '    FName: string;' + sLineBreak +
+    '  public' + sLineBreak +
+    '    [ProtoMember(1)]' + sLineBreak +
+    '    property Name: string read FName write FName;' + sLineBreak +
+    '  end;' + sLineBreak + sLineBreak +
     '  [GrpcMessage]' + sLineBreak +
     '  TCodecEdgeCase = class' + sLineBreak +
     '  private' + sLineBreak +
@@ -581,6 +593,11 @@ begin
     '    FName: Prop<string>;' + sLineBreak +
     '    FTags: IList<Nullable<Integer>>;' + sLineBreak +
     '    FHistory: Nullable<IList<Integer>>;' + sLineBreak +
+    '    FMaybeGuid: Nullable<TGUID>;' + sLineBreak +
+    '    FMaybeUuid: Prop<TUUID>;' + sLineBreak +
+    '    FPropCodes: IList<Prop<string>>;' + sLineBreak +
+    '    FOptionalIds: IList<Nullable<TGUID>>;' + sLineBreak +
+    '    FOptionalChildren: IList<Nullable<TCodecEdgeChild>>;' + sLineBreak +
     '  public' + sLineBreak +
     '    [ProtoMember(1)]' + sLineBreak +
     '    property Age: Nullable<Integer> read FAge write FAge;' + sLineBreak +
@@ -590,11 +607,24 @@ begin
     '    property Tags: IList<Nullable<Integer>> read FTags write FTags;' + sLineBreak +
     '    [ProtoMember(4)]' + sLineBreak +
     '    property History: Nullable<IList<Integer>> read FHistory write FHistory;' + sLineBreak +
+    '    [ProtoMember(5)]' + sLineBreak +
+    '    property MaybeGuid: Nullable<TGUID> read FMaybeGuid write FMaybeGuid;' + sLineBreak +
+    '    [ProtoMember(6)]' + sLineBreak +
+    '    property MaybeUuid: Prop<TUUID> read FMaybeUuid write FMaybeUuid;' + sLineBreak +
+    '    [ProtoMember(7)]' + sLineBreak +
+    '    property PropCodes: IList<Prop<string>> read FPropCodes write FPropCodes;' + sLineBreak +
+    '    [ProtoMember(8)]' + sLineBreak +
+    '    property OptionalIds: IList<Nullable<TGUID>> read FOptionalIds write FOptionalIds;' + sLineBreak +
+    '    [ProtoMember(9)]' + sLineBreak +
+    '    property OptionalChildren: IList<Nullable<TCodecEdgeChild>> read FOptionalChildren write FOptionalChildren;' + sLineBreak +
     '  end;' + sLineBreak + sLineBreak +
     'implementation' + sLineBreak + sLineBreak +
     'initialization' + sLineBreak + sLineBreak +
     '  TActivator.RegisterDefault<IList<Nullable<Integer>>, TList<Nullable<Integer>>>;' + sLineBreak +
-    '  TActivator.RegisterDefault<IList<Integer>, TList<Integer>>;' + sLineBreak + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Integer>, TList<Integer>>;' + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Prop<string>>, TList<Prop<string>>>;' + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Nullable<TGUID>>, TList<Nullable<TGUID>>>;' + sLineBreak +
+    '  TActivator.RegisterDefault<IList<Nullable<TCodecEdgeChild>>, TList<Nullable<TCodecEdgeChild>>>;' + sLineBreak + sLineBreak +
     'end.';
   TFile.WriteAllText(InputFile, SourceText, TEncoding.UTF8);
 
@@ -618,6 +648,33 @@ begin
         Should(Lines.Text).Contain('Obj.History.Value.Add(Reader.ReadInt32);');
         Should(Lines.Text).Contain('Obj.Age := Reader.ReadInt32;');
         Should(Lines.Text).Contain('Obj.Tags.Add(Reader.ReadInt32);');
+        Should(Lines.Text).Contain('Writer.WriteString(5, GUIDToString(Obj.MaybeGuid.Value));');
+        Should(Lines.Text).Contain('Obj.MaybeGuid := StringToGUID(Reader.ReadString);');
+        Should(Lines.Text).Contain('Writer.WriteString(6, Obj.MaybeUuid.Value.ToString);');
+        Should(Lines.Text).Contain('Obj.MaybeUuid.Value := TUUID.FromString(Reader.ReadString);');
+        Should(Lines.Text).Contain('Writer.WriteString(7, Obj.PropCodes[i].Value);');
+        Should(Lines.Text).Contain('Obj.PropCodes.Add(Reader.ReadString);');
+        Should(Lines.Text).Contain('Writer.WriteString(8, GUIDToString(Obj.OptionalIds[i].Value));');
+        Should(Lines.Text).Contain('Obj.OptionalIds.Add(StringToGUID(Reader.ReadString));');
+        Should(Lines.Text).Contain('if Assigned(Obj.OptionalChildren[i].Value) then Writer.WriteMessage(9, TProtobufSerializer.Serialize(Obj.OptionalChildren[i].Value, pcmGenerated));');
+        Should(Lines.Text).Contain('Obj.OptionalChildren.Add(TCodecEdgeChild(ReadMessageObject(Reader, TCodecEdgeChild.Create)));');
+
+        ProtoArgs := TCommandLineArgs.Create;
+        try
+          ProtoArgs.Parse(['codecs', 'export-proto', '--unit', InputFile, '--out', ProtoFile]);
+          Command.Execute(ProtoArgs);
+        finally
+          ProtoArgs.Free;
+        end;
+        Should(TFile.Exists(ProtoFile)).BeTrue;
+        ProtoText := TFile.ReadAllText(ProtoFile, TEncoding.UTF8);
+        Should(ProtoText).Contain('repeated int32 Tags = 3;');
+        Should(ProtoText).Contain('repeated int32 History = 4;');
+        Should(ProtoText).Contain('string MaybeGuid = 5;');
+        Should(ProtoText).Contain('string MaybeUuid = 6;');
+        Should(ProtoText).Contain('repeated string PropCodes = 7;');
+        Should(ProtoText).Contain('repeated string OptionalIds = 8;');
+        Should(ProtoText).Contain('repeated CodecEdgeChild OptionalChildren = 9;');
       finally
         Command.Free;
       end;
@@ -628,6 +685,7 @@ begin
     Lines.Free;
   end;
 end;
+
 procedure TCodecsCommandTests.ShouldRoundtripNestedJsonColumnThroughConverter;
 var
   Converter: TJsonConverter;
