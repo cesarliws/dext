@@ -152,6 +152,9 @@ type
     FBuffer: TBytes;
     FHeaderSegments: THeaderSegments;
     FResolvedHeaders: TDictionary<string, string>;
+    FHeaderCacheKeys: array[0..7] of string;
+    FHeaderCacheValues: array[0..7] of string;
+    FHeaderCacheCount: Integer;
     function GetMethod: string;
     function GetPath: string;
     function GetQueryString: string;
@@ -735,6 +738,7 @@ begin
   FQuery := AQuery;
   FHeaderSegments := AHeaderSegments;
   FContentLength := AContentLength;
+  FHeaderCacheCount := 0;
 
   // Cópia restrita aos bytes úteis do request para thread-safety no reactor desacoplado
   FBuffer := Copy(ABody, 0, ABodyOffset + ABodyLen);
@@ -767,11 +771,25 @@ function TDextEpollRequest.ResolveHeader(const AName: string): string;
 var
   i: Integer;
   Seg: THeaderSegment;
-  ValStart, ValLen: Integer;
+  ValStart: Integer;
+  ValLen: Integer;
 begin
-  if FResolvedHeaders <> nil then
+  for i := 0 to FHeaderCacheCount - 1 do
   begin
-    if FResolvedHeaders.TryGetValue(AName, Result) then Exit;
+    if FHeaderCacheKeys[i] = AName then
+    begin
+      Result := FHeaderCacheValues[i];
+      Exit;
+    end;
+  end;
+
+  for i := 0 to FHeaderCacheCount - 1 do
+  begin
+    if SameText(FHeaderCacheKeys[i], AName) then
+    begin
+      Result := FHeaderCacheValues[i];
+      Exit;
+    end;
   end;
 
   for i := 0 to Length(FHeaderSegments) - 1 do
@@ -790,18 +808,23 @@ begin
         Dec(ValLen);
 
       Result := TEncoding.UTF8.GetString(FBuffer, ValStart, ValLen);
-      
-      if FResolvedHeaders = nil then
-        FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
-      FResolvedHeaders.Add(AName, Result);
+      if FHeaderCacheCount < Length(FHeaderCacheKeys) then
+      begin
+        FHeaderCacheKeys[FHeaderCacheCount] := AName;
+        FHeaderCacheValues[FHeaderCacheCount] := Result;
+        Inc(FHeaderCacheCount);
+      end;
       Exit;
     end;
   end;
 
   Result := '';
-  if FResolvedHeaders = nil then
-    FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
-  FResolvedHeaders.Add(AName, '');
+  if FHeaderCacheCount < Length(FHeaderCacheKeys) then
+  begin
+    FHeaderCacheKeys[FHeaderCacheCount] := AName;
+    FHeaderCacheValues[FHeaderCacheCount] := '';
+    Inc(FHeaderCacheCount);
+  end;
 end;
 
 function TDextEpollRequest.GetHeader(const AName: string): string;

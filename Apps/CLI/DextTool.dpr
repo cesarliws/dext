@@ -16,6 +16,7 @@ uses
   Dext.Hosting.CLI,
   Dext.Hosting.CLI.Registry,
   Dext.Hosting.CLI.Commands.Configuration in 'Commands\Dext.Hosting.CLI.Commands.Configuration.pas',
+  Dext.Hosting.CLI.Commands.Codecs in 'Commands\Dext.Hosting.CLI.Commands.Codecs.pas',
   Dext.Hosting.CLI.Commands.Doc in 'Commands\Dext.Hosting.CLI.Commands.Doc.pas',
   Dext.Hosting.CLI.Commands.Facade in 'Commands\Dext.Hosting.CLI.Commands.Facade.pas',
   Dext.Hosting.CLI.Commands.Index in 'Commands\Dext.Hosting.CLI.Commands.Index.pas',
@@ -112,6 +113,7 @@ begin
       // Tool Commands
       CLI.AddCommand(TTestCommand.Create);
       CLI.AddCommand(TConfigInitCommand.Create);
+      CLI.AddCommand(TCodecsCommand.Create);
       CLI.AddCommand(TEnvScanCommand.Create);
 
       CLI.AddCommand(TScaffoldCommand.Create);
@@ -128,3 +130,4 @@ begin
       Writeln(E.ClassName, ': ', E.Message);
   end;
 end.
+

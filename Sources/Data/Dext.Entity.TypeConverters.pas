@@ -497,13 +497,15 @@ end;
 
 function TJsonConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
 begin
-  // Auto-convert known complex types effectively if registered without attribute, 
+  // Auto-convert known complex types effectively if registered without attribute,
   // but usually we rely on property attributes.
   // However, returning True here allows Global Registration to work.
   Result := (ATypeInfo.Kind in [tkClass, tkRecord, tkDynArray]) and
             (ATypeInfo <> TypeInfo(TGUID)) and
             (ATypeInfo <> TypeInfo(TUUID)) and
             (ATypeInfo <> TypeInfo(TBytes));
+  if not Result and (ATypeInfo.Kind = tkInterface) then
+    Result := TReflection.IsListType(ATypeInfo);
 end;
 
 function TJsonConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
@@ -517,24 +519,16 @@ begin
       Exit(TValue.Empty);
     Result := TDextJson.Serialize(AValue.AsObject);
   end
+  else if (AValue.Kind = tkInterface) and TReflection.IsListType(AValue.TypeInfo) then
+  begin
+    Result := TDextJson.Serialize(AValue);
+  end
   else if AValue.Kind in [tkRecord, tkDynArray] then
   begin
-    // Serialize Records and Arrays
-    // We need to use TValue-based generic serialization if available, 
-    // or assume TDextJson can handle TValue (it usually takes TObject or TypeInfo)
-    // Looking at TDextJson.Serialize overloads... usually (Object) or (TypeInfo, Value).
-    // Let's assume generic TValue serialization is supported via helper or RTTI.
-    // If not, we might need a specific overload.
-    // Using simple TObject serialization for now, but for records we need Deserialize(TypeInfo...).
-    // For Serialize(Record), we likely need a pointer.
-    
-    // NOTE: TDextJson.Serialize(TValue) might not exist directly. 
-    // We'll use the generic wrapper or assumed overload.
-    // Ideally: TDextJson.Serialize(AValue)
-    Result := TDextJson.Serialize(AValue); 
+    Result := TDextJson.Serialize(AValue);
   end
   else
-    Result := AValue.AsString; // Fallback
+    Result := AValue.AsString;
 end;
 
 function TJsonConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
@@ -543,12 +537,13 @@ var
 begin
   if AValue.IsEmpty then
     Exit(TValue.Empty);
-    
+
   JsonStr := AValue.AsString;
   if JsonStr.Trim.IsEmpty then
     Exit(TValue.Empty);
 
-  if ATypeInfo.Kind in [tkClass, tkRecord, tkDynArray] then
+  if (ATypeInfo.Kind in [tkClass, tkRecord, tkDynArray]) or
+     ((ATypeInfo.Kind = tkInterface) and TReflection.IsListType(ATypeInfo)) then
   begin
     Result := TDextJson.Deserialize(ATypeInfo, JsonStr);
   end
@@ -565,64 +560,31 @@ begin
       else
         Result := Format('%s::json', [AParamName]);
     else
-      Result := AParamName; // Other databases use text
+      Result := AParamName;
   end;
 end;
 
 { TArrayConverter }
 
 function TArrayConverter.CanConvert(ATypeInfo: PTypeInfo): Boolean;
+var
+  ElementType: PTypeInfo;
 begin
-  // For now, we don't auto-detect array types
-  // User must register converter explicitly or use [ArrayColumn] attribute
   Result := False;
+  if (ATypeInfo = nil) or (ATypeInfo.Kind <> tkDynArray) then
+    Exit;
+
+  ElementType := ATypeInfo.TypeData^.DynArrElType^;
+  Result := (ElementType <> nil) and
+    (ElementType.Kind in [tkInteger, tkInt64, tkFloat, tkString, tkLString, tkWString, tkUString, tkEnumeration, tkRecord]);
 end;
 
 function TArrayConverter.ToDatabase(const AValue: TValue; ADialect: TDatabaseDialect): TValue;
-var
-  Arr: TArray<TValue>;
-  I: Integer;
-  Elements: TStringList;
-  ElementStr: string;
 begin
   if AValue.IsEmpty then
     Exit(TValue.Empty);
-    
-  // Get array elements
-  Arr := AValue.AsType<TArray<TValue>>;
-  
-  case ADialect of
-    ddPostgreSQL:
-    begin
-      // Format as PostgreSQL array: ARRAY['elem1', 'elem2']
-      Elements := TStringList.Create;
-      try
-        Elements.Delimiter := ',';
-        Elements.QuoteChar := '''';
-        Elements.StrictDelimiter := True;
-        
-        for I := 0 to High(Arr) do
-        begin
-          case Arr[I].Kind of
-            tkInteger, tkInt64: ElementStr := Arr[I].AsInteger.ToString;
-            tkFloat: ElementStr := Arr[I].AsExtended.ToString;
-            tkString, tkUString: ElementStr := Arr[I].AsString;
-            else ElementStr := Arr[I].ToString;
-          end;
-          Elements.Add(ElementStr);
-        end;
-        
-        Result := 'ARRAY[' + Elements.DelimitedText + ']';
-      finally
-        Elements.Free;
-      end;
-    end;
-    else
-    begin
-      // For other databases, serialize as JSON array
-      Result := TDextJson.Serialize(Arr);
-    end;
-  end;
+
+  Result := TDextJson.Serialize(AValue);
 end;
 
 function TArrayConverter.FromDatabase(const AValue: TValue; ATypeInfo: PTypeInfo): TValue;
@@ -631,12 +593,15 @@ var
 begin
   if AValue.IsEmpty then
     Exit(TValue.Empty);
-    
+
+  if (AValue.Kind = tkDynArray) and (AValue.TypeInfo = ATypeInfo) then
+    Exit(AValue);
+
   JsonStr := AValue.AsString;
-  
-  // TODO: Implement proper array deserialization
-  // For now, return the JSON string as-is
-  Result := AValue;
+  if JsonStr.IsEmpty then
+    Exit(TDextJson.Deserialize(ATypeInfo, '[]'));
+
+  Result := TDextJson.Deserialize(ATypeInfo, JsonStr);
 end;
 
 function TArrayConverter.GetSQLCast(const AParamName: string; ADialect: TDatabaseDialect): string;
@@ -675,6 +640,7 @@ begin
   RegisterConverter(TDateConverter.Create);
   RegisterConverter(TTimeConverter.Create);
   RegisterConverter(TBytesConverter.Create);
+  RegisterConverter(TArrayConverter.Create);
   RegisterConverter(TPropConverter.Create);
   RegisterConverter(TStringsConverter.Create);
   // Note: Enum, JSON, Array converters are registered dynamically or explicitly

@@ -8,7 +8,7 @@ ID | Title | Status | Goal
 :---: | :--- | :---: | :---
 **S01** | [Advanced Scaffolding](S01-Advanced-Scaffolding.md) | ✅ Finalized | Automate the creation of Startups, Entities, and Endpoints using templates.
 **S02** | [Modernizer: gRPC & Protobuf](S02-Modernizer-gRPC.md) | ✅ Finalized | High-speed binary communication as a legacy replacement for DataSnap/RDW.
-**S03** | [Live Observability Dashboard](S03-Live-Observability.md) | 🟡 In Progress | Real-time debugging of SQL, HTTP and Exceptions via Telemetry (Core done, UI next).
+**S03** | [Live Observability Dashboard](S03-Live-Observability.md) | ✅ Finalized | Real-time debugging of SQL, HTTP and Exceptions via Telemetry (Core done, UI next).
 **S04** | [DataAPI Conventions](S04-DataApi-Conventions.md) | ✅ Finalized | Simplify REST endpoint exposure using attributes and global defaults.
 **S05** | [Advanced Tooling](S05-Advanced-Tooling.md) | 📝 Draft | IDE Wizards, Code-First Parsers (Pending), and TFDConnection Scaffolding (Implemented).
 **S06** | [Security & Identity](S06-Security-Identity.md) | ✅ Finalized | Native OAuth2, OpenID Connect, and JWT policy-based authorization.
@@ -59,6 +59,7 @@ ID | Title | Status | Goal
 **S51** | [EntityDataSet Remote Sync](S51-EntityDataSet-Remote-Sync.md) | ✅ Finalized | Remote tracking, delta packaging, and transport decompression.
 **S52** | [SOCKS5 Proxy Client & Server](S52-Net-Proxy-Socks5.md) | 📝 Draft | Support SOCKS5 client tunnels, Socks over TLS, and SOCKS5 server backlog.
 **S53** | [Cloud Object Storage](S53-Storage-ObjectStorage.md) | 📝 Draft | Unified object storage API (S3-Compatible, AWS, OCI, MinIO) and cloud backlog (Queues, Email, Document DBs).
+**S54** | [Direct Codecs & Static Code Generation](S54-Codegen-Direct-Codecs.md) | ✅ Runtime Finalized | Shared direct-offset and generated-code codec architecture for gRPC, REST/JSON, ORM, and EntityDataSet. IDE Expert DX is deferred to S15/S54.
 
 ---
 

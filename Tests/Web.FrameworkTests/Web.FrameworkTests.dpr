@@ -1,4 +1,4 @@
-program Web.FrameworkTests;
+﻿program Web.FrameworkTests;
 
 {$APPTYPE CONSOLE}
 

@@ -1,6 +1,12 @@
 # ⚡ Dext Performance Benchmarks Suite
 
-This directory contains the official performance benchmarking suite for the Dext Framework. The suite is designed to run both **isolated microbenchmarks** (in-memory routing, ORM hydration, reflection) and **high-concurrency network stress tests** comparing server engines (Indy vs. `http.sys`).
+This directory contains the official performance benchmarking suite for the Dext Framework. The suite is designed to run both **isolated microbenchmarks** (in-memory routing, ORM hydration, reflection, JSON, codecs) and **high-concurrency network stress tests** comparing server engines (Indy vs. `http.sys`).
+
+The suite currently acts as the home for three kinds of measurements:
+
+- transport and server throughput (`Dext.Benchmarks.dpr`);
+- data-structure and allocator comparisons (`CollectionsPerformance`, `GenericsScalability`, `ZeroAlloc`);
+- codec and hydration work that supports S54 (`protobuf`, `JSON`, `ORM`, and `EntityDataSet`).
 
 ---
 
@@ -16,6 +22,54 @@ This directory contains the official performance benchmarking suite for the Dext
 * `run_load_test.ps1`: Automated PowerShell script to execute stress tests using `bombardier`.
 * `Sources/BM.Http.pas`: Test cases for HTTP servers, mock contexts, and standalone servers.
 * `Sources/BM.Orm.pas`: Hydration and ORM engine tests (raw dataset loop vs Dext Entity hydration).
+
+---
+
+## 🧭 Benchmark Map
+
+### Core Runner
+
+- `Dext.Benchmarks.dpr`: main executable for microbenchmarks and the standalone HTTP server mode.
+- `run_load_test.ps1`: automated load test for the HTTP server engines.
+
+### Focused Suites
+
+- `CollectionsPerformance`: compares `Dext.Collections` against RTL collection types.
+- `GenericsScalability`: measures generated type explosion and compilation/runtime characteristics.
+- `ZeroAlloc`: tracks allocation-sensitive HTTP, routing, middleware, JSON, and ORM scenarios.
+
+
+## 🗂️ Historical Results
+
+Best benchmark results and noteworthy runs are tracked in [HISTORICAL_RESULTS.md](HISTORICAL_RESULTS.md). Keep that file updated whenever a new best result is confirmed so the current baseline stays easy to find.
+
+### S54 Coverage Targets
+
+These are the benchmark families that should be reported in the S54 roadmap and used for regression tracking:
+
+- `BM_S54_Protobuf_Direct_Roundtrip`
+- `BM_S54_Protobuf_Rtti_Roundtrip`
+- `BM_S54_Protobuf_Generated_Roundtrip`
+- `BM_S54_Json_Roundtrip`
+- `BM_S54_Orm_JsonConverter_Roundtrip`
+- Protobuf RTTI vs direct-offset vs generated codec paths.
+- JSON serialization and hydration using the shared field plan.
+- ORM hydration and materialization using the shared field plan.
+- `TEntityDataSet.Load<T>` and apply/sync flows driven by the same model.
+
+---
+
+## 📌 Running Guidance
+
+Use these filters to focus on the S54 slice without starting the HTTP server path:
+```powershell
+.\Dext.Benchmarks.exe --benchmark_filter=BM_S54_
+```
+
+- Benchmark builds should use `Release` when the goal is throughput or allocation numbers.
+- Use `Win32` and `Win64` when comparing codec hot paths; the Win32 delta is usually the most revealing.
+- Keep benchmark cases deterministic and avoid mixing them with unit-test-only setup logic.
+- Prefer isolated filters when measuring one subsystem so the result can be compared across sessions.
 
 ---
 
@@ -178,3 +232,4 @@ To run the in-memory, routing, and ORM Google/Spring microbenchmarks on Linux:
 ./Dext.Benchmarks --benchmark_repetitions=3
 ```
 *The `ReadLn` console blocking is automatically bypassed on non-Windows platforms so the suite runs cleanly inside Linux shell scripts and CI environments without hanging.*
+

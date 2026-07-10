@@ -92,6 +92,9 @@ contains
   Dext.DI.Attributes in '..\..\Sources\Core\Dext.DI.Attributes.pas',
   Dext.Core.SmartTypes in '..\..\Sources\Core\Dext.Core.SmartTypes.pas',
   Dext.Core.Reflection in '..\..\Sources\Core\Dext.Core.Reflection.pas',
+  Dext.Core.DirectAccess in '..\..\Sources\Core\Base\Dext.Core.DirectAccess.pas',
+  Dext.Core.TypeModel in '..\..\Sources\Core\Dext.Core.TypeModel.pas',
+  Dext.Codecs.Registry in '..\..\Sources\Core\Dext.Codecs.Registry.pas',
   Dext.Configuration.Yaml in '..\..\Sources\Core\Dext.Configuration.Yaml.pas',
   Dext.Yaml in '..\..\Sources\Core\Dext.Yaml.pas',
   Dext.Core.Writers in '..\..\Sources\Core\Base\Dext.Core.Writers.pas',
@@ -135,5 +138,6 @@ contains
   Dext.Serialization.Protobuf in '..\..\Sources\Core\Dext.Serialization.Protobuf.pas';
 
 end.
+
 
 

@@ -414,3 +414,12 @@ end;
 - **Context Scope**: Entities returned by `Find` or `ToList` are tracked by the context. They are freed when the context is destroyed.
 - **Detach**: `Db.Detach(Entity)` stops tracking but does **NOT** free the object. You must call `Entity.Free` manually.
 - **Unit Tests**: Without a DbContext, lists created with `OwnsObjects=False` will leak unless you manually free items.
+## S54 ORM Hydration Optimization
+
+The ORM can use the shared S54 `TDextFieldPlan` model for supported materialization paths. When changing ORM hydration or entity mapping:
+
+- Preserve converters, SmartProp/Nullable semantics, and custom accessors before choosing direct-offset assignment.
+- Direct access is allowed only for validated physical fields and supported native/reference kinds.
+- Treat ownership for nested objects and Dext lists explicitly; ambiguous list factories should fall back or require `TActivator.RegisterDefault`.
+- `Lazy<T>` is a loading proxy, not a generated codec data shape.
+- Add focused tests for boolean, currency, GUID/UUID, SmartProp/Nullable, and dynamic query filters when touching this area.

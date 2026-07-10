@@ -24,11 +24,12 @@ unit Dext.BackgroundJobs.Config;
 interface
 
 uses
-  System.SysUtils,
-  System.Rtti,
-  System.JSON,
-  System.TimeSpan,
   System.Generics.Collections,
+  System.JSON,
+  System.Rtti,
+  System.SysUtils,
+  System.TimeSpan,
+  System.TypInfo,
   Dext.DI.Interfaces,
   Dext.BackgroundJobs.Intf;
 

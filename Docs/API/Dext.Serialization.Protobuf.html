@@ -52,6 +52,7 @@
 <a href="Dext.BackgroundJobs.Storage.Sqlite.html" class="nav-item">Dext.BackgroundJobs.Storage.Sqlite</a>
 <a href="Dext.Caching.html" class="nav-item">Dext.Caching</a>
 <a href="Dext.Caching.Redis.html" class="nav-item">Dext.Caching.Redis</a>
+<a href="Dext.Codecs.Registry.html" class="nav-item">Dext.Codecs.Registry</a>
 <a href="Dext.Collections.html" class="nav-item">Dext.Collections</a>
 <a href="Dext.Collections.Algorithms.html" class="nav-item">Dext.Collections.Algorithms</a>
 <a href="Dext.Collections.Base.html" class="nav-item">Dext.Collections.Base</a>
@@ -79,11 +80,13 @@
 <a href="Dext.Core.Activator.html" class="nav-item">Dext.Core.Activator</a>
 <a href="Dext.Core.DateUtils.html" class="nav-item">Dext.Core.DateUtils</a>
 <a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
+<a href="Dext.Core.DirectAccess.html" class="nav-item">Dext.Core.DirectAccess</a>
 <a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
 <a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
 <a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
 <a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
 <a href="Dext.Core.Span.html" class="nav-item">Dext.Core.Span</a>
+<a href="Dext.Core.TypeModel.html" class="nav-item">Dext.Core.TypeModel</a>
 <a href="Dext.Core.ValueConverters.html" class="nav-item">Dext.Core.ValueConverters</a>
 <a href="Dext.Core.Writers.html" class="nav-item">Dext.Core.Writers</a>
 <a href="Dext.Dashboard.Routes.html" class="nav-item">Dext.Dashboard.Routes</a>
@@ -385,7 +388,38 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
-class TProtobufSerializer {    +WriteVarint()
+class TProtobufWriter {    +Create()
+    +WriteVarint()
+    +WriteTag()
+    +WriteDouble()
+    +WriteSingle()
+    +WriteInt32()
+    +WriteInt64()
+    +WriteBool()
+    +WriteString()
+    +WriteBytes()
+    +WriteMessage()
+}
+TObject <|-- TProtobufWriter
+class TProtobufReader {    +Create()
+    +ReadField()
+    +ReadVarint()
+    +ReadDouble()
+    +ReadSingle()
+    +ReadInt32()
+    +ReadInt64()
+    +ReadBool()
+    +ReadString()
+    +ReadBytes()
+    +SkipField()
+    +Tag
+    +WireType
+}
+TObject <|-- TProtobufReader
+class TProtobufSerializer {    +Create()
+    +Destroy()
+    +GetTagMap()
+    +WriteVarint()
     +ReadVarint()
     +WriteTag()
     +WriteDouble()
@@ -394,6 +428,13 @@ class TProtobufSerializer {    +WriteVarint()
     +ReadSingle()
     +SerializeField()
     +DeserializeField()
+    +TrySerializeGenerated()
+    +TryDeserializeGenerated()
+    +TrySerializeDirect()
+    +TryDeserializeDirect()
+    +SerializeDirectField()
+    +DeserializeDirectField()
+    +SkipField()
     +Serialize()
     +Deserialize()
 }
@@ -403,13 +444,75 @@ TObject <|-- TProtobufSerializer
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>class TProtobufSerializer</h3><a name="TProtobufSerializer"></a><div class="ancestor">Inherits from: TObject</div></div>
+<h3>class TProtobufWriter</h3><a name="TProtobufWriter"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Streaming protobuf writer used by generated and direct codecs.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Serialize(Obj: TObject): TBytes</div></div>
+<div class="api-signature">constructor Create(AStream: TStream)</div><div class="description">Creates a writer over the provided stream.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Deserialize(const const: TBytes; Obj: TObject)</div></div>
+<div class="api-signature">procedure WriteVarint(Value: UInt64)</div><div class="description">Writes a protobuf varint to the underlying stream.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteTag(Tag: Integer; WireType: Integer)</div><div class="description">Writes a protobuf field tag and wire type.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteDouble(Value: Double)</div><div class="description">Writes a 64-bit floating-point value.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteSingle(Value: Single)</div><div class="description">Writes a 32-bit floating-point value.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteInt32(Tag: Integer; Value: Integer)</div><div class="description">Writes a signed 32-bit integer field.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteInt64(Tag: Integer; Value: Int64)</div><div class="description">Writes a signed 64-bit integer field.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteBool(Tag: Integer; Value: Boolean)</div><div class="description">Writes a boolean field.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteString(Tag: Integer; const const: string)</div><div class="description">Writes a UTF-8 string field.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteBytes(Tag: Integer; const const: TBytes)</div><div class="description">Writes a bytes field.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteMessage(Tag: Integer; const const: TBytes)</div><div class="description">Writes a length-delimited nested message field.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TProtobufReader</h3><a name="TProtobufReader"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Streaming protobuf reader used by generated and direct codecs.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(AStream: TStream)</div><div class="description">Creates a writer over the provided stream.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadField: Boolean</div><div class="description">Advances to the next field and returns False at end of stream.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadVarint: UInt64</div><div class="description">Reads a protobuf varint from the underlying stream.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadDouble: Double</div><div class="description">Reads a 64-bit floating-point value.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadSingle: Single</div><div class="description">Reads a 32-bit floating-point value.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadInt32: Integer</div><div class="description">Reads a signed 32-bit integer value.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadInt64: Int64</div><div class="description">Reads a signed 64-bit integer value.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadBool: Boolean</div><div class="description">Reads a boolean value.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadString: string</div><div class="description">Reads a UTF-8 string value.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadBytes: TBytes</div><div class="description">Reads a length-delimited bytes payload.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SkipField</div><div class="description">Skips the current field payload.</div></div>
+<div class="api-item">
+<div class="api-signature">property Tag: </div></div>
+<div class="api-item">
+<div class="api-signature">property WireType: </div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TProtobufSerializer</h3><a name="TProtobufSerializer"></a><div class="ancestor">Inherits from: TObject</div><div class="description">High-level protobuf serializer with RTTI, direct-offset, and generated-code paths.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Serialize(Obj: TObject; Mode: TProtobufCodecMode): TBytes</div><div class="description">Serializes an object using the selected codec mode.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Deserialize(const const: TBytes; Obj: TObject; Mode: TProtobufCodecMode)</div><div class="description">Deserializes a protobuf payload into an object using the selected codec mode.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">function GetTagMap(AClass: TClass): IDictionary</div></div>
+<div class="api-item">
 <div class="api-signature">procedure WriteVarint(Stream: TStream; Value: UInt64)</div></div>
 <div class="api-item">
 <div class="api-signature">function ReadVarint(Stream: TStream): UInt64</div></div>
@@ -427,8 +530,26 @@ TObject <|-- TProtobufSerializer
 <div class="api-signature">procedure SerializeField(Stream: TStream; Tag: Integer; const const: TValue)</div></div>
 <div class="api-item">
 <div class="api-signature">function DeserializeField(Stream: TStream; WireType: Integer; TypeInfoVal: PTypeInfo): TValue</div></div>
+<div class="api-item">
+<div class="api-signature">function TrySerializeGenerated(Obj: TObject; out out: TBytes): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function TryDeserializeGenerated(const const: TBytes; Obj: TObject): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function TrySerializeDirect(Obj: TObject; out out: TBytes): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function TryDeserializeDirect(const const: TBytes; Obj: TObject): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SerializeDirectField(Stream: TStream; Obj: TObject; const const: TDextFieldPlan)</div></div>
+<div class="api-item">
+<div class="api-signature">function DeserializeDirectField(Stream: TStream; Obj: TObject; const const: TDextFieldPlan; WireType: Integer): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SkipField(Stream: TStream; WireType: Integer)</div></div>
 </div>
 <hr>
+<h2>Types</h2>
+<div class="visibility-group"><div class="api-item">
+<div class="api-signature">type TProtobufCodecMode = enumeration</div><div class="enum-values">Values: pcmAuto, pcmRtti, pcmDirect, pcmGenerated</div><div class="description">Selects the serialization tier used by the protobuf codec.</div></div>
+</div>
 
         </div>
     </div>

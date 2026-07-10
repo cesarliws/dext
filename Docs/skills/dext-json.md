@@ -98,3 +98,11 @@ end;
 | `JO.Free` | Do not call `Free` on JSON interfaces |
 | `JO.Values['name'].Value` | `JO.GetString('name')` |
 | `JO.AddPair('name', 'value')` | `JO.SetString('name', 'value')` |
+## S54 Direct Codec Plan
+
+`TDextJson` can reuse the S54 shared type model for supported DTOs and entities. When working on JSON hot paths:
+
+- Prefer field-backed properties with native types, `string`, `TGUID`, `TUUID`, nested objects, and Dext `IList<T>`.
+- Keep calculated properties, custom getters/setters, unsupported wrappers, and custom converters on fallback paths.
+- Do not raw-copy managed values. Direct field assignment must go through `TDextDirectAccess` helpers so string/interface reference counts remain correct.
+- Generated JSON codecs are not the current public contract; the implemented S54 win is shared direct planning and fewer RTTI/TValue operations.

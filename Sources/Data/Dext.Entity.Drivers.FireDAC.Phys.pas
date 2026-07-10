@@ -242,7 +242,10 @@ begin
   case FTable.Columns[AColumnIndex].DataType of
     dtInt32, dtInt16, dtByte, dtUInt16, dtSByte: Result := TValue.From<Integer>(Integer(Data));
     dtInt64, dtUInt32, dtUInt64: Result := TValue.From<Int64>(Int64(Data));
-    dtDouble, dtSingle, dtCurrency, dtBCD, dtFmtBCD: Result := TValue.From<Double>(Double(Data));
+    dtDouble, dtSingle, dtBCD, dtFmtBCD:
+      Result := TValue.From<Double>(Double(Data));
+    dtCurrency:
+      Result := TValue.From<Currency>(Currency(Data));
     dtDateTime, dtDate, dtTime, dtDateTimeStamp: Result := TValue.From<TDateTime>(TDateTime(Data));
     dtAnsiString, dtWideString, dtByteString, dtMemo, dtWideMemo, dtXML: Result := TValue.From<string>(string(Data));
     dtBlob, dtHBlob, dtHBFile: Result := TValue.From<TBytes>(TBytes(Data));

@@ -11,17 +11,17 @@ Pacotes de instruções focados para escrever código **Dext** (framework modern
 |-------|------|-----------|
 | **dext-app-structure** | `dext-app-structure.md` | Configuração de novo projeto, classe Startup, pipeline de middleware, bootstrap `.dpr`, layout do projeto |
 | **dext-web** | `dext-web.md` | Endpoints HTTP, Minimal APIs, Controllers, roteamento, model binding, padrão Results |
-| **dext-orm** | `dext-orm.md` | Entidades ORM, DbContext, consultas, Smart Properties, CRUD |
+| **dext-orm** | `dext-orm.md` | Entidades ORM, DbContext, consultas, Smart Properties, CRUD, hidratação S54 e planos de campo diretos |
 | **dext-orm-advanced** | `dext-orm-advanced.md` | Relacionamentos, eager loading, herança (TPH/TPT), Especificações, migrations, SQL bruto, stored procedures, locking, multi-tenancy |
 | **dext-di** | `dext-di.md` | Registro de serviços, tempos de vida (Scoped/Singleton/Transient), injeção via construtor, atributo `[Inject]` |
 | **dext-auth** | `dext-auth.md` | Autenticação JWT, endpoints de login, `[Authorize]`, claims, `TClaimsBuilder` |
 | **dext-testing** | `dext-testing.md` | Testes de unidade, `Mock<T>`, assertions fluentes (`Should`), `[TestFixture]`, testes de snapshot |
 | **dext-collections** | `dext-collections.md` | `IList<T>`, `TCollections`, operações LINQ, semântica de ownership, `IChannel<T>` |
-| **dext-json** | `dext-json.md` | Serialização JSON (`TDextJson`), configurações customizadas (`TJsonSettings`), manipulação do DOM (`IDextJsonObject`, `IDextJsonArray`) |
+| **dext-json** | `dext-json.md` | Serialização JSON (`TDextJson`), configurações customizadas, DOM e comportamento do plano direto S54 |
 | **dext-api-features** | `dext-api-features.md` | Middleware, CORS, rate limiting, cache de resposta, health checks, OpenAPI/Swagger, arquivos estáticos, compressão |
 | **dext-validation** | `dext-validation.md` | Validação baseada em atributos, TAbstractValidator<T>, validação fortemente tipada com Prop<T>, registro de padrões, auto-validação no model binding |
 | **dext-background** | `dext-background.md` | Workers em segundo plano (`IHostedService`), configuração (`IConfiguration`, padrão Options), tarefas assíncronas (`TAsyncTask`) |
-| **dext-networking** | `dext-networking.md` | Cliente REST (`TRestClient`), requisições HTTP assíncronas, respostas tipadas, provedores de autenticação, pool de conexões |
+| **dext-networking** | `dext-networking.md` | Cliente REST, HTTP assíncrono, gRPC/protobuf, codecs diretos/gerados S54, respostas tipadas e pool de conexões |
 | **dext-logging** | `dext-logging.md` | Logging estruturado (`ILogger`), níveis de log, log assíncrono (RingBuffer), sinks APM (Seq, OpenTelemetry OTLP) |
 | **dext-resilience** | `dext-resilience.md` | Pipeline de Resiliência estilo Polly (Retry, Circuit Breaker, Fallback, Timeout) |
 | **dext-realtime** | `dext-realtime.md` | Hubs (`THub`), mensagens em tempo real compatíveis com SignalR, grupos, `IHubContext<T>` |
@@ -214,4 +214,3 @@ As habilidades são carregadas dinamicamente quando o agente precisa delas. O RE
 13. **Ordem das Uses (CRÍTICA)**: Devido à limitação de apenas um class helper por tipo no Delphi, a ordem nas cláusulas `uses` deve ser sempre: `Dext` → `Dext.Entity` → `Dext.Web`. O último sempre vence e garante visibilidade dos métodos Web.
 14. **Smart Properties**: Para entidades, use sempre os aliases **IntType**, **StringType**, **DoubleType** e **BoolType** (de `Dext.Core.SmartTypes`) em vez de `Prop<T>`. Para **colunas anuláveis (nullable)**, use sempre a composição `Prop<Nullable<T>>` (ex: `Prop<Nullable<Integer>>`) em vez do padrão legado `Nullable<Prop<T>>` (ex: `Nullable<StringType>`), que está obsoleto, gera alertas e quebra a ordenação de consultas (`OrderBy`).
 15. **Método HTTP QUERY**: O método `QUERY` (RFC 10008) é suportado. Use `MapQuery` / `TRestClient.Query` e metadados `AcceptsQuery` para especificar os formatos de consulta suportados, os quais são expostos de forma automática em chamadas OPTIONS através do cabeçalho `Accept-Query`.
-

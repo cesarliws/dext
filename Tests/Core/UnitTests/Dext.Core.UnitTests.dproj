@@ -70,7 +70,7 @@
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
-        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Sources\Core;..\..\..\Sources\Core\Base;..\..\..\Sources\Core\Json;..\..\..\Sources\Core\Interception;..\..\..\Sources\Data;..\..\..\Sources\Events;..\..\..\Sources\Debug;..\..\..\Sources\Testing;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>..\..\Output\$(ProductVersion)\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>..\..\Output</DCC_ExeOutput>
         <DCC_DebugDCUs>true</DCC_DebugDCUs>
@@ -150,6 +150,9 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
+        <DCCReference Include="..\..\..\Sources\Hosting\CLI\Dext.Hosting.CLI.Args.pas"/>
+        <DCCReference Include="..\..\..\Apps\CLI\Commands\Dext.Hosting.CLI.Commands.Codecs.pas"/>
+        <DCCReference Include="Dext.Codecs.S54.Tests.pas"/>
         <DCCReference Include="Dext.Json.Refactored.Tests.pas"/>
         <DCCReference Include="Dext.Configuration.Features.Tests.pas"/>
         <DCCReference Include="Dext.Configuration.Hashing.Tests.pas"/>

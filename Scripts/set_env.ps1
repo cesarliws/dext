@@ -1,4 +1,4 @@
-# set_env.ps1 - Common environment setup for Dext Framework Build Scripts
+﻿# set_env.ps1 - Common environment setup for Dext Framework Build Scripts
 # Replaces set_env.bat with a native PowerShell implementation.
 #
 # USAGE:
@@ -11,7 +11,8 @@
 param(
     [string]$Platform = "Win32",
     [string]$Config = "Debug",
-    [string]$DelphiVersion = ""
+    [string]$DelphiVersion = "",
+    [switch]$UseSourcePath
 )
 
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -105,18 +106,27 @@ elseif ($env:DEXT_PROJECT_TYPE -eq "Tests") { $ProjOutput = "Tests\Output" }
 
 $env:OUTPUT_PATH = Join-Path $env:DEXT "$ProjOutput\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
 
+# 7. Build Temp Isolation
+$BuildTempPath = Join-Path $env:DEXT "Temp\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
+if (-not (Test-Path $BuildTempPath)) {
+    New-Item -ItemType Directory -Path $BuildTempPath -Force | Out-Null
+}
+$env:TEMP = $BuildTempPath
+$env:TMP = $BuildTempPath
 # 7. Context-Aware Search Paths
 $FrameDCU = Join-Path $env:DEXT "Output\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
 $FrameBin = Join-Path $env:DEXT "Output\Bin\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
 $ExamplesDCU = Join-Path $env:DEXT "Examples\Output\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
 $TestsDCU = Join-Path $env:DEXT "Tests\Output\$($env:PRODUCT_VERSION)\$($env:PLATFORM)\$($env:BUILD_CONFIG)"
+$CommonSource = Join-Path $env:DEXT "Sources\Common"
 
-# Root Sources included for Dext.inc
-# We include External\DelphiAST sources because several internal tools and tests reference the units directly.
-$ExtAST = Join-Path $env:DEXT "External\DelphiAST\Source"
-$ExtParser = Join-Path $ExtAST "SimpleParser"
-$env:SEARCH_PATH = "$($env:OUTPUT_PATH);$FrameDCU;$FrameBin;$ExamplesDCU;$TestsDCU;$($env:DEXT)\Sources;$($env:DEXT)\Sources\Common;$($env:DEXT)\Sources\Web;$($env:DEXT)\Sources\Server;$($env:DEXT)\Apps\CLI\Commands;$ExtAST;$ExtParser"
-
+if ($UseSourcePath) {
+    $ExtAST = Join-Path $env:DEXT "External\DelphiAST\Source"
+    $ExtParser = Join-Path $ExtAST "SimpleParser"
+    $env:SEARCH_PATH = "$($env:OUTPUT_PATH);$FrameDCU;$FrameBin;$($env:DEXT)\Sources;$CommonSource;$($env:DEXT)\Sources\Dashboard;$($env:DEXT)\Sources\Web;$($env:DEXT)\Sources\Server;$($env:DEXT)\Apps\CLI\Commands;$ExtAST;$ExtParser"
+} else {
+    $env:SEARCH_PATH = "$CommonSource;$FrameDCU;$FrameBin"
+}
 # 8. Create common directories
 @($env:COMMON_BPL_OUTPUT, $env:COMMON_DCP_OUTPUT, $env:OUTPUT_PATH) | ForEach-Object {
     if (-not (Test-Path $_)) { New-Item -ItemType Directory -Path $_ -Force | Out-Null }
@@ -127,3 +137,6 @@ Write-Host "[ENV] Platform:        $($env:PLATFORM)"
 Write-Host "[ENV] Configuration:   $($env:BUILD_CONFIG)"
 Write-Host "[ENV] Output Path:     $($env:OUTPUT_PATH)"
 Write-Host ""
+
+
+

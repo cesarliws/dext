@@ -377,6 +377,22 @@ begin
   if AValue.TypeInfo = ATargetType then
     Exit(AValue);
 
+  if ATargetType = TypeInfo(Boolean) then
+  begin
+    case AValue.Kind of
+      tkEnumeration:
+        Exit(TValue.From<Boolean>(AValue.AsOrdinal <> 0));
+      tkInteger:
+        Exit(TValue.From<Boolean>(AValue.AsInteger <> 0));
+      tkInt64:
+        Exit(TValue.From<Boolean>(AValue.AsInt64 <> 0));
+      tkFloat:
+        Exit(TValue.From<Boolean>(AValue.AsExtended <> 0));
+      tkString, tkUString, tkWString, tkLString:
+        Exit(TValue.From<Boolean>(StrToBoolDef(AValue.AsString, False)));
+    end;
+  end;
+
   // Use cached metadata for Smart Types and Nullables detection
   if ATargetType.Kind = tkRecord then
   begin

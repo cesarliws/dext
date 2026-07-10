@@ -37,7 +37,9 @@ uses
   Dext.Collections.Base,
   Dext.Collections.Dict,
   Dext.Core.Activator,
+  Dext.Core.DirectAccess,
   Dext.Core.Reflection,
+  Dext.Core.TypeModel,
   Dext.Core.SmartTypes,
   Dext.Core.ValueConverters,
   Dext.Entity.Attributes,
@@ -73,6 +75,10 @@ type
     IsMultiMap: Boolean;
     MultiMapPrefix: string;
     ColumnName: string;
+    DirectOffset: NativeInt;
+    DirectKind: TDextNativeKind;
+    DirectDataType: TFieldType;
+    UseDirect: Boolean;
   end;
 
   THydrationPlan = record
@@ -887,6 +893,19 @@ begin
       Item.IsMultiMap := False;
       Item.MultiMapPrefix := '';
       Item.ColumnName := ColName;
+      Item.DirectOffset := -1;
+      Item.DirectKind := nkUnknown;
+      Item.DirectDataType := ftUnknown;
+      Item.UseDirect := False;
+      if (PropMap <> nil) and (Converter = nil) and (PropMap.FieldValueOffset > 0) and
+         (PropMap.FieldOffset < 0) and (not PropMap.IsLazy) and
+         (TDextTypeModel.IsDirectKind(PropMap.NativeKind)) then
+      begin
+        Item.DirectOffset := PropMap.FieldValueOffset;
+        Item.DirectKind := PropMap.NativeKind;
+        Item.DirectDataType := PropMap.DataType;
+        Item.UseDirect := True;
+      end;
 
       Result.Items[ItemIdx] := Item;
       Inc(ItemIdx);
@@ -908,6 +927,9 @@ begin
         Item.IsMultiMap := True;
         Item.MultiMapPrefix := ColName.Substring(0, SeparatorIdx);
         Item.ColumnName := ColName;
+        Item.DirectOffset := -1;
+        Item.DirectKind := nkUnknown;
+        Item.UseDirect := False;
         
         // Let's resolve the target class property to make sure it exists
         if FProps.TryGetValue(Item.MultiMapPrefix.ToLower, Prop) and (Prop.PropertyType.TypeKind = tkClass) then
@@ -1020,6 +1042,29 @@ begin
 
         if Item.Converter <> nil then
           Val := Item.Converter.FromDatabase(Val, Item.Prop.PropertyType.Handle);
+
+        if Item.UseDirect and not Val.IsEmpty then
+        begin
+          case Item.DirectKind of
+            nkInt32:
+              TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, Val.AsInteger);
+            nkInt64:
+              TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, Val.AsInt64);
+            nkBoolean:
+              TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, TValueConverter.Convert(Val, TypeInfo(Boolean)).AsBoolean);
+            nkSingle:
+              TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
+            nkCurrency:
+              TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
+            nkDouble:
+              TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
+            nkDateTime:
+              TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
+            nkString:
+              TDextDirectAccess.WriteString(Target, Item.DirectOffset, Val.AsString);
+          end;
+          Continue;
+        end;
         
         if Item.Field <> nil then
           TReflection.SetValue(Pointer(Target), Item.Field, Val)

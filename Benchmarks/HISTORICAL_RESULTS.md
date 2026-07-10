@@ -41,6 +41,27 @@ This document tracks historical benchmark runs for the Dext Framework across dif
 
 ---
 
+
+---
+
+## 🧪 Test Environment 3: Local S54 Microbenchmarks - Baseline Run
+* **Date**: July 9, 2026
+* **Reporter**: Cezar (Local Run)
+* **Hardware / OS**: Windows 11
+* **Engine / RTL**: Win32 Release
+* **Benchmark Tool**: `Dext.Benchmarks.exe --benchmark_filter=BM_S54_`
+
+### 📊 Results Table
+
+| Benchmark | Time | CPU | Iterations |
+| :--- | :---: | :---: | :---: |
+| **BM_S54_Protobuf_Direct_Roundtrip** | 51,188 ns | 50,896 ns | 10,000 |
+| **BM_S54_Json_Roundtrip** | 109,984 ns | 108,517 ns | 7,727 |
+| **BM_S54_Orm_JsonConverter_Roundtrip** | 160,910 ns | 154,929 ns | 5,165 |
+
+> [!NOTE]
+> This run was captured after the S54 benchmark runner was split so the HTTP server path does not start when the filter is only `BM_S54_`. It is a local baseline for future regression tracking.
+
 ## 🛠️ Future Benchmarks & Roadmap
 1. **TCP Socket Tuning**: Adjust system-level TCP ports configuration to prevent "connection refused" errors under extreme concurrency.
 2. **Windows Server 2025 Verification**: Evaluate performance under modern server environments.

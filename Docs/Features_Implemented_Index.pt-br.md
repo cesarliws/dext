@@ -62,6 +62,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
   - **Dext DOM (IDextJsonNode)** — Otimizado para 99% dos casos (APIs REST, Configurações). Alta velocidade de acesso aleatório e manipulação de objetos via árvore em memória (engine DataObjects).
   - **Dext UTF-8 (Low-Level Streaming)** — Ferramenta cirúrgica para Big Data. Processamento sequencial zero-allocation de volumes massivos (GBs) com footprint de memória constante.
 - **TUtf8JsonSerializer** (`Dext.Json.Utf8.Serializer`) — Serializador zero-allocation para records. Opera diretamente sobre `TByteSpan` (UTF-8 raw) sem conversão intermediária para `string`. Cache de `TJsonRecordInfo` por `PTypeInfo` para eliminar overhead RTTI em hot-paths. `ToUtf8JSON` no driver `DextJsonDataObjects` para output UTF-8 nativo.
+- **S54 Codecs Diretos** — `Dext.Core.TypeModel`, `Dext.Core.DirectAccess`, `Dext.Codecs.Registry`, `Dext.Serialization.Protobuf`, `TDextJson`, hidratação ORM e a CLI de codecs compartilham planos de campos, habilitando leitura/escrita direta por offset, registro de codecs protobuf gerados, despacho gRPC por invoker estático, objetos/listas aninhados com ownership explícito, edge cases de SmartProp/Nullable, `TGUID`/`TUUID` e exportação `.proto` a partir de DTOs code-first. Os diagnósticos do IDE Expert ficam documentados como DX adiado.
 
 ### 1.4b Motor AutoMapper (`Dext.Mapper`)
 - **TMapper** — Fachada estática e registro centralizado para mapeamento objeto a objeto usando RTTI Delphi.
@@ -880,4 +881,3 @@ Implementação do protocolo de transporte binário de alta performance.
 ---
 
 *Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 2026).*
-

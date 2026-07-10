@@ -43,6 +43,7 @@ uses
   Dext.Entity.TypeConverters,
   Dext.Core.SmartTypes,
   Dext.Core.Reflection,
+  Dext.Core.TypeModel,
   Dext.Threading.Sync,
   Dext.Specifications.Interfaces;
 
@@ -192,6 +193,7 @@ type
     MetadataOffset: Integer;   // Offset of FInfo (IPropInfo) - Used by Prototype
     FieldValueOffset: Integer; // Offset of FValue
     PropertyType: PTypeInfo;   // Type of T in Prop<T>
+    NativeKind: TDextNativeKind; // Shared S54 scalar classification
     // Shadow Property support
     IsShadow: Boolean;
     // JSON Column Support
@@ -812,6 +814,9 @@ begin
         // Processar atributos do campo
         for Attr in Fld.GetAttributes do
           ProcessAttribute(PropMap, Attr);
+
+        if PropMap.PropertyType <> nil then
+          PropMap.NativeKind := TDextTypeModel.NativeKindOf(PropMap.PropertyType);
       end
       // 2. Campos normais públicos ou com atributos
       else if (Fld.Visibility in [mvPublic, mvPublished]) or (Length(Fld.GetAttributes) > 0) then
@@ -831,6 +836,9 @@ begin
         
         for Attr in Fld.GetAttributes do
           ProcessAttribute(PropMap, Attr);
+
+        if PropMap.PropertyType <> nil then
+          PropMap.NativeKind := TDextTypeModel.NativeKindOf(PropMap.PropertyType);
       end;
     end;
 
@@ -1026,6 +1034,9 @@ begin
 
       for Attr in Prop.GetAttributes do
         ProcessAttribute(PropMap, Attr);
+
+      if PropMap.PropertyType <> nil then
+        PropMap.NativeKind := TDextTypeModel.NativeKindOf(PropMap.PropertyType);
       
       // Resolve Converter (Optimization)
       if PropMap.Converter = nil then
@@ -1091,6 +1102,7 @@ begin
   MetadataOffset := -1;
   FieldValueOffset := -1;
   PropertyType := nil;
+  NativeKind := nkUnknown;
   IsShadow := False;
   IsJsonColumn := False;
   UseJsonB := True; // Default for PostgreSQL

@@ -21,11 +21,11 @@
 
 param(
     [Parameter(Position=0)]
-    [string]$PackageName = "",
+    [string]$PackageName = '',
 
-    [string]$Config = "Debug",
-    [string]$Platform = "Win32",
-    [string]$DelphiVersion = "",
+    [string]$Config = 'Debug',
+    [string]$Platform = 'Win32',
+    [string]$DelphiVersion = '',
     [switch]$All,
     [switch]$Clean,
     [switch]$VerboseOutput
@@ -37,19 +37,19 @@ param(
 
 # Build order matches build_framework.bat (dependency order)
 $BuildOrder = @(
-    "Dext.Core",
-    "Dext.EF.Core",
-    "Dext.Web.Core",
-    "Dext.Web.Hubs",
-    "Dext.Hosting",
-    "Dext.Testing",
-    "Dext.UI",
-    "Dext.Net"
+    'Dext.Core',
+    'Dext.EF.Core',
+    'Dext.Web.Core',
+    'Dext.Web.Hubs',
+    'Dext.Hosting',
+    'Dext.Testing',
+    'Dext.UI',
+    'Dext.Net'
 )
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $DextRoot  = Split-Path -Parent $ScriptDir
-$SourcesDir = Join-Path $DextRoot "Sources"
+$SourcesDir = Join-Path $DextRoot 'Sources'
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -65,8 +65,8 @@ function Write-Detail($Message)  { Write-Host $Message -ForegroundColor Gray }
 # =============================================================================
 function Get-LatestDelphiVersion {
     $RegistryPaths = @(
-        "HKLM:\SOFTWARE\Embarcadero\BDS",
-        "HKLM:\SOFTWARE\WOW6432Node\Embarcadero\BDS"
+        'HKLM:\SOFTWARE\Embarcadero\BDS',
+        'HKLM:\SOFTWARE\WOW6432Node\Embarcadero\BDS'
     )
 
     $FoundVersions = @()
@@ -79,7 +79,7 @@ function Get-LatestDelphiVersion {
                     $VersionName = $Key.PSChildName
                     if ($VersionName -match '^\d+\.\d+$') {
                         try {
-                            $RootDir = Get-ItemProperty -Path $Key.PSPath -Name "RootDir" -ErrorAction SilentlyContinue
+                            $RootDir = Get-ItemProperty -Path $Key.PSPath -Name 'RootDir' -ErrorAction SilentlyContinue
                             if ($RootDir -and $RootDir.RootDir -and (Test-Path $RootDir.RootDir)) {
                                 $FoundVersions += [PSCustomObject]@{
                                     Version = $VersionName
@@ -104,7 +104,7 @@ function Get-LatestDelphiVersion {
 function Initialize-DelphiEnvironment {
     param([string]$Version)
 
-    . "$ScriptDir\set_env.ps1" -DelphiVersion $Version -Platform $env:PLATFORM -Config $env:BUILD_CONFIG
+    . "$ScriptDir\set_env.ps1" -DelphiVersion $Version -Platform $env:PLATFORM -Config $env:BUILD_CONFIG -UseSourcePath
     
     return [PSCustomObject]@{
         Version    = $env:PRODUCT_VERSION
@@ -143,12 +143,12 @@ function Resolve-PackagePath {
     if (Test-Path $DprojFile) { return $DprojFile }
 
     # Try Apps subdirectories (DextTool, DextSidecar, etc.)
-    $AppsDir = Join-Path $DextRoot "Apps"
+    $AppsDir = Join-Path $DextRoot 'Apps'
     $found = Get-ChildItem -Path $AppsDir -Recurse -Filter "$Name.dproj" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($found) { return $found.FullName }
 
     # Try Tests subdirectories
-    $TestsDir = Join-Path $DextRoot "Tests"
+    $TestsDir = Join-Path $DextRoot 'Tests'
     $found = Get-ChildItem -Path $TestsDir -Recurse -Filter "$Name.dproj" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($found) { return $found.FullName }
 
@@ -162,7 +162,7 @@ function Resolve-PackagePath {
     }
 
     # Fallback search in all Packages directories
-    $PkgsDir = Join-Path $DextRoot "Packages"
+    $PkgsDir = Join-Path $DextRoot 'Packages'
     $found = Get-ChildItem -Path $PkgsDir -Recurse -Filter "$Name.dproj" -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($found) { return $found.FullName }
 
@@ -191,25 +191,24 @@ function Build-Package {
     Write-Warn "Building $Name..."
     Write-Detail "  Project: $DprojPath"
 
-    $CommonPath = Join-Path $SourcesDir "Common"
     $MSBuildArgs = @(
         $DprojPath,
-        "/t:Build",
+        '/t:Build',
         "/p:Configuration=$Config",
         "/p:Config=$Config",
         "/p:Platform=$Platform",
         "/p:DCC_DcuOutput=`"$OutputPath`"",
         "/p:DCC_DcpOutput=`"$OutputPath`"",
         "/p:DCC_BplOutput=`"$OutputPath`"",
-        "/p:DCC_OutputNeverBuildDcps=false",
-        "/p:DCC_UnitSearchPath=`"$OutputPath;$CommonPath`"",
-        "/nologo"
+        '/p:DCC_OutputNeverBuildDcps=false',
+        "/p:DCC_UnitSearchPath=`"$($env:SEARCH_PATH)`"",
+        '/nologo'
     )
 
     if ($Verbose) {
-        $MSBuildArgs += "/v:normal"
+        $MSBuildArgs += '/v:normal'
     } else {
-        $MSBuildArgs += "/v:minimal"
+        $MSBuildArgs += '/v:minimal'
     }
 
     $BuildOutput = & msbuild @MSBuildArgs 2>&1
@@ -220,115 +219,11 @@ function Build-Package {
 
     if ($BuildExitCode -eq 0) {
         Write-Success "  $Name - OK"
-        Write-Host ""
+        Write-Host ''
         return $true
     } else {
         Write-Err "  $Name - FAILED (exit code: $BuildExitCode)"
-        Write-Host ""
+        Write-Host ''
         return $false
     }
-}
-
-# =============================================================================
-# MAIN EXECUTION
-# =============================================================================
-try {
-    # Validate parameters
-    if (-not $All -and [string]::IsNullOrEmpty($PackageName)) {
-        Write-Info "Usage: .\build_package.ps1 <PackageName> [-Config Debug|Release] [-Platform Win32|Win64] [-Clean] [-All]"
-        Write-Host ""
-        Write-Info "Available packages:"
-        foreach ($pkg in $BuildOrder) {
-            Write-Detail "  $pkg"
-        }
-        Write-Host ""
-        Write-Info "Examples:"
-        Write-Detail "  .\build_package.ps1 Dext.Core"
-        Write-Detail "  .\build_package.ps1 Dext.Web.Core -VerboseOutput"
-        Write-Detail "  .\build_package.ps1 -All"
-        Write-Detail "  .\build_package.ps1 -All -Clean"
-        exit 0
-    }
-
-    Write-Host ""
-    Write-Host ("=" * 60) -ForegroundColor DarkGray
-    Write-Info "Dext Framework Package Builder"
-    Write-Host ("=" * 60) -ForegroundColor DarkGray
-    Write-Host ""
-
-    # 1. Initialize Delphi environment
-    Write-Info "Initializing Delphi environment..."
-    $DelphiEnv = Initialize-DelphiEnvironment -Version $DelphiVersion
-
-    # 2. Calculate output path
-    $OutputPath = Get-OutputPath -ProductVersion $DelphiEnv.Version -Platform $Platform -Config $Config
-    Write-Detail "  Output: $OutputPath"
-    Write-Host ""
-
-    # 3. Clean if requested
-    if ($Clean) {
-        Write-Warn "Cleaning output directory..."
-        Remove-Item "$OutputPath\*.dcu" -ErrorAction SilentlyContinue
-        Remove-Item "$OutputPath\*.bpl" -ErrorAction SilentlyContinue
-        Remove-Item "$OutputPath\*.dcp" -ErrorAction SilentlyContinue
-        Write-Success "  Clean complete"
-        Write-Host ""
-    }
-
-    # 4. Determine what to build
-    if ($All) {
-        $PackagesToBuild = $BuildOrder
-    } else {
-        $PackagesToBuild = @($PackageName)
-    }
-
-    # 5. Build
-    $TotalCount = $PackagesToBuild.Count
-    $SuccessCount = 0
-    $FailedPackages = @()
-
-    $Stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-    foreach ($pkg in $PackagesToBuild) {
-        $result = Build-Package -Name $pkg -OutputPath $OutputPath -Config $Config -Platform $Platform -Verbose $VerboseOutput
-
-        if ($result) {
-            $SuccessCount++
-        } else {
-            $FailedPackages += $pkg
-            if ($All) {
-                Write-Err "Build chain stopped at $pkg (dependency order)"
-                break
-            }
-        }
-    }
-
-    $Stopwatch.Stop()
-
-    # 6. Summary
-    Write-Host ""
-    Write-Host ("=" * 60) -ForegroundColor DarkGray
-    Write-Info "Build Summary"
-    Write-Host ("=" * 60) -ForegroundColor DarkGray
-    Write-Detail "  Packages: $SuccessCount/$TotalCount succeeded"
-    Write-Detail "  Time:     $([math]::Round($Stopwatch.Elapsed.TotalSeconds, 1))s"
-    Write-Detail "  Output:   $OutputPath"
-
-    if ($FailedPackages.Count -gt 0) {
-        Write-Err "  Failed:   $($FailedPackages -join ', ')"
-        Write-Host ""
-        Write-Err "BUILD FAILED"
-        Write-Host ("=" * 60) -ForegroundColor DarkGray
-        exit 1
-    } else {
-        Write-Host ""
-        Write-Success "BUILD SUCCESSFUL"
-        Write-Host ("=" * 60) -ForegroundColor DarkGray
-        exit 0
-    }
-}
-catch {
-    Write-Err "Unexpected error: $($_.Exception.Message)"
-    Write-Err "Stack trace: $($_.ScriptStackTrace)"
-    exit 1
 }
