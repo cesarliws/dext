@@ -345,8 +345,28 @@ end;
 
 function TByteSpan.EqualsString(const AValue: string): Boolean;
 var
+  I: Integer;
   U8: TBytes;
+  IsAscii: Boolean;
 begin
+  IsAscii := True;
+  for I := 1 to System.Length(AValue) do
+    if Ord(AValue[I]) > 127 then
+    begin
+      IsAscii := False;
+      Break;
+    end;
+
+  if IsAscii then
+  begin
+    if FLength <> System.Length(AValue) then
+      Exit(False);
+    for I := 0 to FLength - 1 do
+      if FData[I] <> Ord(AValue[I + 1]) then
+        Exit(False);
+    Exit(True);
+  end;
+
   U8 := TEncoding.UTF8.GetBytes(AValue);
   if FLength <> System.Length(U8) then
     Exit(False);
