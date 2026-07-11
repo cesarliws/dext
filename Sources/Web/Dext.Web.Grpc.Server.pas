@@ -39,6 +39,7 @@ uses
   Dext.Collections,
   Dext.Codecs.Registry,
   Dext.Core.Reflection,
+  Dext.Core.Span,
   Dext.Core.Activator,
   Dext.Web.Interfaces,
   Dext.Grpc.Attributes,
@@ -211,7 +212,7 @@ var
   Stream: TStream;
   Buffer: TBytes;
   Compressed: Boolean;
-  MsgBytes: TBytes;
+  MsgSpan: TByteSpan;
   Offset: Integer;
   Request: TObject;
   Response: TObject;
@@ -258,7 +259,20 @@ begin
       Exit;
     end;
 
-    Stream := AContext.Request.Body;
+    try
+      Stream := AContext.Request.Body;
+    except
+      on E: Exception do
+      begin
+        Log.Error('[gRPC-Server] Request body read failed: {Class} | {Error}',
+          [E.ClassName, E.Message]);
+        AContext.Response.StatusCode := 200;
+        AContext.Response.ContentType := 'application/grpc';
+        AContext.Response.AddHeader('grpc-status', '13');
+        AContext.Response.AddHeader('grpc-message', E.Message);
+        Exit;
+      end;
+    end;
     if Stream.Size = 0 then
     begin
       AContext.Response.StatusCode := 400;
@@ -272,7 +286,7 @@ begin
 
     Offset := 0;
     SwSub := TStopwatch.StartNew;
-    if not TGrpcMessageCodec.TryDecode(Buffer, Offset, Compressed, MsgBytes) then
+    if not TGrpcMessageCodec.TryDecode(Buffer, Offset, Compressed, MsgSpan) then
     begin
       AContext.Response.StatusCode := 400;
       AContext.Response.Write('Invalid gRPC frame');
@@ -285,7 +299,7 @@ begin
       Payload := TJSONObject.Create;
       Payload.AddPair('service', Parts[1]);
       Payload.AddPair('method', Parts[2]);
-      Payload.AddPair('size', TJSONNumber.Create(Length(MsgBytes)));
+      Payload.AddPair('size', TJSONNumber.Create(MsgSpan.Length));
       TDiagnosticSource.Instance.Write('gRPC.Server.Decode', Payload,
         'gRPC', SwSub.ElapsedMilliseconds);
     end;
@@ -293,7 +307,7 @@ begin
     Request := TActivator.CreateInstance(Method.RequestClass, []);
     try
       SwSub := TStopwatch.StartNew;
-      TProtobufSerializer.Deserialize(MsgBytes, Request);
+      TProtobufSerializer.Deserialize(MsgSpan, Request);
       SwSub.Stop;
 
       if TDiagnosticSource.Instance.Enabled then

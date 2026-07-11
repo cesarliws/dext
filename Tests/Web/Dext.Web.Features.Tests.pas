@@ -51,7 +51,7 @@ type
   end;
 
   [ApiController, Route('/gzip-controller')]
-  TGzipTestController = class(TInterfacedObject)
+  TGzipTestController = class
   public
     [HttpGet]
     function GetLargeHtml: IResult;
@@ -86,7 +86,6 @@ end;
 
 procedure TGzipTestController.GetDirect(const Ctx: IHttpContext);
 begin
-  WriteLn('DEBUG: Ctx.Response ClassName = ' + TObject(Ctx.Response).ClassName);
   Ctx.Response.SetContentType('text/html');
   Ctx.Response.Write(StringOfChar('A', 40000) + '<h1>Hello World from Direct Controller!</h1>' + StringOfChar('B', 7000));
 end;

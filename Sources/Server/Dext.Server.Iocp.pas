@@ -68,6 +68,7 @@ type
     /// <param name="ARemotePort">The client port.</param>
     /// <param name="ALocalPort">The local server listening port.</param>
     constructor Create(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
+    procedure Init(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
     /// <summary>Cleans up connection resources.</summary>
     destructor Destroy; override;
     
@@ -98,6 +99,7 @@ type
   TDextReadOnlyBytesStream = class(TCustomMemoryStream)
   public
     constructor Create(const ABytes: TBytes; AOffset, ALen: Integer);
+    procedure Init(const ABytes: TBytes; AOffset, ALen: Integer);
   end;
 
   /// <summary>
@@ -141,6 +143,13 @@ type
       ABodyOffset, ABodyLen: Integer;
       AContentLength: Int64
     );
+    procedure Init(
+      const AMethod, APath, AQuery: string;
+      const AHeaderSegments: THeaderSegments;
+      ABody: TBytes;
+      ABodyOffset, ABodyLen: Integer;
+      AContentLength: Int64
+    );
     /// <summary>Cleans up request resources.</summary>
     destructor Destroy; override;
   end;
@@ -159,6 +168,7 @@ type
     /// <summary>Initializes a new IOCP response wrapper.</summary>
     /// <param name="ASocket">The raw socket descriptor.</param>
     constructor Create(ASocket: TSocket);
+    procedure Init(ASocket: TSocket);
     /// <summary>Cleans up response resources.</summary>
     destructor Destroy; override;
 
@@ -308,6 +318,11 @@ const
 constructor TDextIocpConnection.Create(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
 begin
   inherited Create;
+  Init(ASocket, ARemoteAddress, ARemotePort, ALocalPort);
+end;
+
+procedure TDextIocpConnection.Init(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
+begin
   FSocket := ASocket;
   FRemoteAddress := ARemoteAddress;
   FRemotePort := ARemotePort;
@@ -382,6 +397,11 @@ end;
 constructor TDextReadOnlyBytesStream.Create(const ABytes: TBytes; AOffset, ALen: Integer);
 begin
   inherited Create;
+  Init(ABytes, AOffset, ALen);
+end;
+
+procedure TDextReadOnlyBytesStream.Init(const ABytes: TBytes; AOffset, ALen: Integer);
+begin
   if ALen > 0 then
     SetPointer(@ABytes[AOffset], ALen)
   else
@@ -399,20 +419,34 @@ constructor TDextIocpRequest.Create(
 );
 begin
   inherited Create;
+  Init(AMethod, APath, AQuery, AHeaderSegments, ABody, ABodyOffset, ABodyLen, AContentLength);
+end;
+
+procedure TDextIocpRequest.Init(
+  const AMethod, APath, AQuery: string;
+  const AHeaderSegments: THeaderSegments;
+  ABody: TBytes;
+  ABodyOffset, ABodyLen: Integer;
+  AContentLength: Int64
+);
+begin
   FMethod := AMethod;
   FPath := APath;
   FQuery := AQuery;
   FHeaderSegments := AHeaderSegments;
   FContentLength := AContentLength;
   FHeaderCacheCount := 0;
+  FBuffer := ABody;
 
-  // Cópia restrita aos bytes úteis do request para thread-safety
-  FBuffer := Copy(ABody, 0, ABodyOffset + ABodyLen);
+  if FResolvedHeaders = nil then
+    FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0)
+  else
+    FResolvedHeaders.Clear;
 
-  FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
-
-  // Stream que lê diretamente do buffer sem cópia adicional
-  FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen);
+  if FBodyStream = nil then
+    FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen)
+  else
+    TDextReadOnlyBytesStream(FBodyStream).Init(FBuffer, ABodyOffset, ABodyLen);
 end;
 
 destructor TDextIocpRequest.Destroy;
@@ -532,11 +566,19 @@ end;
 constructor TDextIocpResponse.Create(ASocket: TSocket);
 begin
   inherited Create;
+  Init(ASocket);
+end;
+
+procedure TDextIocpResponse.Init(ASocket: TSocket);
+begin
   FSocket := ASocket;
   FHeadersSent := False;
   FStatusCode := 200;
   FReason := 'OK';
-  FHeaders := TDictionary<string, string>.Create;
+  if FHeaders = nil then
+    FHeaders := TDictionary<string, string>.Create
+  else
+    FHeaders.Clear;
 end;
 
 destructor TDextIocpResponse.Destroy;
@@ -764,7 +806,8 @@ begin
         
         if Assigned(FEngine.FConnectionHandler) then
         begin
-          Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
+          Connection := TDextIocpConnection.Create(
+            IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
           try
             try
               FEngine.FConnectionHandler.OnConnect(Connection as IDextTransportConnection);
@@ -812,8 +855,11 @@ begin
             begin
               TInterlocked.Increment(FEngine.FTotalRequests);
 
-              Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
-              RawRequest := TDextIocpRequest.Create(Method, Path, Query, HeaderSegments, Buffer, BodyOffset, RecvRet - BodyOffset, ContentLength);
+              Connection := TDextIocpConnection.Create(
+                IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
+              RawRequest := TDextIocpRequest.Create(
+                Method, Path, Query, HeaderSegments, Buffer, BodyOffset,
+                RecvRet - BodyOffset, ContentLength);
               RawResponse := TDextIocpResponse.Create(IocpOverlapped.Socket);
 
               try
@@ -1063,4 +1109,3 @@ end;
 {$ENDIF}
 
 end.
-

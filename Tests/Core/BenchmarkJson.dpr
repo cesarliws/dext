@@ -7,6 +7,7 @@ uses
   System.Classes,
   System.Diagnostics,
   Dext.Core.Span,
+  Dext.Utils,
   Dext.Json.Types,
   DextJsonDataObjects,
   Dext.Core.Json.NextGen;
@@ -123,6 +124,5 @@ begin
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
-  Writeln('Done. Press Enter to exit.');
-  Readln;
+  ConsolePause;
 end.

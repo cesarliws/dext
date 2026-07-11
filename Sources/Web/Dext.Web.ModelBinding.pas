@@ -131,7 +131,7 @@ type
     function BindServices(AType: PTypeInfo; Context: IHttpContext): TValue;
 
     /// <summary>Binds all parameters of a controller/handler method.</summary>
-    function BindMethodParameters(AMethod: TRttiMethod; AContext: IHttpContext): TArray<TValue>;
+    procedure BindMethodParameters(AMethod: TRttiMethod; AContext: IHttpContext; var AValues: TArray<TValue>);
     
     /// <summary>Binds a single parameter, applying inference rules if necessary.</summary>
     function BindParameter(AParam: TRttiParameter; AContext: IHttpContext): TValue;
@@ -172,7 +172,7 @@ type
     /// <summary>Binds route parameters to type T.</summary>
     function BindRoute<T>(Context: IHttpContext): T; overload;
 
-    function BindMethodParameters(AMethod: TRttiMethod; AContext: IHttpContext): TArray<TValue>;
+    procedure BindMethodParameters(AMethod: TRttiMethod; AContext: IHttpContext; var AValues: TArray<TValue>);
     function BindParameter(AParam: TRttiParameter; AContext: IHttpContext): TValue;
 
     /// <summary>
@@ -299,6 +299,7 @@ function TModelBinder.BindBodyPrimitive(AParam: TRttiParameter; Context: IHttpCo
 var
   Stream: TStream;
   Bytes: TBytes;
+  BodyLen: Integer;
   BodyJsonStr: string;
   JsonNode: IDextJsonNode;
   JsonObj: IDextJsonObject;
@@ -308,11 +309,17 @@ begin
   if (Stream = nil) or (Stream.Size = 0) then
     Exit(TReflection.GetDefaultValue(nil, AParam.ParamType.Handle));
 
+  BodyLen := Integer(Stream.Size);
   Stream.Position := 0;
-  SetLength(Bytes, Stream.Size);
-  if Stream.Size > 0 then
-    Stream.ReadBuffer(Bytes[0], Stream.Size);
-  BodyJsonStr := TEncoding.UTF8.GetString(Bytes);
+  if Stream is TBytesStream then
+    Bytes := TBytesStream(Stream).Bytes
+  else
+  begin
+    SetLength(Bytes, BodyLen);
+    if BodyLen > 0 then
+      Stream.ReadBuffer(Bytes[0], BodyLen);
+  end;
+  BodyJsonStr := TEncoding.UTF8.GetString(Bytes, 0, BodyLen);
 
   if BodyJsonStr <> '' then
   begin
@@ -391,6 +398,7 @@ var
   Settings: TJsonSettings;
   Bytes: TBytes;
   Span: TByteSpan;
+  BodyLen: Integer;
 begin
   if (AType.Kind <> tkRecord) and (AType.Kind <> tkClass) then
     raise EBindingException.Create('BindBody currently only supports records and classes');
@@ -408,20 +416,21 @@ begin
   
   try
     // Read Body as Bytes (One copy stream -> bytes, but avoids bytes -> string -> TJsonDOM)
+    BodyLen := Integer(Stream.Size);
     if Stream is TBytesStream then
       Bytes := TBytesStream(Stream).Bytes
     else
     begin
       Stream.Position := 0;
-      SetLength(Bytes, Stream.Size);
-      if Stream.Size > 0 then
-        Stream.ReadBuffer(Bytes[0], Stream.Size);
+      SetLength(Bytes, BodyLen);
+      if BodyLen > 0 then
+        Stream.ReadBuffer(Bytes[0], BodyLen);
     end;
     
-    if Length(Bytes) = 0 then
+    if BodyLen = 0 then
          raise EBindingException.Create('Request body is empty');
 
-    Span := TByteSpan.FromBytes(Bytes);
+    Span := TByteSpan.Create(@Bytes[0], BodyLen);
 
     // Call Generic Deserialize<T> dynamically? 
     // TUtf8JsonSerializer.Deserialize<T> is static generic.
@@ -445,7 +454,7 @@ begin
     // OR we change this method to try to dispatch to Utf8Serializer if possible.
     
     // Fallback to legacy string based for now in the non-generic untyped method
-    JsonString := TEncoding.UTF8.GetString(Bytes);
+    JsonString := TEncoding.UTF8.GetString(Bytes, 0, BodyLen);
     Settings := TJsonSettings.Default.CaseInsensitive.ServiceProvider(Context.Services);
     
     Result := TDextJson.Deserialize(AType, JsonString, Settings);
@@ -462,6 +471,7 @@ var
   Bytes: TBytes;
   Span: TByteSpan;
   Value: TValue;
+  BodyLen: Integer;
 begin
   // Only for Records for now
   if PTypeInfo(System.TypeInfo(T)).Kind = tkRecord then
@@ -472,6 +482,7 @@ begin
 
       // Read RAW BYTES (Zero String Allocation)
       // Ideally Context.Request would expose a Span/Bytes directly.
+      BodyLen := Integer(Stream.Size);
       if Stream is TBytesStream then
       begin
          Bytes := TBytesStream(Stream).Bytes;
@@ -481,13 +492,13 @@ begin
       else
       begin
         Stream.Position := 0;
-        SetLength(Bytes, Stream.Size);
-        if Stream.Size > 0 then
-          Stream.ReadBuffer(Bytes[0], Stream.Size);
+        SetLength(Bytes, BodyLen);
+        if BodyLen > 0 then
+          Stream.ReadBuffer(Bytes[0], BodyLen);
       end;
       
       try
-        Span := TByteSpan.FromBytes(Bytes);
+        Span := TByteSpan.Create(@Bytes[0], BodyLen);
         // FAST PATH: UTF8 Zero-Allocation Deserialization
         Result := TUtf8JsonSerializer.Deserialize<T>(Span);
         Exit;
@@ -711,17 +722,18 @@ begin
   end;
 end;
 
-function TModelBinder.BindMethodParameters(AMethod: TRttiMethod;
-  AContext: IHttpContext): TArray<TValue>;
+procedure TModelBinder.BindMethodParameters(AMethod: TRttiMethod;
+  AContext: IHttpContext; var AValues: TArray<TValue>);
 var
   I: Integer;
   Params: TArray<TRttiParameter>;
 begin
   Params := AMethod.GetParameters;
-  SetLength(Result, Length(Params));
+  if Length(AValues) <> Length(Params) then
+    SetLength(AValues, Length(Params));
 
   for I := 0 to High(Params) do
-    Result[I] := BindParameter(Params[I], AContext);
+    AValues[I] := BindParameter(Params[I], AContext);
 end;
 
 function TModelBinder.BindParameter(AParam: TRttiParameter;
@@ -1017,6 +1029,7 @@ var
   FieldName: string;
   FieldValue: TValue;
   BodyBytes: TBytes;
+  BodyLen: Integer;
   Stream: TStream;
   Headers: IStringDictionary;
   RouteParams: TRouteValueDictionary;
@@ -1064,17 +1077,18 @@ begin
       Stream := Context.Request.Body;
       if (Stream <> nil) and (Stream.Size > 0) and (LIsPostLike or LIsJson) then
       begin
+        BodyLen := Integer(Stream.Size);
         if Stream is TBytesStream then
           BodyBytes := TBytesStream(Stream).Bytes
         else
         begin
           Stream.Position := 0;
-          SetLength(BodyBytes, Stream.Size);
-          if Stream.Size > 0 then
-            Stream.ReadBuffer(BodyBytes[0], Stream.Size);
+          SetLength(BodyBytes, BodyLen);
+          if BodyLen > 0 then
+            Stream.ReadBuffer(BodyBytes[0], BodyLen);
         end;
         
-        BodyJsonStr := TEncoding.UTF8.GetString(BodyBytes);
+        BodyJsonStr := TEncoding.UTF8.GetString(BodyBytes, 0, BodyLen);
 
         if BodyJsonStr <> '' then
         begin

@@ -67,8 +67,10 @@ type
   TDextHttpSysRequest = class(TInterfacedObject, IDextRawRequest)
   private
     FEngine: TDextHttpSysEngine;
+    FReqQueue: THandle;
     FRequest: PHTTP_REQUEST;
     FBodyStream: TCustomMemoryStream;
+    FEntityBodyBuffer: TMemoryStream;
     FBodyRead: Boolean;
     function GetMethod: string;
     function GetPath: string;
@@ -211,6 +213,7 @@ type
     /// <summary>Initializes a new http.sys connection wrapper.</summary>
     /// <param name="ARequest">The native HTTP_REQUEST structure of the connection.</param>
     constructor Create(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
+    procedure Init(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
     
     /// <summary>Returns the unique connection identifier.</summary>
     function GetConnectionId: UInt64;
@@ -239,6 +242,9 @@ type
     FEngine: TDextHttpSysEngine;
     FReqQueue: THandle;
     FAffinity: TDextProcessorGroupAffinity;
+    FRequestCache: TDextHttpSysRequest;
+    FResponseCache: TDextHttpSysResponse;
+    FConnectionCache: TDextHttpSysConnection;
   protected
     procedure Execute; override;
   public
@@ -246,6 +252,7 @@ type
     /// <param name="AEngine">The http.sys engine instance.</param>
     /// <param name="AReqQueue">Handle to the request queue.</param>
     constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle; const AAffinity: TDextProcessorGroupAffinity);
+    destructor Destroy; override;
   end;
 
   /// <summary>
@@ -405,12 +412,16 @@ begin
   inherited Create;
   FRequest := ARequest;
   FBodyStream := nil;
+  FEntityBodyBuffer := TMemoryStream.Create;
   FEngine := nil;
+  FReqQueue := 0;
   FBodyRead := False;
 end;
 
 destructor TDextHttpSysRequest.Destroy;
 begin
+  if Assigned(FEntityBodyBuffer) then
+    FEntityBodyBuffer.Free;
   if Assigned(FBodyStream) then
     FBodyStream.Free;
   inherited;
@@ -419,12 +430,21 @@ end;
 procedure TDextHttpSysRequest.Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST);
 begin
   FEngine := AEngine;
+  if Assigned(AEngine) then
+    FReqQueue := AEngine.FReqQueue
+  else
+    FReqQueue := 0;
   FRequest := ARequest;
   FBodyRead := False;
   if Assigned(FBodyStream) then
   begin
     FBodyStream.Size := 0;
     FBodyStream.Position := 0;
+  end;
+  if Assigned(FEntityBodyBuffer) then
+  begin
+    FEntityBodyBuffer.Size := 0;
+    FEntityBodyBuffer.Position := 0;
   end;
 end;
 
@@ -446,7 +466,6 @@ var
   I: Integer;
   BytesReceived: ULONG;
   Ret: ULONG;
-  TempBuf: TBytes;
 begin
   if FBodyStream = nil then
     FBodyStream := TMemoryStream.Create;
@@ -454,57 +473,53 @@ begin
   if not FBodyRead then
   begin
     FBodyRead := True;
-    
-    // 1. Copy pre-allocated body chunks
+
     if (FRequest.EntityChunkCount > 0) and (FRequest.pEntityChunks <> nil) then
     begin
       PChunk := PHTTP_DATA_CHUNK_INMEMORY(FRequest.pEntityChunks);
       for I := 0 to FRequest.EntityChunkCount - 1 do
       begin
-        if PChunk.DataChunkType = hctFromMemory then
-        begin
-          if (PChunk.pBuffer <> nil) and (PChunk.BufferLength > 0) then
-            FBodyStream.WriteBuffer(PChunk.pBuffer^, PChunk.BufferLength);
-        end;
+        if (PChunk.DataChunkType = hctFromMemory) and (PChunk.pBuffer <> nil) and (PChunk.BufferLength > 0) then
+          FBodyStream.WriteBuffer(PChunk.pBuffer^, PChunk.BufferLength);
         Inc(PChunk);
       end;
     end;
-    
-    // 2. Read remaining body chunks via HttpReceiveRequestEntityBody
+
     if (FRequest.Flags and HTTP_REQUEST_FLAG_MORE_ENTITY_BODY_EXISTS) <> 0 then
     begin
-      SetLength(TempBuf, 32768);
       while True do
       begin
+        FEntityBodyBuffer.Position := 0;
+        FEntityBodyBuffer.Size := 65536;
         BytesReceived := 0;
         Ret := HttpReceiveRequestEntityBody(
-          FEngine.FReqQueue,
+          FReqQueue,
           FRequest.RequestId,
           0,
-          @TempBuf[0],
-          Length(TempBuf),
+          FEntityBodyBuffer.Memory,
+          FEntityBodyBuffer.Size,
           BytesReceived,
           nil
         );
-        
+
         if Ret = ERROR_SUCCESS then
         begin
           if BytesReceived > 0 then
-            FBodyStream.WriteBuffer(TempBuf[0], BytesReceived)
+            FBodyStream.WriteBuffer(FEntityBodyBuffer.Memory^, BytesReceived)
           else
             Break;
         end
         else if Ret = ERROR_HANDLE_EOF then
         begin
           if BytesReceived > 0 then
-            FBodyStream.WriteBuffer(TempBuf[0], BytesReceived);
+            FBodyStream.WriteBuffer(FEntityBodyBuffer.Memory^, BytesReceived);
           Break;
         end
         else
-          Break;
+          raise EOSError.Create('HttpReceiveRequestEntityBody failed with error code: ' + IntToStr(Ret));
       end;
     end;
-    
+
     FBodyStream.Position := 0;
   end;
   Result := FBodyStream;
@@ -1390,11 +1405,16 @@ end;
 { TDextHttpSysConnection }
 
 constructor TDextHttpSysConnection.Create(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
+begin
+  inherited Create;
+  Init(ARequest, AReqQueue);
+end;
+
+procedure TDextHttpSysConnection.Init(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
 var
   I: Integer;
   UnknownName: string;
 begin
-  inherited Create;
   FConnectionId := ARequest.ConnectionId;
   FSecure := ARequest.pSslInfo <> nil;
   FLocalPort := 80;
@@ -1501,7 +1521,7 @@ begin
   if Result = nil then
   begin
     Result := TDextHttpSysRequest.Create(ARequest);
-    Result.FEngine := AEngine;
+    Result.Init(AEngine, ARequest);
   end
   else
   begin
@@ -1613,7 +1633,22 @@ begin
   FEngine := AEngine;
   FReqQueue := AReqQueue;
   FAffinity := AAffinity;
+  FRequestCache := nil;
+  FResponseCache := nil;
+  FConnectionCache := nil;
   FreeOnTerminate := False;
+end;
+
+
+destructor TDextHttpSysWorker.Destroy;
+begin
+  if FRequestCache <> nil then
+    FRequestCache.Free;
+  if FResponseCache <> nil then
+    FResponseCache.Free;
+  if FConnectionCache <> nil then
+    FConnectionCache.Free;
+  inherited;
 end;
 
 procedure TDextHttpSysWorker.Execute;
@@ -1653,7 +1688,6 @@ begin
       TInterlocked.Increment(FEngine.FTotalRequests);
       TInterlocked.Increment(FEngine.FActiveConnections);
 
-      // Create Request/Response abstractions using pools
       Connection := TDextHttpSysConnection.Create(Request^, FReqQueue);
       RawRequest := FEngine.FRequestPool.Acquire(FEngine, Request);
       RawResponse := FEngine.FResponsePool.Acquire(FEngine, FReqQueue, Request.RequestId);
@@ -1663,7 +1697,6 @@ begin
           FEngine.FOnRequest(Connection, RawRequest, RawResponse);
       finally
         RawResponse.Close;
-        RawResponse := nil;
         RawRequest := nil;
         Connection := nil;
         TInterlocked.Decrement(FEngine.FActiveConnections);

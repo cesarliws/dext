@@ -72,6 +72,7 @@ type
     FModelBinder: IModelBinder;
     FContext: IHttpContext;
     FBoundObjects: TArray<TObject>;  // Tracks objects created by Model Binding for automatic cleanup
+    FArgsBuffer: TArray<TValue>;
     function Validate(const AValue: TValue): Boolean;
     /// <summary>Resolves and binds an individual argument based on its type.</summary>
     function ResolveArgument<T>: T;
@@ -490,12 +491,11 @@ end;
 
 function THandlerInvoker.InvokeAction(AInstance: TObject; AMethod: TRttiMethod): Boolean;
 var
-  Args: TArray<TValue>;
   ResultValue: TValue;
   ResIntf: IResult;
   I: Integer;
 begin
-  // ? VERIFICA√á√ÉO DE SEGURAN√áA APRIMORADA
+  // ? VERIFICA«√O DE SEGURAN«A APRIMORADA
   if not Assigned(AMethod) then
   begin
     FContext.Response.Status(500).Json('{"error": "Internal server error: Method reference lost"}');
@@ -505,7 +505,7 @@ begin
   // ? DYNAMIC BINDING: Use ModelBinder to resolve all parameters
   // This supports: IHttpContext, Route Params, Query Params, Body (Records), Services (Interfaces)
   try
-    Args := FModelBinder.BindMethodParameters(AMethod, FContext);
+    FModelBinder.BindMethodParameters(AMethod, FContext, FArgsBuffer);
   except
     on E: Exception do
     begin
@@ -515,22 +515,22 @@ begin
   end;
 
   // VALIDATION: Validate all record parameters
-  for I := 0 to High(Args) do
+  for I := 0 to High(FArgsBuffer) do
   begin
-    if not Validate(Args[I]) then Exit(False);
+    if not Validate(FArgsBuffer[I]) then Exit(False);
   end;
 
   try
-    ResultValue := AMethod.Invoke(AInstance, Args);
+    ResultValue := AMethod.Invoke(AInstance, FArgsBuffer);
 
     // LIDAR COM PROCEDURES (SEM RETORNO)
     if ResultValue.IsEmpty then
     begin
-      // N√£o faz nada - o controller j√° setou a resposta via Ctx.Response
+      // N„o faz nada - o controller j· setou a resposta via Ctx.Response
     end
     else
     begin
-      // VERIFICAR SE RETORNOU IResult (APENAS SE N√ÉO ESTIVER VAZIO)
+      // VERIFICAR SE RETORNOU IResult (APENAS SE N√O ESTIVER VAZIO)
       if ResultValue.TryAsType<IResult>(ResIntf) then
       begin
         ResIntf.Execute(FContext);

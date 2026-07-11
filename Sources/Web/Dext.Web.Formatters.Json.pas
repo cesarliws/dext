@@ -67,11 +67,11 @@ end;
 
 procedure TJsonOutputFormatter.Write(const Context: IOutputFormatterContext);
 var
-  Json: string;
+  JsonBytes: TBytes;
 begin
   Context.HttpContext.Response.SetContentType('application/json; charset=utf-8');
-  Json := TDextJson.Serialize(Context.&Object);
-  Context.HttpContext.Response.Write(Json);
+  JsonBytes := TDextJson.SerializeUtf8(Context.&Object);
+  Context.HttpContext.Response.Write(JsonBytes);
 end;
 
 end.

@@ -861,9 +861,14 @@ end;
 
 procedure TDextNativeWebServer.Stop;
 begin
-  if not FRunning then Exit;
-  FRunning := False;
-  FEngine.Stop;
+  try
+    if not FRunning then Exit;
+    FRunning := False;
+    FEngine.Stop;
+  except
+    on E: Exception do
+      SafeWriteLn(E.ClassName + ': ' + E.Message);
+  end;
 end;
 
 end.

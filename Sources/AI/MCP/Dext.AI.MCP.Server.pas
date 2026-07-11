@@ -74,7 +74,6 @@ uses
   Dext.WebHost,
   Dext.DI.Interfaces;
 
-
 type
   /// <summary>
   /// MCP transport selection.
