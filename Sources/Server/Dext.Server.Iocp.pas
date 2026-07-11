@@ -585,7 +585,7 @@ begin
   WsaBuf.len := Length(HeaderBytes);
   WsaBuf.buf := @HeaderBytes[0];
 
-  {$IF CompilerVersion >= 35.0}
+  {$IF CompilerVersion > 35.0}
   WSASend(FSocket, @WsaBuf, 1, @BytesSent, 0, nil, nil);
   {$ELSE}
   WSASend(FSocket, @WsaBuf, 1, BytesSent, 0, nil, nil);
@@ -625,7 +625,7 @@ begin
   WsaBuf.len := ACount;
   WsaBuf.buf := @ABuffer[AOffset];
 
-  {$IF CompilerVersion >= 35.0}
+  {$IF CompilerVersion > 35.0}
   WSASend(FSocket, @WsaBuf, 1, @BytesSent, 0, nil, nil);
   {$ELSE}
   WSASend(FSocket, @WsaBuf, 1, BytesSent, 0, nil, nil);
@@ -1063,3 +1063,4 @@ end;
 {$ENDIF}
 
 end.
+
