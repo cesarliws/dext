@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{D1BC7A10-19F2-4394-A84F-3C1413871ADF}</ProjectGuid>
         <MainSource>Dext.Core.UnitTests.dpr</MainSource>
@@ -163,6 +163,7 @@
         <DCCReference Include="Dext.Resilience.Tests.pas"/>
         <DCCReference Include="Dext.Validation.Fluent.Tests.pas"/>
         <DCCReference Include="Dext.BackgroundJobs.Tests.pas"/>
+        <DCCReference Include="Dext.Json.NextGen.Tests.pas"/>
         <DCCReference Include="..\..\..\Sources\Data\Dext.BackgroundJobs.Storage.Sqlite.pas"/>
         <DCCReference Include="Dext.Core.SmartTypes.Combinatorial.Tests.pas"/>
         <BuildConfiguration Include="Base">

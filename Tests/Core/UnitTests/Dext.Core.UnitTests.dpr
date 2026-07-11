@@ -24,6 +24,7 @@ uses
   Dext.Resilience.Tests in 'Dext.Resilience.Tests.pas',
   Dext.Validation.Fluent.Tests in 'Dext.Validation.Fluent.Tests.pas',
   Dext.BackgroundJobs.Tests in 'Dext.BackgroundJobs.Tests.pas',
+  Dext.Json.NextGen.Tests in 'Dext.Json.NextGen.Tests.pas',
   Dext.BackgroundJobs.Storage.Sqlite in '..\..\..\Sources\Data\Dext.BackgroundJobs.Storage.Sqlite.pas',
   Dext.Core.SmartTypes.Combinatorial.Tests in 'Dext.Core.SmartTypes.Combinatorial.Tests.pas';
 
@@ -47,6 +48,7 @@ begin
         TJsonIssue127RegressionTests,
         TJsonRecordPropertiesTests,
         TJsonRegressionTests,
+        TJsonNextGenTests,
         TResilienceTests,
         TTelemetryTests,
         TUtf8SerializerCurrencyTests,
