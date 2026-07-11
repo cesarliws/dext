@@ -452,7 +452,17 @@ class function TNextGenJsonParser.ScanStructural_SSE42(
   Ptr: PByte;
   Length: Integer
 ): Integer;
-{$IFDEF CPUX64}
+{$IFDEF DEXT_JSON_SSE42_ENABLE}
+// SSE4.2 fast path disabled by default (correctness bug, PR waldirpaim/nexo#2329 review):
+// PCMPISTRI always writes its match index to ECX, but this routine also uses
+// RCX as the buffer pointer inside the same loop, so `add rcx, 16` advances a
+// clobbered value instead of Ptr once a chunk has no match. EAX is also never
+// accumulated across loop iterations, and the @Scalar fallback zeroes RCX
+// (destroying Ptr) before dereferencing an uninitialized R8 offset. Re-enable
+// only after a corrected implementation is verified against tests covering
+// buffers > 16 bytes with a match outside the first chunk, and the @Scalar
+// fallback (buffers < 16 bytes) -- neither is exercised by the existing
+// TestScanStructural test.
 asm
   // RCX = Ptr, RDX = Length
   xor eax, eax
