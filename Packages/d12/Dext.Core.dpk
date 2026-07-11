@@ -1,4 +1,4 @@
-package Dext.Core;
+﻿package Dext.Core;
 
 {$R *.res}
 {$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
@@ -44,6 +44,7 @@ contains
   Dext.Types.Lazy in '..\..\Sources\Core\Base\Dext.Types.Lazy.pas',
   Dext.Json.Driver.DextJsonDataObjects in '..\..\Sources\Core\Json\Dext.Json.Driver.DextJsonDataObjects.pas',
   Dext.Json.Driver.SystemJson in '..\..\Sources\Core\Json\Dext.Json.Driver.SystemJson.pas',
+  Dext.Core.Json.NextGen in '..\..\Sources\Core\Json\Dext.Core.Json.NextGen.pas',
   DextJsonDataObjects in '..\..\Sources\Core\Json\DextJsonDataObjects.pas',
   Dext.Collections.Extensions in '..\..\Sources\Core\Dext.Collections.Extensions.pas',
   Dext.Collections.Memory in '..\..\Sources\Core\Dext.Collections.Memory.pas',
@@ -135,8 +136,7 @@ contains
   Dext.BackgroundJobs.Server in '..\..\Sources\Core\Dext.BackgroundJobs.Server.pas',
   Dext.Configuration.Core in '..\..\Sources\Core\Dext.Configuration.Core.pas',
   Dext.Grpc.Attributes in '..\..\Sources\Core\Dext.Grpc.Attributes.pas',
-  Dext.Serialization.Protobuf in '..\..\Sources\Core\Dext.Serialization.Protobuf.pas',
-  Dext.Core.Json.NextGen in '..\..\Sources\Core\Json\Dext.Core.Json.NextGen.pas';
+  Dext.Serialization.Protobuf in '..\..\Sources\Core\Dext.Serialization.Protobuf.pas';
 
 end.
 

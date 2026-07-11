@@ -33,6 +33,7 @@ uses
   System.StrUtils,
   System.SysUtils,
   System.TypInfo,
+  Dext.Core.Span,
   Dext.Collections,
   Dext.Collections.Base,
   Dext.Collections.Dict,
@@ -209,6 +210,16 @@ type
     ///   Serializes a TValue into a JSON string using default settings.
     /// </summary>
     class function Serialize(const AValue: TValue): string; overload; static;
+
+    /// <summary>
+    ///   Serializes a TValue into UTF-8 JSON bytes using default settings.
+    /// </summary>
+    class function SerializeUtf8(const AValue: TValue): TBytes; overload; static;
+
+    /// <summary>
+    ///   Serializes a TValue into UTF-8 JSON bytes using custom settings.
+    /// </summary>
+    class function SerializeUtf8(const AValue: TValue; const ASettings: TJsonSettings): TBytes; overload; static;
 
     /// <summary>
     ///   Serializes a TValue into a JSON string using custom settings.
@@ -496,6 +507,30 @@ end;
 function JsonStringToInt(const Value: string): Int64;
 begin
   Result := StrToInt64Def(Value, 0);
+end;
+
+class function TDextJson.SerializeUtf8(const AValue: TValue): TBytes;
+begin
+  Result := SerializeUtf8(AValue, GetDefaultSettings);
+end;
+
+class function TDextJson.SerializeUtf8(const AValue: TValue; const ASettings: TJsonSettings): TBytes;
+var
+  Json: string;
+  Obj: TObject;
+begin
+  if AValue.IsObject then
+  begin
+    Obj := AValue.AsObject;
+    if Obj is DextJsonDataObjects.TJsonBaseObject then
+    begin
+      DextJsonDataObjects.TJsonBaseObject(Obj).ToUtf8JSON(Result);
+      Exit;
+    end;
+  end;
+
+  Json := Serialize(AValue, ASettings);
+  Result := TEncoding.UTF8.GetBytes(Json);
 end;
 
 { TJsonUtils }
