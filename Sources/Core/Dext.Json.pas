@@ -459,6 +459,7 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
+  DextJsonDataObjects,
   Dext.Json.Driver.DextJsonDataObjects; // Default driver
 
 type
