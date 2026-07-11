@@ -66,10 +66,12 @@ type
   TUtf8JsonReader = record
   private
     FData: TByteSpan;
-    FPosition: Integer;
+    FPtr: PByte;
+    FEnd: PByte;
+    FStart: PByte;
     FCurrentToken: TJsonTokenType;
-    FValueSpan: TByteSpan; // Points to the raw bytes of the current value/property name
-    FHasValue: Boolean;    // True if current token has a value (String, Number, Bool, Null)
+    FValueSpan: TByteSpan;
+    FHasValue: Boolean;
 
     procedure SkipWhitespace;
     function ConsumeString: TByteSpan;
@@ -294,7 +296,9 @@ end;
 constructor TUtf8JsonReader.Create(const AData: TByteSpan);
 begin
   FData := AData;
-  FPosition := 0;
+  FStart := AData.Data;
+  FPtr := AData.Data;
+  FEnd := AData.Data + AData.Length;
   FCurrentToken := TJsonTokenType.None;
   FValueSpan := TByteSpan.Create(nil, 0);
   FHasValue := False;
@@ -302,19 +306,18 @@ end;
 
 procedure TUtf8JsonReader.ThrowJsonError(const AMessage: string);
 begin
-  raise EJsonException.CreateFmt('%s at position %d', [AMessage, FPosition]);
+  raise EJsonException.CreateFmt(
+    '%s at position %d',
+    [AMessage, FPtr - FStart]
+  );
 end;
 
 procedure TUtf8JsonReader.SkipWhitespace;
-var
-  B: Byte;
 begin
-  while FPosition < FData.Length do
+  while FPtr < FEnd do
   begin
-    B := FData[FPosition];
-    // Space (0x20), Tab (0x09), LF (0x0A), CR (0x0D)
-    if (B = $20) or (B = $09) or (B = $0A) or (B = $0D) then
-      Inc(FPosition)
+    if (FPtr^ = $20) or (FPtr^ = $09) or (FPtr^ = $0A) or (FPtr^ = $0D) then
+      Inc(FPtr)
     else
       Break;
   end;
@@ -325,93 +328,75 @@ var
   B: Byte;
   StrSpan: TByteSpan;
 begin
-  if FPosition >= FData.Length then
+  if FPtr >= FEnd then
   begin
     FCurrentToken := TJsonTokenType.None;
     Exit(False);
   end;
 
-  // 1. Skip whitespace / separators
   SkipWhitespace;
-  
-  // Check EOF again after skip
-  if FPosition >= FData.Length then
+
+  if FPtr >= FEnd then
   begin
     FCurrentToken := TJsonTokenType.None;
     Exit(False);
   end;
 
-  // 2. Determine token based on current char
-  B := FData[FPosition];
+  B := FPtr^;
 
   // Handle separators that might appear before a token
   if (B = Ord(',')) or (B = Ord(':')) then
   begin
-    Inc(FPosition);
+    Inc(FPtr);
     SkipWhitespace;
-    if FPosition >= FData.Length then
+    if FPtr >= FEnd then
       ThrowJsonError('Unexpected end of JSON after separator');
-    B := FData[FPosition];
+    B := FPtr^;
   end;
 
   case Chr(B) of
     '{':
       begin
         FCurrentToken := TJsonTokenType.StartObject;
-        FValueSpan := FData.Slice(FPosition, 1);
-        Inc(FPosition);
+        FValueSpan := TByteSpan.Create(FPtr, 1);
+        Inc(FPtr);
       end;
     '}':
       begin
         FCurrentToken := TJsonTokenType.EndObject;
-        FValueSpan := FData.Slice(FPosition, 1);
-        Inc(FPosition);
+        FValueSpan := TByteSpan.Create(FPtr, 1);
+        Inc(FPtr);
       end;
     '[':
       begin
         FCurrentToken := TJsonTokenType.StartArray;
-        FValueSpan := FData.Slice(FPosition, 1);
-        Inc(FPosition);
+        FValueSpan := TByteSpan.Create(FPtr, 1);
+        Inc(FPtr);
       end;
     ']':
       begin
         FCurrentToken := TJsonTokenType.EndArray;
-        FValueSpan := FData.Slice(FPosition, 1);
-        Inc(FPosition);
+        FValueSpan := TByteSpan.Create(FPtr, 1);
+        Inc(FPtr);
       end;
     '"':
       begin
-        // Could be PropertyName or StringValue
-        // We need context to know for sure, OR we can infer based on what follows.
-        // But a Reader typically just says "I found a String". 
-        // In strictly valid JSON:
-        // - Inside Object, expecting Key -> PropertyName
-        // - After Key+Colon -> Value
-        // Simple Readers usually rely on the caller knowing the structure or check the colon.
-        // Let's implement a lookahead for colon to distinguish PropertyName.
-        
         StrSpan := ConsumeString;
-        
+
         SkipWhitespace;
         // Check for colon
-        if (FPosition < FData.Length) and (FData[FPosition] = Ord(':')) then
+        if (FPtr < FEnd) and (FPtr^ = Ord(':')) then
         begin
           FCurrentToken := TJsonTokenType.PropertyName;
-          // Note: ConsumeString advanced FPosition past the closing quote
-          // But our loop at the start of Read handles the colon in the *next* Read call?
-          // No, usually "PropertyName" implies we are at the key.
-          // If we are at PropertyName, the *next* token is the value.
-          // So we should NOT consume the colon here, just peek it.
-          // Wait, if we don't consume colon, next Read sees colon and loops.
         end
         else
         begin
           FCurrentToken := TJsonTokenType.StringValue;
         end;
-        
+
         FValueSpan := StrSpan;
       end;
-    '-', '0'..'9': 
+    '-', '0'..'9':
       begin
         FCurrentToken := TJsonTokenType.Number;
         FValueSpan := ConsumeNumber;
@@ -421,7 +406,7 @@ begin
         if ConsumeLiteral('true') then
         begin
           FCurrentToken := TJsonTokenType.TrueValue;
-          FValueSpan := FData.Slice(FPosition - 4, 4);
+          FValueSpan := TByteSpan.Create(FPtr - 4, 4);
         end
         else
           ThrowJsonError('Invalid token (expected true)');
@@ -431,7 +416,7 @@ begin
         if ConsumeLiteral('false') then
         begin
           FCurrentToken := TJsonTokenType.FalseValue;
-          FValueSpan := FData.Slice(FPosition - 5, 5);
+          FValueSpan := TByteSpan.Create(FPtr - 5, 5);
         end
         else
            ThrowJsonError('Invalid token (expected false)');
@@ -441,7 +426,7 @@ begin
         if ConsumeLiteral('null') then
         begin
           FCurrentToken := TJsonTokenType.NullValue;
-          FValueSpan := FData.Slice(FPosition - 4, 4);
+          FValueSpan := TByteSpan.Create(FPtr - 4, 4);
         end
         else
            ThrowJsonError('Invalid token (expected null)');
@@ -455,42 +440,40 @@ end;
 
 function TUtf8JsonReader.ConsumeString: TByteSpan;
 var
-  StartPos: Integer;
+  StartPos: PByte;
   IsEscaped: Boolean;
   B: Byte;
 begin
-  // Assume FData[FPosition] is '"'
-  Inc(FPosition); // Skip opening quote
-  StartPos := FPosition;
+  Inc(FPtr); // Skip opening quote
+  StartPos := FPtr;
   IsEscaped := False;
 
-  while FPosition < FData.Length do
+  while FPtr < FEnd do
   begin
-    B := FData[FPosition];
-    
+    B := FPtr^;
+
     if IsEscaped then
     begin
       IsEscaped := False;
-      Inc(FPosition);
+      Inc(FPtr);
       Continue;
     end;
 
     if B = Ord('\') then
     begin
       IsEscaped := True;
-      Inc(FPosition);
+      Inc(FPtr);
       Continue;
     end;
 
     if B = Ord('"') then
     begin
-      // Closing quote found
-      Result := FData.Slice(StartPos, FPosition - StartPos);
-      Inc(FPosition); // Skip closing quote
+      Result := TByteSpan.Create(StartPos, FPtr - StartPos);
+      Inc(FPtr); // Skip closing quote
       Exit;
     end;
 
-    Inc(FPosition);
+    Inc(FPtr);
   end;
 
   ThrowJsonError('Unterminated string');
@@ -498,36 +481,34 @@ end;
 
 function TUtf8JsonReader.ConsumeNumber: TByteSpan;
 var
-  StartPos: Integer;
+  StartPos: PByte;
   B: Byte;
 begin
-  StartPos := FPosition;
-  // Simple validation: strictly allow only number chars -0..9.eE+
-  while FPosition < FData.Length do
+  StartPos := FPtr;
+  while FPtr < FEnd do
   begin
-    B := FData[FPosition];
-    // Allow digits, dot, minus, plus, e, E
-    if (B in [Ord('0')..Ord('9'), Ord('.'), Ord('-'), Ord('+'), Ord('e'), Ord('E')]) then
-      Inc(FPosition)
+    B := FPtr^;
+    if (B >= Ord('0')) and (B <= Ord('9')) or
+       (B = Ord('.')) or (B = Ord('-')) or (B = Ord('+')) or
+       (B = Ord('e')) or (B = Ord('E')) then
+      Inc(FPtr)
     else
       Break;
   end;
-  Result := FData.Slice(StartPos, FPosition - StartPos);
+  Result := TByteSpan.Create(StartPos, FPtr - StartPos);
 end;
 
 function TUtf8JsonReader.ConsumeLiteral(const ALiteral: string): Boolean;
 var
   SpanToCheck: TByteSpan;
 begin
-  // Check if enough bytes remain
-  if FPosition + ALiteral.Length > FData.Length then
+  if FPtr + ALiteral.Length > FEnd then
     Exit(False);
 
-  // We need to compare bytes. We assumes ALiteral is ASCII/UTF8 friendly (true/false/null always are)
-  SpanToCheck := FData.Slice(FPosition, ALiteral.Length);
+  SpanToCheck := TByteSpan.Create(FPtr, ALiteral.Length);
   if SpanToCheck.EqualsString(ALiteral) then
   begin
-    Inc(FPosition, ALiteral.Length);
+    Inc(FPtr, ALiteral.Length);
     Result := True;
   end
   else
