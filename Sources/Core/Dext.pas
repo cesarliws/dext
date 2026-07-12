@@ -76,11 +76,10 @@ uses
   Dext.Core.ValueConverters,
   Dext.Types.Lazy,
   Dext.Types.Nullable,
-  Dext.Json.Driver.DextJsonDataObjects,
   Dext.Json.Driver.SystemJson,
   Dext.Json.Utf8,
   Dext.Json.Utf8.Serializer,
-  DextJsonDataObjects
+  Dext.Core.Json.NextGen
   // {END_DEXT_USES}
   ;
 
@@ -275,12 +274,7 @@ type
   TJsonBuilder = Dext.Json.TJsonBuilder;
 {$WARNINGS ON}
 
-  // Dext.Json.Driver.DextJsonDataObjects
-  TJsonDataObjectWrapper = Dext.Json.Driver.DextJsonDataObjects.TJsonDataObjectWrapper;
-  TJsonDataObjectAdapter = Dext.Json.Driver.DextJsonDataObjects.TJsonDataObjectAdapter;
-  TJsonDataArrayAdapter = Dext.Json.Driver.DextJsonDataObjects.TJsonDataArrayAdapter;
-  TJsonPrimitiveAdapter = Dext.Json.Driver.DextJsonDataObjects.TJsonPrimitiveAdapter;
-  TJsonDataObjectsProvider = Dext.Json.Driver.DextJsonDataObjects.TJsonDataObjectsProvider;
+  TJsonDataObjectsProvider = Dext.Core.Json.NextGen.TNextGenJsonProvider;
 
   // Dext.Json.Driver.SystemJson
   TSystemJsonWrapper = Dext.Json.Driver.SystemJson.TSystemJsonWrapper;
@@ -429,32 +423,15 @@ type
   TYamlDocument = Dext.Yaml.TYamlDocument;
   TYamlParser = Dext.Yaml.TYamlParser;
 
-  // DextJsonDataObjects
-  TJsonBaseObject = DextJsonDataObjects.TJsonBaseObject;
-  TJsonObject = DextJsonDataObjects.TJsonObject;
-  TJsonArray = DextJsonDataObjects.TJsonArray;
-  EJsonCastException = DextJsonDataObjects.EJsonCastException;
-  EJsonPathException = DextJsonDataObjects.EJsonPathException;
-  EJsonParserException = DextJsonDataObjects.EJsonParserException;
-  TJsonSerializationConfig = DextJsonDataObjects.TJsonSerializationConfig;
-  TJsonReaderProgressProc = DextJsonDataObjects.TJsonReaderProgressProc;
-  PJsonReaderProgressRec = DextJsonDataObjects.PJsonReaderProgressRec;
-  TJsonReaderProgressRec = DextJsonDataObjects.TJsonReaderProgressRec;
-  PJsonOutputWriter = DextJsonDataObjects.PJsonOutputWriter;
-  TJsonOutputWriter = DextJsonDataObjects.TJsonOutputWriter;
-  TJsonDataType = DextJsonDataObjects.TJsonDataType;
-  PJsonDataValue = DextJsonDataObjects.PJsonDataValue;
-  TJsonDataValue = DextJsonDataObjects.TJsonDataValue;
-  TJsonDataValueHelper = DextJsonDataObjects.TJsonDataValueHelper;
-  TJsonPrimitiveValue = DextJsonDataObjects.TJsonPrimitiveValue;
-  PJsonDataValueArray = DextJsonDataObjects.PJsonDataValueArray;
-  TJsonDataValueArray = DextJsonDataObjects.TJsonDataValueArray;
-  TJsonArrayEnumerator = DextJsonDataObjects.TJsonArrayEnumerator;
-  TJsonNameValuePair = DextJsonDataObjects.TJsonNameValuePair;
-  TJsonObjectEnumerator = DextJsonDataObjects.TJsonObjectEnumerator;
-  TJDOJsonBaseObject = DextJsonDataObjects.TJDOJsonBaseObject;
-  TJDOJsonObject = DextJsonDataObjects.TJDOJsonObject;
-  TJDOJsonArray = DextJsonDataObjects.TJDOJsonArray;
+  // Dext.Core.Json.NextGen (DOM mappings)
+  TJsonBaseObject = Dext.Core.Json.NextGen.TJsonBaseObject;
+  TJsonObject = Dext.Core.Json.NextGen.TJsonObject;
+  TJsonArray = Dext.Core.Json.NextGen.TJsonArray;
+  EJsonCastException = Dext.Core.Json.NextGen.EJsonException;
+  EJsonPathException = Dext.Core.Json.NextGen.EJsonException;
+  EJsonParserException = Dext.Core.Json.NextGen.EJsonException;
+  TJsonSerializationConfig = Dext.Json.Types.TJsonSettings;
+  TJsonDataType = Dext.Json.Types.TDextJsonNodeType;
 
 const
   // Dext.DI.Interfaces
@@ -546,18 +523,17 @@ const
   yntScalar = Dext.Yaml.yntScalar;
   yntMapping = Dext.Yaml.yntMapping;
   yntSequence = Dext.Yaml.yntSequence;
-  // DextJsonDataObjects
-  jdtNone = DextJsonDataObjects.jdtNone;
-  jdtString = DextJsonDataObjects.jdtString;
-  jdtInt = DextJsonDataObjects.jdtInt;
-  jdtLong = DextJsonDataObjects.jdtLong;
-  jdtULong = DextJsonDataObjects.jdtULong;
-  jdtFloat = DextJsonDataObjects.jdtFloat;
-  jdtDateTime = DextJsonDataObjects.jdtDateTime;
-  jdtUtcDateTime = DextJsonDataObjects.jdtUtcDateTime;
-  jdtBool = DextJsonDataObjects.jdtBool;
-  jdtArray = DextJsonDataObjects.jdtArray;
-  jdtObject = DextJsonDataObjects.jdtObject;
+  jdtNone = Dext.Json.Types.TDextJsonNodeType.jntNull;
+  jdtString = Dext.Json.Types.TDextJsonNodeType.jntString;
+  jdtInt = Dext.Json.Types.TDextJsonNodeType.jntNumber;
+  jdtLong = Dext.Json.Types.TDextJsonNodeType.jntNumber;
+  jdtULong = Dext.Json.Types.TDextJsonNodeType.jntNumber;
+  jdtFloat = Dext.Json.Types.TDextJsonNodeType.jntNumber;
+  jdtDateTime = Dext.Json.Types.TDextJsonNodeType.jntString;
+  jdtUtcDateTime = Dext.Json.Types.TDextJsonNodeType.jntString;
+  jdtBool = Dext.Json.Types.TDextJsonNodeType.jntBoolean;
+  jdtArray = Dext.Json.Types.TDextJsonNodeType.jntArray;
+  jdtObject = Dext.Json.Types.TDextJsonNodeType.jntObject;
   // {END_DEXT_ALIASES}
 
 /// <summary>
