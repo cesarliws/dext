@@ -11,6 +11,7 @@ uses
   Dext.DI.Attributes,
   Dext.Json,
   Dext.Json.Types,
+  Dext.Core.Json.NextGen,
   Dext.DI.Core,
   Dext.DI.Interfaces,
   Dext.Web.Builder,
@@ -18,9 +19,9 @@ uses
   Dext.Web.ApplicationBuilder.Extensions,
   Dext.Web.ModelBinding,
   Dext.WebHost,
-  Dext.Json.Driver.DextJsonDataObjects,
   Dext.Json.Driver.SystemJson,
-  DextJsonDataObjects;
+  Dext,
+  Dext.Web;
 
 type
   TUserStatus = (Active, Inactive, Suspended);
@@ -1479,5 +1480,4 @@ begin
 end;
 
 end.
-
 

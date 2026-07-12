@@ -273,7 +273,12 @@ begin
      tkString, tkUString, tkWString, tkChar, tkWChar: Result := '"' + EscapeJsonString(AVal.AsString) + '"';
      tkEnumeration:
        if AVal.TypeInfo = TypeInfo(Boolean) then
-         Result := BoolToStr(AVal.AsBoolean, true).ToLower
+       begin
+         if AVal.AsBoolean then
+           Result := 'true'
+         else
+           Result := 'false';
+       end
        else
        begin
          if ASettings.EnumStyle = TEnumStyle.AsString then

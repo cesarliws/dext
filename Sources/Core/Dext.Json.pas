@@ -479,8 +479,6 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
-  Dext.Json.Driver.DextJsonDataObjects,
-  DextJsonDataObjects,
   Dext.Core.Json.NextGen; // Default driver NextGen
 
 type
@@ -565,9 +563,10 @@ begin
   if AValue.IsObject then
   begin
     Obj := AValue.AsObject;
-    if Obj is DextJsonDataObjects.TJsonBaseObject then
+    if Obj is TJsonBaseObject then
     begin
-      TJsonBaseObject(Obj).ToUtf8JSON(Result);
+      Json := TJsonBaseObject(Obj).ToJson;
+      Result := TEncoding.UTF8.GetBytes(Json);
       Exit;
     end;
   end;
@@ -579,10 +578,16 @@ end;
 { TJsonUtils }
 
 class function TJsonUtils.ToCamelCase(const S: string): string;
+var
+  C: Char;
 begin
   if S.IsEmpty then Exit('');
   Result := S;
-  Result[1] := Result[1].ToLower;
+  C := Result[1];
+  if (C >= 'A') and (C <= 'Z') then
+    Result[1] := Chr(Ord(C) + 32)
+  else
+    Result[1] := LowerCase(C)[1];
 end;
 
 class function TJsonUtils.ToPascalCase(const S: string): string;

@@ -104,8 +104,8 @@ end;
 
 procedure TJsonNextGenTests.TestPoolRentReturn;
 var
-  Obj: TNextGenJsonObject;
-  Arr: TNextGenJsonArray;
+  Obj: TJsonObject;
+  Arr: TJsonArray;
 begin
   Obj := TNextGenJsonPool.RentObject;
   Should(Obj <> nil).BeTrue;
@@ -124,7 +124,7 @@ var
 begin
   Json := '   { "test": 1 }';
   Bytes := TEncoding.UTF8.GetBytes(Json);
-  Idx := TNextGenJsonParser.ScanStructural_SSE42(PByte(Bytes), Length(Bytes));
+  Idx := TNextGenJsonParser.ScanStructural_SSE42(@Bytes[0], Length(Bytes));
   Should(Idx >= 0).BeTrue;
   Should(Bytes[Idx]).Be(Ord('{'));
 end;

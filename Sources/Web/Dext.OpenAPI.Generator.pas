@@ -6,7 +6,7 @@ uses
   System.SysUtils,
   System.Rtti,
   System.TypInfo,
-  DextJsonDataObjects,
+  Dext,
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.OpenAPI.Types,
