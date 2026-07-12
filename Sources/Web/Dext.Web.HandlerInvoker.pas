@@ -72,6 +72,7 @@ type
     FModelBinder: IModelBinder;
     FContext: IHttpContext;
     FBoundObjects: TArray<TObject>;  // Tracks objects created by Model Binding for automatic cleanup
+    FBoundObjectCount: Integer;
     FArgsBuffer: TArray<TValue>;
     function Validate(const AValue: TValue): Boolean;
     /// <summary>Resolves and binds an individual argument based on its type.</summary>
@@ -128,6 +129,7 @@ begin
   FContext := AContext;
   FModelBinder := AModelBinder;
   FBoundObjects := nil;  // Will be populated as objects are resolved
+  FBoundObjectCount := 0;
 end;
 
 procedure THandlerInvoker.CleanupBoundObjects;
@@ -135,13 +137,14 @@ var
   I: Integer;
   Obj: TObject;
 begin
-  for I := 0 to High(FBoundObjects) do
+  for I := 0 to FBoundObjectCount - 1 do
   begin
     Obj := FBoundObjects[I];
     if Obj <> nil then
        Obj.Free;
   end;
   FBoundObjects := nil;
+  FBoundObjectCount := 0;
 end;
 
 function THandlerInvoker.Validate(const AValue: TValue): Boolean;
@@ -268,8 +271,15 @@ begin
 
          if not IsEntity then
          begin
-           SetLength(FBoundObjects, Length(FBoundObjects) + 1);
-           FBoundObjects[High(FBoundObjects)] := TValue.From<T>(Result).AsObject;
+           if FBoundObjectCount = Length(FBoundObjects) then
+           begin
+             if FBoundObjectCount = 0 then
+               SetLength(FBoundObjects, 4)
+             else
+               SetLength(FBoundObjects, FBoundObjectCount * 2);
+           end;
+           FBoundObjects[FBoundObjectCount] := TValue.From<T>(Result).AsObject;
+           Inc(FBoundObjectCount);
          end;
        end;
     end;

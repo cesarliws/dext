@@ -220,6 +220,43 @@ uses
   Dext.Core.Activator,
   Dext.Core.Reflection;
 
+function SameAsciiTextAt(const AValue, AText: string; AStart: Integer): Boolean;
+var
+  i: Integer;
+  C1: Char;
+  C2: Char;
+begin
+  if (AStart < 1) or (AStart + Length(AText) - 1 > Length(AValue)) then
+    Exit(False);
+
+  for i := 1 to Length(AText) do
+  begin
+    C1 := AValue[AStart + i - 1];
+    C2 := AText[i];
+    if (C1 >= 'A') and (C1 <= 'Z') then
+      C1 := Chr(Ord(C1) + 32);
+    if (C2 >= 'A') and (C2 <= 'Z') then
+      C2 := Chr(Ord(C2) + 32);
+    if C1 <> C2 then
+      Exit(False);
+  end;
+  Result := True;
+end;
+
+function ContainsAsciiText(const AValue, AText: string): Boolean;
+var
+  i: Integer;
+begin
+  if AText = '' then
+    Exit(True);
+  if Length(AValue) < Length(AText) then
+    Exit(False);
+
+  for i := 1 to Length(AValue) - Length(AText) + 1 do
+    if SameAsciiTextAt(AValue, AText, i) then
+      Exit(True);
+  Result := False;
+end;
 
 { BindingAttribute }
 
@@ -1071,8 +1108,8 @@ begin
       // Pre-load body JSON once if it's a POST/PUT/PATCH and likely contains JSON
       LMethod := Context.Request.Method;
       LIsPostLike := (LMethod = 'POST') or (LMethod = 'PUT') or (LMethod = 'PATCH') or (LMethod = 'QUERY');
-      LContentType := Context.Request.GetHeader('Content-Type').ToLower;
-      LIsJson := LContentType.Contains('application/json');
+      LContentType := Context.Request.GetHeader('Content-Type');
+      LIsJson := ContainsAsciiText(LContentType, 'application/json');
 
       Stream := Context.Request.Body;
       if (Stream <> nil) and (Stream.Size > 0) and (LIsPostLike or LIsJson) then

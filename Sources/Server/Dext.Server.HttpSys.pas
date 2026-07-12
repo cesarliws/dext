@@ -110,6 +110,8 @@ type
     FBodyBuffer: TMemoryStream;
     FUnknownHeaders: array[0..31] of HTTP_UNKNOWN_HEADER;
     FUnknownHeadersCount: Integer;
+    FLastUnknownHeadersCount: Integer;
+    procedure ResetUnknownHeaders;
     procedure SendHeadersInternal(AMoreData: Boolean);
     function _Release: Integer; stdcall;
     procedure SetHeaderInt(AIndex: Integer; AValue: Int64);
@@ -527,13 +529,24 @@ end;
 
 function TDextHttpSysRequest.GetContentLength: Int64;
 var
-  LenStr: string;
+  Header: HTTP_KNOWN_HEADER;
+  P: PAnsiChar;
+  i: Integer;
+  Digit: Integer;
 begin
-  LenStr := GetHeader('Content-Length');
-  if LenStr <> '' then
-    Result := StrToInt64Def(LenStr, 0)
-  else
-    Result := 0;
+  Result := 0;
+  Header := FRequest.Headers.KnownHeaders[11];
+  if (Header.RawValueLength = 0) or (Header.pRawValue = nil) then
+    Exit;
+
+  P := PAnsiChar(Header.pRawValue);
+  for i := 0 to Header.RawValueLength - 1 do
+  begin
+    Digit := Ord(P[i]) - Ord('0');
+    if (Digit < 0) or (Digit > 9) then
+      Exit(0);
+    Result := (Result * 10) + Digit;
+  end;
 end;
 
 const
@@ -557,6 +570,46 @@ const
     'Set-Cookie', 'Vary', 'Www-Authenticate'
   );
 
+function TryGetCommonKnownRequestHeaderIndex(const AName: string;
+  out AIndex: Integer): Boolean;
+begin
+  Result := True;
+  case Length(AName) of
+    4:
+      if AName = 'Host' then
+        AIndex := 28
+      else
+        Result := False;
+    6:
+      if AName = 'Cookie' then
+        AIndex := 25
+      else
+        Result := False;
+    10:
+      if AName = 'Connection' then
+        AIndex := 1
+      else
+        Result := False;
+    12:
+      if AName = 'Content-Type' then
+        AIndex := 12
+      else
+        Result := False;
+    14:
+      if AName = 'Content-Length' then
+        AIndex := 11
+      else
+        Result := False;
+    15:
+      if AName = 'Accept-Encoding' then
+        AIndex := 22
+      else
+        Result := False;
+  else
+    Result := False;
+  end;
+end;
+
 function TDextHttpSysRequest.GetHeader(const AName: string): string;
 var
   Index: Integer;
@@ -564,8 +617,9 @@ var
   UnknownName: string;
 begin
   Result := '';
-  // Check known headers
-  if KnownRequestHeadersMapGlobal.TryGetValue(AName, Index) then
+  // Check known headers. Common framework lookups avoid dictionary hashing.
+  if TryGetCommonKnownRequestHeaderIndex(AName, Index) or
+     KnownRequestHeadersMapGlobal.TryGetValue(AName, Index) then
   begin
     if FRequest.Headers.KnownHeaders[Index].RawValueLength > 0 then
     begin
@@ -670,6 +724,7 @@ begin
   FHeaderDataLen := 0;
   FillChar(FHeaderValues, SizeOf(FHeaderValues), 0);
   FUnknownHeadersCount := 0;
+  FLastUnknownHeadersCount := 0;
   FillChar(FUnknownHeaders, SizeOf(FUnknownHeaders), 0);
 
   if Assigned(FEngine) then
@@ -705,8 +760,7 @@ begin
 
   FHeaderDataLen := 0;
   FillChar(FHeaderValues, SizeOf(FHeaderValues), 0);
-  FUnknownHeadersCount := 0;
-  FillChar(FUnknownHeaders, SizeOf(FUnknownHeaders), 0);
+  ResetUnknownHeaders;
 
   if FBodyBuffer = nil then
   begin
@@ -1080,6 +1134,18 @@ begin
   end;
 
   Inc(FUnknownHeadersCount);
+  if FUnknownHeadersCount > FLastUnknownHeadersCount then
+    FLastUnknownHeadersCount := FUnknownHeadersCount;
+end;
+
+procedure TDextHttpSysResponse.ResetUnknownHeaders;
+var
+  i: Integer;
+begin
+  for i := 0 to FLastUnknownHeadersCount - 1 do
+    FillChar(FUnknownHeaders[i], SizeOf(HTTP_UNKNOWN_HEADER), 0);
+  FUnknownHeadersCount := 0;
+  FLastUnknownHeadersCount := 0;
 end;
 
 procedure TDextHttpSysResponse.SetStatus(ACode: Integer; const AReason: string);

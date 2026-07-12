@@ -105,7 +105,7 @@ implementation
 
 uses
   System.Net.HttpClient, System.Net.URLClient, System.Diagnostics,
-  System.JSON, Dext.Logging.Global, Dext.Logging.Telemetry,
+  System.JSON, Dext.Logging, Dext.Logging.Global, Dext.Logging.Telemetry,
   Dext.Logging.Tracing;
 
 type
@@ -353,15 +353,25 @@ var
   LUrl: string;
   Span: TSpan;
   Payload: TJSONObject;
+  TelemetryActive: Boolean;
+  LogInfoActive: Boolean;
+  TimingActive: Boolean;
 begin
-  Span := TTracer.BeginSpan('gRPC Client ' + AServiceName + '/' + AMethodName,
-    'gRPC');
+  TelemetryActive := TDiagnosticSource.Instance.IsActive;
+  LogInfoActive := Log.Logger.IsEnabled(TLogLevel.Information);
+  TimingActive := TelemetryActive or LogInfoActive;
+  if TelemetryActive then
+    Span := TTracer.BeginSpan('gRPC Client ' + AServiceName + '/' + AMethodName,
+      'gRPC')
+  else
+    Span := TSpan.Create(nil);
   try
-    SwSub := TStopwatch.StartNew;
+    if TelemetryActive then
+      SwSub := TStopwatch.StartNew;
     ReqBytes := TProtobufSerializer.Serialize(ARequest);
-    SwSub.Stop;
-    if TDiagnosticSource.Instance.Enabled then
+    if TelemetryActive then
     begin
+      SwSub.Stop;
       Payload := TJSONObject.Create;
       Payload.AddPair('service', AServiceName);
       Payload.AddPair('method', AMethodName);
@@ -370,11 +380,12 @@ begin
         'gRPC', SwSub.ElapsedMilliseconds);
     end;
 
-    SwSub := TStopwatch.StartNew;
+    if TelemetryActive then
+      SwSub := TStopwatch.StartNew;
     FramedReq := TGrpcMessageCodec.Encode(ReqBytes);
-    SwSub.Stop;
-    if TDiagnosticSource.Instance.Enabled then
+    if TelemetryActive then
     begin
+      SwSub.Stop;
       Payload := TJSONObject.Create;
       Payload.AddPair('service', AServiceName);
       Payload.AddPair('method', AMethodName);
@@ -383,7 +394,8 @@ begin
         'gRPC', SwSub.ElapsedMilliseconds);
     end;
 
-    Sw := TStopwatch.StartNew;
+    if TimingActive then
+      Sw := TStopwatch.StartNew;
 
     if Assigned(FDispatcher) then
     begin
@@ -394,7 +406,8 @@ begin
 
       FDispatcher.Invoke(Context);
 
-      Sw.Stop;
+      if TimingActive then
+        Sw.Stop;
 
       if MockRes.Headers.TryGetValue('grpc-status', StatusVal) and
          (StatusVal <> '0') then
@@ -404,7 +417,7 @@ begin
           [MsgVal, StatusVal]);
 
         Span.SetStatus('Error', MsgVal);
-        if TDiagnosticSource.Instance.Enabled then
+        if TelemetryActive then
         begin
           Payload := TJSONObject.Create;
           Payload.AddPair('service', AServiceName);
@@ -429,13 +442,14 @@ begin
       else
         SetLength(ResBytes, 0);
 
-      Log.Info('[gRPC-Client] In-Process Call: {Service}/{Method} | ' +
-        'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
-        [AServiceName, AMethodName, Sw.ElapsedMilliseconds, Length(FramedReq),
-         Length(ResBytes)]);
+      if LogInfoActive then
+        Log.Info('[gRPC-Client] In-Process Call: {Service}/{Method} | ' +
+          'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
+          [AServiceName, AMethodName, Sw.ElapsedMilliseconds, Length(FramedReq),
+           Length(ResBytes)]);
 
       Span.SetStatus('Success');
-      if TDiagnosticSource.Instance.Enabled then
+      if TelemetryActive then
       begin
         Payload := TJSONObject.Create;
         Payload.AddPair('service', AServiceName);
@@ -462,13 +476,16 @@ begin
 
         LClient.ContentType := 'application/grpc';
 
-        SwSub := TStopwatch.StartNew;
+        if TelemetryActive then
+          SwSub := TStopwatch.StartNew;
         LResponse := LClient.Post(LUrl, LReqStream, LResStream);
-        SwSub.Stop;
+        if TelemetryActive then
+          SwSub.Stop;
 
-        Sw.Stop;
+        if TimingActive then
+          Sw.Stop;
 
-        if TDiagnosticSource.Instance.Enabled then
+        if TelemetryActive then
         begin
           Payload := TJSONObject.Create;
           Payload.AddPair('service', AServiceName);
@@ -487,7 +504,7 @@ begin
              AMethodName]);
 
           Span.SetStatus('Error', LResponse.StatusText);
-          if TDiagnosticSource.Instance.Enabled then
+          if TelemetryActive then
           begin
             Payload := TJSONObject.Create;
             Payload.AddPair('service', AServiceName);
@@ -512,7 +529,7 @@ begin
             [MsgVal, StatusVal]);
 
           Span.SetStatus('Error', MsgVal);
-          if TDiagnosticSource.Instance.Enabled then
+          if TelemetryActive then
           begin
             Payload := TJSONObject.Create;
             Payload.AddPair('service', AServiceName);
@@ -537,13 +554,14 @@ begin
         else
           SetLength(ResBytes, 0);
 
-        Log.Info('[gRPC-Client] HTTP Call: {Service}/{Method} | ' +
-          'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
-          [AServiceName, AMethodName, Sw.ElapsedMilliseconds, Length(FramedReq),
-           Length(ResBytes)]);
+        if LogInfoActive then
+          Log.Info('[gRPC-Client] HTTP Call: {Service}/{Method} | ' +
+            'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
+            [AServiceName, AMethodName, Sw.ElapsedMilliseconds, Length(FramedReq),
+             Length(ResBytes)]);
 
         Span.SetStatus('Success');
-        if TDiagnosticSource.Instance.Enabled then
+        if TelemetryActive then
         begin
           Payload := TJSONObject.Create;
           Payload.AddPair('service', AServiceName);
@@ -562,12 +580,13 @@ begin
     end;
 
     Offset := 0;
-    SwSub := TStopwatch.StartNew;
+    if TelemetryActive then
+      SwSub := TStopwatch.StartNew;
     if TGrpcMessageCodec.TryDecode(ResBytes, Offset, Compressed, MsgBytes) then
     begin
-      SwSub.Stop;
-      if TDiagnosticSource.Instance.Enabled then
+      if TelemetryActive then
       begin
+        SwSub.Stop;
         Payload := TJSONObject.Create;
         Payload.AddPair('service', AServiceName);
         Payload.AddPair('method', AMethodName);
@@ -576,11 +595,12 @@ begin
           'gRPC', SwSub.ElapsedMilliseconds);
       end;
 
-      SwSub := TStopwatch.StartNew;
+      if TelemetryActive then
+        SwSub := TStopwatch.StartNew;
       TProtobufSerializer.Deserialize(MsgBytes, AResponse);
-      SwSub.Stop;
-      if TDiagnosticSource.Instance.Enabled then
+      if TelemetryActive then
       begin
+        SwSub.Stop;
         Payload := TJSONObject.Create;
         Payload.AddPair('service', AServiceName);
         Payload.AddPair('method', AMethodName);

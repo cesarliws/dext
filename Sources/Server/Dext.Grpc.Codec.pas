@@ -23,10 +23,15 @@ type
       var Compressed: Boolean; out MsgBytes: TBytes): Boolean; overload; static;
     class function TryDecode(const Buffer: TBytes; var Offset: Integer;
       var Compressed: Boolean; out MsgSpan: TByteSpan): Boolean; overload; static;
+    class function TryDecode(const Buffer: TByteSpan; var Offset: Integer;
+      var Compressed: Boolean; out MsgSpan: TByteSpan): Boolean; overload; static;
     class function Encode(const MsgBytes: TBytes;
       Compress: Boolean = False): TBytes; overload; static;
     class function Encode(const MsgSpan: TByteSpan;
       Compress: Boolean = False): TBytes; overload; static;
+    class function EncodeInto(const MsgSpan: TByteSpan; var Dest: TBytes;
+      AOffset: Integer = 0; Compress: Boolean = False): Integer; static;
+    class function FrameInPlace(var Buffer: TBytes; Compress: Boolean = False): Integer; static;
   end;
 
 implementation
@@ -51,28 +56,41 @@ end;
 class function TGrpcMessageCodec.TryDecode(const Buffer: TBytes;
   var Offset: Integer; var Compressed: Boolean;
   out MsgSpan: TByteSpan): Boolean;
+begin
+  if Length(Buffer) > 0 then
+    Result := TGrpcMessageCodec.TryDecode(TByteSpan.Create(@Buffer[0],
+      Length(Buffer)), Offset, Compressed, MsgSpan)
+  else
+    Result := TGrpcMessageCodec.TryDecode(TByteSpan.Create(nil, 0), Offset,
+      Compressed, MsgSpan);
+end;
+
+class function TGrpcMessageCodec.TryDecode(const Buffer: TByteSpan;
+  var Offset: Integer; var Compressed: Boolean;
+  out MsgSpan: TByteSpan): Boolean;
 var
   Available: Integer;
   MsgLen: Cardinal;
 begin
   Result := False;
   MsgSpan := TByteSpan.Create(nil, 0);
-  Available := Length(Buffer) - Offset;
+  Available := Buffer.Length - Offset;
   if Available < 5 then
     Exit;
 
-  Compressed := Buffer[Offset] <> 0;
+  Compressed := PByte(NativeUInt(Buffer.Data) + NativeUInt(Offset))^ <> 0;
 
-  MsgLen := (Cardinal(Buffer[Offset + 1]) shl 24) or
-            (Cardinal(Buffer[Offset + 2]) shl 16) or
-            (Cardinal(Buffer[Offset + 3]) shl 8)  or
-             Cardinal(Buffer[Offset + 4]);
+  MsgLen := (Cardinal(PByte(NativeUInt(Buffer.Data) + NativeUInt(Offset + 1))^) shl 24) or
+            (Cardinal(PByte(NativeUInt(Buffer.Data) + NativeUInt(Offset + 2))^) shl 16) or
+            (Cardinal(PByte(NativeUInt(Buffer.Data) + NativeUInt(Offset + 3))^) shl 8)  or
+             Cardinal(PByte(NativeUInt(Buffer.Data) + NativeUInt(Offset + 4))^);
 
   if Available < 5 + Integer(MsgLen) then
     Exit;
 
   if MsgLen > 0 then
-    MsgSpan := TByteSpan.Create(@Buffer[Offset + 5], MsgLen);
+    MsgSpan := TByteSpan.Create(PByte(NativeUInt(Buffer.Data) +
+      NativeUInt(Offset + 5)), MsgLen);
 
   Inc(Offset, 5 + MsgLen);
   Result := True;
@@ -107,10 +125,11 @@ begin
 
   if MsgLen > 0 then
     Move(MsgSpan.Data^, Result[5], MsgLen);
+end;
 
 class function TGrpcMessageCodec.EncodeInto(const MsgSpan: TByteSpan; var Dest: TBytes; AOffset: Integer; Compress: Boolean): Integer;
 var
-  MsgLen: Cardinal;
+  MsgLen: Integer;
 begin
   MsgLen := MsgSpan.Length;
   if AOffset < 0 then AOffset := 0;
@@ -123,6 +142,21 @@ begin
   if MsgLen > 0 then Move(MsgSpan.Data^, Dest[AOffset + 5], MsgLen);
   Result := 5 + MsgLen;
 end;
+
+class function TGrpcMessageCodec.FrameInPlace(var Buffer: TBytes; Compress: Boolean): Integer;
+var
+  PayloadLength: Integer;
+begin
+  PayloadLength := Length(Buffer);
+  SetLength(Buffer, PayloadLength + 5);
+  if PayloadLength > 0 then
+    Move(Buffer[0], Buffer[5], PayloadLength);
+  Buffer[0] := Ord(Compress);
+  Buffer[1] := Byte(PayloadLength shr 24);
+  Buffer[2] := Byte(PayloadLength shr 16);
+  Buffer[3] := Byte(PayloadLength shr 8);
+  Buffer[4] := Byte(PayloadLength);
+  Result := PayloadLength + 5;
 end;
 
 end.

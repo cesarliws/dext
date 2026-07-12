@@ -152,16 +152,24 @@ var
   SW: TStopwatch;
   Payload: TJSONObject;
   Span: TSpan;
+  TelemetryActive: Boolean;
 begin
-  Span := TTracer.BeginSpan(AContext.Request.Method + ' ' + AContext.Request.Path, 'HTTP');
-  SW := TStopwatch.StartNew;
+  TelemetryActive := TDiagnosticSource.Instance.IsActive;
+  if TelemetryActive then
+  begin
+    Span := TTracer.BeginSpan(AContext.Request.Method + ' ' + AContext.Request.Path, 'HTTP');
+    SW := TStopwatch.StartNew;
+  end
+  else
+    Span := TSpan.Create(nil);
+
   try
     // Just execute the complete pipeline
     // O roteamento agora está DENTRO do pipeline como um middleware
     FMiddlewarePipeline(AContext);
     
     // Only allocate telemetry payload when observers are actually listening
-    if TDiagnosticSource.Instance.Enabled then
+    if TelemetryActive then
     begin
       Payload := TJSONObject.Create;
       Payload.AddPair('method', AContext.Request.Method);
@@ -173,7 +181,7 @@ begin
   except
     on E: Exception do
     begin
-      if TDiagnosticSource.Instance.Enabled then
+      if TelemetryActive then
       begin
         Payload := TJSONObject.Create;
         Payload.AddPair('method', AContext.Request.Method);

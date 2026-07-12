@@ -390,6 +390,49 @@ begin
   AContext.Response.Json(FJson);
 end;
 
+function SameAsciiTextAt(const AValue, AText: string; AStart: Integer): Boolean;
+var
+  i: Integer;
+  C1: Char;
+  C2: Char;
+begin
+  if (AStart < 1) or (AStart + Length(AText) - 1 > Length(AValue)) then
+    Exit(False);
+
+  for i := 1 to Length(AText) do
+  begin
+    C1 := AValue[AStart + i - 1];
+    C2 := AText[i];
+    if (C1 >= 'A') and (C1 <= 'Z') then
+      C1 := Chr(Ord(C1) + 32);
+    if (C2 >= 'A') and (C2 <= 'Z') then
+      C2 := Chr(Ord(C2) + 32);
+    if C1 <> C2 then
+      Exit(False);
+  end;
+  Result := True;
+end;
+
+function StartsAsciiText(const AValue, APrefix: string): Boolean;
+begin
+  Result := SameAsciiTextAt(AValue, APrefix, 1);
+end;
+
+function ContainsAsciiText(const AValue, AText: string): Boolean;
+var
+  i: Integer;
+begin
+  if AText = '' then
+    Exit(True);
+  if Length(AValue) < Length(AText) then
+    Exit(False);
+
+  for i := 1 to Length(AValue) - Length(AText) + 1 do
+    if SameAsciiTextAt(AValue, AText, i) then
+      Exit(True);
+  Result := False;
+end;
+
 { TStatusCodeResult }
 
 constructor TStatusCodeResult.Create(AStatusCode: Integer);
@@ -411,8 +454,10 @@ begin
   FContent := AContent;
   FContentType := AContentType;
   // Ensure charset is set for text types
-  if (FContentType.ToLower.StartsWith('text/') or FContentType.ToLower.Contains('javascript') or FContentType.ToLower.Contains('json'))
-     and not FContentType.ToLower.Contains('charset=') then
+  if (StartsAsciiText(FContentType, 'text/') or
+      ContainsAsciiText(FContentType, 'javascript') or
+      ContainsAsciiText(FContentType, 'json')) and
+     not ContainsAsciiText(FContentType, 'charset=') then
   begin
     FContentType := FContentType + '; charset=utf-8';
   end;
@@ -865,15 +910,15 @@ begin
   Mime := FContentType;
   if Mime = '' then
   begin
-    Ext := TPath.GetExtension(FPath).ToLower;
-    if Ext = '.pdf' then Mime := 'application/pdf'
-    else if Ext = '.png' then Mime := 'image/png'
-    else if Ext = '.jpg' then Mime := 'image/jpeg'
-    else if Ext = '.jpeg' then Mime := 'image/jpeg'
-    else if Ext = '.zip' then Mime := 'application/zip'
-    else if Ext = '.txt' then Mime := 'text/plain'
-    else if Ext = '.html' then Mime := 'text/html'
-    else if Ext = '.json' then Mime := 'application/json'
+    Ext := TPath.GetExtension(FPath);
+    if SameText(Ext, '.pdf') then Mime := 'application/pdf'
+    else if SameText(Ext, '.png') then Mime := 'image/png'
+    else if SameText(Ext, '.jpg') then Mime := 'image/jpeg'
+    else if SameText(Ext, '.jpeg') then Mime := 'image/jpeg'
+    else if SameText(Ext, '.zip') then Mime := 'application/zip'
+    else if SameText(Ext, '.txt') then Mime := 'text/plain'
+    else if SameText(Ext, '.html') then Mime := 'text/html'
+    else if SameText(Ext, '.json') then Mime := 'application/json'
     else Mime := 'application/octet-stream';
   end;
 

@@ -859,10 +859,12 @@ var
   Seg: THeaderSegment;
   Key, Value: string;
   KeyStart, KeyLen: Integer;
+  ValStart, ValLen: Integer;
 begin
   for i := 0 to Length(FHeaderSegments) - 1 do
   begin
     Seg := FHeaderSegments[i];
+
     KeyStart := Seg.KeyStart;
     KeyLen := Seg.KeyLen;
     while (KeyLen > 0) and ((FBuffer[KeyStart] = 32) or (FBuffer[KeyStart] = 9)) do
@@ -873,14 +875,22 @@ begin
     while (KeyLen > 0) and ((FBuffer[KeyStart + KeyLen - 1] = 32) or (FBuffer[KeyStart + KeyLen - 1] = 9)) do
       Dec(KeyLen);
 
-    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen).ToLower;
-    Value := ResolveHeader(Key);
+    ValStart := Seg.ValueStart;
+    ValLen := Seg.ValueLen;
+    while (ValLen > 0) and ((FBuffer[ValStart] = 32) or (FBuffer[ValStart] = 9)) do
+    begin
+      Inc(ValStart);
+      Dec(ValLen);
+    end;
+    while (ValLen > 0) and ((FBuffer[ValStart + ValLen - 1] = 32) or (FBuffer[ValStart + ValLen - 1] = 9)) do
+      Dec(ValLen);
+
+    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen);
+    Value := TEncoding.UTF8.GetString(FBuffer, ValStart, ValLen);
     ADict.AddOrSetValue(Key, Value);
   end;
 end;
 
-
-// Interface redirects
 function TDextEpollRequest.GetMethod: string; begin Result := FMethod; end;
 function TDextEpollRequest.GetPath: string;
 begin
@@ -1058,7 +1068,8 @@ begin
   if not FHeaders.ContainsKey('Content-Type') then
     FHeaders.Add('Content-Type', 'text/plain');
 
-  SetLength(FResponseBuffer, 512);
+  if Length(FResponseBuffer) < 512 then
+    SetLength(FResponseBuffer, 512);
   BufferOffset := 0;
 
   AppendStr('HTTP/1.1 ', BufferOffset);

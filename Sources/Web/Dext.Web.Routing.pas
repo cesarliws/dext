@@ -142,6 +142,8 @@ type
     ParameterName: string;
     /// <summary>List of child nodes branch-off from this path segment.</summary>
     Children: IList<TRouteNode>;
+    /// <summary>First parameter child, if any, for fast fallback without scanning all literals again.</summary>
+    ParameterChild: TRouteNode;
     /// <summary>List of configured endpoint leaves at this path level.</summary>
     Leaves: IList<TRouteLeaf>;
     /// <summary>Initializes a new route node with a segment name.</summary>
@@ -154,16 +156,17 @@ type
   private
     FRoutes: IList<TRouteDefinition>;
     FRoot: TRouteNode;
+    FExactRoutes: IDictionary<string, TRouteLeaf>;
     procedure AddRouteToTree(const ARoute: TRouteDefinition);
     function GetRequestedApiVersion(const AContext: IHttpContext): string;
     function IsVersionMatch(
       const RequestedVersion: string;
       const SupportedVersions: TArray<string>
     ): Boolean;
-    function MatchNode(
+    function MatchNodePath(
       Node: TRouteNode;
-      const ASegments: TArray<string>;
-      ASegIdx: Integer;
+      const APath: string;
+      AStartPos, AEndPos: Integer;
       const AMethod, AVersion: string;
       out ALeaf: TRouteLeaf;
       var AParams: TRouteValueDictionary
@@ -180,6 +183,42 @@ type
   ERouteException = class(Exception);
 
 implementation
+
+function BuildExactRouteKey(const AMethod, APath: string): string;
+var
+  EndPos: Integer;
+begin
+  EndPos := Length(APath);
+  if (EndPos > 1) and (APath[EndPos] = '/') then
+    Dec(EndPos);
+  Result := AMethod + #1 + Copy(APath, 1, EndPos);
+end;
+
+function SamePathSegmentText(const APath: string; AStartPos, ALen: Integer;
+  const ASegment: string): Boolean;
+var
+  i: Integer;
+  C1: Char;
+  C2: Char;
+begin
+  if ALen <> Length(ASegment) then
+    Exit(False);
+
+  for i := 1 to ALen do
+  begin
+    C1 := APath[AStartPos + i - 1];
+    C2 := ASegment[i];
+    if (Ord(C1) > 127) or (Ord(C2) > 127) then
+      Exit(SameText(Copy(APath, AStartPos, ALen), ASegment));
+    if (C1 >= 'A') and (C1 <= 'Z') then
+      C1 := Chr(Ord(C1) + 32);
+    if (C2 >= 'A') and (C2 <= 'Z') then
+      C2 := Chr(Ord(C2) + 32);
+    if C1 <> C2 then
+      Exit(False);
+  end;
+  Result := True;
+end;
 
 { TRoutePattern }
 
@@ -364,6 +403,7 @@ begin
     ParameterName := Copy(ASegment, 2, Length(ASegment) - 2)
   else
     ParameterName := '';
+  ParameterChild := nil;
   Children := TCollections.CreateList<TRouteNode>(True);
   Leaves := TCollections.CreateList<TRouteLeaf>(True);
 end;
@@ -385,6 +425,7 @@ begin
   inherited Create;
   FRoutes := TCollections.CreateList<TRouteDefinition>(True);
   FRoot := TRouteNode.Create('');
+  FExactRoutes := TCollections.CreateDictionary<string, TRouteLeaf>(ARoutes.Count);
 
   for Route in ARoutes do
   begin
@@ -400,6 +441,7 @@ end;
 destructor TRouteMatcher.Destroy;
 begin
   FRoot.Free;
+  FExactRoutes := nil;
   FRoutes := nil;
   inherited;
 end;
@@ -413,6 +455,7 @@ var
   i: Integer;
   FoundChild: TRouteNode;
   Child: TRouteNode;
+  Leaf: TRouteLeaf;
   Found: Boolean;
 begin
   Path := ARoute.Path;
@@ -446,13 +489,16 @@ begin
     begin
       FoundChild := TRouteNode.Create(Segment);
       CurrNode.Children.Add(FoundChild);
+      if FoundChild.IsParameter and (CurrNode.ParameterChild = nil) then
+        CurrNode.ParameterChild := FoundChild;
     end;
     CurrNode := FoundChild;
   end;
 
-  CurrNode.Leaves.Add(
-    TRouteLeaf.Create(ARoute.Method, ARoute.Handler, ARoute.Metadata)
-  );
+  Leaf := TRouteLeaf.Create(ARoute.Method, ARoute.Handler, ARoute.Metadata);
+  CurrNode.Leaves.Add(Leaf);
+  if ARoute.Pattern = nil then
+    FExactRoutes.AddOrSetValue(BuildExactRouteKey(ARoute.Method, ARoute.Path), Leaf);
 end;
 
 function TRouteMatcher.GetRequestedApiVersion(
@@ -486,10 +532,10 @@ begin
   Result := False;
 end;
 
-function TRouteMatcher.MatchNode(
+function TRouteMatcher.MatchNodePath(
   Node: TRouteNode;
-  const ASegments: TArray<string>;
-  ASegIdx: Integer;
+  const APath: string;
+  AStartPos, AEndPos: Integer;
   const AMethod, AVersion: string;
   out ALeaf: TRouteLeaf;
   var AParams: TRouteValueDictionary
@@ -498,8 +544,11 @@ var
   i: Integer;
   Child: TRouteNode;
   Segment: string;
+  SegmentLen: Integer;
+  SlashPos: Integer;
+  NextPos: Integer;
 begin
-  if ASegIdx > High(ASegments) then
+  if AStartPos > AEndPos then
   begin
     for i := 0 to Node.Leaves.Count - 1 do
     begin
@@ -524,32 +573,36 @@ begin
     Exit(False);
   end;
 
-  Segment := ASegments[ASegIdx];
+  SlashPos := AStartPos;
+  while (SlashPos <= AEndPos) and (APath[SlashPos] <> '/') do
+    Inc(SlashPos);
+
+  SegmentLen := SlashPos - AStartPos;
+  NextPos := SlashPos + 1;
 
   for i := 0 to Node.Children.Count - 1 do
   begin
     Child := Node.Children[i];
-    if (not Child.IsParameter) and SameText(Child.Segment, Segment) then
+    if (not Child.IsParameter) and
+       SamePathSegmentText(APath, AStartPos, SegmentLen, Child.Segment) then
     begin
-      if MatchNode(
-        Child, ASegments, ASegIdx + 1, AMethod, AVersion, ALeaf, AParams
+      if MatchNodePath(
+        Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
       ) then
         Exit(True);
     end;
   end;
 
-  for i := 0 to Node.Children.Count - 1 do
+  Child := Node.ParameterChild;
+  if Child <> nil then
   begin
-    Child := Node.Children[i];
-    if Child.IsParameter then
+    if MatchNodePath(
+      Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+    ) then
     begin
-      if MatchNode(
-        Child, ASegments, ASegIdx + 1, AMethod, AVersion, ALeaf, AParams
-      ) then
-      begin
-        AParams.Add(Child.ParameterName, Segment);
-        Exit(True);
-      end;
+      Segment := Copy(APath, AStartPos, SegmentLen);
+      AParams.Add(Child.ParameterName, Segment);
+      Exit(True);
     end;
   end;
 
@@ -564,10 +617,12 @@ function TRouteMatcher.FindMatchingRoute(
 ): Boolean;
 var
   Method, Path, RequestVersion: string;
-  Segments: TArray<string>;
   Leaf: TRouteLeaf;
+  StartPos: Integer;
+  EndPos: Integer;
   AllowMethods: string;
   AcceptQuery: string;
+  ExactKey: string;
   MatchingRoute: TRouteDefinition;
   i: Integer;
   HasQuery: Boolean;
@@ -578,18 +633,25 @@ begin
   Path := AContext.Request.Path;
   RequestVersion := GetRequestedApiVersion(AContext);
 
-  if (Length(Path) > 1) and (Path[Length(Path)] = '/') then
-    Path := Copy(Path, 1, Length(Path) - 1);
-  if (Length(Path) > 0) and (Path[1] = '/') then
-    Path := Copy(Path, 2, Length(Path) - 1);
+  ExactKey := BuildExactRouteKey(Method, Path);
+  if FExactRoutes.TryGetValue(ExactKey, Leaf) and
+     IsVersionMatch(RequestVersion, Leaf.Metadata.ApiVersions) then
+  begin
+    AHandler := Leaf.Handler;
+    AMetadata := Leaf.Metadata;
+    Result := True;
+    Exit;
+  end;
 
-  if Path = '' then
-    Segments := nil
-  else
-    Segments := Path.Split(['/']);
+  StartPos := 1;
+  EndPos := Length(Path);
+  if (EndPos > 1) and (Path[EndPos] = '/') then
+    Dec(EndPos);
+  if (StartPos <= EndPos) and (Path[StartPos] = '/') then
+    Inc(StartPos);
 
-  if MatchNode(
-    FRoot, Segments, 0, Method, RequestVersion, Leaf, ARouteParams
+  if MatchNodePath(
+    FRoot, Path, StartPos, EndPos, Method, RequestVersion, Leaf, ARouteParams
   ) then
   begin
     AHandler := Leaf.Handler;

@@ -40,9 +40,9 @@ type
     /// <summary>Creates a reader over the provided stream.</summary>
     constructor Create(AStream: TStream);
     /// <summary>Writes a protobuf varint to the underlying stream.</summary>
-    procedure WriteVarint(Value: UInt64);
+    procedure WriteVarint(Value: UInt64); inline;
     /// <summary>Writes a protobuf field tag and wire type.</summary>
-    procedure WriteTag(Tag: Integer; WireType: Integer);
+    procedure WriteTag(Tag: Integer; WireType: Integer); inline;
     /// <summary>Writes a 64-bit floating-point value.</summary>
     procedure WriteDouble(Value: Double);
     /// <summary>Writes a 32-bit floating-point value.</summary>
@@ -126,9 +126,11 @@ type
       out Span: TByteSpan): Boolean; static;
     class function ReadUtf8String(Stream: TStream; Len: NativeInt): string; static;
     class function TrySerializeGenerated(Obj: TObject; out Bytes: TBytes): Boolean; static;
+    class function TrySerializeGeneratedToStream(Obj: TObject; Stream: TStream): Boolean; static;
     class function TryDeserializeGenerated(const Bytes: TBytes; Obj: TObject): Boolean; overload; static;
     class function TryDeserializeGenerated(const Bytes: TByteSpan; Obj: TObject): Boolean; overload; static;
     class function TrySerializeDirect(Obj: TObject; out Bytes: TBytes): Boolean; static;
+    class function TrySerializeDirectToStream(Obj: TObject; Stream: TStream): Boolean; static;
     class function TryDeserializeDirect(const Bytes: TBytes; Obj: TObject): Boolean; overload; static;
     class function TryDeserializeDirect(const Bytes: TByteSpan; Obj: TObject): Boolean; overload; static;
     class procedure SerializeDirectField(Stream: TStream; Obj: TObject;
@@ -140,6 +142,8 @@ type
     /// <summary>Serializes an object using the selected codec mode.</summary>
     class function Serialize(Obj: TObject;
       Mode: TProtobufCodecMode = pcmAuto): TBytes; static;
+    class procedure SerializeToStream(Obj: TObject; Stream: TStream;
+      Mode: TProtobufCodecMode = pcmRtti); static;
     /// <summary>Deserializes a protobuf payload into an object using the selected codec mode.</summary>
     class procedure Deserialize(const Bytes: TBytes; Obj: TObject;
       Mode: TProtobufCodecMode = pcmAuto); overload; static;
@@ -724,6 +728,24 @@ begin
   end;
 end;
 
+class function TProtobufSerializer.TrySerializeGeneratedToStream(Obj: TObject; Stream: TStream): Boolean;
+var
+  Writer: TProtobufWriter;
+  WriteProc: TDextCodecWriteProc;
+  ReadProc: TDextCodecReadProc;
+begin
+  Result := False;
+  if (not Assigned(Obj)) or (not Assigned(Stream)) then Exit;
+  if not TDextCodecRegistry.TryGetProtobuf(Obj.ClassInfo, WriteProc, ReadProc) or not Assigned(WriteProc) then Exit;
+  Writer := TProtobufWriter.Create(Stream);
+  try
+    WriteProc(Writer, Obj);
+  finally
+    Writer.Free;
+  end;
+  Result := True;
+end;
+
 class function TProtobufSerializer.TrySerializeGenerated(Obj: TObject;
   out Bytes: TBytes): Boolean;
 var
@@ -1044,6 +1066,20 @@ begin
   end;
 end;
 
+class function TProtobufSerializer.TrySerializeDirectToStream(Obj: TObject; Stream: TStream): Boolean;
+var
+  Plan: IDextTypeCodecPlan;
+  Field: TDextFieldPlan;
+begin
+  Result := False;
+  if (not Assigned(Obj)) or (not Assigned(Stream)) then Exit;
+  Plan := TDextTypeModel.GetPlan(Obj.ClassInfo);
+  if (Plan = nil) or not Plan.HasDirectAccess then Exit;
+  for Field in Plan.GetFields do
+    SerializeDirectField(Stream, Obj, Field);
+  Result := True;
+end;
+
 class function TProtobufSerializer.TrySerializeDirect(Obj: TObject;
   out Bytes: TBytes): Boolean;
 var
@@ -1127,6 +1163,30 @@ begin
   end;
   Result := True;
 end;
+class procedure TProtobufSerializer.SerializeToStream(Obj: TObject; Stream: TStream; Mode: TProtobufCodecMode);
+var
+  TagMap: IDictionary<Integer, IPropertyHandler>;
+  Key: Integer;
+  Handler: IPropertyHandler;
+  Val: TValue;
+begin
+  if (not Assigned(Obj)) or (not Assigned(Stream)) then
+    Exit;
+  if Mode in [pcmAuto, pcmGenerated] then
+    if TrySerializeGeneratedToStream(Obj, Stream) then
+      Exit;
+  if Mode in [pcmAuto, pcmDirect] then
+    if TrySerializeDirectToStream(Obj, Stream) then
+      Exit;
+  TagMap := GetTagMap(Obj.ClassType);
+  for Key in TagMap.Keys do
+  begin
+    Handler := TagMap[Key];
+    Val := Handler.GetValue(Obj);
+    SerializeField(Stream, Key, Val);
+  end;
+end;
+
 class function TProtobufSerializer.Serialize(Obj: TObject;
   Mode: TProtobufCodecMode): TBytes;
 var

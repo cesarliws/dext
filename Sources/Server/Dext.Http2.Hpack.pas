@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -69,7 +69,7 @@ type
     FCount: Integer;    // number of valid entries
     FCurrentSize: Integer;
     FMaxSize: Integer;
-    function EntrySize(const AName, AValue: string): Integer; inline;
+    function EntrySize(const AName, AValue: string): Integer;
     procedure Evict;
   public
     /// <summary>Initializes the dynamic table with the given maximum size in bytes.</summary>
@@ -523,13 +523,40 @@ const
     (Code: $3fffffff; Bits: 30)   // 256 = EOS
   );
 
+function Utf8ByteLenNoAlloc(const AValue: string): Integer;
+var
+  i: Integer;
+  C: Cardinal;
+begin
+  Result := 0;
+  i := 1;
+  while i <= Length(AValue) do
+  begin
+    C := Ord(AValue[i]);
+    if (C >= $D800) and (C <= $DBFF) and (i < Length(AValue)) then
+    begin
+      C := Cardinal($10000) + ((C - Cardinal($D800)) shl 10) + (Cardinal(Ord(AValue[i + 1])) - Cardinal($DC00));
+      Inc(i);
+    end;
+
+    if C < $80 then
+      Inc(Result)
+    else if C < $800 then
+      Inc(Result, 2)
+    else if C < $10000 then
+      Inc(Result, 3)
+    else
+      Inc(Result, 4);
+    Inc(i);
+  end;
+end;
+
 { THpackDynamicTable }
 
 function THpackDynamicTable.EntrySize(const AName, AValue: string): Integer;
 begin
   // RFC 7541 §4.1: size = len(name) + len(value) + 32
-  Result := Length(TEncoding.UTF8.GetBytes(AName)) +
-            Length(TEncoding.UTF8.GetBytes(AValue)) + 32;
+  Result := Utf8ByteLenNoAlloc(AName) + Utf8ByteLenNoAlloc(AValue) + 32;
 end;
 
 procedure THpackDynamicTable.Init(AMaxSize: Integer);
@@ -591,6 +618,30 @@ begin
     Evict;
 end;
 
+function IsAsciiString(const AValue: string): Boolean;
+var
+  i: Integer;
+begin
+  for i := 1 to Length(AValue) do
+    if Ord(AValue[i]) > 127 then
+      Exit(False);
+  Result := True;
+end;
+
+function NormalizeHeaderName(const AName: string): string;
+var
+  i: Integer;
+  C: Char;
+begin
+  for i := 1 to Length(AName) do
+  begin
+    C := AName[i];
+    if ((C >= 'A') and (C <= 'Z')) or (Ord(C) > 127) then
+      Exit(LowerCase(AName));
+  end;
+  Result := AName;
+end;
+
 { THpackHuffman }
 
 class function THpackHuffman.EncodedBitLength(const AValue: string): Integer;
@@ -599,6 +650,13 @@ var
   i: Integer;
 begin
   Result := 0;
+  if IsAsciiString(AValue) then
+  begin
+    for i := 1 to Length(AValue) do
+      Inc(Result, HUFF_TABLE[Ord(AValue[i])].Bits);
+    Exit;
+  end;
+
   bytes := TEncoding.UTF8.GetBytes(AValue);
   for i := 0 to High(bytes) do
     Inc(Result, HUFF_TABLE[bytes[i]].Bits);
@@ -616,6 +674,37 @@ var
   codeBits: Byte;
   pos: Integer;
 begin
+  if IsAsciiString(AValue) then
+  begin
+    bitLen := 0;
+    for i := 1 to Length(AValue) do
+      Inc(bitLen, HUFF_TABLE[Ord(AValue[i])].Bits);
+    byteLen := (bitLen + 7) div 8;
+    SetLength(Result, byteLen);
+    FillChar(Result[0], byteLen, $FF);
+
+    bits := 0;
+    bitsAvail := 0;
+    pos := 0;
+    for i := 1 to Length(AValue) do
+    begin
+      b := Ord(AValue[i]);
+      code := HUFF_TABLE[b].Code;
+      codeBits := HUFF_TABLE[b].Bits;
+      bits := (bits shl codeBits) or code;
+      Inc(bitsAvail, codeBits);
+      while bitsAvail >= 8 do
+      begin
+        Dec(bitsAvail, 8);
+        Result[pos] := Byte(bits shr bitsAvail);
+        Inc(pos);
+      end;
+    end;
+    if bitsAvail > 0 then
+      Result[pos] := Byte((bits shl (8 - bitsAvail)) or ($FF shr bitsAvail));
+    Exit;
+  end;
+
   bytes := TEncoding.UTF8.GetBytes(AValue);
   bitLen := 0;
   for i := 0 to High(bytes) do
@@ -924,15 +1013,13 @@ function THpackEncoder.FindInStaticTable(const AName, AValue: string;
   out AIndex: Integer; out AExactMatch: Boolean): Boolean;
 var
   i: Integer;
-  lowerName: string;
 begin
   Result := False;
   AIndex := 0;
   AExactMatch := False;
-  lowerName := LowerCase(AName);
   for i := 1 to HPACK_STATIC_TABLE_SIZE do
   begin
-    if STATIC_TABLE[i].Name = lowerName then
+    if STATIC_TABLE[i].Name = AName then
     begin
       Result := True;
       if not AExactMatch then
@@ -952,16 +1039,14 @@ function THpackEncoder.FindInDynamicTable(const AName, AValue: string;
 var
   i: Integer;
   entry: TNameValuePair;
-  lowerName: string;
 begin
   Result := False;
   AIndex := 0;
   AExactMatch := False;
-  lowerName := LowerCase(AName);
   for i := 1 to FDynTable.Count do
   begin
     entry := FDynTable.Get(i);
-    if entry.Name = lowerName then
+    if entry.Name = AName then
     begin
       Result := True;
       if not AExactMatch then
@@ -1017,18 +1102,50 @@ procedure THpackEncoder.EncodeString(const AValue: string;
 var
   utf8: TBytes;
   huffBits: Integer;
+  huffLen: Integer;
   huffBytes: TBytes;
+  i: Integer;
+  ascii: Boolean;
 begin
+  ascii := IsAsciiString(AValue);
+  if ascii then
+  begin
+    huffBits := THpackHuffman.EncodedBitLength(AValue);
+    huffLen := (huffBits + 7) div 8;
+    // Use Huffman only if it's shorter. For ASCII, UTF-8 byte length = Length(AValue).
+    if huffLen < Length(AValue) then
+    begin
+      huffBytes := THpackHuffman.Encode(AValue);
+      EncodeInteger(Length(huffBytes), 7, $80, AOutput, APos);
+      GrowBuffer(AOutput, Length(huffBytes), APos);
+      if Length(huffBytes) > 0 then
+        Move(huffBytes[0], AOutput[APos], Length(huffBytes));
+      Inc(APos, Length(huffBytes));
+      Exit;
+    end;
+
+    EncodeInteger(Length(AValue), 7, $00, AOutput, APos);
+    GrowBuffer(AOutput, Length(AValue), APos);
+    for i := 1 to Length(AValue) do
+    begin
+      AOutput[APos] := Byte(Ord(AValue[i]));
+      Inc(APos);
+    end;
+    Exit;
+  end;
+
   utf8 := TEncoding.UTF8.GetBytes(AValue);
   huffBits := THpackHuffman.EncodedBitLength(AValue);
+  huffLen := (huffBits + 7) div 8;
   // Use Huffman only if it's shorter
-  if (huffBits div 8) < Length(utf8) then
+  if huffLen < Length(utf8) then
   begin
     huffBytes := THpackHuffman.Encode(AValue);
     // Length with H=1 flag
     EncodeInteger(Length(huffBytes), 7, $80, AOutput, APos);
     GrowBuffer(AOutput, Length(huffBytes), APos);
-    Move(huffBytes[0], AOutput[APos], Length(huffBytes));
+    if Length(huffBytes) > 0 then
+      Move(huffBytes[0], AOutput[APos], Length(huffBytes));
     Inc(APos, Length(huffBytes));
   end
   else
@@ -1052,6 +1169,7 @@ var
   bestIdx: Integer;
   exactMatch: Boolean;
   pos: Integer;
+  headerName: string;
 begin
   SetLength(Result, 256);
   pos := 0;
@@ -1059,8 +1177,9 @@ begin
   for i := 0 to High(AHeaders) do
   begin
     pair := AHeaders[i];
-    hasStatic := FindInStaticTable(pair.Name, pair.Value, staticIdx, staticExact);
-    hasDyn := FindInDynamicTable(pair.Name, pair.Value, dynIdx, dynExact);
+    headerName := NormalizeHeaderName(pair.Name);
+    hasStatic := FindInStaticTable(headerName, pair.Value, staticIdx, staticExact);
+    hasDyn := FindInDynamicTable(headerName, pair.Value, dynIdx, dynExact);
 
     // Pick best index
     bestIdx := 0;
@@ -1079,7 +1198,7 @@ begin
       // Literal with Incremental Indexing, name indexed (prefix 01, 6-bit index)
       EncodeInteger(bestIdx, 6, $40, Result, pos);
       EncodeString(pair.Value, Result, pos);
-      FDynTable.Add(LowerCase(pair.Name), pair.Value);
+      FDynTable.Add(headerName, pair.Value);
     end
     else
     begin
@@ -1087,9 +1206,9 @@ begin
       GrowBuffer(Result, 1, pos);
       Result[pos] := $40;
       Inc(pos);
-      EncodeString(pair.Name, Result, pos);
+      EncodeString(headerName, Result, pos);
       EncodeString(pair.Value, Result, pos);
-      FDynTable.Add(LowerCase(pair.Name), pair.Value);
+      FDynTable.Add(headerName, pair.Value);
     end;
   end;
 
@@ -1103,3 +1222,4 @@ begin
 end;
 
 end.
+

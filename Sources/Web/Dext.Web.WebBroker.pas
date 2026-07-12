@@ -290,25 +290,51 @@ end;
 
 function TDextWebBrokerRequest.ParseQueryString(const AQuery: string): IStringDictionary;
 var
-  Params: TArray<string>;
-  Param: string;
-  Parts: TArray<string>;
+  Len: Integer;
+  PosIdx: Integer;
+  StartIdx: Integer;
+  EndIdx: Integer;
+  EqIdx: Integer;
+  Key: string;
+  Value: string;
 begin
   Result := TCollections.CreateStringDictionary(True);
-  if AQuery = '' then
-    Exit;
+  Len := Length(AQuery);
+  PosIdx := 1;
 
-  Params := AQuery.Split(['&']);
-  for Param in Params do
+  while PosIdx <= Len do
   begin
-    if Param = '' then
-      Continue;
+    while (PosIdx <= Len) and (AQuery[PosIdx] = '&') do
+      Inc(PosIdx);
+    if PosIdx > Len then
+      Break;
 
-    Parts := Param.Split(['='], 2);
-    if Length(Parts) = 2 then
-      Result.AddOrSetValue(TNetEncoding.URL.Decode(Parts[0]), TNetEncoding.URL.Decode(Parts[1]))
-    else
-      Result.AddOrSetValue(TNetEncoding.URL.Decode(Parts[0]), '');
+    StartIdx := PosIdx;
+    while (PosIdx <= Len) and (AQuery[PosIdx] <> '&') do
+      Inc(PosIdx);
+    EndIdx := PosIdx - 1;
+
+    EqIdx := StartIdx;
+    while (EqIdx <= EndIdx) and (AQuery[EqIdx] <> '=') do
+      Inc(EqIdx);
+
+    if StartIdx <= EndIdx then
+    begin
+      if EqIdx <= EndIdx then
+      begin
+        Key := Copy(AQuery, StartIdx, EqIdx - StartIdx);
+        Value := Copy(AQuery, EqIdx + 1, EndIdx - EqIdx);
+        Result.AddOrSetValue(TNetEncoding.URL.Decode(Key),
+          TNetEncoding.URL.Decode(Value));
+      end
+      else
+      begin
+        Key := Copy(AQuery, StartIdx, EndIdx - StartIdx + 1);
+        Result.AddOrSetValue(TNetEncoding.URL.Decode(Key), '');
+      end;
+    end;
+
+    Inc(PosIdx);
   end;
 end;
 
@@ -329,21 +355,75 @@ end;
 function TDextWebBrokerRequest.BuildCookies: IStringDictionary;
 var
   CookieStr: string;
-  Pairs: TArray<string>;
-  Pair: string;
-  Parts: TArray<string>;
+  Len: Integer;
+  PosIdx: Integer;
+  StartIdx: Integer;
+  EndIdx: Integer;
+  EqIdx: Integer;
+  KeyStart: Integer;
+  KeyEnd: Integer;
+  ValStart: Integer;
+  ValEnd: Integer;
+  Key: string;
+  Value: string;
 begin
   Result := TCollections.CreateStringDictionary(True);
   CookieStr := FWebRequest.GetFieldByName('Cookie');
-  if CookieStr = '' then Exit;
-  Pairs := CookieStr.Split([';']);
-  for Pair in Pairs do
+  Len := Length(CookieStr);
+  PosIdx := 1;
+
+  while PosIdx <= Len do
   begin
-    Parts := Pair.Trim.Split(['='], 2);
-    if Length(Parts) = 2 then
-      Result.AddOrSetValue(Parts[0].Trim, TNetEncoding.URL.Decode(Parts[1].Trim))
-    else if (Length(Parts) = 1) and (Parts[0].Trim <> '') then
-      Result.AddOrSetValue(Parts[0].Trim, '');
+    while (PosIdx <= Len) and ((CookieStr[PosIdx] = ';') or
+      (CookieStr[PosIdx] = ' ') or (CookieStr[PosIdx] = #9)) do
+      Inc(PosIdx);
+    if PosIdx > Len then
+      Break;
+
+    StartIdx := PosIdx;
+    while (PosIdx <= Len) and (CookieStr[PosIdx] <> ';') do
+      Inc(PosIdx);
+    EndIdx := PosIdx - 1;
+
+    EqIdx := StartIdx;
+    while (EqIdx <= EndIdx) and (CookieStr[EqIdx] <> '=') do
+      Inc(EqIdx);
+
+    KeyStart := StartIdx;
+    KeyEnd := EqIdx - 1;
+    while (KeyStart <= KeyEnd) and ((CookieStr[KeyStart] = ' ') or
+      (CookieStr[KeyStart] = #9)) do
+      Inc(KeyStart);
+    while (KeyEnd >= KeyStart) and ((CookieStr[KeyEnd] = ' ') or
+      (CookieStr[KeyEnd] = #9)) do
+      Dec(KeyEnd);
+
+    if KeyStart <= KeyEnd then
+    begin
+      Key := Copy(CookieStr, KeyStart, KeyEnd - KeyStart + 1);
+      if EqIdx <= EndIdx then
+      begin
+        ValStart := EqIdx + 1;
+        ValEnd := EndIdx;
+        while (ValStart <= ValEnd) and ((CookieStr[ValStart] = ' ') or
+          (CookieStr[ValStart] = #9)) do
+          Inc(ValStart);
+        while (ValEnd >= ValStart) and ((CookieStr[ValEnd] = ' ') or
+          (CookieStr[ValEnd] = #9)) do
+          Dec(ValEnd);
+        if ValStart <= ValEnd then
+        begin
+          Value := Copy(CookieStr, ValStart, ValEnd - ValStart + 1);
+          Result.AddOrSetValue(Key, TNetEncoding.URL.Decode(Value));
+        end
+        else
+          Result.AddOrSetValue(Key, '');
+      end
+      else
+        Result.AddOrSetValue(Key, '');
+    end;
+
+    Inc(PosIdx);
   end;
 end;
 

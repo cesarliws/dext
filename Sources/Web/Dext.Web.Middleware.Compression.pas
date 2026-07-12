@@ -124,6 +124,24 @@ begin
   end;
 end;
 
+function ContainsGzipEncoding(const AValue: string): Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  if Length(AValue) < 4 then
+    Exit;
+
+  for i := 1 to Length(AValue) - 3 do
+  begin
+    if ((AValue[i] = 'g') or (AValue[i] = 'G')) and
+       ((AValue[i + 1] = 'z') or (AValue[i + 1] = 'Z')) and
+       ((AValue[i + 2] = 'i') or (AValue[i + 2] = 'I')) and
+       ((AValue[i + 3] = 'p') or (AValue[i + 3] = 'P')) then
+      Exit(True);
+  end;
+end;
+
 { TCompressionMiddleware }
 
 procedure TCompressionMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
@@ -134,11 +152,10 @@ var
   OriginalResponse: IHttpResponse;
   CompressedStream: TMemoryStream;
   ZStream: TZCompressionStream;
-  OutBuffer: TBytes;
 begin
-  AcceptEncoding := AContext.Request.GetHeader('Accept-Encoding').ToLower;
+  AcceptEncoding := AContext.Request.GetHeader('Accept-Encoding');
   
-  if (Pos('gzip', AcceptEncoding) = 0) then
+  if not ContainsGzipEncoding(AcceptEncoding) then
   begin
     ANext(AContext);
     Exit;
@@ -169,10 +186,7 @@ begin
         OriginalResponse.SetContentLength(CompressedStream.Size);
         
         CompressedStream.Position := 0;
-        OutBuffer := nil;
-        SetLength(OutBuffer, CompressedStream.Size);
-        CompressedStream.ReadBuffer(OutBuffer[0], CompressedStream.Size);
-        OriginalResponse.Write(OutBuffer);
+        OriginalResponse.Write(CompressedStream);
       finally
         CompressedStream.Free;
       end;

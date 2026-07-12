@@ -329,25 +329,77 @@ end;
 function TDextIndyHttpRequest.GetCookies: IStringDictionary;
 var
   CookieHeader: string;
-  Pairs: TArray<string>;
-  Pair: string;
-  Parts: TArray<string>;
+  Len: Integer;
+  PosIdx: Integer;
+  StartIdx: Integer;
+  EndIdx: Integer;
+  EqIdx: Integer;
+  KeyStart: Integer;
+  KeyEnd: Integer;
+  ValStart: Integer;
+  ValEnd: Integer;
+  Key: string;
+  Value: string;
 begin
   if FCookies = nil then
   begin
     FCookies := TDextStringDictionary.Create as IStringDictionary;
     CookieHeader := FRequestInfo.RawHeaders.Values['Cookie'];
-    if CookieHeader <> '' then
+    Len := Length(CookieHeader);
+    PosIdx := 1;
+
+    while PosIdx <= Len do
     begin
-      Pairs := CookieHeader.Split([';']);
-      for Pair in Pairs do
+      while (PosIdx <= Len) and ((CookieHeader[PosIdx] = ';') or
+        (CookieHeader[PosIdx] = ' ') or (CookieHeader[PosIdx] = #9)) do
+        Inc(PosIdx);
+      if PosIdx > Len then
+        Break;
+
+      StartIdx := PosIdx;
+      while (PosIdx <= Len) and (CookieHeader[PosIdx] <> ';') do
+        Inc(PosIdx);
+      EndIdx := PosIdx - 1;
+
+      EqIdx := StartIdx;
+      while (EqIdx <= EndIdx) and (CookieHeader[EqIdx] <> '=') do
+        Inc(EqIdx);
+
+      KeyStart := StartIdx;
+      KeyEnd := EqIdx - 1;
+      while (KeyStart <= KeyEnd) and ((CookieHeader[KeyStart] = ' ') or
+        (CookieHeader[KeyStart] = #9)) do
+        Inc(KeyStart);
+      while (KeyEnd >= KeyStart) and ((CookieHeader[KeyEnd] = ' ') or
+        (CookieHeader[KeyEnd] = #9)) do
+        Dec(KeyEnd);
+
+      if KeyStart <= KeyEnd then
       begin
-        Parts := Pair.Trim.Split(['='], 2);
-        if Length(Parts) = 2 then
-          FCookies.SetItem(Parts[0].Trim, TIdURI.URLDecode(Parts[1].Trim))
-        else if (Length(Parts) = 1) and (Parts[0] <> '') then
-          FCookies.SetItem(Parts[0].Trim, '');
+        Key := Copy(CookieHeader, KeyStart, KeyEnd - KeyStart + 1);
+        if EqIdx <= EndIdx then
+        begin
+          ValStart := EqIdx + 1;
+          ValEnd := EndIdx;
+          while (ValStart <= ValEnd) and ((CookieHeader[ValStart] = ' ') or
+            (CookieHeader[ValStart] = #9)) do
+            Inc(ValStart);
+          while (ValEnd >= ValStart) and ((CookieHeader[ValEnd] = ' ') or
+            (CookieHeader[ValEnd] = #9)) do
+            Dec(ValEnd);
+          if ValStart <= ValEnd then
+          begin
+            Value := Copy(CookieHeader, ValStart, ValEnd - ValStart + 1);
+            FCookies.SetItem(Key, TIdURI.URLDecode(Value));
+          end
+          else
+            FCookies.SetItem(Key, '');
+        end
+        else
+          FCookies.SetItem(Key, '');
       end;
+
+      Inc(PosIdx);
     end;
   end;
   Result := FCookies;
@@ -362,7 +414,7 @@ end;
 
 procedure TDextIndyHttpRequest.ParseMultipart;
 var
-  Boundary, ContentTypeStr: string;
+  Boundary, ContentTypeStr, LowerContentTypeStr: string;
   Stream: TStream;
   P, NextP: Int64;
   BoundaryBytes: TBytes;
@@ -406,6 +458,7 @@ var
     PartStream: TMemoryStream;
     PartName, PartFileName, PartContentType: string;
     ContentDisp: string;
+    LowerContentDisp: string;
     B: Byte;
     LowerLine: string;
     ContentSize: Int64;
@@ -421,7 +474,7 @@ var
       KeyUnquoted := Key + '=';
       
       // Try quoted first
-      Idx := Pos(KeyQuoted, ContentDisp.ToLower);
+      Idx := Pos(KeyQuoted, LowerContentDisp);
       if Idx > 0 then
       begin
         Val := Copy(ContentDisp, Idx + Length(KeyQuoted), MaxInt);
@@ -432,7 +485,7 @@ var
       else
       begin
         // Try unquoted
-        Idx := Pos(KeyUnquoted, ContentDisp.ToLower);
+        Idx := Pos(KeyUnquoted, LowerContentDisp);
         if Idx > 0 then
         begin
           Val := Copy(ContentDisp, Idx + Length(KeyUnquoted), MaxInt);
@@ -470,6 +523,7 @@ var
         if LowerLine.StartsWith('content-disposition:') then
         begin
           ContentDisp := Line;
+          LowerContentDisp := ContentDisp.ToLower;
           
           PartName := ExtractValue('name');
           // For filename, try 'filename' (not filename*)
@@ -499,9 +553,10 @@ var
 
 begin
   ContentTypeStr := FRequestInfo.ContentType;
-  if not ContentTypeStr.ToLower.StartsWith('multipart/form-data') then Exit;
+  LowerContentTypeStr := ContentTypeStr.ToLower;
+  if not LowerContentTypeStr.StartsWith('multipart/form-data') then Exit;
   
-  Idx := Pos('boundary=', ContentTypeStr.ToLower);
+  Idx := Pos('boundary=', LowerContentTypeStr);
   if Idx = 0 then Exit;
   
   // Extract boundary value and clean it up
@@ -788,30 +843,43 @@ end;
 
 procedure TDextIndyHttpResponse.SetContentType(const AValue: string);
 var
-  LParts: TArray<string>;
-  i: Integer;
-  LPart: string;
+  Len: Integer;
+  PosIdx: Integer;
+  StartIdx: Integer;
+  EndIdx: Integer;
+  Part: string;
+  LowerPart: string;
 begin
   // Do NOT use AddHeader for Content-Type, Indy handles it natively via properties.
   // Adding it to CustomHeaders leads to duplicate headers which confuses some HTTP clients.
-  
-  if AValue.Contains(';') then
+  Len := Length(AValue);
+  PosIdx := 1;
+  while (PosIdx <= Len) and (AValue[PosIdx] <> ';') do
+    Inc(PosIdx);
+
+  FResponseInfo.ContentType := Trim(Copy(AValue, 1, PosIdx - 1));
+
+  while PosIdx <= Len do
   begin
-    LParts := AValue.Split([';']);
-    FResponseInfo.ContentType := LParts[0].Trim;
-    for i := 1 to High(LParts) do
+    Inc(PosIdx);
+    while (PosIdx <= Len) and ((AValue[PosIdx] = ' ') or (AValue[PosIdx] = #9)) do
+      Inc(PosIdx);
+    StartIdx := PosIdx;
+    while (PosIdx <= Len) and (AValue[PosIdx] <> ';') do
+      Inc(PosIdx);
+    EndIdx := PosIdx - 1;
+    while (EndIdx >= StartIdx) and ((AValue[EndIdx] = ' ') or (AValue[EndIdx] = #9)) do
+      Dec(EndIdx);
+
+    if StartIdx <= EndIdx then
     begin
-      LPart := LParts[i].Trim;
-      if LPart.ToLower.StartsWith('charset=') then
-        FResponseInfo.CharSet := LPart.Substring(8).Trim
+      Part := Copy(AValue, StartIdx, EndIdx - StartIdx + 1);
+      LowerPart := Part.ToLower;
+      if LowerPart.StartsWith('charset=') then
+        FResponseInfo.CharSet := Trim(Copy(Part, 9, MaxInt))
       else
-        // Other parameters (like boundary) stay in ContentType
-        FResponseInfo.ContentType := FResponseInfo.ContentType + '; ' + LPart;
+        FResponseInfo.ContentType := FResponseInfo.ContentType + '; ' + Part;
     end;
-  end
-  else
-  begin
-    FResponseInfo.ContentType := AValue;
   end;
 end;
 

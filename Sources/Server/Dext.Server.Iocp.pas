@@ -164,6 +164,8 @@ type
     FStatusCode: Integer;
     FReason: string;
     FHeaders: TDictionary<string, string>;
+    FHeaderBuffer: TBytes;
+    FFileBuffer: TBytes;
   public
     /// <summary>Initializes a new IOCP response wrapper.</summary>
     /// <param name="ASocket">The raw socket descriptor.</param>
@@ -533,15 +535,38 @@ end;
 
 procedure TDextIocpRequest.PopulateHeaders(ADict: TDictionary<string, string>);
 var
-  I: Integer;
+  i: Integer;
   Seg: THeaderSegment;
   Key, Value: string;
+  KeyStart, KeyLen: Integer;
+  ValStart, ValLen: Integer;
 begin
-  for I := 0 to Length(FHeaderSegments) - 1 do
+  for i := 0 to Length(FHeaderSegments) - 1 do
   begin
-    Seg := FHeaderSegments[I];
-    Key := TEncoding.UTF8.GetString(FBuffer, Seg.KeyStart, Seg.KeyLen).Trim.ToLower;
-    Value := ResolveHeader(Key);
+    Seg := FHeaderSegments[i];
+
+    KeyStart := Seg.KeyStart;
+    KeyLen := Seg.KeyLen;
+    while (KeyLen > 0) and ((FBuffer[KeyStart] = 32) or (FBuffer[KeyStart] = 9)) do
+    begin
+      Inc(KeyStart);
+      Dec(KeyLen);
+    end;
+    while (KeyLen > 0) and ((FBuffer[KeyStart + KeyLen - 1] = 32) or (FBuffer[KeyStart + KeyLen - 1] = 9)) do
+      Dec(KeyLen);
+
+    ValStart := Seg.ValueStart;
+    ValLen := Seg.ValueLen;
+    while (ValLen > 0) and ((FBuffer[ValStart] = 32) or (FBuffer[ValStart] = 9)) do
+    begin
+      Inc(ValStart);
+      Dec(ValLen);
+    end;
+    while (ValLen > 0) and ((FBuffer[ValStart + ValLen - 1] = 32) or (FBuffer[ValStart + ValLen - 1] = 9)) do
+      Dec(ValLen);
+
+    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen);
+    Value := TEncoding.UTF8.GetString(FBuffer, ValStart, ValLen);
     ADict.AddOrSetValue(Key, Value);
   end;
 end;
@@ -599,33 +624,67 @@ begin
 end;
 
 procedure TDextIocpResponse.SendHeaders;
+  procedure EnsureCapacity(ARequired: Integer);
+  var
+    NewCapacity: Integer;
+  begin
+    if ARequired <= Length(FHeaderBuffer) then
+      Exit;
+    NewCapacity := Length(FHeaderBuffer);
+    if NewCapacity < 512 then
+      NewCapacity := 512;
+    while NewCapacity < ARequired do
+      NewCapacity := NewCapacity * 2;
+    SetLength(FHeaderBuffer, NewCapacity);
+  end;
+
+  procedure AppendStr(const AStr: string; var AOffset: Integer);
+  var
+    i: Integer;
+    StrLen: Integer;
+  begin
+    StrLen := Length(AStr);
+    if StrLen = 0 then
+      Exit;
+    EnsureCapacity(AOffset + StrLen);
+    for i := 1 to StrLen do
+    begin
+      FHeaderBuffer[AOffset] := Byte(AStr[i]);
+      Inc(AOffset);
+    end;
+  end;
+
 var
-  SB: TStringBuilder;
   Pair: TPair<string, string>;
   WsaBuf: TWsaBuf;
   BytesSent: DWORD;
-  HeaderBytes: TBytes;
+  BufferOffset: Integer;
 begin
   if FHeadersSent then Exit;
 
-  SB := TStringBuilder.Create;
-  try
-    SB.Append('HTTP/1.1 ').Append(FStatusCode).Append(' ').Append(FReason).Append(#13#10);
-    
-    if not FHeaders.ContainsKey('Content-Type') then
-      FHeaders.Add('Content-Type', 'text/plain');
+  if not FHeaders.ContainsKey('Content-Type') then
+    FHeaders.Add('Content-Type', 'text/plain');
 
-    for Pair in FHeaders do
-      SB.Append(Pair.Key).Append(': ').Append(Pair.Value).Append(#13#10);
+  BufferOffset := 0;
+  EnsureCapacity(512);
+  AppendStr('HTTP/1.1 ', BufferOffset);
+  AppendStr(IntToStr(FStatusCode), BufferOffset);
+  AppendStr(' ', BufferOffset);
+  AppendStr(FReason, BufferOffset);
+  AppendStr(#13#10, BufferOffset);
 
-    SB.Append(#13#10);
-    HeaderBytes := TEncoding.UTF8.GetBytes(SB.ToString);
-  finally
-    SB.Free;
+  for Pair in FHeaders do
+  begin
+    AppendStr(Pair.Key, BufferOffset);
+    AppendStr(': ', BufferOffset);
+    AppendStr(Pair.Value, BufferOffset);
+    AppendStr(#13#10, BufferOffset);
   end;
 
-  WsaBuf.len := Length(HeaderBytes);
-  WsaBuf.buf := @HeaderBytes[0];
+  AppendStr(#13#10, BufferOffset);
+
+  WsaBuf.len := BufferOffset;
+  WsaBuf.buf := @FHeaderBuffer[0];
 
   {$IF CompilerVersion > 35.0}
   WSASend(FSocket, @WsaBuf, 1, @BytesSent, 0, nil, nil);
@@ -677,7 +736,6 @@ end;
 procedure TDextIocpResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
 var
   FileStream: TFileStream;
-  Buffer: TBytes;
   Remaining: Int64;
   Chunk: Integer;
 begin
@@ -691,16 +749,17 @@ begin
     if Remaining <= 0 then
       Remaining := FileStream.Size - AOffset;
 
-    SetLength(Buffer, 32768);
+    if Length(FFileBuffer) < 32768 then
+      SetLength(FFileBuffer, 32768);
     while Remaining > 0 do
     begin
-      if Remaining > Length(Buffer) then
-        Chunk := Length(Buffer)
+      if Remaining > Length(FFileBuffer) then
+        Chunk := Length(FFileBuffer)
       else
         Chunk := Remaining;
 
-      FileStream.ReadBuffer(Buffer[0], Chunk);
-      Write(Buffer, 0, Chunk);
+      FileStream.ReadBuffer(FFileBuffer[0], Chunk);
+      Write(FFileBuffer, 0, Chunk);
       Remaining := Remaining - Chunk;
     end;
   finally

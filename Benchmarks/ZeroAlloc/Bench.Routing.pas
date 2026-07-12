@@ -18,6 +18,7 @@ uses
   Dext.DI.Interfaces,
   Dext.Auth.Identity,
   Dext.Web.Interfaces,
+  Dext.Server.Engine.Interfaces,
   Dext.Web.Routing,
   Dext.Web.Pipeline,
   Dext.Collections,
@@ -65,6 +66,11 @@ type
     procedure SetResponse(const AValue: IHttpResponse);
     procedure SetServices(const AValue: IServiceProvider);
     function GetServices: IServiceProvider;
+    function GetConnection: IDextServerConnection;
+    function GetSession: IStreamableSession;
+    function GetEndpointMetadata: TEndpointMetadata;
+    procedure SetEndpointMetadata(const AMetadata: TEndpointMetadata);
+    procedure SetRouteParams(const AParams: TRouteValueDictionary);
   end;
 
 { TMockHttpRequest }
@@ -110,6 +116,12 @@ function TMockHttpContext.GetResponse: IHttpResponse; begin Result := nil; end;
 procedure TMockHttpContext.SetResponse(const AValue: IHttpResponse); begin end;
 function TMockHttpContext.GetServices: IServiceProvider; begin Result := nil; end;
 procedure TMockHttpContext.SetServices(const AValue: IServiceProvider); begin end;
+function TMockHttpContext.GetConnection: IDextServerConnection; begin Result := nil; end;
+function TMockHttpContext.GetSession: IStreamableSession; begin Result := nil; end;
+function TMockHttpContext.GetEndpointMetadata: TEndpointMetadata; begin Result := Default(TEndpointMetadata); end;
+procedure TMockHttpContext.SetEndpointMetadata(const AMetadata: TEndpointMetadata); begin end;
+procedure TMockHttpContext.SetRouteParams(const AParams: TRouteValueDictionary); begin end;
+
 function TMockHttpContext.GetUser: IClaimsPrincipal; begin Result := nil; end;
 procedure TMockHttpContext.SetUser(const AValue: IClaimsPrincipal); begin end;
 
