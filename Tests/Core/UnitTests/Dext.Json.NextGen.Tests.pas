@@ -29,6 +29,12 @@ type
 
     [Test('Should scan structural chars via SSE42/Pascal fallback')]
     procedure TestScanStructural;
+
+    [Test('Should write and escape JSON correctly')]
+    procedure TestWriter;
+
+    [Test('Should raise exceptions on invalid JSON syntax')]
+    procedure TestValidationExceptions;
   end;
 
 implementation
@@ -121,6 +127,85 @@ begin
   Idx := TNextGenJsonParser.ScanStructural_SSE42(PByte(Bytes), Length(Bytes));
   Should(Idx >= 0).BeTrue;
   Should(Bytes[Idx]).Be(Ord('{'));
+end;
+
+procedure TJsonNextGenTests.TestWriter;
+var
+  Writer: TNextGenJsonWriter;
+  S: string;
+begin
+  Writer.Init(1024);
+  Writer.StartObject;
+  Writer.WritePropertyName('name');
+  Writer.WriteStringValue('NextGen \ " Test');
+  Writer.WritePropertyName('version');
+  Writer.WriteNumber(2);
+  Writer.WritePropertyName('active');
+  Writer.WriteBoolean(True);
+  Writer.WritePropertyName('nullval');
+  Writer.WriteNull;
+  Writer.EndObject;
+
+  S := Writer.ToString;
+  Should(S).Be(
+    '{"name":"NextGen \\ \" Test",' +
+    '"version":2,"active":true,"nullval":null}'
+  );
+end;
+
+procedure TJsonNextGenTests.TestValidationExceptions;
+var
+  Bytes: TBytes;
+  Pass: Boolean;
+  procedure AssertFail(const AJson: string);
+  begin
+    Pass := False;
+    try
+      Bytes := TEncoding.UTF8.GetBytes(AJson);
+      TNextGenJsonParser.Parse(TByteSpan.FromBytes(Bytes));
+    except
+      on E: EJsonException do
+        Pass := True;
+    end;
+    Should(Pass).BeTrue;
+  end;
+begin
+  // fail01: \x invalid escape
+  AssertFail('["\x"]');
+  // fail02: Objects require colon
+  AssertFail('{"a" 1}');
+  // fail03: Objects require colon, not comma
+  AssertFail('{"a", 1}');
+  // fail04: Arrays require comma, not colon
+  AssertFail('[1 : 2]');
+  // fail05: Invalid literal
+  AssertFail('[truth]');
+  // fail06: Single quotes not allowed
+  AssertFail('[''test'']');
+  // fail07: Raw newline in string
+  AssertFail('["line'#10'break"]');
+  // fail09: Unclosed array
+  AssertFail('[1, 2');
+  // fail10: Numbers require exponent value
+  AssertFail('[1e]');
+  // fail11: Single sign allowed
+  AssertFail('[+-1]');
+  // fail12: Trailing comma in object
+  AssertFail('{"a": 1,}');
+  // fail15: Key string must be quoted
+  AssertFail('{a: 1}');
+  // fail16: Trailing comma in array
+  AssertFail('[1, 2,]');
+  // fail17: Double comma in array
+  AssertFail('[1,,2]');
+  // fail18: Extra trailing data
+  AssertFail('{} {}');
+  // fail21: Leading zeros not allowed
+  AssertFail('[01]');
+  // fail22: Hex numbers not allowed
+  AssertFail('[0x1]');
+  // fail23: Decimal needs digit before dot
+  AssertFail('[.1]');
 end;
 
 end.

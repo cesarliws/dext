@@ -154,6 +154,7 @@
         <DCCReference Include="..\..\Sources\Core\Base\Dext.Types.Lazy.pas"/>
         <DCCReference Include="..\..\Sources\Core\Json\Dext.Json.Driver.DextJsonDataObjects.pas"/>
         <DCCReference Include="..\..\Sources\Core\Json\Dext.Json.Driver.SystemJson.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Json\Dext.Core.Json.NextGen.pas"/>
         <DCCReference Include="..\..\Sources\Core\Json\DextJsonDataObjects.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Extensions.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Memory.pas"/>

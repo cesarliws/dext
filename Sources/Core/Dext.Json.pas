@@ -212,6 +212,26 @@ type
     class function Serialize(const AValue: TValue): string; overload; static;
 
     /// <summary>
+    ///   Serializes a value of type T into UTF-8 JSON bytes using default settings.
+    /// </summary>
+    class function SerializeUtf8<T>(const AValue: T): TBytes; overload; static;
+
+    /// <summary>
+    ///   Serializes a value of type T into UTF-8 JSON bytes using custom settings.
+    /// </summary>
+    class function SerializeUtf8<T>(const AValue: T; const ASettings: TJsonSettings): TBytes; overload; static;
+
+    /// <summary>
+    ///   Serializes an interface value into UTF-8 JSON bytes using default settings.
+    /// </summary>
+    class function SerializeUtf8(const AValue: IInterface): TBytes; overload; static;
+
+    /// <summary>
+    ///   Serializes an interface value into UTF-8 JSON bytes using custom settings.
+    /// </summary>
+    class function SerializeUtf8(const AValue: IInterface; const ASettings: TJsonSettings): TBytes; overload; static;
+
+    /// <summary>
     ///   Serializes a TValue into UTF-8 JSON bytes using default settings.
     /// </summary>
     class function SerializeUtf8(const AValue: TValue): TBytes; overload; static;
@@ -459,8 +479,9 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
+  Dext.Json.Driver.DextJsonDataObjects,
   DextJsonDataObjects,
-  Dext.Json.Driver.DextJsonDataObjects; // Default driver
+  Dext.Core.Json.NextGen; // Default driver NextGen
 
 type
   TRecordCacheEntry = record
@@ -510,9 +531,30 @@ begin
   Result := StrToInt64Def(Value, 0);
 end;
 
+class function TDextJson.SerializeUtf8<T>(const AValue: T): TBytes;
+begin
+  Result := SerializeUtf8<T>(AValue, GetDefaultSettings);
+end;
+
+class function TDextJson.SerializeUtf8(const AValue: IInterface): TBytes;
+begin
+  Result := SerializeUtf8(TValue.From<IInterface>(AValue), GetDefaultSettings);
+end;
+
+class function TDextJson.SerializeUtf8<T>(const AValue: T; const ASettings: TJsonSettings): TBytes;
+begin
+  Result := SerializeUtf8(TValue.From<T>(AValue), ASettings);
+end;
+
+
 class function TDextJson.SerializeUtf8(const AValue: TValue): TBytes;
 begin
   Result := SerializeUtf8(AValue, GetDefaultSettings);
+end;
+
+class function TDextJson.SerializeUtf8(const AValue: IInterface; const ASettings: TJsonSettings): TBytes;
+begin
+  Result := SerializeUtf8(TValue.From<IInterface>(AValue), ASettings);
 end;
 
 class function TDextJson.SerializeUtf8(const AValue: TValue; const ASettings: TJsonSettings): TBytes;
@@ -525,7 +567,7 @@ begin
     Obj := AValue.AsObject;
     if Obj is DextJsonDataObjects.TJsonBaseObject then
     begin
-      DextJsonDataObjects.TJsonBaseObject(Obj).ToUtf8JSON(Result);
+      TJsonBaseObject(Obj).ToUtf8JSON(Result);
       Exit;
     end;
   end;
@@ -2332,7 +2374,7 @@ end;
 class function TDextJson.GetProvider: IDextJsonProvider;
 begin
   if FProvider = nil then
-    FProvider := TJsonDataObjectsProvider.Create;
+    FProvider := TNextGenJsonProvider.Create;
   Result := FProvider;
 end;
 
