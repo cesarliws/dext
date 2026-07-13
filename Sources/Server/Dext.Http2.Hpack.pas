@@ -620,11 +620,35 @@ end;
 
 function IsAsciiString(const AValue: string): Boolean;
 var
-  i: Integer;
+  Len: Integer;
+  P: PInt64;
+  Mask: Int64;
+  I: Integer;
+  Ch: Char;
 begin
-  for i := 1 to Length(AValue) do
-    if Ord(AValue[i]) > 127 then
+  Len := Length(AValue);
+  if Len = 0 then
+    Exit(True);
+
+  P := PInt64(PChar(AValue));
+  Mask := $FF80FF80FF80FF80;
+  
+  I := 0;
+  while I <= Len - 4 do
+  begin
+    if (P^ and Mask) <> 0 then
       Exit(False);
+    Inc(P);
+    Inc(I, 4);
+  end;
+
+  for I := I + 1 to Len do
+  begin
+    Ch := AValue[I];
+    if Ord(Ch) > 127 then
+      Exit(False);
+  end;
+
   Result := True;
 end;
 

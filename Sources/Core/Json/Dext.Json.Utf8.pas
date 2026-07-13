@@ -170,29 +170,105 @@ uses
 
 function EscapeJsonString(const S: string): string;
 var
-  i: Integer;
-  c: Char;
+  I, Len, NeededEscapes, ResIndex: Integer;
+  C: Char;
+  PStr: PChar;
+  PRes: PChar;
+  HexStr: string;
 begin
-  Result := '';
-  for i := 1 to Length(S) do
+  Len := Length(S);
+  if Len = 0 then
+    Exit('');
+
+  NeededEscapes := 0;
+  PStr := PChar(S);
+  for I := 0 to Len - 1 do
   begin
-    c := S[i];
-    case c of
-      '"': Result := Result + '\"';
-      '\': Result := Result + '\\';
-      '/': Result := Result + '\/';
-      #8: Result := Result + '\b';
-      #9: Result := Result + '\t';
-      #10: Result := Result + '\n';
-      #12: Result := Result + '\f';
-      #13: Result := Result + '\r';
+    C := PStr[I];
+    if (C = '"') or (C = '\') or (C = '/') or (Ord(C) < 32) then
+      Inc(NeededEscapes);
+  end;
+
+  if NeededEscapes = 0 then
+    Exit(S);
+
+  SetLength(Result, Len + NeededEscapes * 5);
+  PRes := PChar(Result);
+  ResIndex := 0;
+
+  for I := 0 to Len - 1 do
+  begin
+    C := PStr[I];
+    case C of
+      '"':
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := '"';
+          Inc(ResIndex, 2);
+        end;
+      '\':
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := '\';
+          Inc(ResIndex, 2);
+        end;
+      '/':
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := '/';
+          Inc(ResIndex, 2);
+        end;
+      #8:
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := 'b';
+          Inc(ResIndex, 2);
+        end;
+      #9:
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := 't';
+          Inc(ResIndex, 2);
+        end;
+      #10:
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := 'n';
+          Inc(ResIndex, 2);
+        end;
+      #12:
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := 'f';
+          Inc(ResIndex, 2);
+        end;
+      #13:
+        begin
+          PRes[ResIndex] := '\';
+          PRes[ResIndex + 1] := 'r';
+          Inc(ResIndex, 2);
+        end;
     else
-      if (Ord(c) < 32) then
-        Result := Result + Format('\u%.4x', [Ord(c)])
+      if Ord(C) < 32 then
+      begin
+        PRes[ResIndex] := '\';
+        PRes[ResIndex + 1] := 'u';
+        PRes[ResIndex + 2] := '0';
+        PRes[ResIndex + 3] := '0';
+        HexStr := Format('%.2x', [Ord(C)]);
+        PRes[ResIndex + 4] := HexStr[1];
+        PRes[ResIndex + 5] := HexStr[2];
+        Inc(ResIndex, 6);
+      end
       else
-        Result := Result + c;
+      begin
+        PRes[ResIndex] := C;
+        Inc(ResIndex);
+      end;
     end;
   end;
+
+  SetLength(Result, ResIndex);
 end;
 
 function UnescapeJsonString(const S: string): string;
