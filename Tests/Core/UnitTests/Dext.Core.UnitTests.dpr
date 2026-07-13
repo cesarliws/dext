@@ -20,6 +20,8 @@ uses
   Dext.Logging.Telemetry.Tests in 'Dext.Logging.Telemetry.Tests.pas',
   Dext.Performance.Allocator.Tests in 'Dext.Performance.Allocator.Tests.pas',
   Dext.Performance.Allocator in '..\..\..\Sources\Performance\Dext.Performance.Allocator.pas',
+  Dext.Web.Utf8 in '..\..\..\Sources\Web\Dext.Web.Utf8.pas',
+  Dext.Web.Utf8.Tests in 'Dext.Web.Utf8.Tests.pas',
   Dext.Json.Utf8.Serializer.Tests in 'Dext.Json.Utf8.Serializer.Tests.pas',
   Dext.Json.Regression.Tests in 'Dext.Json.Regression.Tests.pas',
   Dext.Json.RecordProperties.Tests in 'Dext.Json.RecordProperties.Tests.pas',
@@ -62,7 +64,8 @@ begin
         TDirectAccessTests,
         TArrayConverterTests,
         TTypeConverterRegistryTests,
-        TCodecsCommandTests
+        TCodecsCommandTests,
+        TWebUtf8Tests
       ]));
   except
     on E: Exception do
