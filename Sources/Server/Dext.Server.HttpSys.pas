@@ -40,7 +40,8 @@ uses
   Dext.Server.Engine.Interfaces,
   Dext.Server.HttpSys.Api,
   Dext.Web.Interfaces,
-  Dext.DI.Interfaces;
+  Dext.DI.Interfaces,
+  Dext.Web.ResponseWriter;
 
 
 type
@@ -67,6 +68,7 @@ type
   TDextHttpSysContext = class
   public
     FReceiveOp: TDextHttpSysOperation;
+    FBodyOp: TDextHttpSysOperation;
     FBuffer: TBytes;
     FBufferCapacity: Cardinal;
     FGeneration: Cardinal;
@@ -74,9 +76,15 @@ type
     FRequest: TDextHttpSysRequest;
     FResponse: TDextHttpSysResponse;
     FConnection: TDextHttpSysConnection;
+    FRefCount: Integer;
+    FBodyEvent: TEvent;
+    FBodyBytesReceived: DWORD;
+    FBodyError: DWORD;
     constructor Create;
     destructor Destroy; override;
     procedure Reset;
+    procedure ReleaseRequestReference;
+    procedure ReleaseResponseReference;
   end;
 
   /// <summary>
@@ -142,7 +150,7 @@ type
     end;
     FReasonBuffer: array[0..127] of AnsiChar;
     FReasonLen: Integer;
-    FBodyBuffer: TMemoryStream;
+    FResponseWriter: TDextResponseWriter;
     FUnknownHeaders: array[0..31] of HTTP_UNKNOWN_HEADER;
     FUnknownHeadersCount: Integer;
     FLastUnknownHeadersCount: Integer;
@@ -393,6 +401,9 @@ begin
   inherited Create;
   FReceiveOp.Kind := hokReceiveRequest;
   FReceiveOp.Context := Self;
+  FBodyOp.Kind := hokReceiveBody;
+  FBodyOp.Context := Self;
+  FBodyEvent := TEvent.Create(nil, False, False, '');
   FBufferCapacity := 16384;
   SetLength(FBuffer, FBufferCapacity);
   FGeneration := 1;
@@ -400,10 +411,13 @@ begin
   FRequest := nil;
   FResponse := nil;
   FConnection := nil;
+  FBodyBytesReceived := 0;
+  FBodyError := 0;
 end;
 
 destructor TDextHttpSysContext.Destroy;
 begin
+  FBodyEvent.Free;
   inherited;
 end;
 
@@ -414,6 +428,8 @@ begin
   FResponse := nil;
   FConnection := nil;
   FillChar(FReceiveOp.Overlapped, SizeOf(TOverlapped), 0);
+  FillChar(FBodyOp.Overlapped, SizeOf(TOverlapped), 0);
+  FBodyEvent.ResetEvent;
 end;
 
 procedure TDextHttpSysContext.ReleaseRequestReference;
@@ -654,8 +670,15 @@ begin
           FEntityBodyBuffer.Memory,
           FEntityBodyBuffer.Size,
           BytesReceived,
-          nil
+          @FContext.FBodyOp.Overlapped
         );
+
+        if Ret = ERROR_IO_PENDING then
+        begin
+          FContext.FBodyEvent.WaitFor(INFINITE);
+          Ret := FContext.FBodyError;
+          BytesReceived := FContext.FBodyBytesReceived;
+        end;
 
         if Ret = ERROR_SUCCESS then
         begin
@@ -671,7 +694,8 @@ begin
           Break;
         end
         else
-          raise EOSError.Create('HttpReceiveRequestEntityBody failed with error code: ' + IntToStr(Ret));
+          raise EOSError.Create('HttpReceiveRequestEntityBody failed '
+            + 'with error: ' + IntToStr(Ret));
       end;
     end;
 
@@ -880,21 +904,12 @@ begin
   FLastUnknownHeadersCount := 0;
   FillChar(FUnknownHeaders, SizeOf(FUnknownHeaders), 0);
 
-  if Assigned(FEngine) then
-    FBodyBuffer := FEngine.BufferPool.Acquire
-  else
-    FBodyBuffer := nil;
+  FResponseWriter.Init;
 end;
 
 destructor TDextHttpSysResponse.Destroy;
 begin
-  if FBodyBuffer <> nil then
-  begin
-    if Assigned(FEngine) then
-      FEngine.BufferPool.Release(FBodyBuffer)
-    else
-      FBodyBuffer.Free;
-  end;
+  FResponseWriter.Reset;
   inherited;
 end;
 
@@ -917,15 +932,8 @@ begin
   FillChar(FHeaderValues, SizeOf(FHeaderValues), 0);
   ResetUnknownHeaders;
 
-  if FBodyBuffer = nil then
-  begin
-    if Assigned(FEngine) then
-      FBodyBuffer := FEngine.BufferPool.Acquire;
-  end
-  else
-  begin
-    FBodyBuffer.Position := 0;
-  end;
+  FResponseWriter.Reset;
+  FResponseWriter.Init;
 end;
 
 function TDextHttpSysResponse._Release: Integer;
@@ -990,10 +998,13 @@ end;
 procedure TDextHttpSysResponse.Close;
 var
   Response: HTTP_RESPONSE;
-  Chunk: HTTP_DATA_CHUNK_INMEMORY;
+  Chunks: array[0..31] of HTTP_DATA_CHUNK;
   BytesSent: ULONG;
   Ret: ULONG;
   I: Integer;
+  SegCount: Integer;
+  Seg: PDextBufferSegment;
+  TotalLen: Int64;
 begin
   if not FHeadersSent then
   begin
@@ -1006,18 +1017,24 @@ begin
 
     if FHeaderValues[11].Length = 0 then
     begin
-      if FBodyBuffer <> nil then
-        SetHeaderInt(11, FBodyBuffer.Position)
-      else
-        SetHeaderInt(11, 0);
+      TotalLen := 0;
+      Seg := FResponseWriter.Segments;
+      for I := 0 to FResponseWriter.SegmentCount - 1 do
+      begin
+        TotalLen := TotalLen + Seg^.Length;
+        Inc(Seg);
+      end;
+      SetHeaderInt(11, TotalLen);
     end;
 
     for I := 0 to 29 do
     begin
       if FHeaderValues[I].Length > 0 then
       begin
-        Response.Headers.KnownHeaders[I].pRawValue := @FHeaderData[FHeaderValues[I].Offset];
-        Response.Headers.KnownHeaders[I].RawValueLength := FHeaderValues[I].Length;
+        Response.Headers.KnownHeaders[I].pRawValue :=
+          @FHeaderData[FHeaderValues[I].Offset];
+        Response.Headers.KnownHeaders[I].RawValueLength :=
+          FHeaderValues[I].Length;
       end;
     end;
 
@@ -1027,15 +1044,24 @@ begin
       Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
     end;
 
-    if (FBodyBuffer <> nil) and (FBodyBuffer.Position > 0) then
+    SegCount := FResponseWriter.SegmentCount;
+    if SegCount > 0 then
     begin
-      FillChar(Chunk, SizeOf(Chunk), 0);
-      Chunk.DataChunkType := hctFromMemory;
-      Chunk.pBuffer := FBodyBuffer.Memory;
-      Chunk.BufferLength := FBodyBuffer.Position;
+      if SegCount > 32 then
+        raise EInvalidOp.Create('Too many segments');
 
-      Response.EntityChunkCount := 1;
-      Response.pEntityChunks := @Chunk;
+      Seg := FResponseWriter.Segments;
+      for I := 0 to SegCount - 1 do
+      begin
+        FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+        Chunks[I].DataChunkType := hctFromMemory;
+        Chunks[I].pBuffer := Seg^.Buffer;
+        Chunks[I].BufferLength := Seg^.Length;
+        Inc(Seg);
+      end;
+
+      Response.EntityChunkCount := SegCount;
+      Response.pEntityChunks := @Chunks[0];
     end;
 
     Ret := HttpSendHttpResponse(
@@ -1051,25 +1077,35 @@ begin
       nil
     );
     if Ret <> ERROR_SUCCESS then
-      raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
+      raise EOSError.Create('HttpSendHttpResponse failed with error code: '
+        + IntToStr(Ret));
 
     FHeadersSent := True;
   end
   else
   begin
-    if (FBodyBuffer <> nil) and (FBodyBuffer.Position > 0) then
+    SegCount := FResponseWriter.SegmentCount;
+    if SegCount > 0 then
     begin
-      FillChar(Chunk, SizeOf(Chunk), 0);
-      Chunk.DataChunkType := hctFromMemory;
-      Chunk.pBuffer := FBodyBuffer.Memory;
-      Chunk.BufferLength := FBodyBuffer.Position;
+      if SegCount > 32 then
+        raise EInvalidOp.Create('Too many segments');
+
+      Seg := FResponseWriter.Segments;
+      for I := 0 to SegCount - 1 do
+      begin
+        FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+        Chunks[I].DataChunkType := hctFromMemory;
+        Chunks[I].pBuffer := Seg^.Buffer;
+        Chunks[I].BufferLength := Seg^.Length;
+        Inc(Seg);
+      end;
 
       Ret := HttpSendResponseEntityBody(
         FReqQueue,
         FRequestId,
         0,
-        1,
-        @Chunk,
+        SegCount,
+        @Chunks[0],
         BytesSent,
         nil,
         nil,
@@ -1093,17 +1129,21 @@ begin
       );
     end;
     if Ret <> ERROR_SUCCESS then
-      raise EOSError.Create('HttpSendResponseEntityBody (Finalize) failed with error code: ' + IntToStr(Ret));
+      raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
+        + IntToStr(Ret));
   end;
+  FResponseWriter.Reset;
 end;
 
 procedure TDextHttpSysResponse.Flush;
 var
-  Chunk: HTTP_DATA_CHUNK_INMEMORY;
   Response: HTTP_RESPONSE;
+  Chunks: array[0..31] of HTTP_DATA_CHUNK;
   BytesSent: ULONG;
   Ret: ULONG;
   I: Integer;
+  SegCount: Integer;
+  Seg: PDextBufferSegment;
 begin
   if FHeadersSent then Exit;
 
@@ -1118,8 +1158,10 @@ begin
   begin
     if FHeaderValues[I].Length > 0 then
     begin
-      Response.Headers.KnownHeaders[I].pRawValue := @FHeaderData[FHeaderValues[I].Offset];
-      Response.Headers.KnownHeaders[I].RawValueLength := FHeaderValues[I].Length;
+      Response.Headers.KnownHeaders[I].pRawValue :=
+        @FHeaderData[FHeaderValues[I].Offset];
+      Response.Headers.KnownHeaders[I].RawValueLength :=
+        FHeaderValues[I].Length;
     end;
   end;
 
@@ -1129,15 +1171,24 @@ begin
     Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
   end;
 
-  if (FBodyBuffer <> nil) and (FBodyBuffer.Position > 0) then
+  SegCount := FResponseWriter.SegmentCount;
+  if SegCount > 0 then
   begin
-    FillChar(Chunk, SizeOf(Chunk), 0);
-    Chunk.DataChunkType := hctFromMemory;
-    Chunk.pBuffer := FBodyBuffer.Memory;
-    Chunk.BufferLength := FBodyBuffer.Position;
+    if SegCount > 32 then
+      raise EInvalidOp.Create('Too many segments');
 
-    Response.EntityChunkCount := 1;
-    Response.pEntityChunks := @Chunk;
+    Seg := FResponseWriter.Segments;
+    for I := 0 to SegCount - 1 do
+    begin
+      FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+      Chunks[I].DataChunkType := hctFromMemory;
+      Chunks[I].pBuffer := Seg^.Buffer;
+      Chunks[I].BufferLength := Seg^.Length;
+      Inc(Seg);
+    end;
+
+    Response.EntityChunkCount := SegCount;
+    Response.pEntityChunks := @Chunks[0];
   end;
 
   Ret := HttpSendHttpResponse(
@@ -1154,11 +1205,12 @@ begin
   );
 
   if Ret <> ERROR_SUCCESS then
-    raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
+    raise EOSError.Create('HttpSendHttpResponse failed with error code: '
+      + IntToStr(Ret));
 
   FHeadersSent := True;
-  if FBodyBuffer <> nil then
-    FBodyBuffer.Position := 0;
+  FResponseWriter.Reset;
+  FResponseWriter.Init;
 end;
 
 procedure TDextHttpSysResponse.SendHeaders;
@@ -1326,7 +1378,7 @@ end;
 
 procedure TDextHttpSysResponse.Write(const ABuffer: TBytes; AOffset, ACount: Integer);
 var
-  Chunk: HTTP_DATA_CHUNK_INMEMORY;
+  Chunk: HTTP_DATA_CHUNK;
   BytesSent: ULONG;
   Ret: ULONG;
 begin
@@ -1352,11 +1404,12 @@ begin
       nil
     );
     if Ret <> ERROR_SUCCESS then
-      raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
+      raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
+        + IntToStr(Ret));
   end
   else
   begin
-    FBodyBuffer.WriteBuffer(ABuffer[AOffset], ACount);
+    FResponseWriter.Write(TByteSpan.Create(@ABuffer[AOffset], ACount));
   end;
 end;
 
@@ -1899,6 +1952,7 @@ begin
     Transferred := 0;
     CompletionKey := 0;
     Overlapped := nil;
+    Ret := ERROR_SUCCESS;
 
     if not GetQueuedCompletionStatus(FEngine.FIocp, Transferred,
       CompletionKey, Overlapped, 1000) then
@@ -1916,6 +1970,12 @@ begin
       case Op^.Kind of
         hokReceiveRequest:
         begin
+          if Ret <> ERROR_SUCCESS then
+          begin
+            FEngine.ReleaseContext(Context);
+            Continue;
+          end;
+
           TInterlocked.Increment(FEngine.FTotalRequests);
           TInterlocked.Increment(FEngine.FActiveConnections);
 
@@ -1936,49 +1996,22 @@ begin
           RawRequest := Context.FRequest;
           RawResponse := Context.FResponse;
 
-          if Assigned(FEngine.Executor) then
-          begin
-            if not FEngine.Executor.TryEnqueue(
-              procedure
-              begin
-                try
-                  if Assigned(FEngine.FOnRequest) then
-                    FEngine.FOnRequest(Connection, RawRequest, RawResponse);
-                finally
-                  RawResponse.Close;
-                  RawRequest := nil;
-                  Connection := nil;
-                  TInterlocked.Decrement(FEngine.FActiveConnections);
-                end;
-              end) then
-            begin
-              try
-                RawResponse.SetStatus(503, 'Service Unavailable');
-                RawResponse.SetHeader('Content-Type',
-                  'text/plain; charset=utf-8');
-                RawResponse.Write(
-                  TEncoding.UTF8.GetBytes('Service Unavailable (Queue Full)'),
-                  0, 32);
-              finally
-                RawResponse.Close;
-                RawRequest := nil;
-                Connection := nil;
-                TInterlocked.Decrement(FEngine.FActiveConnections);
-              end;
-            end;
-          end
-          else
-          begin
-            try
-              if Assigned(FEngine.FOnRequest) then
-                FEngine.FOnRequest(Connection, RawRequest, RawResponse);
-            finally
-              RawResponse.Close;
-              RawRequest := nil;
-              Connection := nil;
-              TInterlocked.Decrement(FEngine.FActiveConnections);
-            end;
+          try
+            if Assigned(FEngine.FOnRequest) then
+              FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+          finally
+            RawResponse.Close;
+            RawRequest := nil;
+            Connection := nil;
+            TInterlocked.Decrement(FEngine.FActiveConnections);
           end;
+        end;
+
+        hokReceiveBody:
+        begin
+          Context.FBodyBytesReceived := Transferred;
+          Context.FBodyError := Ret;
+          Context.FBodyEvent.SetEvent;
         end;
       end;
     end;
