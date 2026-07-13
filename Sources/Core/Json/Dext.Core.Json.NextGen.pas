@@ -48,8 +48,28 @@ type
     constructor Create(const ABytes: TBytes);
   end;
 
-  TNextGenJsonObject = class;
-  TNextGenJsonArray = class;
+  IDextJsonNodeGetter = interface
+    ['{E1B2C3D4-E5F6-7890-ABCD-EF1234567895}']
+    function GetSelf: TObject;
+  end;
+
+  TJsonBaseObject = class(TObject, IInterface, IDextJsonNodeGetter)
+  private
+    FRefCounted: Boolean;
+    FRefCount: Integer;
+  protected
+    function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
+    function _AddRef: Integer; stdcall;
+    function _Release: Integer; stdcall;
+  public
+    constructor Create(ARefCounted: Boolean = False);
+    function GetSelf: TObject;
+    class function Parse(const AJson: string): TJsonBaseObject; static;
+    function ToJson(Indented: Boolean = False): string; virtual; abstract;
+  end;
+
+  TJsonObject = class;
+  TJsonArray = class;
 
   TJsonKey = record
     Span: TByteSpan;
@@ -131,7 +151,7 @@ type
   /// <summary>
   ///   Objeto JSON baseado em Spans.
   /// </summary>
-  TNextGenJsonObject = class(TInterfacedObject, IDextJsonNode, IDextJsonObject)
+  TJsonObject = class(TJsonBaseObject, IDextJsonNode, IDextJsonObject)
   private
     FPairs: TArray<TNextGenJsonPair>;
     FCount: Integer;
@@ -142,11 +162,26 @@ type
     procedure BuildHash;
     function FindKey(const Name: string): Integer;
     procedure AddOrReplacePair(const AKey: string; const AValue: TNextGenJsonValue);
+  private
+    function GetS(const Name: string): string; inline;
+    procedure SetS(const Name: string; const Value: string); inline;
+    function GetI(const Name: string): Integer; inline;
+    procedure SetI(const Name: string; Value: Integer); inline;
+    function GetL(const Name: string): Int64; inline;
+    procedure SetL(const Name: string; Value: Int64); inline;
+    function GetD(const Name: string): Double; inline;
+    procedure SetD(const Name: string; Value: Double); inline;
+    function GetB(const Name: string): Boolean; inline;
+    procedure SetB(const Name: string; Value: Boolean); inline;
+    function GetO(const Name: string): TJsonObject; inline;
+    procedure SetO(const Name: string; Value: TJsonObject); inline;
+    function GetA(const Name: string): TJsonArray; inline;
+    procedure SetA(const Name: string; Value: TJsonArray); inline;
+    function GetTypes(const Name: string): TDextJsonNodeType; inline;
   protected
-    function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
   public
-    constructor Create;
+    constructor Create(ARefCounted: Boolean = False);
     destructor Destroy; override;
 
     procedure AddPair(const AKey: TByteSpan; const AValue: TNextGenJsonValue); overload;
@@ -159,7 +194,7 @@ type
     function AsInt64: Int64;
     function AsDouble: Double;
     function AsBoolean: Boolean;
-    function ToJson(Indented: Boolean = False): string;
+    function ToJson(Indented: Boolean = False): string; override;
     function IsNull: Boolean;
 
     // IDextJsonObject
@@ -184,21 +219,46 @@ type
     procedure SetArray(const Name: string; Value: IDextJsonArray);
     procedure SetNode(const Name: string; Value: IDextJsonNode);
     procedure SetNull(const Name: string);
+    property S[const Name: string]: string read GetS write SetS; default;
+    property I[const Name: string]: Integer read GetI write SetI;
+    property L[const Name: string]: Int64 read GetL write SetL;
+    property D[const Name: string]: Double read GetD write SetD;
+    property F[const Name: string]: Double read GetD write SetD;
+    property B[const Name: string]: Boolean read GetB write SetB;
+    property O[const Name: string]: TJsonObject read GetO write SetO;
+    property A[const Name: string]: TJsonArray read GetA write SetA;
+    property Types[const Name: string]: TDextJsonNodeType read GetTypes;
+    property Count: Integer read GetCount;
   end;
 
   /// <summary>
   ///   Array JSON baseado em Spans.
   /// </summary>
-  TNextGenJsonArray = class(TInterfacedObject, IDextJsonNode, IDextJsonArray)
+  TJsonArray = class(TJsonBaseObject, IDextJsonNode, IDextJsonArray)
   private
     FValues: TArray<TNextGenJsonValue>;
     FCount: Integer;
     FKeepAlive: IInterface;
+  private
+    function GetS(Index: Integer): string; inline;
+    procedure SetS(Index: Integer; const Value: string); inline;
+    function GetI(Index: Integer): Integer; inline;
+    procedure SetI(Index: Integer; Value: Integer); inline;
+    function GetL(Index: Integer): Int64; inline;
+    procedure SetL(Index: Integer; Value: Int64); inline;
+    function GetD(Index: Integer): Double; inline;
+    procedure SetD(Index: Integer; Value: Double); inline;
+    function GetB(Index: Integer): Boolean; inline;
+    procedure SetB(Index: Integer; Value: Boolean); inline;
+    function GetO(Index: Integer): TJsonObject; inline;
+    function GetA(Index: Integer): TJsonArray; inline;
+    function GetTypes(Index: Integer): TDextJsonNodeType; inline;
   protected
-    function _AddRef: Integer; stdcall;
     function _Release: Integer; stdcall;
   public
-    constructor Create;
+    constructor Create(ARefCounted: Boolean = False);
+    procedure Add(Value: TJsonObject); overload;
+    procedure Add(Value: TJsonArray); overload;
     destructor Destroy; override;
 
     procedure AddValue(const AValue: TNextGenJsonValue);
@@ -210,7 +270,7 @@ type
     function AsInt64: Int64;
     function AsDouble: Double;
     function AsBoolean: Boolean;
-    function ToJson(Indented: Boolean = False): string;
+    function ToJson(Indented: Boolean = False): string; override;
     function IsNull: Boolean;
 
     // IDextJsonArray
@@ -232,6 +292,16 @@ type
     procedure Add(Value: IDextJsonObject); overload;
     procedure Add(Value: IDextJsonArray); overload;
     procedure AddNull;
+    property S[Index: Integer]: string read GetS write SetS; default;
+    property I[Index: Integer]: Integer read GetI write SetI;
+    property L[Index: Integer]: Int64 read GetL write SetL;
+    property D[Index: Integer]: Double read GetD write SetD;
+    property F[Index: Integer]: Double read GetD write SetD;
+    property B[Index: Integer]: Boolean read GetB write SetB;
+    property O[Index: Integer]: TJsonObject read GetO;
+    property A[Index: Integer]: TJsonArray read GetA;
+    property Types[Index: Integer]: TDextJsonNodeType read GetTypes;
+    property Count: NativeInt read GetCount;
   end;
 
   /// <summary>
@@ -258,17 +328,17 @@ type
   /// </summary>
   TNextGenJsonPool = class
   private
-    class var FObjectPool: array[0..1023] of TNextGenJsonObject;
+    class var FObjectPool: array[0..1023] of TJsonObject;
     class var FObjectCount: Integer;
-    class var FArrayPool: array[0..1023] of TNextGenJsonArray;
+    class var FArrayPool: array[0..1023] of TJsonArray;
     class var FArrayCount: Integer;
     class constructor Create;
     class destructor Destroy;
   public
-    class function RentObject: TNextGenJsonObject; static;
-    class procedure ReturnObject(AnObj: TNextGenJsonObject); static;
-    class function RentArray: TNextGenJsonArray; static;
-    class procedure ReturnArray(AnArr: TNextGenJsonArray); static;
+    class function RentObject: TJsonObject; static;
+    class procedure ReturnObject(AnObj: TJsonObject); static;
+    class function RentArray: TJsonArray; static;
+    class procedure ReturnArray(AnArr: TJsonArray); static;
     class procedure ClearPool; static;
   end;
 
@@ -321,6 +391,63 @@ type
   end;
 
 implementation
+
+{ TJsonBaseObject }
+
+constructor TJsonBaseObject.Create(ARefCounted: Boolean);
+begin
+  inherited Create;
+  FRefCounted := ARefCounted;
+  FRefCount := 0;
+end;
+
+function TJsonBaseObject.GetSelf: TObject;
+begin
+  Result := Self;
+end;
+
+function TJsonBaseObject.QueryInterface(const IID: TGUID; out Obj): HResult;
+begin
+  if GetInterface(IID, Obj) then
+    Result := S_OK
+  else
+    Result := E_NOINTERFACE;
+end;
+
+function TJsonBaseObject._AddRef: Integer;
+begin
+  if FRefCounted then
+    Result := AtomicIncrement(FRefCount)
+  else
+    Result := -1;
+end;
+
+function TJsonBaseObject._Release: Integer;
+begin
+  Result := -1;
+end;
+
+class function TJsonBaseObject.Parse(const AJson: string): TJsonBaseObject;
+var
+  Bytes: TBytes;
+  Span: TByteSpan;
+  Node: IDextJsonNode;
+  KeepAlive: IInterface;
+  Getter: IDextJsonNodeGetter;
+begin
+  if AJson.IsEmpty then
+    Exit(nil);
+  Bytes := TEncoding.UTF8.GetBytes(AJson);
+  Span := TByteSpan.FromBytes(Bytes);
+  KeepAlive := TJSONBufferOwner.Create(Bytes);
+  Node := TNextGenJsonParser.Parse(Span, KeepAlive);
+  if Node = nil then
+    Exit(nil);
+  if Supports(Node, IDextJsonNodeGetter, Getter) then
+    Result := TJsonBaseObject(Getter.GetSelf)
+  else
+    Result := nil;
+end;
 
 var
   GWhitespace: array[0..255] of Byte;
@@ -716,13 +843,13 @@ end;
 function TNextGenJsonParser.ParseObject: IDextJsonObject;
 var
   Obj: IDextJsonObject;
-  ObjClass: TNextGenJsonObject;
+  ObjClass: TJsonObject;
   KeySpan: TByteSpan;
   Val: TNextGenJsonValue;
   StartKey: PByte;
 begin
   Obj := TNextGenJsonPool.RentObject;
-  ObjClass := TNextGenJsonObject(Obj);
+  ObjClass := TJsonObject(Obj);
   Inc(FPtr); // Pula '{'
 
   while (FPtr < FEnd) and (GWhitespace[FPtr^] <> 0) do
@@ -798,11 +925,11 @@ end;
 function TNextGenJsonParser.ParseArray: IDextJsonArray;
 var
   Arr: IDextJsonArray;
-  ArrClass: TNextGenJsonArray;
+  ArrClass: TJsonArray;
   Val: TNextGenJsonValue;
 begin
   Arr := TNextGenJsonPool.RentArray;
-  ArrClass := TNextGenJsonArray(Arr);
+  ArrClass := TJsonArray(Arr);
   Inc(FPtr); // Pula '['
 
   while (FPtr < FEnd) and (GWhitespace[FPtr^] <> 0) do
@@ -1013,13 +1140,13 @@ begin
   begin
     Result := Parser.ParseObject;
     if Assigned(AKeepAlive) then
-      (Result as TNextGenJsonObject).FKeepAlive := AKeepAlive;
+      (Result as TJsonObject).FKeepAlive := AKeepAlive;
   end
   else if Parser.FPtr^ = Ord('[') then
   begin
     Result := Parser.ParseArray;
     if Assigned(AKeepAlive) then
-      (Result as TNextGenJsonArray).FKeepAlive := AKeepAlive;
+      (Result as TJsonArray).FKeepAlive := AKeepAlive;
   end
   else
   begin
@@ -1063,23 +1190,23 @@ begin
     Result := (Result xor Ord(S[I])) * 16777619;
 end;
 
-{ TNextGenJsonObject }
+{ TJsonObject }
 
-function TNextGenJsonObject._AddRef: Integer;
+function TJsonObject._Release: Integer;
 begin
-  Result := AtomicIncrement(FRefCount);
+  if FRefCounted then
+  begin
+    Result := AtomicDecrement(FRefCount);
+    if Result = 0 then
+      TNextGenJsonPool.ReturnObject(Self);
+  end
+  else
+    Result := -1;
 end;
 
-function TNextGenJsonObject._Release: Integer;
+constructor TJsonObject.Create(ARefCounted: Boolean);
 begin
-  Result := AtomicDecrement(FRefCount);
-  if Result = 0 then
-    TNextGenJsonPool.ReturnObject(Self);
-end;
-
-constructor TNextGenJsonObject.Create;
-begin
-  inherited Create;
+  inherited Create(ARefCounted);
   SetLength(FPairs, 0);
   FCount := 0;
   SetLength(FHashTable, 0);
@@ -1087,12 +1214,12 @@ begin
   FHashBuilt := False;
 end;
 
-destructor TNextGenJsonObject.Destroy;
+destructor TJsonObject.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TNextGenJsonObject.BuildHash;
+procedure TJsonObject.BuildHash;
 var
   I: Integer;
   H: Cardinal;
@@ -1119,7 +1246,7 @@ begin
   FHashBuilt := True;
 end;
 
-function TNextGenJsonObject.FindKey(const Name: string): Integer;
+function TJsonObject.FindKey(const Name: string): Integer;
 var
   I: Integer;
   Len: Integer;
@@ -1208,7 +1335,7 @@ begin
   Result := -1;
 end;
 
-procedure TNextGenJsonObject.AddPair(
+procedure TJsonObject.AddPair(
   const AKey: TByteSpan;
   const AValue: TNextGenJsonValue
 );
@@ -1228,7 +1355,7 @@ begin
   FHashBuilt := False;
 end;
 
-procedure TNextGenJsonObject.AddPair(
+procedure TJsonObject.AddPair(
   const AKey: string;
   const AValue: TNextGenJsonValue
 );
@@ -1248,7 +1375,7 @@ begin
   FHashBuilt := False;
 end;
 
-procedure TNextGenJsonObject.AddOrReplacePair(
+procedure TJsonObject.AddOrReplacePair(
   const AKey: string;
   const AValue: TNextGenJsonValue
 );
@@ -1266,32 +1393,32 @@ begin
   end;
 end;
 
-function TNextGenJsonObject.GetNodeType: TDextJsonNodeType;
+function TJsonObject.GetNodeType: TDextJsonNodeType;
 begin
   Result := TDextJsonNodeType.jntObject;
 end;
 
-function TNextGenJsonObject.AsString: string;
+function TJsonObject.AsString: string;
 begin
   Result := ToJson;
 end;
 
-function TNextGenJsonObject.AsInteger: Integer;
+function TJsonObject.AsInteger: Integer;
 begin
   Result := 0;
 end;
 
-function TNextGenJsonObject.AsInt64: Int64;
+function TJsonObject.AsInt64: Int64;
 begin
   Result := 0;
 end;
 
-function TNextGenJsonObject.AsDouble: Double;
+function TJsonObject.AsDouble: Double;
 begin
   Result := 0.0;
 end;
 
-function TNextGenJsonObject.AsBoolean: Boolean;
+function TJsonObject.AsBoolean: Boolean;
 begin
   Result := False;
 end;
@@ -1301,8 +1428,8 @@ procedure NodeToWriter(
   var AWriter: TNextGenJsonWriter
 );
 var
-  Obj: TNextGenJsonObject;
-  Arr: TNextGenJsonArray;
+  Obj: TJsonObject;
+  Arr: TJsonArray;
   ObjIntf: IDextJsonObject;
   ArrIntf: IDextJsonArray;
   I: Integer;
@@ -1316,9 +1443,9 @@ begin
     Exit;
   end;
 
-  if ANode is TNextGenJsonObject then
+  if ANode is TJsonObject then
   begin
-    Obj := TNextGenJsonObject(ANode);
+    Obj := TJsonObject(ANode);
     AWriter.StartObject;
     for I := 0 to Obj.FCount - 1 do
     begin
@@ -1355,9 +1482,9 @@ begin
     end;
     AWriter.EndObject;
   end
-  else if ANode is TNextGenJsonArray then
+  else if ANode is TJsonArray then
   begin
-    Arr := TNextGenJsonArray(ANode);
+    Arr := TJsonArray(ANode);
     AWriter.StartArray;
     for I := 0 to Arr.FCount - 1 do
     begin
@@ -1502,7 +1629,7 @@ begin
   end;
 end;
 
-function TNextGenJsonObject.ToJson(Indented: Boolean): string;
+function TJsonObject.ToJson(Indented: Boolean): string;
 var
   Writer: TNextGenJsonWriter;
 begin
@@ -1517,18 +1644,18 @@ begin
   end;
 end;
 
-function TNextGenJsonObject.IsNull: Boolean;
+function TJsonObject.IsNull: Boolean;
 begin
   Result := False;
 end;
 
-function TNextGenJsonObject.Contains(const Name: string): Boolean;
+function TJsonObject.Contains(const Name: string): Boolean;
 begin
   Result := FindKey(Name) >= 0;
 end;
 
 // IDextJsonObject GetNode implementation
-function TNextGenJsonObject.GetNode(const Name: string): IDextJsonNode;
+function TJsonObject.GetNode(const Name: string): IDextJsonNode;
 var
   Idx: Integer;
 begin
@@ -1545,7 +1672,7 @@ begin
     Result := nil;
 end;
 
-function TNextGenJsonObject.GetString(const Name: string): string;
+function TJsonObject.GetString(const Name: string): string;
 var
   Idx: Integer;
 begin
@@ -1556,7 +1683,7 @@ begin
     Result := '';
 end;
 
-function TNextGenJsonObject.GetInteger(const Name: string): Integer;
+function TJsonObject.GetInteger(const Name: string): Integer;
 var
   Idx: Integer;
 begin
@@ -1567,7 +1694,7 @@ begin
     Result := 0;
 end;
 
-function TNextGenJsonObject.GetInt64(const Name: string): Int64;
+function TJsonObject.GetInt64(const Name: string): Int64;
 var
   Idx: Integer;
 begin
@@ -1578,7 +1705,7 @@ begin
     Result := 0;
 end;
 
-function TNextGenJsonObject.GetDouble(const Name: string): Double;
+function TJsonObject.GetDouble(const Name: string): Double;
 var
   Idx: Integer;
 begin
@@ -1589,7 +1716,7 @@ begin
     Result := 0.0;
 end;
 
-function TNextGenJsonObject.GetBoolean(const Name: string): Boolean;
+function TJsonObject.GetBoolean(const Name: string): Boolean;
 var
   Idx: Integer;
 begin
@@ -1600,22 +1727,22 @@ begin
     Result := False;
 end;
 
-function TNextGenJsonObject.GetObject(const Name: string): IDextJsonObject;
+function TJsonObject.GetObject(const Name: string): IDextJsonObject;
 begin
   Result := GetNode(Name) as IDextJsonObject;
 end;
 
-function TNextGenJsonObject.GetArray(const Name: string): IDextJsonArray;
+function TJsonObject.GetArray(const Name: string): IDextJsonArray;
 begin
   Result := GetNode(Name) as IDextJsonArray;
 end;
 
-function TNextGenJsonObject.GetCount: Integer;
+function TJsonObject.GetCount: Integer;
 begin
   Result := FCount;
 end;
 
-function TNextGenJsonObject.GetName(Index: Integer): string;
+function TJsonObject.GetName(Index: Integer): string;
 begin
   if (Index >= 0) and (Index < FCount) then
     Result := FPairs[Index].Key.ToString
@@ -1623,7 +1750,7 @@ begin
     Result := '';
 end;
 
-procedure TNextGenJsonObject.SetString(const Name, Value: string);
+procedure TJsonObject.SetString(const Name, Value: string);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1634,7 +1761,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetInteger(const Name: string; Value: Integer);
+procedure TJsonObject.SetInteger(const Name: string; Value: Integer);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1645,7 +1772,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetInt64(const Name: string; Value: Int64);
+procedure TJsonObject.SetInt64(const Name: string; Value: Int64);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1656,7 +1783,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetDouble(const Name: string; Value: Double);
+procedure TJsonObject.SetDouble(const Name: string; Value: Double);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1667,7 +1794,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetBoolean(const Name: string; Value: Boolean);
+procedure TJsonObject.SetBoolean(const Name: string; Value: Boolean);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1678,7 +1805,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetObject(
+procedure TJsonObject.SetObject(
   const Name: string;
   Value: IDextJsonObject
 );
@@ -1692,7 +1819,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetArray(
+procedure TJsonObject.SetArray(
   const Name: string;
   Value: IDextJsonArray
 );
@@ -1706,7 +1833,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetNode(const Name: string; Value: IDextJsonNode);
+procedure TJsonObject.SetNode(const Name: string; Value: IDextJsonNode);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1734,7 +1861,7 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-procedure TNextGenJsonObject.SetNull(const Name: string);
+procedure TJsonObject.SetNull(const Name: string);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1745,33 +1872,128 @@ begin
   AddOrReplacePair(Name, Val);
 end;
 
-{ TNextGenJsonArray }
-
-function TNextGenJsonArray._AddRef: Integer;
+function TJsonObject.GetS(const Name: string): string;
 begin
-  Result := AtomicIncrement(FRefCount);
+  Result := GetString(Name);
 end;
 
-function TNextGenJsonArray._Release: Integer;
+procedure TJsonObject.SetS(const Name: string; const Value: string);
 begin
-  Result := AtomicDecrement(FRefCount);
-  if Result = 0 then
-    TNextGenJsonPool.ReturnArray(Self);
+  SetString(Name, Value);
 end;
 
-constructor TNextGenJsonArray.Create;
+function TJsonObject.GetI(const Name: string): Integer;
 begin
-  inherited Create;
+  Result := GetInteger(Name);
+end;
+
+procedure TJsonObject.SetI(const Name: string; Value: Integer);
+begin
+  SetInteger(Name, Value);
+end;
+
+function TJsonObject.GetL(const Name: string): Int64;
+begin
+  Result := GetInt64(Name);
+end;
+
+procedure TJsonObject.SetL(const Name: string; Value: Int64);
+begin
+  SetInt64(Name, Value);
+end;
+
+function TJsonObject.GetD(const Name: string): Double;
+begin
+  Result := GetDouble(Name);
+end;
+
+procedure TJsonObject.SetD(const Name: string; Value: Double);
+begin
+  SetDouble(Name, Value);
+end;
+
+function TJsonObject.GetB(const Name: string): Boolean;
+begin
+  Result := GetBoolean(Name);
+end;
+
+procedure TJsonObject.SetB(const Name: string; Value: Boolean);
+begin
+  SetBoolean(Name, Value);
+end;
+
+function TJsonObject.GetO(const Name: string): TJsonObject;
+var
+  Node: IDextJsonObject;
+  Getter: IDextJsonNodeGetter;
+begin
+  Node := GetObject(Name);
+  if (Node <> nil) and Supports(Node, IDextJsonNodeGetter, Getter) then
+    Result := TJsonObject(Getter.GetSelf)
+  else
+    Result := nil;
+end;
+
+procedure TJsonObject.SetO(const Name: string; Value: TJsonObject);
+begin
+  SetObject(Name, Value);
+end;
+
+function TJsonObject.GetA(const Name: string): TJsonArray;
+var
+  Node: IDextJsonArray;
+  Getter: IDextJsonNodeGetter;
+begin
+  Node := GetArray(Name);
+  if (Node <> nil) and Supports(Node, IDextJsonNodeGetter, Getter) then
+    Result := TJsonArray(Getter.GetSelf)
+  else
+    Result := nil;
+end;
+
+procedure TJsonObject.SetA(const Name: string; Value: TJsonArray);
+begin
+  SetArray(Name, Value);
+end;
+
+function TJsonObject.GetTypes(const Name: string): TDextJsonNodeType;
+var
+  Node: IDextJsonNode;
+begin
+  Node := GetNode(Name);
+  if Node <> nil then
+    Result := Node.NodeType
+  else
+    Result := TDextJsonNodeType.jntNull;
+end;
+
+{ TJsonArray }
+
+function TJsonArray._Release: Integer;
+begin
+  if FRefCounted then
+  begin
+    Result := AtomicDecrement(FRefCount);
+    if Result = 0 then
+      TNextGenJsonPool.ReturnArray(Self);
+  end
+  else
+    Result := -1;
+end;
+
+constructor TJsonArray.Create(ARefCounted: Boolean);
+begin
+  inherited Create(ARefCounted);
   SetLength(FValues, 0);
   FCount := 0;
 end;
 
-destructor TNextGenJsonArray.Destroy;
+destructor TJsonArray.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TNextGenJsonArray.AddValue(const AValue: TNextGenJsonValue);
+procedure TJsonArray.AddValue(const AValue: TNextGenJsonValue);
 var
   NewCap: Integer;
 begin
@@ -1785,38 +2007,38 @@ begin
   Inc(FCount);
 end;
 
-function TNextGenJsonArray.GetNodeType: TDextJsonNodeType;
+function TJsonArray.GetNodeType: TDextJsonNodeType;
 begin
   Result := TDextJsonNodeType.jntArray;
 end;
 
-function TNextGenJsonArray.AsString: string;
+function TJsonArray.AsString: string;
 begin
   Result := ToJson;
 end;
 
 // Array getters
-function TNextGenJsonArray.AsInteger: Integer;
+function TJsonArray.AsInteger: Integer;
 begin
   Result := 0;
 end;
 
-function TNextGenJsonArray.AsInt64: Int64;
+function TJsonArray.AsInt64: Int64;
 begin
   Result := 0;
 end;
 
-function TNextGenJsonArray.AsDouble: Double;
+function TJsonArray.AsDouble: Double;
 begin
   Result := 0.0;
 end;
 
-function TNextGenJsonArray.AsBoolean: Boolean;
+function TJsonArray.AsBoolean: Boolean;
 begin
   Result := False;
 end;
 
-function TNextGenJsonArray.ToJson(Indented: Boolean): string;
+function TJsonArray.ToJson(Indented: Boolean): string;
 var
   Writer: TNextGenJsonWriter;
 begin
@@ -1831,17 +2053,17 @@ begin
   end;
 end;
 
-function TNextGenJsonArray.IsNull: Boolean;
+function TJsonArray.IsNull: Boolean;
 begin
   Result := False;
 end;
 
-function TNextGenJsonArray.GetCount: NativeInt;
+function TJsonArray.GetCount: NativeInt;
 begin
   Result := FCount;
 end;
 
-function TNextGenJsonArray.GetNode(Index: Integer): IDextJsonNode;
+function TJsonArray.GetNode(Index: Integer): IDextJsonNode;
 begin
   if (Index >= 0) and (Index < FCount) then
   begin
@@ -1855,7 +2077,7 @@ begin
     Result := nil;
 end;
 
-function TNextGenJsonArray.GetString(Index: Integer): string;
+function TJsonArray.GetString(Index: Integer): string;
 begin
   if (Index >= 0) and (Index < FCount) then
     Result := FValues[Index].AsString
@@ -1863,7 +2085,7 @@ begin
     Result := '';
 end;
 
-function TNextGenJsonArray.GetInteger(Index: Integer): Integer;
+function TJsonArray.GetInteger(Index: Integer): Integer;
 begin
   if (Index >= 0) and (Index < FCount) then
     Result := FValues[Index].AsInteger
@@ -1871,7 +2093,7 @@ begin
     Result := 0;
 end;
 
-function TNextGenJsonArray.GetInt64(Index: Integer): Int64;
+function TJsonArray.GetInt64(Index: Integer): Int64;
 begin
   if (Index >= 0) and (Index < FCount) then
     Result := FValues[Index].AsInt64
@@ -1879,7 +2101,7 @@ begin
     Result := 0;
 end;
 
-function TNextGenJsonArray.GetDouble(Index: Integer): Double;
+function TJsonArray.GetDouble(Index: Integer): Double;
 begin
   if (Index >= 0) and (Index < FCount) then
     Result := FValues[Index].AsDouble
@@ -1887,7 +2109,7 @@ begin
     Result := 0.0;
 end;
 
-function TNextGenJsonArray.GetBoolean(Index: Integer): Boolean;
+function TJsonArray.GetBoolean(Index: Integer): Boolean;
 begin
   if (Index >= 0) and (Index < FCount) then
     Result := FValues[Index].AsBoolean
@@ -1895,17 +2117,17 @@ begin
     Result := False;
 end;
 
-function TNextGenJsonArray.GetObject(Index: Integer): IDextJsonObject;
+function TJsonArray.GetObject(Index: Integer): IDextJsonObject;
 begin
   Result := GetNode(Index) as IDextJsonObject;
 end;
 
-function TNextGenJsonArray.GetArray(Index: Integer): IDextJsonArray;
+function TJsonArray.GetArray(Index: Integer): IDextJsonArray;
 begin
   Result := GetNode(Index) as IDextJsonArray;
 end;
 
-procedure TNextGenJsonArray.Add(const Value: string);
+procedure TJsonArray.Add(const Value: string);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1916,7 +2138,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.Add(Value: Integer);
+procedure TJsonArray.Add(Value: Integer);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1927,7 +2149,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.Add(Value: Int64);
+procedure TJsonArray.Add(Value: Int64);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1938,7 +2160,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.Add(Value: Double);
+procedure TJsonArray.Add(Value: Double);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1949,7 +2171,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.Add(Value: Boolean);
+procedure TJsonArray.Add(Value: Boolean);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1960,7 +2182,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.Add(Value: IDextJsonObject);
+procedure TJsonArray.Add(Value: IDextJsonObject);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1971,7 +2193,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.Add(Value: IDextJsonArray);
+procedure TJsonArray.Add(Value: IDextJsonArray);
 var
   Val: TNextGenJsonValue;
 begin
@@ -1982,7 +2204,7 @@ begin
   AddValue(Val);
 end;
 
-procedure TNextGenJsonArray.AddNull;
+procedure TJsonArray.AddNull;
 var
   Val: TNextGenJsonValue;
 begin
@@ -1991,6 +2213,96 @@ begin
   Val.FStrValue := '';
   Val.FNodeRef := nil;
   AddValue(Val);
+end;
+
+function TJsonArray.GetS(Index: Integer): string;
+begin
+  Result := GetString(Index);
+end;
+
+procedure TJsonArray.SetS(Index: Integer; const Value: string);
+begin
+end;
+
+function TJsonArray.GetI(Index: Integer): Integer;
+begin
+  Result := GetInteger(Index);
+end;
+
+procedure TJsonArray.SetI(Index: Integer; Value: Integer);
+begin
+end;
+
+function TJsonArray.GetL(Index: Integer): Int64;
+begin
+  Result := GetInt64(Index);
+end;
+
+procedure TJsonArray.SetL(Index: Integer; Value: Int64);
+begin
+end;
+
+function TJsonArray.GetD(Index: Integer): Double;
+begin
+  Result := GetDouble(Index);
+end;
+
+procedure TJsonArray.SetD(Index: Integer; Value: Double);
+begin
+end;
+
+function TJsonArray.GetB(Index: Integer): Boolean;
+begin
+  Result := GetBoolean(Index);
+end;
+
+procedure TJsonArray.SetB(Index: Integer; Value: Boolean);
+begin
+end;
+
+function TJsonArray.GetO(Index: Integer): TJsonObject;
+var
+  Node: IDextJsonObject;
+  Getter: IDextJsonNodeGetter;
+begin
+  Node := GetObject(Index);
+  if (Node <> nil) and Supports(Node, IDextJsonNodeGetter, Getter) then
+    Result := TJsonObject(Getter.GetSelf)
+  else
+    Result := nil;
+end;
+
+function TJsonArray.GetA(Index: Integer): TJsonArray;
+var
+  Node: IDextJsonArray;
+  Getter: IDextJsonNodeGetter;
+begin
+  Node := GetArray(Index);
+  if (Node <> nil) and Supports(Node, IDextJsonNodeGetter, Getter) then
+    Result := TJsonArray(Getter.GetSelf)
+  else
+    Result := nil;
+end;
+
+function TJsonArray.GetTypes(Index: Integer): TDextJsonNodeType;
+var
+  Node: IDextJsonNode;
+begin
+  Node := GetNode(Index);
+  if Node <> nil then
+    Result := Node.NodeType
+  else
+    Result := TDextJsonNodeType.jntNull;
+end;
+
+procedure TJsonArray.Add(Value: TJsonObject);
+begin
+  Add(Value as IDextJsonObject);
+end;
+
+procedure TJsonArray.Add(Value: TJsonArray);
+begin
+  Add(Value as IDextJsonArray);
 end;
 
 { TNextGenJsonPrimitive }
@@ -2069,18 +2381,20 @@ begin
     FArrayPool[I].Free;
 end;
 
-class function TNextGenJsonPool.RentObject: TNextGenJsonObject;
+class function TNextGenJsonPool.RentObject: TJsonObject;
 begin
   if FObjectCount > 0 then
   begin
     Dec(FObjectCount);
     Result := FObjectPool[FObjectCount];
+    Result.FRefCounted := True;
+    Result.FRefCount := 0;
   end
   else
-    Result := TNextGenJsonObject.Create;
+    Result := TJsonObject.Create(True);
 end;
 
-class procedure TNextGenJsonPool.ReturnObject(AnObj: TNextGenJsonObject);
+class procedure TNextGenJsonPool.ReturnObject(AnObj: TJsonObject);
 var
   I: Integer;
 begin
@@ -2098,18 +2412,20 @@ begin
     AnObj.Free;
 end;
 
-class function TNextGenJsonPool.RentArray: TNextGenJsonArray;
+class function TNextGenJsonPool.RentArray: TJsonArray;
 begin
   if FArrayCount > 0 then
   begin
     Dec(FArrayCount);
     Result := FArrayPool[FArrayCount];
+    Result.FRefCounted := True;
+    Result.FRefCount := 0;
   end
   else
-    Result := TNextGenJsonArray.Create;
+    Result := TJsonArray.Create(True);
 end;
 
-class procedure TNextGenJsonPool.ReturnArray(AnArr: TNextGenJsonArray);
+class procedure TNextGenJsonPool.ReturnArray(AnArr: TJsonArray);
 var
   I: Integer;
 begin
