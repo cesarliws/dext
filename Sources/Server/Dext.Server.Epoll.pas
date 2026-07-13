@@ -40,7 +40,8 @@ uses
   Dext.Server.Iocp.HttpParser,
   Dext.Collections.Dict,
   Dext.Core.Span,
-  Dext.Server.BoundedExecutor;
+  Dext.Server.BoundedExecutor,
+  Dext.Web.ResponseWriter;
 
 type
   {$IFDEF LINUX}
@@ -81,11 +82,13 @@ type
     FEpollFd: Integer;
     FReadBuffer: TBytes;
     FReadLen: Integer;
+    FGeneration: Cardinal;
     
-    // Escrita pendente
-    FWriteBuffer: TBytes;
-    FWriteOffset: Integer;
-    FWriteLen: Integer;
+    // Segmented write cursor
+    FWriteSegments: TArray<TDextBufferSegment>;
+    FWriteSegIndex: Integer;
+    FWriteSegOffset: Integer;
+    FWriteSegmentsCount: Integer;
 
     // Sendfile zero-copy
     FSendFileFd: Integer;
@@ -191,13 +194,12 @@ type
   private
     FSocket: Integer;
     FContext: TDextEpollContext;
+    FGeneration: Cardinal;
+    FResponseWriter: TDextResponseWriter;
     FHeadersSent: Boolean;
     FStatusCode: Integer;
     FReason: string;
     FHeaders: TDictionary<string, string>;
-    FResponseBuffer: TBytes;
-    FBodyBuffer: TBytes;
-    FBodyLen: Integer;
   public
     /// <summary>Initializes a new epoll response wrapper.</summary>
     /// <param name="AContext">The connection context.</param>
@@ -454,8 +456,11 @@ begin
   FEpollFd := AEpollFd;
   FReadLen := 0;
   SetLength(FReadBuffer, 4096);
-  FWriteOffset := 0;
-  FWriteLen := 0;
+  FGeneration := 1;
+  FWriteSegments := nil;
+  FWriteSegIndex := 0;
+  FWriteSegOffset := 0;
+  FWriteSegmentsCount := 0;
   FSendFileFd := -1;
   FSendFileOffset := 0;
   FSendFileLen := 0;
@@ -916,6 +921,8 @@ begin
   inherited Create;
   FContext := AContext;
   FSocket := AContext.FFd;
+  FGeneration := AContext.FGeneration;
+  FResponseWriter := TDextResponseWriter.Create;
   FHeadersSent := False;
   FStatusCode := 200;
   FReason := 'OK';
@@ -925,6 +932,7 @@ end;
 destructor TDextEpollResponse.Destroy;
 begin
   FHeaders.Free;
+  FResponseWriter.Free;
   inherited;
 end;
 
@@ -935,93 +943,100 @@ end;
 
 procedure TDextEpollResponse.Flush;
 var
-  Iov: array[0..1] of iovec;
+  Iov: array[0..127] of iovec;
   IovCnt: Integer;
   Res: Integer;
   TotalBytes: Integer;
-  RemainderLen: Integer;
-  DestPos: Integer;
-  HeaderRem: Integer;
-  BodySent: Integer;
-  BodyRem: Integer;
   Event: epoll_event;
   SentFileBytes: NativeInt;
+  SegList: TArray<TDextBufferSegment>;
+  SegCount: Integer;
+  I: Integer;
+  RemainingBytesToSkip: Integer;
   HasPendingWrite: Boolean;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
+
   if not FHeadersSent then
     SendHeaders;
 
-  IovCnt := 0;
-  TotalBytes := 0;
-  if Length(FResponseBuffer) > 0 then
-  begin
-    Iov[IovCnt].iov_base := @FResponseBuffer[0];
-    Iov[IovCnt].iov_len := Length(FResponseBuffer);
-    TotalBytes := TotalBytes + Length(FResponseBuffer);
-    Inc(IovCnt);
-  end;
+  SegList := FResponseWriter.GetSegments(SegCount);
+  if SegCount <= 0 then
+    goto SendFileCheck;
 
-  if FBodyLen > 0 then
+  TotalBytes := 0;
+  for I := 0 to SegCount - 1 do
+    TotalBytes := TotalBytes + SegList[I].Length;
+
+  if TotalBytes <= 0 then
+    goto SendFileCheck;
+
+  IovCnt := 0;
+  for I := 0 to SegCount - 1 do
   begin
-    Iov[IovCnt].iov_base := @FBodyBuffer[0];
-    Iov[IovCnt].iov_len := FBodyLen;
-    TotalBytes := TotalBytes + FBodyLen;
+    if IovCnt >= Length(Iov) then Break;
+    Iov[IovCnt].iov_base := SegList[I].Buffer;
+    Iov[IovCnt].iov_len := SegList[I].Length;
     Inc(IovCnt);
   end;
 
   HasPendingWrite := False;
-
-  if IovCnt > 0 then
+  Res := writev(FSocket, @Iov[0], IovCnt);
+  if Res < 0 then
   begin
-    Res := writev(FSocket, @Iov[0], IovCnt);
-    if Res < 0 then
-    begin
-      if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
-        Res := 0
-      else
-        Res := -1;
-    end;
+    if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
+      Res := 0
+    else
+      Res := -1;
+  end;
 
-    if (Res >= 0) and (Res < TotalBytes) then
+  if Res >= 0 then
+  begin
+    if Res < TotalBytes then
     begin
-      RemainderLen := TotalBytes - Res;
-      SetLength(FContext.FWriteBuffer, RemainderLen);
-      DestPos := 0;
+      RemainingBytesToSkip := Res;
+      FContext.FWriteSegments := SegList;
+      FContext.FWriteSegmentsCount := SegCount;
+      FContext.FWriteSegIndex := 0;
+      FContext.FWriteSegOffset := 0;
 
-      if Res < Length(FResponseBuffer) then
+      for I := 0 to SegCount - 1 do
       begin
-        HeaderRem := Length(FResponseBuffer) - Res;
-        Move(FResponseBuffer[Res], FContext.FWriteBuffer[DestPos], HeaderRem);
-        Inc(DestPos, HeaderRem);
-        if FBodyLen > 0 then
-          Move(FBodyBuffer[0], FContext.FWriteBuffer[DestPos], FBodyLen);
-      end
-      else
-      begin
-        BodySent := Res - Length(FResponseBuffer);
-        BodyRem := FBodyLen - BodySent;
-        if BodyRem > 0 then
-          Move(FBodyBuffer[BodySent], FContext.FWriteBuffer[DestPos], BodyRem);
+        if RemainingBytesToSkip >= SegList[I].Length then
+        begin
+          RemainingBytesToSkip := RemainingBytesToSkip - SegList[I].Length;
+          TDextBufferPool.Release(SegList[I].Owner);
+          FContext.FWriteSegIndex := I + 1;
+        end
+        else
+        begin
+          FContext.FWriteSegOffset := RemainingBytesToSkip;
+          Break;
+        end;
       end;
 
-      FContext.FWriteOffset := 0;
-      FContext.FWriteLen := RemainderLen;
       HasPendingWrite := True;
 
       FillChar(Event, SizeOf(Event), 0);
       Event.events := EPOLLOUT or EPOLLET or EPOLLONESHOT;
       Event.data.ptr := FContext;
       epoll_ctl(FContext.FEpollFd, EPOLL_CTL_MOD, FSocket, @Event);
+    end
+    else
+    begin
+      for I := 0 to SegCount - 1 do
+        TDextBufferPool.Release(SegList[I].Owner);
     end;
-
-    SetLength(FResponseBuffer, 0);
-    FBodyLen := 0;
-    SetLength(FBodyBuffer, 0);
   end;
 
-  if (not HasPendingWrite) and (FContext.FSendFileLen > 0) and (FContext.FSendFileFd >= 0) then
+  FResponseWriter.Reset;
+
+SendFileCheck:
+  if (not HasPendingWrite) and (FContext.FSendFileLen > 0)
+    and (FContext.FSendFileFd >= 0) then
   begin
-    SentFileBytes := sendfile(FSocket, FContext.FSendFileFd, @FContext.FSendFileOffset, FContext.FSendFileLen);
+    SentFileBytes := sendfile(FSocket, FContext.FSendFileFd,
+      @FContext.FSendFileOffset, FContext.FSendFileLen);
     if SentFileBytes >= 0 then
     begin
       FContext.FSendFileLen := FContext.FSendFileLen - SentFileBytes;
@@ -1049,55 +1064,55 @@ begin
 end;
 
 procedure TDextEpollResponse.SendHeaders;
-  procedure AppendStr(const AStr: string; var AOffset: Integer);
+  procedure AppendStr(const AStr: string; var ABuffer: array of Byte;
+    var AOffset: Integer);
   var
-    i, StrLen: Integer;
+    I, StrLen: Integer;
   begin
     StrLen := Length(AStr);
     if StrLen = 0 then Exit;
-    if AOffset + StrLen > Length(FResponseBuffer) then
-      SetLength(FResponseBuffer, Max((AOffset + StrLen) * 2, 512));
-    for i := 1 to StrLen do
+    for I := 1 to StrLen do
     begin
-      FResponseBuffer[AOffset] := Byte(AStr[i]);
+      ABuffer[AOffset] := Byte(AStr[I]);
       Inc(AOffset);
     end;
   end;
 var
+  TempBuf: array[0..2047] of Byte;
   BufferOffset: Integer;
   Pair: TPair<string, string>;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then Exit;
 
   if not FHeaders.ContainsKey('Content-Type') then
     FHeaders.Add('Content-Type', 'text/plain');
 
-  if Length(FResponseBuffer) < 512 then
-    SetLength(FResponseBuffer, 512);
   BufferOffset := 0;
 
-  AppendStr('HTTP/1.1 ', BufferOffset);
-  AppendStr(IntToStr(FStatusCode), BufferOffset);
-  AppendStr(' ', BufferOffset);
-  AppendStr(FReason, BufferOffset);
-  AppendStr(#13#10, BufferOffset);
+  AppendStr('HTTP/1.1 ', TempBuf, BufferOffset);
+  AppendStr(IntToStr(FStatusCode), TempBuf, BufferOffset);
+  AppendStr(' ', TempBuf, BufferOffset);
+  AppendStr(FReason, TempBuf, BufferOffset);
+  AppendStr(#13#10, TempBuf, BufferOffset);
 
   for Pair in FHeaders do
   begin
-    AppendStr(Pair.Key, BufferOffset);
-    AppendStr(': ', BufferOffset);
-    AppendStr(Pair.Value, BufferOffset);
-    AppendStr(#13#10, BufferOffset);
+    AppendStr(Pair.Key, TempBuf, BufferOffset);
+    AppendStr(': ', TempBuf, BufferOffset);
+    AppendStr(Pair.Value, TempBuf, BufferOffset);
+    AppendStr(#13#10, TempBuf, BufferOffset);
   end;
 
-  AppendStr(#13#10, BufferOffset);
+  AppendStr(#13#10, TempBuf, BufferOffset);
 
-  SetLength(FResponseBuffer, BufferOffset);
+  FResponseWriter.Write(@TempBuf[0], BufferOffset);
   FHeadersSent := True;
 end;
 
 procedure TDextEpollResponse.SetHeader(const AName, AValue: string);
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
   FHeaders.AddOrSetValue(AName, AValue);
@@ -1105,6 +1120,7 @@ end;
 
 procedure TDextEpollResponse.SetStatus(ACode: Integer; const AReason: string);
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
   FStatusCode := ACode;
@@ -1115,17 +1131,14 @@ begin
 end;
 
 procedure TDextEpollResponse.Write(const ABuffer: TBytes; AOffset, ACount: Integer);
-var
-  NewLen: Integer;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if ACount <= 0 then Exit;
 
-  NewLen := FBodyLen + ACount;
-  if Length(FBodyBuffer) < NewLen then
-    SetLength(FBodyBuffer, Max(NewLen * 2, 1024));
+  if not FHeadersSent then
+    SendHeaders;
 
-  Move(ABuffer[AOffset], FBodyBuffer[FBodyLen], ACount);
-  FBodyLen := NewLen;
+  FResponseWriter.Write(@ABuffer[AOffset], ACount);
 end;
 
 procedure TDextEpollResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
@@ -1133,6 +1146,7 @@ var
   Fd: Integer;
   StatBuf: _stat;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
 
@@ -1183,12 +1197,23 @@ begin
 end;
 
 procedure TDextEpollWorker.ReleaseContext(AContext: TDextEpollContext);
+var
+  I: Integer;
 begin
   if AContext.FSendFileFd >= 0 then
   begin
     __close(AContext.FSendFileFd);
     AContext.FSendFileFd := -1;
   end;
+
+  if AContext.FWriteSegmentsCount > 0 then
+  begin
+    for I := AContext.FWriteSegIndex to AContext.FWriteSegmentsCount - 1 do
+      TDextBufferPool.Release(AContext.FWriteSegments[I].Owner);
+    AContext.FWriteSegments := nil;
+    AContext.FWriteSegmentsCount := 0;
+  end;
+
   if FContextPool.Count < 1024 then
     FContextPool.Add(AContext)
   else
@@ -1338,7 +1363,7 @@ begin
             LResponse.Close;
           end;
         finally
-          LTaskPendingWrite := LContext.FWriteLen > 0;
+          LTaskPendingWrite := LContext.FWriteSegmentsCount > 0;
           if not LTaskPendingWrite then
           begin
             shutdown(LFd, 1);
@@ -1374,7 +1399,7 @@ begin
         AResponse.Close;
       end;
     finally
-      HasPendingWrite := AContext.FWriteLen > 0;
+      HasPendingWrite := AContext.FWriteSegmentsCount > 0;
       if not HasPendingWrite then
       begin
         shutdown(LFd, 1);
@@ -1418,6 +1443,12 @@ var
   NowTicks: Int64;
   j: Integer;
   Ctx: TDextEpollContext;
+  Iov: array[0..127] of iovec;
+  IovCnt: Integer;
+  TotalBytes: Integer;
+  RemainingBytesToSkip: Integer;
+  SegLen: Integer;
+  I: Integer;
 begin
   // CPU Pinning
   CPU_ZERO(Mask);
@@ -1484,8 +1515,11 @@ begin
               FContextPool.Delete(FContextPool.Count - 1);
               Context.FFd := ClientFd;
               Context.FReadLen := 0;
-              Context.FWriteOffset := 0;
-              Context.FWriteLen := 0;
+              Inc(Context.FGeneration);
+              Context.FWriteSegments := nil;
+              Context.FWriteSegIndex := 0;
+              Context.FWriteSegOffset := 0;
+              Context.FWriteSegmentsCount := 0;
               Context.FSendFileFd := -1;
               Context.FSendFileOffset := 0;
               Context.FSendFileLen := 0;
@@ -1527,22 +1561,66 @@ begin
 
           if (Event.events and EPOLLOUT) <> 0 then
           begin
-            // Pronto para escrita! Terminar de enviar dados parciais.
-            if Context.FWriteLen > 0 then
+            if Context.FWriteSegmentsCount > 0 then
             begin
-              SentBytes := send(Context.FFd, Context.FWriteBuffer[Context.FWriteOffset], Context.FWriteLen, 0);
-              if SentBytes > 0 then
+              IovCnt := 0;
+              for I := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
               begin
-                Context.FWriteOffset := Context.FWriteOffset + SentBytes;
-                Context.FWriteLen := Context.FWriteLen - SentBytes;
+                if IovCnt >= 128 then Break;
+                if I = Context.FWriteSegIndex then
+                begin
+                  Iov[IovCnt].iov_base := PByte(Context.FWriteSegments[I].Buffer)
+                    + Context.FWriteSegOffset;
+                  Iov[IovCnt].iov_len := Context.FWriteSegments[I].Length
+                    - Context.FWriteSegOffset;
+                end
+                else
+                begin
+                  Iov[IovCnt].iov_base := Context.FWriteSegments[I].Buffer;
+                  Iov[IovCnt].iov_len := Context.FWriteSegments[I].Length;
+                end;
+                Inc(IovCnt);
+              end;
+
+              SentBytes := writev(Context.FFd, @Iov[0], IovCnt);
+              if SentBytes >= 0 then
+              begin
+                RemainingBytesToSkip := SentBytes;
+                for I := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
+                begin
+                  if I = Context.FWriteSegIndex then
+                    SegLen := Context.FWriteSegments[I].Length
+                      - Context.FWriteSegOffset
+                  else
+                    SegLen := Context.FWriteSegments[I].Length;
+
+                  if RemainingBytesToSkip >= SegLen then
+                  begin
+                    RemainingBytesToSkip := RemainingBytesToSkip - SegLen;
+                    TDextBufferPool.Release(Context.FWriteSegments[I].Owner);
+                    Context.FWriteSegIndex := I + 1;
+                    Context.FWriteSegOffset := 0;
+                  end
+                  else
+                  begin
+                    Context.FWriteSegOffset := Context.FWriteSegOffset
+                      + RemainingBytesToSkip;
+                    Break;
+                  end;
+                end;
+
+                if Context.FWriteSegIndex >= Context.FWriteSegmentsCount then
+                begin
+                  Context.FWriteSegments := nil;
+                  Context.FWriteSegmentsCount := 0;
+                end;
               end
-              else if (SentBytes < 0) and ((errno = EAGAIN) or (errno = EWOULDBLOCK)) then
+              else if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
               begin
                 // Bloqueado novamente.
               end
               else
               begin
-                // Erro ou desconexão.
                 if Context.FSendFileFd >= 0 then
                 begin
                   __close(Context.FSendFileFd);
@@ -1556,10 +1634,11 @@ begin
               end;
             end;
 
-            // Sendfile next if write buffer is fully sent
-            if (Context.FWriteLen = 0) and (Context.FSendFileLen > 0) and (Context.FSendFileFd >= 0) then
+            if (Context.FWriteSegmentsCount = 0) and (Context.FSendFileLen > 0)
+              and (Context.FSendFileFd >= 0) then
             begin
-              SentFileBytes := sendfile(Context.FFd, Context.FSendFileFd, @Context.FSendFileOffset, Context.FSendFileLen);
+              SentFileBytes := sendfile(Context.FFd, Context.FSendFileFd,
+                @Context.FSendFileOffset, Context.FSendFileLen);
               if SentFileBytes >= 0 then
               begin
                 Context.FSendFileLen := Context.FSendFileLen - SentFileBytes;
@@ -1577,9 +1656,8 @@ begin
               end;
             end;
 
-            if (Context.FWriteLen = 0) and (Context.FSendFileLen = 0) then
+            if (Context.FWriteSegmentsCount = 0) and (Context.FSendFileLen = 0) then
             begin
-              // Escrita concluída com sucesso! Agora podemos fechar.
               __close(Context.FFd);
               FActiveContexts.Remove(Context);
               ReleaseContext(Context);
@@ -1587,7 +1665,6 @@ begin
               Continue;
             end;
 
-            // Se ainda tem dados a enviar, rearmamos em modo EPOLLOUT
             FillChar(Event, SizeOf(Event), 0);
             Event.events := EPOLLOUT or EPOLLET or EPOLLONESHOT;
             Event.data.ptr := Context;
