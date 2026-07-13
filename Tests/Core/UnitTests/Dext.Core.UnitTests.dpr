@@ -22,6 +22,8 @@ uses
   Dext.Performance.Allocator in '..\..\..\Sources\Performance\Dext.Performance.Allocator.pas',
   Dext.Web.Utf8 in '..\..\..\Sources\Web\Dext.Web.Utf8.pas',
   Dext.Web.Utf8.Tests in 'Dext.Web.Utf8.Tests.pas',
+  Dext.Web.ResponseWriter in '..\..\..\Sources\Web\Dext.Web.ResponseWriter.pas',
+  Dext.Web.ResponseWriter.Tests in 'Dext.Web.ResponseWriter.Tests.pas',
   Dext.Json.Utf8.Serializer.Tests in 'Dext.Json.Utf8.Serializer.Tests.pas',
   Dext.Json.Regression.Tests in 'Dext.Json.Regression.Tests.pas',
   Dext.Json.RecordProperties.Tests in 'Dext.Json.RecordProperties.Tests.pas',
@@ -65,7 +67,8 @@ begin
         TArrayConverterTests,
         TTypeConverterRegistryTests,
         TCodecsCommandTests,
-        TWebUtf8Tests
+        TWebUtf8Tests,
+        TResponseWriterTests
       ]));
   except
     on E: Exception do
