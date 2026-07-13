@@ -23,9 +23,11 @@ unit Dext.Codecs.Registry;
 interface
 
 uses
+  System.Classes,
   System.SysUtils,
   System.SyncObjs,
   System.TypInfo,
+  Dext.Core.Span,
   Dext.Collections.Dict;
 
 type
@@ -36,16 +38,25 @@ type
   /// <summary>Function signature used by generated gRPC service invokers.</summary>
   TDextGrpcMethodInvoker = function(AService: TObject; ARequest: TObject): TObject;
 
+  TDextJsonWriteProc = procedure(AStream: TStream; AObj: TObject);
+  TDextJsonReadProc = procedure(const ASpan: TByteSpan; AObj: TObject);
+
   /// <summary>Pair of generated protobuf read and write procedures for one Delphi type.</summary>
   TDextCodecPair = record
     WriteProc: TDextCodecWriteProc;
     ReadProc: TDextCodecReadProc;
   end;
 
+  TDextJsonCodecPair = record
+    WriteProc: TDextJsonWriteProc;
+    ReadProc: TDextJsonReadProc;
+  end;
+
   /// <summary>Global registry for protobuf codecs and static gRPC method invokers.</summary>
   TDextCodecRegistry = class
   private
     class var FProtobuf: IDictionary<PTypeInfo, TDextCodecPair>;
+    class var FJson: IDictionary<PTypeInfo, TDextJsonCodecPair>;
     class var FGrpcInvokers: IDictionary<string, TDextGrpcMethodInvoker>;
     class var FLock: TCriticalSection;
     /// <summary>Initializes the shared registry caches.</summary>
@@ -64,6 +75,16 @@ type
     /// <summary>Looks up a registered protobuf codec pair for a type info.</summary>
     class function TryGetProtobuf(AType: PTypeInfo;
       out AWrite: TDextCodecWriteProc; out ARead: TDextCodecReadProc): Boolean; static;
+
+    /// <summary>Registers a JSON codec pair for a specific type info.</summary>
+    class procedure RegisterJson(AType: PTypeInfo;
+      AWrite: TDextJsonWriteProc; ARead: TDextJsonReadProc); overload; static;
+    /// <summary>Registers a JSON codec pair for a generic type.</summary>
+    class procedure RegisterJson<T>(AWrite: TDextJsonWriteProc;
+      ARead: TDextJsonReadProc); overload; static;
+    /// <summary>Looks up a registered JSON codec pair for a type info.</summary>
+    class function TryGetJson(AType: PTypeInfo;
+      out AWrite: TDextJsonWriteProc; out ARead: TDextJsonReadProc): Boolean; static;
 
     /// <summary>Registers a direct invoker for a gRPC service method.</summary>
     class procedure RegisterGrpcInvoker(const AServiceName, AMethodName: string;
@@ -84,6 +105,7 @@ uses
 class constructor TDextCodecRegistry.Create;
 begin
   FProtobuf := TCollections.CreateDictionary<PTypeInfo, TDextCodecPair>;
+  FJson := TCollections.CreateDictionary<PTypeInfo, TDextJsonCodecPair>;
   FGrpcInvokers := TCollections.CreateDictionary<string, TDextGrpcMethodInvoker>(True);
   FLock := TCriticalSection.Create;
 end;
@@ -91,6 +113,7 @@ end;
 class destructor TDextCodecRegistry.Destroy;
 begin
   FProtobuf := nil;
+  FJson := nil;
   FGrpcInvokers := nil;
   FLock.Free;
 end;
@@ -100,6 +123,7 @@ begin
   FLock.Acquire;
   try
     FProtobuf.Clear;
+    FJson.Clear;
     FGrpcInvokers.Clear;
   finally
     FLock.Release;
@@ -171,6 +195,53 @@ begin
   FLock.Acquire;
   try
     Result := FProtobuf.TryGetValue(AType, Pair);
+  finally
+    FLock.Release;
+  end;
+
+  if Result then
+  begin
+    AWrite := Pair.WriteProc;
+    ARead := Pair.ReadProc;
+  end;
+end;
+
+class procedure TDextCodecRegistry.RegisterJson(AType: PTypeInfo;
+  AWrite: TDextJsonWriteProc; ARead: TDextJsonReadProc);
+var
+  Pair: TDextJsonCodecPair;
+begin
+  if AType = nil then
+    Exit;
+
+  Pair.WriteProc := AWrite;
+  Pair.ReadProc := ARead;
+
+  FLock.Acquire;
+  try
+    FJson.AddOrSetValue(AType, Pair);
+  finally
+    FLock.Release;
+  end;
+end;
+
+class procedure TDextCodecRegistry.RegisterJson<T>(
+  AWrite: TDextJsonWriteProc; ARead: TDextJsonReadProc);
+begin
+  RegisterJson(TypeInfo(T), AWrite, ARead);
+end;
+
+class function TDextCodecRegistry.TryGetJson(AType: PTypeInfo;
+  out AWrite: TDextJsonWriteProc; out ARead: TDextJsonReadProc): Boolean;
+var
+  Pair: TDextJsonCodecPair;
+begin
+  AWrite := nil;
+  ARead := nil;
+
+  FLock.Acquire;
+  try
+    Result := FJson.TryGetValue(AType, Pair);
   finally
     FLock.Release;
   end;

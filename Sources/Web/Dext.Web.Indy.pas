@@ -196,7 +196,10 @@ uses
   System.DateUtils,
   IdIOHandler,
   IdIOHandlerSocket,
-  IdSocketHandle;
+  IdSocketHandle,
+  Dext.Json,
+  Dext.Json.Utf8,
+  Dext.Codecs.Registry;
 
 { TDextIndyHttpRequest }
 
@@ -1050,8 +1053,31 @@ begin
 end;
 
 procedure TDextIndyHttpResponse.Json(const AValue: TValue);
+var
+  WriteProc: TDextJsonWriteProc;
+  ReadProc: TDextJsonReadProc;
+  Writer: TUtf8JsonWriter;
 begin
-  Json(TDextJson.Serialize(AValue));
+  if FStreamMode in [ismBuffering, ismChunking] then
+  begin
+    SetContentType('application/json; charset=utf-8');
+    
+    if AValue.IsObject and
+       TDextCodecRegistry.TryGetJson(AValue.TypeInfo, WriteProc, ReadProc) and
+       Assigned(WriteProc) then
+    begin
+      WriteProc(FContentStream, AValue.AsObject);
+      Exit;
+    end;
+
+    Writer := TUtf8JsonWriter.Create(FContentStream, False);
+    Writer.WriteValue(AValue);
+    Exit;
+  end;
+
+  FResponseInfo.ContentText := TDextJson.Serialize(AValue);
+  FResponseInfo.ContentType := 'application/json';
+  FResponseInfo.CharSet := 'utf-8';
 end;
 
 function TDextIndyHttpResponse.GetHtmx: IHtmxResponse;

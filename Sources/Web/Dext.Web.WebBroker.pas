@@ -247,7 +247,10 @@ implementation
 uses
   System.NetEncoding,
   Dext.Web,
-  Dext.Web.WebApplication;
+  Dext.Web.WebApplication,
+  Dext.Json,
+  Dext.Json.Utf8,
+  Dext.Codecs.Registry;
 
 // Known header field names exposed by TWebRequest.GetFieldByName
 const
@@ -633,8 +636,23 @@ begin
 end;
 
 procedure TDextWebBrokerResponse.Json(const AValue: TValue);
+var
+  WriteProc: TDextJsonWriteProc;
+  ReadProc: TDextJsonReadProc;
+  Writer: TUtf8JsonWriter;
 begin
-  Json(TDextJson.Serialize(AValue));
+  FContentType := 'application/json; charset=utf-8';
+  
+  if AValue.IsObject and
+     TDextCodecRegistry.TryGetJson(AValue.TypeInfo, WriteProc, ReadProc) and
+     Assigned(WriteProc) then
+  begin
+    WriteProc(FBuffer, AValue.AsObject);
+    Exit;
+  end;
+
+  Writer := TUtf8JsonWriter.Create(FBuffer, False);
+  Writer.WriteValue(AValue);
 end;
 
 function TDextWebBrokerResponse.GetHtmx: IHtmxResponse;

@@ -218,7 +218,8 @@ uses
   Dext.Entity.Attributes,
   Dext.Json.Utf8.Serializer,
   Dext.Core.Activator,
-  Dext.Core.Reflection;
+  Dext.Core.Reflection,
+  Dext.Codecs.Registry;
 
 function SameAsciiTextAt(const AValue, AText: string; AStart: Integer): Boolean;
 var
@@ -509,7 +510,52 @@ var
   Span: TByteSpan;
   Value: TValue;
   BodyLen: Integer;
+  WriteProc: TDextJsonWriteProc;
+  ReadProc: TDextJsonReadProc;
+  Instance: TObject;
 begin
+  // Check direct generated JSON codec registry first
+  if TDextCodecRegistry.TryGetJson(TypeInfo(T), WriteProc, ReadProc) and
+     Assigned(ReadProc) then
+  begin
+    Stream := Context.Request.Body;
+    if (Stream = nil) or (Stream.Size = 0) then
+      raise EBindingException.Create('Request body is empty');
+
+    BodyLen := Integer(Stream.Size);
+    if Stream is TBytesStream then
+    begin
+       Bytes := TBytesStream(Stream).Bytes;
+    end
+    else
+    begin
+      Stream.Position := 0;
+      SetLength(Bytes, BodyLen);
+      if BodyLen > 0 then
+        Stream.ReadBuffer(Bytes[0], BodyLen);
+    end;
+
+    Span := TByteSpan.Create(@Bytes[0], BodyLen);
+    
+    if PTypeInfo(System.TypeInfo(T)).Kind = tkClass then
+    begin
+      Instance := TActivator.CreateInstance(
+        PTypeInfo(System.TypeInfo(T)).AsInstance.MetaclassType);
+      try
+        ReadProc(Span, Instance);
+        Result := T(Pointer(Instance));
+        Exit;
+      except
+        on E: Exception do
+        begin
+          Instance.Free;
+          raise EBindingException.Create('Error parsing JSON body: ' +
+            E.Message);
+        end;
+      end;
+    end;
+  end;
+
   // Only for Records for now
   if PTypeInfo(System.TypeInfo(T)).Kind = tkRecord then
   begin

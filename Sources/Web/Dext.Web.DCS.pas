@@ -280,7 +280,10 @@ implementation
 {$IFDEF DEXT_ENABLE_DCS}
 uses
   Dext.Utils,
-  Dext.Hosting.ApplicationLifetime;
+  Dext.Hosting.ApplicationLifetime,
+  Dext.Json,
+  Dext.Json.Utf8,
+  Dext.Codecs.Registry;
 
 { TDextDCSFormFile }
 
@@ -632,8 +635,23 @@ begin
 end;
 
 procedure TDextDCSResponse.Json(const AValue: TValue);
+var
+  WriteProc: TDextJsonWriteProc;
+  ReadProc: TDextJsonReadProc;
+  Writer: TUtf8JsonWriter;
 begin
-  Json(TDextJson.Serialize(AValue));
+  FContentType := 'application/json; charset=utf-8';
+  
+  if AValue.IsObject and
+     TDextCodecRegistry.TryGetJson(AValue.TypeInfo, WriteProc, ReadProc) and
+     Assigned(WriteProc) then
+  begin
+    WriteProc(FBuffer, AValue.AsObject);
+    Exit;
+  end;
+
+  Writer := TUtf8JsonWriter.Create(FBuffer, False);
+  Writer.WriteValue(AValue);
 end;
 
 function TDextDCSResponse.GetHtmx: IHtmxResponse;
