@@ -1240,7 +1240,6 @@ function TJsonObject.FindKey(const Name: string): Integer;
 var
   I: Integer;
   Len: Integer;
-  SearchBuf: array[0..127] of Byte;
   SearchSpan: TByteSpan;
   U8: TBytes;
   IsAscii: Boolean;
@@ -1248,6 +1247,9 @@ var
   Bucket: Integer;
   Idx: Integer;
   BucketCount: Integer;
+  K: Integer;
+  Matched: Boolean;
+  KeyData: PByte;
 begin
   Len := System.Length(Name);
   if Len = 0 then Exit(-1);
@@ -1274,24 +1276,19 @@ begin
   end;
 
   IsAscii := True;
-  if Len <= 128 then
-  begin
-    for I := 0 to Len - 1 do
+  for I := 1 to Len do
+    if Ord(Name[I]) > 127 then
     begin
-      if Ord(Name[I + 1]) > 127 then
-      begin
-        IsAscii := False;
-        Break;
-      end;
-      SearchBuf[I] := Byte(Name[I + 1]);
+      IsAscii := False;
+      Break;
     end;
-  end
-  else
-    IsAscii := False;
 
   if IsAscii then
   begin
-    SearchSpan := TByteSpan.Create(@SearchBuf[0], Len);
+    // Hot path: keys are short ASCII field names. A length-gated inline scalar
+    // compare (early-exit on first differing byte) beats calling the SIMD
+    // EqualsBytes per key -- for 2..15 byte names the call/dispatch overhead
+    // dominates the actual comparison.
     for I := 0 to FCount - 1 do
     begin
       if FPairs[I].Key.StrValue <> '' then
@@ -1299,8 +1296,19 @@ begin
         if FPairs[I].Key.StrValue = Name then
           Exit(I);
       end
-      else if FPairs[I].Key.Span.Equals(SearchSpan) then
-        Exit(I);
+      else if FPairs[I].Key.Span.Length = Len then
+      begin
+        KeyData := FPairs[I].Key.Span.Data;
+        Matched := True;
+        for K := 0 to Len - 1 do
+          if KeyData[K] <> Byte(Name[K + 1]) then
+          begin
+            Matched := False;
+            Break;
+          end;
+        if Matched then
+          Exit(I);
+      end;
     end;
   end
   else
