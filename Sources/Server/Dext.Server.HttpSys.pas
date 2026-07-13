@@ -45,6 +45,39 @@ uses
 
 type
   TDextHttpSysEngine = class;
+  TDextHttpSysRequest = class;
+  TDextHttpSysResponse = class;
+  TDextHttpSysConnection = class;
+  TDextHttpSysContext = class;
+
+  TDextHttpSysOperationKind = (
+    hokReceiveRequest,
+    hokReceiveBody,
+    hokSendHeaders,
+    hokSendBody
+  );
+
+  TDextHttpSysOperation = record
+    Overlapped: TOverlapped;
+    Kind: TDextHttpSysOperationKind;
+    Context: Pointer;
+  end;
+  PDextHttpSysOperation = ^TDextHttpSysOperation;
+
+  TDextHttpSysContext = class
+  public
+    FReceiveOp: TDextHttpSysOperation;
+    FBuffer: TBytes;
+    FBufferCapacity: Cardinal;
+    FGeneration: Cardinal;
+    FRequestId: HTTP_REQUEST_ID;
+    FRequest: TDextHttpSysRequest;
+    FResponse: TDextHttpSysResponse;
+    FConnection: TDextHttpSysConnection;
+    constructor Create;
+    destructor Destroy; override;
+    procedure Reset;
+  end;
 
   /// <summary>
   ///   Thread-safe, zero-allocation memory stream pool for http.sys responses.
@@ -72,6 +105,7 @@ type
     FBodyStream: TCustomMemoryStream;
     FEntityBodyBuffer: TMemoryStream;
     FBodyRead: Boolean;
+    FContext: TDextHttpSysContext;
     function GetMethod: string;
     function GetPath: string;
     function GetQueryString: string;
@@ -86,7 +120,8 @@ type
     constructor Create(ARequest: PHTTP_REQUEST);
     /// <summary>Cleans up the request resources.</summary>
     destructor Destroy; override;
-    procedure Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST);
+    procedure Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST;
+      AContext: TDextHttpSysContext = nil);
   end;
 
   /// <summary>
@@ -111,6 +146,7 @@ type
     FUnknownHeaders: array[0..31] of HTTP_UNKNOWN_HEADER;
     FUnknownHeadersCount: Integer;
     FLastUnknownHeadersCount: Integer;
+    FContext: TDextHttpSysContext;
     procedure ResetUnknownHeaders;
     procedure SendHeadersInternal(AMoreData: Boolean);
     function _Release: Integer; stdcall;
@@ -123,7 +159,8 @@ type
     constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID);
     /// <summary>Cleans up the response resources.</summary>
     destructor Destroy; override;
-    procedure Init(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID);
+    procedure Init(AEngine: TDextHttpSysEngine; AReqQueue: THandle;
+      ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext = nil);
 
     /// <summary>Sets the HTTP status code and optional reason phrase.</summary>
     /// <param name="ACode">The HTTP status code (e.g., 200, 404).</param>
@@ -162,7 +199,8 @@ type
   public
     constructor Create(AMaxPoolSize: Integer = 64);
     destructor Destroy; override;
-    function Acquire(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST): TDextHttpSysRequest;
+    function Acquire(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST;
+      AContext: TDextHttpSysContext = nil): TDextHttpSysRequest;
     procedure Release(ARequest: TDextHttpSysRequest);
   end;
 
@@ -177,7 +215,9 @@ type
   public
     constructor Create(AMaxPoolSize: Integer = 64);
     destructor Destroy; override;
-    function Acquire(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID): TDextHttpSysResponse;
+    function Acquire(AEngine: TDextHttpSysEngine; AReqQueue: THandle;
+      ARequestId: HTTP_REQUEST_ID;
+      AContext: TDextHttpSysContext = nil): TDextHttpSysResponse;
     procedure Release(AResponse: TDextHttpSysResponse);
   end;
 
@@ -278,6 +318,9 @@ type
     FActiveConnections: Integer;
     FTotalRequests: Int64;
 
+    FIocp: THandle;
+    FContextPool: TList;
+    FContextPoolLock: TSpinLock;
     FWorkers: TList;
     FBufferPool: TDextHttpSysBufferPool;
     FRequestPool: TDextHttpSysRequestPool;
@@ -287,6 +330,9 @@ type
     procedure ConfigureLimits;
     procedure RecycleRequest(ARequest: TDextHttpSysRequest);
     procedure RecycleResponse(AResponse: TDextHttpSysResponse);
+    function AcquireContext: TDextHttpSysContext;
+    procedure ReleaseContext(AContext: TDextHttpSysContext);
+    procedure PostReceiveRequest(AContext: TDextHttpSysContext);
   public
     /// <summary>Initializes a new http.sys server engine.</summary>
     /// <param name="AOptions">The engine configuration options.</param>
@@ -339,6 +385,106 @@ uses
 var
   KnownRequestHeadersMapGlobal: TDictionary<string, Integer>;
   KnownResponseHeadersMapGlobal: TDictionary<string, Integer>;
+
+{ TDextHttpSysContext }
+
+constructor TDextHttpSysContext.Create;
+begin
+  inherited Create;
+  FReceiveOp.Kind := hokReceiveRequest;
+  FReceiveOp.Context := Self;
+  FBufferCapacity := 16384;
+  SetLength(FBuffer, FBufferCapacity);
+  FGeneration := 1;
+  FRequestId := 0;
+  FRequest := nil;
+  FResponse := nil;
+  FConnection := nil;
+end;
+
+destructor TDextHttpSysContext.Destroy;
+begin
+  inherited;
+end;
+
+procedure TDextHttpSysContext.Reset;
+begin
+  FRequestId := 0;
+  FRequest := nil;
+  FResponse := nil;
+  FConnection := nil;
+  FillChar(FReceiveOp.Overlapped, SizeOf(TOverlapped), 0);
+end;
+
+procedure TDextHttpSysContext.ReleaseRequestReference;
+begin
+  if TInterlocked.Decrement(FRefCount) = 0 then
+    TDextHttpSysEngine(FRequest.FEngine).ReleaseContext(Self);
+end;
+
+procedure TDextHttpSysContext.ReleaseResponseReference;
+begin
+  if TInterlocked.Decrement(FRefCount) = 0 then
+    TDextHttpSysEngine(FResponse.FEngine).ReleaseContext(Self);
+end;
+
+{ TDextHttpSysEngine Context helpers }
+
+function TDextHttpSysEngine.AcquireContext: TDextHttpSysContext;
+begin
+  FContextPoolLock.Enter;
+  try
+    if FContextPool.Count > 0 then
+    begin
+      Result := TDextHttpSysContext(FContextPool.Last);
+      FContextPool.Delete(FContextPool.Count - 1);
+    end
+    else
+      Result := TDextHttpSysContext.Create;
+  finally
+    FContextPoolLock.Exit;
+  end;
+end;
+
+procedure TDextHttpSysEngine.ReleaseContext(AContext: TDextHttpSysContext);
+begin
+  AContext.Reset;
+  FContextPoolLock.Enter;
+  try
+    FContextPool.Add(AContext);
+  finally
+    FContextPoolLock.Exit;
+  end;
+end;
+
+procedure TDextHttpSysEngine.PostReceiveRequest(AContext: TDextHttpSysContext);
+var
+  Ret: ULONG;
+  BytesReturned: ULONG;
+begin
+  BytesReturned := 0;
+  AContext.Reset;
+  
+  Ret := HttpReceiveHttpRequest(
+    FReqQueue,
+    AContext.FRequestId,
+    HTTP_RECEIVE_REQUEST_FLAG_COPY_BODY,
+    PHTTP_REQUEST(@AContext.FBuffer[0]),
+    AContext.FBufferCapacity,
+    BytesReturned,
+    @AContext.FReceiveOp.Overlapped
+  );
+
+  if (Ret <> ERROR_SUCCESS) and (Ret <> ERROR_IO_PENDING) then
+  begin
+    if Ret = ERROR_MORE_DATA then
+    begin
+      AContext.FBufferCapacity := BytesReturned;
+      SetLength(AContext.FBuffer, AContext.FBufferCapacity);
+      PostReceiveRequest(AContext);
+    end;
+  end;
+end;
 
 { TDextHttpSysBufferPool }
 
@@ -429,7 +575,8 @@ begin
   inherited;
 end;
 
-procedure TDextHttpSysRequest.Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST);
+procedure TDextHttpSysRequest.Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST;
+  AContext: TDextHttpSysContext = nil);
 begin
   FEngine := AEngine;
   if Assigned(AEngine) then
@@ -437,6 +584,7 @@ begin
   else
     FReqQueue := 0;
   FRequest := ARequest;
+  FContext := AContext;
   FBodyRead := False;
   if Assigned(FBodyStream) then
   begin
@@ -451,14 +599,19 @@ begin
 end;
 
 function TDextHttpSysRequest._Release: Integer;
+var
+  LContext: TDextHttpSysContext;
 begin
   Result := TInterlocked.Decrement(FRefCount);
   if Result = 0 then
   begin
+    LContext := FContext;
     if Assigned(FEngine) then
       FEngine.RecycleRequest(Self)
     else
       Destroy;
+    if LContext <> nil then
+      LContext.ReleaseRequestReference;
   end;
 end;
 
@@ -745,11 +898,13 @@ begin
   inherited;
 end;
 
-procedure TDextHttpSysResponse.Init(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID);
+procedure TDextHttpSysResponse.Init(AEngine: TDextHttpSysEngine; AReqQueue: THandle;
+  ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext = nil);
 begin
   FEngine := AEngine;
   FReqQueue := AReqQueue;
   FRequestId := ARequestId;
+  FContext := AContext;
   FHeadersSent := False;
   FStatusCode := 200;
 
@@ -774,14 +929,19 @@ begin
 end;
 
 function TDextHttpSysResponse._Release: Integer;
+var
+  LContext: TDextHttpSysContext;
 begin
   Result := TInterlocked.Decrement(FRefCount);
   if Result = 0 then
   begin
+    LContext := FContext;
     if Assigned(FEngine) then
       FEngine.RecycleResponse(Self)
     else
       Destroy;
+    if LContext <> nil then
+      LContext.ReleaseResponseReference;
   end;
 end;
 
@@ -1571,7 +1731,8 @@ begin
   inherited;
 end;
 
-function TDextHttpSysRequestPool.Acquire(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST): TDextHttpSysRequest;
+function TDextHttpSysRequestPool.Acquire(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST;
+  AContext: TDextHttpSysContext = nil): TDextHttpSysRequest;
 begin
   Result := nil;
   FLock.Enter;
@@ -1587,11 +1748,11 @@ begin
   if Result = nil then
   begin
     Result := TDextHttpSysRequest.Create(ARequest);
-    Result.Init(AEngine, ARequest);
+    Result.Init(AEngine, ARequest, AContext);
   end
   else
   begin
-    Result.Init(AEngine, ARequest);
+    Result.Init(AEngine, ARequest, AContext);
   end;
 end;
 
@@ -1641,7 +1802,8 @@ begin
   inherited;
 end;
 
-function TDextHttpSysResponsePool.Acquire(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID): TDextHttpSysResponse;
+function TDextHttpSysResponsePool.Acquire(AEngine: TDextHttpSysEngine; AReqQueue: THandle;
+  ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext = nil): TDextHttpSysResponse;
 begin
   Result := nil;
   FLock.Enter;
@@ -1657,10 +1819,11 @@ begin
   if Result = nil then
   begin
     Result := TDextHttpSysResponse.Create(AEngine, AReqQueue, ARequestId);
+    Result.Init(AEngine, AReqQueue, ARequestId, AContext);
   end
   else
   begin
-    Result.Init(AEngine, AReqQueue, ARequestId);
+    Result.Init(AEngine, AReqQueue, ARequestId, AContext);
   end;
 end;
 
@@ -1719,62 +1882,105 @@ end;
 
 procedure TDextHttpSysWorker.Execute;
 var
-  ReqBuffer: TBytes;
-  Request: PHTTP_REQUEST;
-  BytesReturned: ULONG;
-  Ret: ULONG;
-  RequestId: HTTP_REQUEST_ID;
+  Transferred: DWORD;
+  CompletionKey: NativeUInt;
+  Overlapped: POverlapped;
+  Op: PDextHttpSysOperation;
+  Context: TDextHttpSysContext;
+  Ret: DWORD;
+  Connection: IDextServerConnection;
   RawRequest: IDextRawRequest;
   RawResponse: IDextRawResponse;
-  Connection: IDextServerConnection;
 begin
   ApplyGroupAffinityToThread(GetCurrentThread, FAffinity);
 
-  SetLength(ReqBuffer, 16384); // 16KB Request Buffer
-  Request := PHTTP_REQUEST(@ReqBuffer[0]);
-  RequestId := 0;
-
   while not Terminated and FEngine.FRunning do
   begin
-    FillChar(Request^, SizeOf(HTTP_REQUEST), 0);
-    BytesReturned := 0;
+    Transferred := 0;
+    CompletionKey := 0;
+    Overlapped := nil;
 
-    Ret := HttpReceiveHttpRequest(
-      FReqQueue,
-      RequestId,
-      HTTP_RECEIVE_REQUEST_FLAG_COPY_BODY,
-      Request,
-      Length(ReqBuffer),
-      BytesReturned,
-      nil
-    );
-
-    if Ret = ERROR_SUCCESS then
+    if not GetQueuedCompletionStatus(FEngine.FIocp, Transferred,
+      CompletionKey, Overlapped, 1000) then
     begin
-      TInterlocked.Increment(FEngine.FTotalRequests);
-      TInterlocked.Increment(FEngine.FActiveConnections);
+      Ret := GetLastError;
+      if (Ret = WAIT_TIMEOUT) or (Overlapped = nil) then
+        Continue;
+    end;
 
-      Connection := TDextHttpSysConnection.Create(Request^, FReqQueue);
-      RawRequest := FEngine.FRequestPool.Acquire(FEngine, Request);
-      RawResponse := FEngine.FResponsePool.Acquire(FEngine, FReqQueue, Request.RequestId);
+    if Overlapped <> nil then
+    begin
+      Op := PDextHttpSysOperation(Overlapped);
+      Context := TDextHttpSysContext(Op^.Context);
 
-      try
-        if Assigned(FEngine.FOnRequest) then
-          FEngine.FOnRequest(Connection, RawRequest, RawResponse);
-      finally
-        RawResponse.Close;
-        RawRequest := nil;
-        Connection := nil;
-        TInterlocked.Decrement(FEngine.FActiveConnections);
+      case Op^.Kind of
+        hokReceiveRequest:
+        begin
+          TInterlocked.Increment(FEngine.FTotalRequests);
+          TInterlocked.Increment(FEngine.FActiveConnections);
+
+          // Post replacement receive
+          FEngine.PostReceiveRequest(FEngine.AcquireContext);
+
+          // Prepare connections & requests
+          Context.FConnection := TDextHttpSysConnection.Create(
+            PHTTP_REQUEST(@Context.FBuffer[0])^, FReqQueue);
+          Context.FRequest := FEngine.FRequestPool.Acquire(FEngine,
+            PHTTP_REQUEST(@Context.FBuffer[0]), Context);
+          Context.FResponse := FEngine.FResponsePool.Acquire(FEngine,
+            FReqQueue, PHTTP_REQUEST(@Context.FBuffer[0]).RequestId, Context);
+
+          Context.FRefCount := 2;
+
+          Connection := Context.FConnection;
+          RawRequest := Context.FRequest;
+          RawResponse := Context.FResponse;
+
+          if Assigned(FEngine.Executor) then
+          begin
+            if not FEngine.Executor.TryEnqueue(
+              procedure
+              begin
+                try
+                  if Assigned(FEngine.FOnRequest) then
+                    FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+                finally
+                  RawResponse.Close;
+                  RawRequest := nil;
+                  Connection := nil;
+                  TInterlocked.Decrement(FEngine.FActiveConnections);
+                end;
+              end) then
+            begin
+              try
+                RawResponse.SetStatus(503, 'Service Unavailable');
+                RawResponse.SetHeader('Content-Type',
+                  'text/plain; charset=utf-8');
+                RawResponse.Write(
+                  TEncoding.UTF8.GetBytes('Service Unavailable (Queue Full)'),
+                  0, 32);
+              finally
+                RawResponse.Close;
+                RawRequest := nil;
+                Connection := nil;
+                TInterlocked.Decrement(FEngine.FActiveConnections);
+              end;
+            end;
+          end
+          else
+          begin
+            try
+              if Assigned(FEngine.FOnRequest) then
+                FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+            finally
+              RawResponse.Close;
+              RawRequest := nil;
+              Connection := nil;
+              TInterlocked.Decrement(FEngine.FActiveConnections);
+            end;
+          end;
+        end;
       end;
-
-      RequestId := 0;
-    end
-    else if Ret = ERROR_MORE_DATA then
-    begin
-      // Grow buffer if headers are too large
-      SetLength(ReqBuffer, BytesReturned);
-      Request := PHTTP_REQUEST(@ReqBuffer[0]);
     end;
   end;
 end;
@@ -1789,6 +1995,9 @@ begin
   FUrlGroupId := 0;
   FReqQueue := 0;
   FRunning := False;
+  FIocp := 0;
+  FContextPool := TList.Create;
+  FContextPoolLock := TSpinLock.Create;
   FWorkers := TList.Create;
   FBufferPool := TDextHttpSysBufferPool.Create(64);
   FRequestPool := TDextHttpSysRequestPool.Create(64);
@@ -1797,12 +2006,17 @@ begin
 end;
 
 destructor TDextHttpSysEngine.Destroy;
+var
+  I: Integer;
 begin
   Stop;
   FWorkers.Free;
   FRequestPool.Free;
   FResponsePool.Free;
   FBufferPool.Free;
+  for I := 0 to FContextPool.Count - 1 do
+    TDextHttpSysContext(FContextPool[I]).Free;
+  FContextPool.Free;
   inherited;
 end;
 
@@ -1897,37 +2111,39 @@ begin
   Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
   if Ret <> ERROR_SUCCESS then
   begin
-    if Ret = 5 then // Access Denied
+    if Ret = 5 then
     begin
       Err := EOSError.Create(
-        'HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' (Access Denied).' + #13#10 +
-        'This error occurs because registering URL prefixes on all interfaces (+ or 0.0.0.0) requires administrative privileges.' + #13#10 +
-        'To resolve this:' + #13#10 +
-        '1. Run your application as Administrator.' + #13#10 +
-        '2. Or register this URL prefix using netsh in an elevated prompt:' + #13#10 +
-        '   netsh http add urlacl url=' + UrlPrefix + ' user=Todos' + #13#10 +
-        '3. Or configure the server BindAddress to "localhost" or "127.0.0.1" in TServerEngineOptions to run without elevation.'
+        'HttpAddUrlToUrlGroup failed to register ' + UrlPrefix
+        + ' (Access Denied).' + #13#10 +
+        'This error occurs because registering URL prefixes on all'
+        + ' interfaces (+ or 0.0.0.0) requires admin privileges.'
       );
       Err.ErrorCode := Ret;
       raise Err;
     end
     else
     begin
-      Err := EOSError.Create('HttpAddUrlToUrlGroup failed to register ' + UrlPrefix + ' with error code: ' + IntToStr(Ret));
+      Err := EOSError.Create('HttpAddUrlToUrlGroup failed to register '
+        + UrlPrefix + ' with error code: ' + IntToStr(Ret));
       Err.ErrorCode := Ret;
       raise Err;
     end;
   end;
+
+  FIocp := CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
+  if FIocp = 0 then
+    raise EOSError.Create('CreateIoCompletionPort failed');
+
+  if CreateIoCompletionPort(FReqQueue, FIocp, 1, 0) = 0 then
+    raise EOSError.Create('Failed to associate request queue with IOCP');
 
   FRunning := True;
 
   // Start Worker Threads
   ThreadCount := FOptions.IoThreadCount;
   if ThreadCount <= 0 then
-  begin
-    // Auto detect CPU count across all Windows processor groups.
     ThreadCount := GetSystemLogicalProcessorCount;
-  end;
 
   for i := 0 to ThreadCount - 1 do
   begin
@@ -1936,6 +2152,10 @@ begin
     FWorkers.Add(Worker);
     Worker.Start;
   end;
+
+  // Post initial receives (2 per worker thread)
+  for i := 0 to (ThreadCount * 2) - 1 do
+    PostReceiveRequest(AcquireContext);
 end;
 
 procedure TDextHttpSysEngine.Stop(AGracefulTimeoutMs: Integer);
@@ -1947,7 +2167,12 @@ begin
 
   FRunning := False;
 
-  // Signal and stop request queue
+  if FIocp <> 0 then
+  begin
+    CloseHandle(FIocp);
+    FIocp := 0;
+  end;
+
   if FReqQueue <> 0 then
     HttpCloseRequestQueue(FReqQueue);
 
