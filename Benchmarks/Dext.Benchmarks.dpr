@@ -14,6 +14,8 @@ uses
 {$ENDIF}
   System.SysUtils,
   Spring.Benchmark in '..\External\Spring4D\Spring.Benchmark.pas',
+  Dext.Performance.Allocator in
+    '..\Sources\Performance\Dext.Performance.Allocator.pas',
   BM.Http in 'Sources\BM.Http.pas',
   BM.Orm in 'Sources\BM.Orm.pas',
   BM.S54 in 'Sources\BM.S54.pas';

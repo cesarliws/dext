@@ -43,6 +43,7 @@ uses
   Dext.Json,
   Dext.Logging.Telemetry,
   Dext.Logging.Tracing,
+  Dext.Performance.Allocator,
   Dext.Serialization.Protobuf;
 
 type
@@ -209,54 +210,98 @@ begin
   GJsonConverter.Free;
 end;
 
+type
+  PState = ^TState;
+
+procedure TrackedBenchmark(state: PState; const Action: TProc);
+var
+  Stats: TDextAllocStats;
+begin
+  TDextAllocationTracker.Reset;
+  TDextAllocationTracker.Start;
+  try
+    Action();
+  finally
+    TDextAllocationTracker.Stop;
+    Stats := TDextAllocationTracker.GetStats;
+    if state^.Iterations > 0 then
+      state^.SetLabel(Format('allocs/op:%.2f bytes/op:%.1f',
+        [Stats.AllocationCount / state^.Iterations,
+         Stats.AllocatedBytes / state^.Iterations]))
+    else
+      state^.SetLabel(Format('allocs:%d bytes:%d',
+        [Stats.AllocationCount, Stats.AllocatedBytes]));
+  end;
+end;
+
 procedure BM_S54_Grpc_FrameInPlace(const state: TState);
 var
   Buffer: TBytes;
   I: Integer;
+  P: PState;
 begin
+  P := @state;
   SetLength(Buffer, 1024);
   for I := 0 to High(Buffer) do
     Buffer[I] := Byte(I);
-  while state.KeepRunning do
+  TrackedBenchmark(P, procedure
+  var
+    LBuffer: TBytes;
   begin
-    SetLength(Buffer, 1024);
-    TGrpcMessageCodec.FrameInPlace(Buffer);
-    SetLength(Buffer, 1024);
-  end;
+    LBuffer := Buffer;
+    while P^.KeepRunning do
+    begin
+      SetLength(LBuffer, 1024);
+      TGrpcMessageCodec.FrameInPlace(LBuffer);
+      SetLength(LBuffer, 1024);
+    end;
+  end);
 end;
+
 procedure BM_S54_Grpc_Encode(const state: TState);
 var
   Payload: TBytes;
-  Framed: TBytes;
   I: Integer;
+  P: PState;
 begin
+  P := @state;
   SetLength(Payload, 1024);
   for I := 0 to High(Payload) do
     Payload[I] := Byte(I);
-  while state.KeepRunning do
-    Framed := TGrpcMessageCodec.Encode(Payload, False);
+  TrackedBenchmark(P, procedure
+  var
+    LFramed: TBytes;
+  begin
+    while P^.KeepRunning do
+      LFramed := TGrpcMessageCodec.Encode(Payload, False);
+  end);
 end;
-
 
 procedure BM_S54_Grpc_DecodeBytes(const state: TState);
 var
   Payload: TBytes;
   Framed: TBytes;
-  MsgSpan: TByteSpan;
-  Offset: Integer;
-  Compressed: Boolean;
   i: Integer;
+  P: PState;
 begin
+  P := @state;
   SetLength(Payload, 1024);
   for i := 0 to High(Payload) do
     Payload[i] := Byte(i);
   Framed := TGrpcMessageCodec.Encode(Payload, False);
 
-  while state.KeepRunning do
+  TrackedBenchmark(P, procedure
+  var
+    LOffset: Integer;
+    LCompressed: Boolean;
+    LMsgSpan: TByteSpan;
   begin
-    Offset := 0;
-    TGrpcMessageCodec.TryDecode(Framed, Offset, Compressed, MsgSpan);
-  end;
+    while P^.KeepRunning do
+    begin
+      LOffset := 0;
+      TGrpcMessageCodec.TryDecode(Framed, LOffset, LCompressed, LMsgSpan);
+    end;
+  end);
 end;
 
 procedure BM_S54_Grpc_DecodeSpan(const state: TState);
@@ -264,93 +309,126 @@ var
   Payload: TBytes;
   Framed: TBytes;
   FramedSpan: TByteSpan;
-  MsgSpan: TByteSpan;
-  Offset: Integer;
-  Compressed: Boolean;
   i: Integer;
+  P: PState;
 begin
+  P := @state;
   SetLength(Payload, 1024);
   for i := 0 to High(Payload) do
     Payload[i] := Byte(i);
   Framed := TGrpcMessageCodec.Encode(Payload, False);
   FramedSpan := TByteSpan.Create(@Framed[0], Length(Framed));
 
-  while state.KeepRunning do
+  TrackedBenchmark(P, procedure
+  var
+    LOffset: Integer;
+    LCompressed: Boolean;
+    LMsgSpan: TByteSpan;
   begin
-    Offset := 0;
-    TGrpcMessageCodec.TryDecode(FramedSpan, Offset, Compressed, MsgSpan);
-  end;
+    while P^.KeepRunning do
+    begin
+      LOffset := 0;
+      TGrpcMessageCodec.TryDecode(FramedSpan, LOffset, LCompressed, LMsgSpan);
+    end;
+  end);
 end;
 
 procedure BM_S54_Grpc_SerializeEncode(const state: TState);
 var
   Source: TCodecRoot;
-  Serialized: TBytes;
-  Framed: TBytes;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   try
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LSerialized: TBytes;
+      LFramed: TBytes;
     begin
-      Serialized := TProtobufSerializer.Serialize(Source, pcmAuto);
-      Framed := TGrpcMessageCodec.Encode(Serialized, False);
-    end;
+      while P^.KeepRunning do
+      begin
+        LSerialized := TProtobufSerializer.Serialize(Source, pcmAuto);
+        LFramed := TGrpcMessageCodec.Encode(LSerialized, False);
+      end;
+    end);
   finally
     Source.Free;
   end;
 end;
-
 
 procedure BM_S54_Protobuf_Stream(const state: TState);
 var
   Source: TCodecRoot;
   Stream: TBytesStream;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Stream := TBytesStream.Create(nil);
   try
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LStream: TBytesStream;
     begin
-      Stream.Size := 0;
-      TProtobufSerializer.SerializeToStream(Source, Stream, pcmRtti);
-    end;
+      LStream := Stream;
+      while P^.KeepRunning do
+      begin
+        LStream.Size := 0;
+        TProtobufSerializer.SerializeToStream(Source, LStream, pcmRtti);
+      end;
+    end);
   finally
     Stream.Free;
     Source.Free;
   end;
 end;
+
 procedure BM_S54_Protobuf_Rtti_Serialize(const state: TState);
 var
   Source: TCodecRoot;
-  Bytes: TBytes;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   try
-    while state.KeepRunning do
-      Bytes := TProtobufSerializer.Serialize(Source, pcmRtti);
+    TrackedBenchmark(P, procedure
+    var
+      LBytes: TBytes;
+    begin
+      while P^.KeepRunning do
+        LBytes := TProtobufSerializer.Serialize(Source, pcmRtti);
+    end);
   finally
     Source.Free;
   end;
 end;
-
 
 procedure BM_S54_Protobuf_DeserializeBytes(const state: TState);
 var
   Source: TCodecRoot;
   Target: TCodecRoot;
   Bytes: TBytes;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := TCodecRoot.Create;
   try
     Bytes := TProtobufSerializer.Serialize(Source, pcmAuto);
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LTarget: TCodecRoot;
     begin
-      Target.Child.Free;
-      Target.Child := nil;
-      Target.Items.Clear;
-      TProtobufSerializer.Deserialize(Bytes, Target, pcmAuto);
-    end;
+      LTarget := Target;
+      while P^.KeepRunning do
+      begin
+        LTarget.Child.Free;
+        LTarget.Child := nil;
+        LTarget.Items.Clear;
+        TProtobufSerializer.Deserialize(Bytes, LTarget, pcmAuto);
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
@@ -363,19 +441,27 @@ var
   Target: TCodecRoot;
   Bytes: TBytes;
   Span: TByteSpan;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := TCodecRoot.Create;
   try
     Bytes := TProtobufSerializer.Serialize(Source, pcmAuto);
     Span := TByteSpan.Create(@Bytes[0], Length(Bytes));
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LTarget: TCodecRoot;
     begin
-      Target.Child.Free;
-      Target.Child := nil;
-      Target.Items.Clear;
-      TProtobufSerializer.Deserialize(Span, Target, pcmAuto);
-    end;
+      LTarget := Target;
+      while P^.KeepRunning do
+      begin
+        LTarget.Child.Free;
+        LTarget.Child := nil;
+        LTarget.Items.Clear;
+        TProtobufSerializer.Deserialize(Span, LTarget, pcmAuto);
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
@@ -387,7 +473,9 @@ var
   Source: TCodecRoot;
   Target: TCodecRoot;
   Bytes: TBytes;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := TCodecRoot.Create;
   try
@@ -397,14 +485,21 @@ begin
     Target.Items.Clear;
     TProtobufSerializer.Deserialize(Bytes, Target, pcmRtti);
 
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LTarget: TCodecRoot;
+      LBytes: TBytes;
     begin
-      Bytes := TProtobufSerializer.Serialize(Source, pcmRtti);
-      Target.Child.Free;
-      Target.Child := nil;
-      Target.Items.Clear;
-      TProtobufSerializer.Deserialize(Bytes, Target, pcmRtti);
-    end;
+      LTarget := Target;
+      while P^.KeepRunning do
+      begin
+        LBytes := TProtobufSerializer.Serialize(Source, pcmRtti);
+        LTarget.Child.Free;
+        LTarget.Child := nil;
+        LTarget.Items.Clear;
+        TProtobufSerializer.Deserialize(LBytes, LTarget, pcmRtti);
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
@@ -416,7 +511,9 @@ var
   Source: TCodecRoot;
   Target: TCodecRoot;
   Bytes: TBytes;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := TCodecRoot.Create;
   try
@@ -426,14 +523,21 @@ begin
     Target.Items.Clear;
     TProtobufSerializer.Deserialize(Bytes, Target, pcmDirect);
 
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LTarget: TCodecRoot;
+      LBytes: TBytes;
     begin
-      Bytes := TProtobufSerializer.Serialize(Source, pcmDirect);
-      Target.Child.Free;
-      Target.Child := nil;
-      Target.Items.Clear;
-      TProtobufSerializer.Deserialize(Bytes, Target, pcmDirect);
-    end;
+      LTarget := Target;
+      while P^.KeepRunning do
+      begin
+        LBytes := TProtobufSerializer.Serialize(Source, pcmDirect);
+        LTarget.Child.Free;
+        LTarget.Child := nil;
+        LTarget.Items.Clear;
+        TProtobufSerializer.Deserialize(LBytes, LTarget, pcmDirect);
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
@@ -445,7 +549,9 @@ var
   Source: TCodecRoot;
   Target: TCodecRoot;
   Bytes: TBytes;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := TCodecRoot.Create;
   try
@@ -455,14 +561,21 @@ begin
     Target.Items.Clear;
     TProtobufSerializer.Deserialize(Bytes, Target, pcmGenerated);
 
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LTarget: TCodecRoot;
+      LBytes: TBytes;
     begin
-      Bytes := TProtobufSerializer.Serialize(Source, pcmGenerated);
-      Target.Child.Free;
-      Target.Child := nil;
-      Target.Items.Clear;
-      TProtobufSerializer.Deserialize(Bytes, Target, pcmGenerated);
-    end;
+      LTarget := Target;
+      while P^.KeepRunning do
+      begin
+        LBytes := TProtobufSerializer.Serialize(Source, pcmGenerated);
+        LTarget.Child.Free;
+        LTarget.Child := nil;
+        LTarget.Items.Clear;
+        TProtobufSerializer.Deserialize(LBytes, LTarget, pcmGenerated);
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
@@ -474,7 +587,9 @@ var
   Source: TCodecRoot;
   Target: TCodecRoot;
   JsonText: string;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := nil;
   try
@@ -483,13 +598,18 @@ begin
     Target.Free;
     Target := nil;
 
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LTarget: TCodecRoot;
+      LJsonText: string;
     begin
-      JsonText := TDextJson.Serialize<TCodecRoot>(Source);
-      Target := TDextJson.Deserialize<TCodecRoot>(JsonText);
-      Target.Free;
-      Target := nil;
-    end;
+      while P^.KeepRunning do
+      begin
+        LJsonText := TDextJson.Serialize<TCodecRoot>(Source);
+        LTarget := TDextJson.Deserialize<TCodecRoot>(LJsonText);
+        LTarget.Free;
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
@@ -502,120 +622,160 @@ var
   Converted: TValue;
   Deserialized: TValue;
   Target: TCodecRoot;
+  P: PState;
 begin
+  P := @state;
   Source := TCodecRoot.Create;
   Target := nil;
   try
-    Converted := GJsonConverter.ToDatabase(TValue.From<TObject>(Source), ddPostgreSQL);
-    Deserialized := GJsonConverter.FromDatabase(Converted, TypeInfo(TCodecRoot));
+    Converted := GJsonConverter.ToDatabase(
+      TValue.From<TObject>(Source), ddPostgreSQL);
+    Deserialized := GJsonConverter.FromDatabase(
+      Converted, TypeInfo(TCodecRoot));
     Target := Deserialized.AsObject as TCodecRoot;
     Target.Free;
     Target := nil;
 
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      LConverted: TValue;
+      LDeserialized: TValue;
+      LTarget: TCodecRoot;
     begin
-      Converted := GJsonConverter.ToDatabase(TValue.From<TObject>(Source), ddPostgreSQL);
-      Deserialized := GJsonConverter.FromDatabase(Converted, TypeInfo(TCodecRoot));
-      Target := Deserialized.AsObject as TCodecRoot;
-      Target.Free;
-      Target := nil;
-    end;
+      while P^.KeepRunning do
+      begin
+        LConverted := GJsonConverter.ToDatabase(
+          TValue.From<TObject>(Source), ddPostgreSQL);
+        LDeserialized := GJsonConverter.FromDatabase(
+          LConverted, TypeInfo(TCodecRoot));
+        LTarget := LDeserialized.AsObject as TCodecRoot;
+        LTarget.Free;
+      end;
+    end);
   finally
     Target.Free;
     Source.Free;
   end;
 end;
 
-
 procedure BM_S54_Tracing_BeginSpan_Inactive(const state: TState);
 var
-  Span: TSpan;
+  P: PState;
 begin
+  P := @state;
   TDiagnosticSource.Instance.Enabled := False;
   try
-    while state.KeepRunning do
+    TrackedBenchmark(P, procedure
+    var
+      Span: TSpan;
     begin
-      Span := TTracer.BeginSpan('gRPC Server dext.test.v1.DummyService/DummyCall', 'gRPC');
-      Span.SetStatus('Success');
-    end;
+      while P^.KeepRunning do
+      begin
+        Span := TTracer.BeginSpan(
+          'gRPC Server dext.test.v1.DummyService/DummyCall', 'gRPC');
+        Span.SetStatus('Success');
+      end;
+    end);
   finally
     TDiagnosticSource.Instance.Enabled := True;
   end;
 end;
 
-
 procedure BM_S54_Grpc_PathSplit(const state: TState);
 var
   Path: string;
-  Parts: TArray<string>;
-  ServiceName: string;
-  MethodName: string;
+  P: PState;
 begin
+  P := @state;
   Path := '/dext.test.v1.DummyService/DummyCall';
-  while state.KeepRunning do
+  TrackedBenchmark(P, procedure
+  var
+    Parts: TArray<string>;
+    ServiceName: string;
+    MethodName: string;
   begin
-    Parts := Path.Split(['/']);
-    ServiceName := Parts[1].ToLower;
-    MethodName := Parts[2].ToLower;
-  end;
+    while P^.KeepRunning do
+    begin
+      Parts := Path.Split(['/']);
+      ServiceName := Parts[1].ToLower;
+      MethodName := Parts[2].ToLower;
+    end;
+  end);
 end;
 
 procedure BM_S54_Grpc_PathManual(const state: TState);
 var
   Path: string;
-  ServicePath: string;
-  MethodPath: string;
-  ServiceName: string;
-  MethodName: string;
-  SlashPos: Integer;
-  i: Integer;
+  P: PState;
 begin
+  P := @state;
   Path := '/dext.test.v1.DummyService/DummyCall';
-  while state.KeepRunning do
+  TrackedBenchmark(P, procedure
+  var
+    ServicePath: string;
+    MethodPath: string;
+    ServiceName: string;
+    MethodName: string;
+    SlashPos: Integer;
+    i: Integer;
   begin
-    SlashPos := 0;
-    if (Path <> '') and (Path[1] = '/') then
-      for i := 2 to Length(Path) do
-        if Path[i] = '/' then
-        begin
-          SlashPos := i;
-          Break;
-        end;
-    ServicePath := Copy(Path, 2, SlashPos - 2);
-    MethodPath := Copy(Path, SlashPos + 1, MaxInt);
-    ServiceName := ServicePath;
-    MethodName := MethodPath;
-  end;
+    while P^.KeepRunning do
+    begin
+      SlashPos := 0;
+      if (Path <> '') and (Path[1] = '/') then
+        for i := 2 to Length(Path) do
+          if Path[i] = '/' then
+          begin
+            SlashPos := i;
+            Break;
+          end;
+      ServicePath := Copy(Path, 2, SlashPos - 2);
+      MethodPath := Copy(Path, SlashPos + 1, MaxInt);
+      ServiceName := ServicePath;
+      MethodName := MethodPath;
+    end;
+  end);
 end;
-
 
 procedure BM_S54_Grpc_SubStopwatch_Always(const state: TState);
 var
-  SwSub: TStopwatch;
-  i: Integer;
+  P: PState;
 begin
-  while state.KeepRunning do
-    for i := 1 to 5 do
-    begin
-      SwSub := TStopwatch.StartNew;
-      SwSub.Stop;
-    end;
-end;
-
-procedure BM_S54_Grpc_SubStopwatch_Guarded(const state: TState);
-var
-  SwSub: TStopwatch;
-  TelemetryActive: Boolean;
-  i: Integer;
-begin
-  TelemetryActive := False;
-  while state.KeepRunning do
-    for i := 1 to 5 do
-      if TelemetryActive then
+  P := @state;
+  TrackedBenchmark(P, procedure
+  var
+    SwSub: TStopwatch;
+    i: Integer;
+  begin
+    while P^.KeepRunning do
+      for i := 1 to 5 do
       begin
         SwSub := TStopwatch.StartNew;
         SwSub.Stop;
       end;
+  end);
+end;
+
+procedure BM_S54_Grpc_SubStopwatch_Guarded(const state: TState);
+var
+  TelemetryActive: Boolean;
+  P: PState;
+begin
+  TelemetryActive := False;
+  P := @state;
+  TrackedBenchmark(P, procedure
+  var
+    SwSub: TStopwatch;
+    i: Integer;
+  begin
+    while P^.KeepRunning do
+      for i := 1 to 5 do
+        if TelemetryActive then
+        begin
+          SwSub := TStopwatch.StartNew;
+          SwSub.Stop;
+        end;
+  end);
 end;
 
 initialization
