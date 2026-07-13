@@ -39,7 +39,8 @@ uses
   Dext.Server.Engine.Interfaces,
   Dext.Server.Iocp.HttpParser,
   Dext.Collections.Dict,
-  Dext.Core.Span;
+  Dext.Core.Span,
+  Dext.Server.BoundedExecutor;
 
 type
   {$IFDEF LINUX}
@@ -285,7 +286,10 @@ type
     FTotalRequests: Int64;
 
     FWorkers: TList;
+    FExecutor: TDextBoundedExecutor;
   public
+    property Executor: TDextBoundedExecutor read FExecutor;
+
     /// <summary>Initializes a new epoll server engine.</summary>
     /// <param name="AOptions">The engine configuration options.</param>
     constructor Create(const AOptions: TServerEngineOptions);
@@ -1300,26 +1304,85 @@ procedure TDextEpollWorker.ProcessRequestAsync(
 );
 var
   LFd: Integer;
-  HasPendingWrite: Boolean;
+  LEpollFd: Integer;
+  LOnRequest: TRequestEventHandler;
+  LConnection: IDextServerConnection;
+  LRequest: IDextRawRequest;
+  LResponse: IDextRawResponse;
+  LContext: TDextEpollContext;
   LLocalEvent: epoll_event;
+  HasPendingWrite: Boolean;
 begin
   LFd := AContext.FFd;
-  try
-    try
-      if Assigned(FEngine.FOnRequest) then
-        FEngine.FOnRequest(AConnection, ARequest, AResponse);
-    finally
-      AResponse.Close;
-    end;
-  finally
-    HasPendingWrite := AContext.FWriteLen > 0;
-    if not HasPendingWrite then
+  LEpollFd := FEpollFd;
+  LOnRequest := FEngine.FOnRequest;
+
+  if Assigned(FEngine.Executor) then
+  begin
+    LConnection := AConnection;
+    LRequest := ARequest;
+    LResponse := AResponse;
+    LContext := AContext;
+
+    if not FEngine.Executor.TryEnqueue(
+      procedure
+      var
+        LTaskEvent: epoll_event;
+        LTaskPendingWrite: Boolean;
+      begin
+        try
+          try
+            if Assigned(LOnRequest) then
+              LOnRequest(LConnection, LRequest, LResponse);
+          finally
+            LResponse.Close;
+          end;
+        finally
+          LTaskPendingWrite := LContext.FWriteLen > 0;
+          if not LTaskPendingWrite then
+          begin
+            shutdown(LFd, 1);
+            FillChar(LTaskEvent, SizeOf(LTaskEvent), 0);
+            LTaskEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+            LTaskEvent.data.ptr := LContext;
+            epoll_ctl(LEpollFd, EPOLL_CTL_MOD, LFd, @LTaskEvent);
+          end;
+        end;
+      end) then
     begin
-      shutdown(LFd, 1);
-      FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
-      LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
-      LLocalEvent.data.ptr := AContext;
-      epoll_ctl(FEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
+      // Queue is saturated: return 503 and close immediately
+      try
+        AResponse.SetStatus(503, 'Service Unavailable');
+        AResponse.SetHeader('Content-Type', 'text/plain; charset=utf-8');
+        AResponse.Write(
+          TEncoding.UTF8.GetBytes('Service Unavailable (Queue Full)'),
+          0, 32);
+      finally
+        AResponse.Close;
+        shutdown(LFd, 1);
+      end;
+    end;
+  end
+  else
+  begin
+    // Inline execution
+    try
+      try
+        if Assigned(LOnRequest) then
+          LOnRequest(AConnection, ARequest, AResponse);
+      finally
+        AResponse.Close;
+      end;
+    finally
+      HasPendingWrite := AContext.FWriteLen > 0;
+      if not HasPendingWrite then
+      begin
+        shutdown(LFd, 1);
+        FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
+        LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+        LLocalEvent.data.ptr := AContext;
+        epoll_ctl(FEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
+      end;
     end;
   end;
 end;
@@ -1701,12 +1764,16 @@ begin
   FOptions := AOptions;
   FRunning := False;
   FWorkers := TList.Create;
+  if FOptions.MaxExecutorThreads > 0 then
+    FExecutor := TDextBoundedExecutor.Create(
+      FOptions.MaxExecutorThreads, FOptions.MaxQueueCapacity);
 end;
 
 destructor TDextEpollEngine.Destroy;
 begin
   Stop;
   FWorkers.Free;
+  FExecutor.Free;
   inherited;
 end;
 

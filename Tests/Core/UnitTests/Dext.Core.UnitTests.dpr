@@ -24,6 +24,8 @@ uses
   Dext.Web.Utf8.Tests in 'Dext.Web.Utf8.Tests.pas',
   Dext.Web.ResponseWriter in '..\..\..\Sources\Web\Dext.Web.ResponseWriter.pas',
   Dext.Web.ResponseWriter.Tests in 'Dext.Web.ResponseWriter.Tests.pas',
+  Dext.Server.BoundedExecutor in '..\..\..\Sources\Server\Dext.Server.BoundedExecutor.pas',
+  Dext.Server.BoundedExecutor.Tests in 'Dext.Server.BoundedExecutor.Tests.pas',
   Dext.Json.Utf8.Serializer.Tests in 'Dext.Json.Utf8.Serializer.Tests.pas',
   Dext.Json.Regression.Tests in 'Dext.Json.Regression.Tests.pas',
   Dext.Json.RecordProperties.Tests in 'Dext.Json.RecordProperties.Tests.pas',
@@ -68,7 +70,8 @@ begin
         TTypeConverterRegistryTests,
         TCodecsCommandTests,
         TWebUtf8Tests,
-        TResponseWriterTests
+        TResponseWriterTests,
+        TBoundedExecutorTests
       ]));
   except
     on E: Exception do
