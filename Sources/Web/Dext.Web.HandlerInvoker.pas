@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -38,6 +38,8 @@ uses
   Dext.Utils;
 
 type
+  THandlerInvoker = class;
+
   { Basic Invoker - PHASE 1.1 }
   // Generic handler type definitions
   THandlerProc<T> = reference to procedure(Arg1: T);
@@ -85,8 +87,6 @@ type
     FBoundObjectCount: Integer;
     FArgsBuffer: TArray<TValue>;
     function Validate(const AValue: TValue): Boolean;
-    /// <summary>Resolves and binds an individual argument based on its type.</summary>
-    function ResolveArgument<T>: T;
     /// <summary>Frees all objects instantiated by binding that are not managed elsewhere.</summary>
     procedure CleanupBoundObjects;
   public
@@ -162,6 +162,8 @@ begin
 end;
 
 class function TDextBinderFactory<T>.Bind(Invoker: THandlerInvoker): TValue;
+var
+  BoundVal: TValue;
 begin
   if TypeInfo(T) = TypeInfo(IHttpContext) then
     Exit(TValue.From<IHttpContext>(Invoker.Context));
@@ -169,21 +171,21 @@ begin
   if TypeInfo(T) = TypeInfo(TGUID) then
   begin
     if Invoker.Context.Request.RouteParams.Count > 0 then
-      Exit(TModelBinderHelper.BindRoute<TGUID>(Invoker.ModelBinder,
-        Invoker.Context))
+      Exit(TValue.From<TGUID>(TModelBinderHelper.BindRoute<TGUID>(
+        Invoker.ModelBinder, Invoker.Context)))
     else
-      Exit(TModelBinderHelper.BindQuery<TGUID>(Invoker.ModelBinder,
-        Invoker.Context));
+      Exit(TValue.From<TGUID>(TModelBinderHelper.BindQuery<TGUID>(
+        Invoker.ModelBinder, Invoker.Context)));
   end;
 
   if TypeInfo(T) = TypeInfo(TUUID) then
   begin
     if Invoker.Context.Request.RouteParams.Count > 0 then
-      Exit(TModelBinderHelper.BindRoute<TUUID>(Invoker.ModelBinder,
-        Invoker.Context))
+      Exit(TValue.From<TUUID>(TModelBinderHelper.BindRoute<TUUID>(
+        Invoker.ModelBinder, Invoker.Context)))
     else
-      Exit(TModelBinderHelper.BindQuery<TUUID>(Invoker.ModelBinder,
-        Invoker.Context));
+      Exit(TValue.From<TUUID>(TModelBinderHelper.BindQuery<TUUID>(
+        Invoker.ModelBinder, Invoker.Context)));
   end;
 
   if PTypeInfo(TypeInfo(T)).Kind = tkRecord then
@@ -193,7 +195,7 @@ begin
 
   if PTypeInfo(TypeInfo(T)).Kind = tkClass then
   begin
-    var BoundVal: TValue := TValue.Empty;
+    BoundVal := TValue.Empty;
     try
       BoundVal := Invoker.ModelBinder.BindServices(TypeInfo(T), Invoker.Context);
     except
@@ -203,11 +205,11 @@ begin
     begin
       if (Invoker.Context.Request.Method = 'GET') or
          (Invoker.Context.Request.Method = 'DELETE') then
-        BoundVal := TModelBinderHelper.BindQuery<T>(Invoker.ModelBinder,
-          Invoker.Context)
+        BoundVal := TValue.From<T>(TModelBinderHelper.BindQuery<T>(
+          Invoker.ModelBinder, Invoker.Context))
       else
-        BoundVal := TModelBinderHelper.BindBody<T>(Invoker.ModelBinder,
-          Invoker.Context);
+        BoundVal := TValue.From<T>(TModelBinderHelper.BindBody<T>(
+          Invoker.ModelBinder, Invoker.Context));
     end;
 
     Invoker.Track(BoundVal, FIsEntity);
@@ -220,11 +222,11 @@ begin
   end;
 
   if Invoker.Context.Request.RouteParams.Count > 0 then
-    Result := TModelBinderHelper.BindRoute<T>(Invoker.ModelBinder,
-      Invoker.Context)
+    Result := TValue.From<T>(TModelBinderHelper.BindRoute<T>(
+      Invoker.ModelBinder, Invoker.Context))
   else
-    Result := TModelBinderHelper.BindQuery<T>(Invoker.ModelBinder,
-      Invoker.Context);
+    Result := TValue.From<T>(TModelBinderHelper.BindQuery<T>(
+      Invoker.ModelBinder, Invoker.Context));
 end;
 
 { THandlerInvoker }
@@ -317,106 +319,6 @@ begin
     end;
   finally
     ValidationResult.Free;
-  end;
-end;
-
-function THandlerInvoker.ResolveArgument<T>: T;
-var
-  Bound: Boolean;
-  Svc: TValue;
-  IsEntity: Boolean;
-  CtxRtti: TRttiContext;
-  Typ: TRttiType;
-  Attr: TCustomAttribute;
-begin
-  Result := Default(T);
-  // 1. Verify if IHttpContext
-  if TypeInfo(T) = TypeInfo(IHttpContext) then
-    Result := TValue.From<IHttpContext>(FContext).AsType<T>
-  // 2. Special Records (TGUID, TUUID) -> Route binding (like primitives)
-  else if (TypeInfo(T) = TypeInfo(TGUID)) or (TypeInfo(T) = TypeInfo(TUUID)) then
-  begin
-    if FContext.Request.RouteParams.Count > 0 then
-      Result := TModelBinderHelper.BindRoute<T>(FModelBinder, FContext)
-    else
-      Result := TModelBinderHelper.BindQuery<T>(FModelBinder, FContext);
-  end
-  // 3. Records -> Hybrid Binding (respects [FromHeader], [FromQuery], [FromRoute], [FromBody] attributes)
-  else if PTypeInfo(TypeInfo(T)).Kind = tkRecord then
-  begin
-    // Use hybrid binding that supports mixed sources based on field attributes
-    Result := FModelBinder.BindRecordHybrid(TypeInfo(T), FContext).AsType<T>;
-  end
-  // 4. Classes -> Try DI first, then Body/Query
-  else if PTypeInfo(TypeInfo(T)).Kind = tkClass then
-  begin
-    Bound := False;
-    
-    // For Classes, try DI first
-    try
-      Svc := FModelBinder.BindServices(TypeInfo(T), FContext);
-      if (not Svc.IsEmpty) and (Svc.AsObject <> nil) then
-      begin
-         Result := Svc.AsType<T>;
-         Bound := True;
-      end;
-    except
-      // Ignore service binding errors, cascade to Body/Query
-    end;
-
-    if not Bound then
-    begin
-       // Smart Binding: GET/DELETE -> Query, POST/PUT/PATCH -> Body
-       if (FContext.Request.Method = 'GET') or (FContext.Request.Method = 'DELETE') then
-         Result := TModelBinderHelper.BindQuery<T>(FModelBinder, FContext)
-       else
-         Result := TModelBinderHelper.BindBody<T>(FModelBinder, FContext);
-       
-       // Track the created object for cleanup.
-       // Entities ([Table]) are NOT tracked because the DbContext assumes ownership.
-       if TValue.From<T>(Result).AsObject <> nil then
-       begin
-         IsEntity := False;
-         CtxRtti := TReflection.Context;
-         try
-           Typ := CtxRtti.GetType(TypeInfo(T));
-           if Typ <> nil then
-           begin
-             for Attr in Typ.GetAttributes do
-             begin
-               IsEntity := Attr.ClassName = 'TableAttribute';
-               if IsEntity then Break;
-             end;
-           end;
-         finally
-         ;
-         end;
-
-         if not IsEntity then
-         begin
-           if FBoundObjectCount = Length(FBoundObjects) then
-           begin
-             if FBoundObjectCount = 0 then
-               SetLength(FBoundObjects, 4)
-             else
-               SetLength(FBoundObjects, FBoundObjectCount * 2);
-           end;
-           FBoundObjects[FBoundObjectCount] := TValue.From<T>(Result).AsObject;
-           Inc(FBoundObjectCount);
-         end;
-       end;
-    end;
-  end
-  // 5. Interfaces -> Services
-  else if PTypeInfo(TypeInfo(T)).Kind = tkInterface then
-    Result := FModelBinder.BindServices(TypeInfo(T), FContext).AsType<T>
-  // 6. Primitives -> Route (if available) or Query
-  else
-  begin
-    if FContext.Request.RouteParams.Count > 0 then
-      Result := TModelBinderHelper.BindRoute<T>(FModelBinder, FContext)
-    else
-      Result := TModelBinderHelper.BindQuery<T>(FModelBinder, FContext);
   end;
 end;
 

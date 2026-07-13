@@ -621,8 +621,8 @@ end;
 function IsAsciiString(const AValue: string): Boolean;
 var
   Len: Integer;
-  P: PInt64;
-  Mask: Int64;
+  P: PUInt64;
+  Mask: UInt64;
   I: Integer;
   Ch: Char;
 begin
@@ -630,7 +630,7 @@ begin
   if Len = 0 then
     Exit(True);
 
-  P := PInt64(PChar(AValue));
+  P := PUInt64(PChar(AValue));
   Mask := $FF80FF80FF80FF80;
   
   I := 0;

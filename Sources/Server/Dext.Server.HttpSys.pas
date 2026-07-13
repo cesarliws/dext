@@ -388,7 +388,8 @@ implementation
 uses
   System.SysConst,
   Dext.WebSocket.Handshake,
-  Dext.WebSocket.Protocol;
+  Dext.WebSocket.Protocol,
+  Dext.Core.Span;
 
 var
   KnownRequestHeadersMapGlobal: TDictionary<string, Integer>;
@@ -1055,7 +1056,7 @@ begin
       begin
         FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
         Chunks[I].DataChunkType := hctFromMemory;
-        Chunks[I].pBuffer := Seg^.Buffer;
+        Chunks[I].pBuffer := Seg^.Data;
         Chunks[I].BufferLength := Seg^.Length;
         Inc(Seg);
       end;
@@ -1095,7 +1096,7 @@ begin
       begin
         FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
         Chunks[I].DataChunkType := hctFromMemory;
-        Chunks[I].pBuffer := Seg^.Buffer;
+        Chunks[I].pBuffer := Seg^.Data;
         Chunks[I].BufferLength := Seg^.Length;
         Inc(Seg);
       end;
@@ -1182,7 +1183,7 @@ begin
     begin
       FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
       Chunks[I].DataChunkType := hctFromMemory;
-      Chunks[I].pBuffer := Seg^.Buffer;
+      Chunks[I].pBuffer := Seg^.Data;
       Chunks[I].BufferLength := Seg^.Length;
       Inc(Seg);
     end;
@@ -1883,13 +1884,6 @@ end;
 procedure TDextHttpSysResponsePool.Release(AResponse: TDextHttpSysResponse);
 begin
   if AResponse = nil then Exit;
-  
-  if AResponse.FBodyBuffer <> nil then
-  begin
-    AResponse.FBodyBuffer.Position := 0;
-    if AResponse.FBodyBuffer.Size > 65536 then
-      AResponse.FBodyBuffer.Size := 65536;
-  end;
 
   FLock.Enter;
   try
@@ -2030,7 +2024,7 @@ begin
   FRunning := False;
   FIocp := 0;
   FContextPool := TList.Create;
-  FContextPoolLock := TSpinLock.Create;
+  FContextPoolLock := TSpinLock.Create(False);
   FWorkers := TList.Create;
   FBufferPool := TDextHttpSysBufferPool.Create(64);
   FRequestPool := TDextHttpSysRequestPool.Create(64);

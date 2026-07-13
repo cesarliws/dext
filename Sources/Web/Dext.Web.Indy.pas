@@ -197,7 +197,6 @@ uses
   IdIOHandler,
   IdIOHandlerSocket,
   IdSocketHandle,
-  Dext.Json,
   Dext.Json.Utf8,
   Dext.Codecs.Registry;
 
@@ -1057,6 +1056,7 @@ var
   WriteProc: TDextJsonWriteProc;
   ReadProc: TDextJsonReadProc;
   Writer: TUtf8JsonWriter;
+  StrStream: TStringStream;
 begin
   if FStreamMode in [ismBuffering, ismChunking] then
   begin
@@ -1066,12 +1066,24 @@ begin
        TDextCodecRegistry.TryGetJson(AValue.TypeInfo, WriteProc, ReadProc) and
        Assigned(WriteProc) then
     begin
-      WriteProc(FContentStream, AValue.AsObject);
+      StrStream := TStringStream.Create('', TEncoding.UTF8);
+      try
+        WriteProc(StrStream, AValue.AsObject);
+        Write(StrStream.DataString);
+      finally
+        StrStream.Free;
+      end;
       Exit;
     end;
 
-    Writer := TUtf8JsonWriter.Create(FContentStream, False);
-    Writer.WriteValue(AValue);
+    StrStream := TStringStream.Create('', TEncoding.UTF8);
+    try
+      Writer := TUtf8JsonWriter.Create(StrStream, False);
+      Writer.WriteValue(AValue);
+      Write(StrStream.DataString);
+    finally
+      StrStream.Free;
+    end;
     Exit;
   end;
 

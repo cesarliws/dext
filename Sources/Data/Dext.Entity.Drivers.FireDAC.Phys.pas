@@ -344,7 +344,7 @@ end;
 function TFireDACPhysReader.IsNull(AIndex: Integer): Boolean;
 begin
   if FCurrentRow = nil then Exit(True);
-  Result := FCurrentRow.IsNull(AIndex);
+  Result := VarIsNull(FCurrentRow.GetData(AIndex));
 end;
 
 function TFireDACPhysReader.Next: Boolean;

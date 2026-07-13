@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -595,19 +595,14 @@ end;
 
 procedure TControllerScanner.ExecuteCachedMethod(Context: IHttpContext; const CachedMethod: TCachedMethod);
 var
-  ControllerType: TRttiType;
-  Method: TRttiMethod;
-  ControllerInstance: TObject;
-  FilterAttr: TCustomAttribute;
-  Filter: IActionFilter;
-  M: TRttiMethod;
-  FilterList: IList<TCustomAttribute>;
-  ActionDescriptor: TActionDescriptor;
-  ExecutingContext: IActionExecutingContext;
   Binder: IModelBinder;
-  Invoker: THandlerInvoker;
+  ControllerInstance: TObject;
   ExecutedContext: IActionExecutedContext;
+  ExecutingContext: IActionExecutingContext;
+  Filter: IActionFilter;
+  FilterAttr: TCustomAttribute;
   I: Integer;
+  Invoker: THandlerInvoker;
 begin
   SafeWriteLn('🚀 ' + Format('Executing: %s -> %s.%s', [CachedMethod.FullPath, CachedMethod.TypeName, CachedMethod.MethodName]));
 

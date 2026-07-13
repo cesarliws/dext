@@ -248,7 +248,6 @@ uses
   System.NetEncoding,
   Dext.Web,
   Dext.Web.WebApplication,
-  Dext.Json,
   Dext.Json.Utf8,
   Dext.Codecs.Registry;
 

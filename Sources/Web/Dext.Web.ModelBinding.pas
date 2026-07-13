@@ -539,11 +539,11 @@ begin
     
     if PTypeInfo(System.TypeInfo(T)).Kind = tkClass then
     begin
-      Instance := TActivator.CreateInstance(
-        PTypeInfo(System.TypeInfo(T)).AsInstance.MetaclassType);
+      Instance := TActivator.CreateInstance(nil,
+        GetTypeData(System.TypeInfo(T)).ClassType);
       try
         ReadProc(Span, Instance);
-        Result := T(Pointer(Instance));
+        PPointer(@Result)^ := Instance;
         Exit;
       except
         on E: Exception do

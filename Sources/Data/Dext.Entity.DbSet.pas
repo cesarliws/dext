@@ -29,6 +29,7 @@ interface
 
 uses
   Data.DB,
+  System.Classes,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
@@ -3764,17 +3765,20 @@ begin
       else
       begin
         case ColTypes[i] of
-          ftBoolean:
+          Data.DB.ftBoolean:
             Writer.WriteBoolean(Reader.GetBoolean(i));
-          ftSmallint, ftShortint, ftInteger, ftWord, ftAutoInc:
+          Data.DB.ftSmallint, Data.DB.ftShortint, Data.DB.ftInteger,
+          Data.DB.ftWord, Data.DB.ftAutoInc:
             Writer.WriteNumber(Reader.GetInt32(i));
-          ftLargeint, ftLongWord:
+          Data.DB.ftLargeint, Data.DB.ftLongWord:
             Writer.WriteNumber(Reader.GetInt64(i));
-          ftSingle, ftFloat, ftCurrency, ftBCD, ftFMTBcd:
+          Data.DB.ftSingle, Data.DB.ftFloat, Data.DB.ftCurrency,
+          Data.DB.ftBCD, Data.DB.ftFMTBcd:
             Writer.WriteNumber(Reader.GetDouble(i));
-          ftDate, ftTime, ftDateTime, ftTimeStamp:
+          Data.DB.ftDate, Data.DB.ftTime, Data.DB.ftDateTime,
+          Data.DB.ftTimeStamp:
             Writer.WriteString(DateTimeToStr(Reader.GetDateTime(i)));
-          ftGuid:
+          Data.DB.ftGuid:
             Writer.WriteString(Reader.GetString(i));
         else
           Writer.WriteString(Reader.GetString(i));

@@ -158,7 +158,6 @@
         <DCCReference Include="..\..\Sources\Server\Dext.Server.HttpSys.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Iocp.HttpParser.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Iocp.pas"/>
-        <DCCReference Include="..\..\Sources\Server\Dext.Server.Epoll.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Native.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.WebSocket.Protocol.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.WebSocket.Handshake.pas"/>
@@ -235,6 +234,10 @@
         <DCCReference Include="..\..\Sources\Server\Dext.Grpc.Codec.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Grpc.Server.pas"/>
         <DCCReference Include="..\..\Sources\Data\Dext.Entity.GrpcProvider.pas"/>
+        <DCCReference Include="..\..\Sources\Server\Dext.Server.Epoll.pas"/>
+        <DCCReference Include="..\..\Sources\Server\Dext.Server.BoundedExecutor.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.ResponseWriter.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.Utf8.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
