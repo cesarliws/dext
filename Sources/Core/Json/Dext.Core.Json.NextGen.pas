@@ -611,6 +611,8 @@ end;
 procedure TNextGenJsonParser.ScanString(var APtr: PByte);
 var
   B: Byte;
+  HexIdx: Integer;
+  HexByte: Byte;
 begin
   while APtr < FEnd do
   begin
@@ -652,6 +654,18 @@ begin
               raise EJsonException.Create(
                 'Invalid unicode escape sequence'
               );
+            for HexIdx := 1 to 4 do
+            begin
+              HexByte := (APtr + HexIdx)^;
+              if not (
+                ((HexByte >= Ord('0')) and (HexByte <= Ord('9'))) or
+                ((HexByte >= Ord('a')) and (HexByte <= Ord('f'))) or
+                ((HexByte >= Ord('A')) and (HexByte <= Ord('F')))
+              ) then
+                raise EJsonException.Create(
+                  'Invalid unicode escape sequence'
+                );
+            end;
             Inc(APtr, 4);
           end;
       else
