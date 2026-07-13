@@ -62,6 +62,16 @@ type
   THandlerProcWithContext<T1, T2> = reference to procedure(Arg1: T1; Arg2: T2; Ctx: IHttpContext);
   THandlerFuncWithContext<T, TResult> = reference to function(Arg1: T; Ctx: IHttpContext): TResult;
 
+  TDextArgBinder = function(Invoker: THandlerInvoker): TValue;
+
+  TDextBinderFactory<T> = class
+  private
+    class var FIsEntity: Boolean;
+    class constructor Create;
+  public
+    class function Bind(Invoker: THandlerInvoker): TValue;
+  end;
+
   /// <summary>
   ///   Engine responsible for orchestrating handler invocation (Minimal API and Controllers).
   ///   Manages argument resolution via Model Binding, validation execution,
@@ -81,6 +91,9 @@ type
     procedure CleanupBoundObjects;
   public
     constructor Create(AContext: IHttpContext; AModelBinder: IModelBinder);
+    property Context: IHttpContext read FContext;
+    property ModelBinder: IModelBinder read FModelBinder;
+    procedure Track(const AValue: TValue; AIsEntity: Boolean = False);
 
     /// <summary>Invokes a simple static handler.</summary>
     function Invoke(AHandler: TStaticHandler): Boolean; overload;
@@ -121,6 +134,99 @@ uses
   ,Dext.Core.Reflection
   ,Dext.DI.Interfaces;
 
+{ TDextBinderFactory<T> }
+
+class constructor TDextBinderFactory<T>.Create;
+var
+  CtxRtti: TRttiContext;
+  Typ: TRttiType;
+  Attr: TCustomAttribute;
+begin
+  FIsEntity := False;
+  if PTypeInfo(TypeInfo(T)).Kind = tkClass then
+  begin
+    CtxRtti := TReflection.Context;
+    Typ := CtxRtti.GetType(TypeInfo(T));
+    if Typ <> nil then
+    begin
+      for Attr in Typ.GetAttributes do
+      begin
+        if Attr.ClassName = 'TableAttribute' then
+        begin
+          FIsEntity := True;
+          Break;
+        end;
+      end;
+    end;
+  end;
+end;
+
+class function TDextBinderFactory<T>.Bind(Invoker: THandlerInvoker): TValue;
+begin
+  if TypeInfo(T) = TypeInfo(IHttpContext) then
+    Exit(TValue.From<IHttpContext>(Invoker.Context));
+
+  if TypeInfo(T) = TypeInfo(TGUID) then
+  begin
+    if Invoker.Context.Request.RouteParams.Count > 0 then
+      Exit(TModelBinderHelper.BindRoute<TGUID>(Invoker.ModelBinder,
+        Invoker.Context))
+    else
+      Exit(TModelBinderHelper.BindQuery<TGUID>(Invoker.ModelBinder,
+        Invoker.Context));
+  end;
+
+  if TypeInfo(T) = TypeInfo(TUUID) then
+  begin
+    if Invoker.Context.Request.RouteParams.Count > 0 then
+      Exit(TModelBinderHelper.BindRoute<TUUID>(Invoker.ModelBinder,
+        Invoker.Context))
+    else
+      Exit(TModelBinderHelper.BindQuery<TUUID>(Invoker.ModelBinder,
+        Invoker.Context));
+  end;
+
+  if PTypeInfo(TypeInfo(T)).Kind = tkRecord then
+  begin
+    Exit(Invoker.ModelBinder.BindRecordHybrid(TypeInfo(T), Invoker.Context));
+  end;
+
+  if PTypeInfo(TypeInfo(T)).Kind = tkClass then
+  begin
+    var BoundVal: TValue := TValue.Empty;
+    try
+      BoundVal := Invoker.ModelBinder.BindServices(TypeInfo(T), Invoker.Context);
+    except
+    end;
+
+    if BoundVal.IsEmpty or (BoundVal.AsObject = nil) then
+    begin
+      if (Invoker.Context.Request.Method = 'GET') or
+         (Invoker.Context.Request.Method = 'DELETE') then
+        BoundVal := TModelBinderHelper.BindQuery<T>(Invoker.ModelBinder,
+          Invoker.Context)
+      else
+        BoundVal := TModelBinderHelper.BindBody<T>(Invoker.ModelBinder,
+          Invoker.Context);
+    end;
+
+    Invoker.Track(BoundVal, FIsEntity);
+    Exit(BoundVal);
+  end;
+
+  if PTypeInfo(TypeInfo(T)).Kind = tkInterface then
+  begin
+    Exit(Invoker.ModelBinder.BindServices(TypeInfo(T), Invoker.Context));
+  end;
+
+  if Invoker.Context.Request.RouteParams.Count > 0 then
+    Result := TModelBinderHelper.BindRoute<T>(Invoker.ModelBinder,
+      Invoker.Context)
+  else
+    Result := TModelBinderHelper.BindQuery<T>(Invoker.ModelBinder,
+      Invoker.Context);
+end;
+
 { THandlerInvoker }
 
 constructor THandlerInvoker.Create(AContext: IHttpContext; AModelBinder: IModelBinder);
@@ -145,6 +251,23 @@ begin
   end;
   FBoundObjects := nil;
   FBoundObjectCount := 0;
+end;
+
+procedure THandlerInvoker.Track(const AValue: TValue; AIsEntity: Boolean);
+begin
+  if (AValue.Kind = tkClass) and (AValue.AsObject <> nil) and
+     (not AIsEntity) then
+  begin
+    if FBoundObjectCount = Length(FBoundObjects) then
+    begin
+      if FBoundObjectCount = 0 then
+        SetLength(FBoundObjects, 4)
+      else
+        SetLength(FBoundObjects, FBoundObjectCount * 2);
+    end;
+    FBoundObjects[FBoundObjectCount] := AValue.AsObject;
+    Inc(FBoundObjectCount);
+  end;
 end;
 
 function THandlerInvoker.Validate(const AValue: TValue): Boolean;
@@ -309,7 +432,7 @@ var
 begin
   try
     try
-      Arg1 := ResolveArgument<T>;
+      Arg1 := TDextBinderFactory<T>.Bind(Self).AsType<T>;
 
       if not Validate(TValue.From<T>(Arg1)) then Exit(False);
 
@@ -335,8 +458,8 @@ var
 begin
   try
     try
-      Arg1 := ResolveArgument<T1>;
-      Arg2 := ResolveArgument<T2>;
+      Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
+      Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
 
       if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
       if not Validate(TValue.From<T2>(Arg2)) then Exit(False);
@@ -363,9 +486,9 @@ var
   Arg3: T3;
 begin
   try
-    Arg1 := ResolveArgument<T1>;
-    Arg2 := ResolveArgument<T2>;
-    Arg3 := ResolveArgument<T3>;
+    Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
+    Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
+    Arg3 := TDextBinderFactory<T3>.Bind(Self).AsType<T3>;
 
     if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
     if not Validate(TValue.From<T2>(Arg2)) then Exit(False);
@@ -401,8 +524,7 @@ var
 begin
   try
     try
-      Arg1 := ResolveArgument<T>;
-      // Skip validation for TGUID/TUUID (no validation attributes, and TValue.From fails)
+      Arg1 := TDextBinderFactory<T>.Bind(Self).AsType<T>;
       if (TypeInfo(T) <> TypeInfo(TGUID)) and (TypeInfo(T) <> TypeInfo(TUUID)) then
       begin
         if not Validate(TValue.From<T>(Arg1)) then Exit(False);
@@ -433,10 +555,9 @@ var
 begin
   try
     try
-      Arg1 := ResolveArgument<T1>;
-      Arg2 := ResolveArgument<T2>;
+      Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
+      Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
 
-      // Skip validation for TGUID/TUUID (no validation attributes, and TValue.From fails)
       if (TypeInfo(T1) <> TypeInfo(TGUID)) and (TypeInfo(T1) <> TypeInfo(TUUID)) then
       begin
         if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
@@ -472,11 +593,10 @@ var
   ResIntf: IResult;
 begin
   try
-    Arg1 := ResolveArgument<T1>;
-    Arg2 := ResolveArgument<T2>;
-    Arg3 := ResolveArgument<T3>;
+    Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
+    Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
+    Arg3 := TDextBinderFactory<T3>.Bind(Self).AsType<T3>;
 
-    // Skip validation for TGUID/TUUID (no validation attributes, and TValue.From fails)
     if (TypeInfo(T1) <> TypeInfo(TGUID)) and (TypeInfo(T1) <> TypeInfo(TUUID)) then
     begin
       if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
@@ -505,7 +625,7 @@ var
   ResIntf: IResult;
   I: Integer;
 begin
-  // ? VERIFICA«√O DE SEGURAN«A APRIMORADA
+  // ? VERIFICA√á√ÉO DE SEGURAN√áA APRIMORADA
   if not Assigned(AMethod) then
   begin
     FContext.Response.Status(500).Json('{"error": "Internal server error: Method reference lost"}');
@@ -536,11 +656,11 @@ begin
     // LIDAR COM PROCEDURES (SEM RETORNO)
     if ResultValue.IsEmpty then
     begin
-      // N„o faz nada - o controller j· setou a resposta via Ctx.Response
+      // N√£o faz nada - o controller j√° setou a resposta via Ctx.Response
     end
     else
     begin
-      // VERIFICAR SE RETORNOU IResult (APENAS SE N√O ESTIVER VAZIO)
+      // VERIFICAR SE RETORNOU IResult (APENAS SE N√ÉO ESTIVER VAZIO)
       if ResultValue.TryAsType<IResult>(ResIntf) then
       begin
         ResIntf.Execute(FContext);

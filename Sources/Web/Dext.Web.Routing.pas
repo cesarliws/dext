@@ -152,10 +152,31 @@ type
     destructor Destroy; override;
   end;
 
+  TDextCompiledRouteLeaf = record
+    Method: string;
+    MethodMask: Word;
+    Handler: TRequestDelegate;
+    Metadata: TEndpointMetadata;
+    Plan: Pointer;
+  end;
+
+  TDextCompiledRouteNode = record
+  public
+    Segment: string;
+    IsParameter: Boolean;
+    ParameterName: string;
+    Children: TArray<TDextCompiledRouteNode>;
+    ParameterChild: Pointer;
+    Leaves: TArray<TDextCompiledRouteLeaf>;
+    AllowedMethodsMask: Word;
+  end;
+  PDextCompiledRouteNode = ^TDextCompiledRouteNode;
+
   TRouteMatcher = class(TInterfacedObject, IRouteMatcher)
   private
     FRoutes: IList<TRouteDefinition>;
     FRoot: TRouteNode;
+    FCompiledRoot: TDextCompiledRouteNode;
     FExactRoutes: IDictionary<string, TRouteLeaf>;
     procedure AddRouteToTree(const ARoute: TRouteDefinition);
     function GetRequestedApiVersion(const AContext: IHttpContext): string;
@@ -218,6 +239,170 @@ begin
       Exit(False);
   end;
   Result := True;
+end;
+
+function GetMethodMask(const AMethod: string): Word;
+begin
+  if SameText(AMethod, 'GET') then Exit(1);
+  if SameText(AMethod, 'POST') then Exit(2);
+  if SameText(AMethod, 'PUT') then Exit(4);
+  if SameText(AMethod, 'DELETE') then Exit(8);
+  if SameText(AMethod, 'OPTIONS') then Exit(16);
+  if SameText(AMethod, 'HEAD') then Exit(32);
+  if SameText(AMethod, 'PATCH') then Exit(64);
+  Result := 128;
+end;
+
+function IsVersionMatchHelper(
+  const RequestedVersion: string;
+  const SupportedVersions: TArray<string>
+): Boolean;
+var
+  V: string;
+begin
+  if Length(SupportedVersions) = 0 then
+    Exit(True);
+
+  if RequestedVersion = '' then
+    Exit(False);
+
+  for V in SupportedVersions do
+    if SameText(V, RequestedVersion) then
+      Exit(True);
+
+  Result := False;
+end;
+
+function CompileRouteNode(Source: TRouteNode): TDextCompiledRouteNode;
+var
+  I: Integer;
+  LeafMask: Word;
+begin
+  Result.Segment := Source.Segment;
+  Result.IsParameter := Source.IsParameter;
+  Result.ParameterName := Source.ParameterName;
+  Result.AllowedMethodsMask := 0;
+
+  // Compile Children
+  SetLength(Result.Children, Source.Children.Count);
+  for I := 0 to Source.Children.Count - 1 do
+  begin
+    Result.Children[I] := CompileRouteNode(Source.Children[I]);
+    Result.AllowedMethodsMask := Result.AllowedMethodsMask or
+      Result.Children[I].AllowedMethodsMask;
+  end;
+
+  // Compile ParameterChild
+  if Source.ParameterChild <> nil then
+  begin
+    for I := 0 to Length(Result.Children) - 1 do
+    begin
+      if Result.Children[I].Segment = Source.ParameterChild.Segment then
+      begin
+        Result.ParameterChild := @Result.Children[I];
+        Break;
+      end;
+    end;
+  end
+  else
+    Result.ParameterChild := nil;
+
+  // Compile Leaves
+  SetLength(Result.Leaves, Source.Leaves.Count);
+  for I := 0 to Source.Leaves.Count - 1 do
+  begin
+    Result.Leaves[I].Method := Source.Leaves[I].Method;
+    Result.Leaves[I].Handler := Source.Leaves[I].Handler;
+    Result.Leaves[I].Metadata := Source.Leaves[I].Metadata;
+    Result.Leaves[I].Plan := nil;
+
+    LeafMask := GetMethodMask(Source.Leaves[I].Method);
+    Result.Leaves[I].MethodMask := LeafMask;
+    Result.AllowedMethodsMask := Result.AllowedMethodsMask or LeafMask;
+  end;
+end;
+
+function MatchCompiledNodePath(
+  Node: PDextCompiledRouteNode;
+  const APath: string;
+  AStartPos, AEndPos: Integer;
+  const AMethod, AVersion: string;
+  out ALeaf: TDextCompiledRouteLeaf;
+  var AParams: TRouteValueDictionary
+): Boolean;
+var
+  I: Integer;
+  Child: PDextCompiledRouteNode;
+  Segment: string;
+  SegmentLen: Integer;
+  SlashPos: Integer;
+  NextPos: Integer;
+  MethodMask: Word;
+begin
+  MethodMask := GetMethodMask(AMethod);
+
+  if (Node^.AllowedMethodsMask and MethodMask) = 0 then
+    Exit(False);
+
+  if AStartPos > AEndPos then
+  begin
+    for I := 0 to Length(Node^.Leaves) - 1 do
+    begin
+      if (Node^.Leaves[I].MethodMask = MethodMask) and
+         IsVersionMatchHelper(AVersion, Node^.Leaves[I].Metadata.ApiVersions) then
+      begin
+        ALeaf := Node^.Leaves[I];
+        Exit(True);
+      end;
+    end;
+
+    for I := 0 to Length(Node^.Leaves) - 1 do
+    begin
+      if (Node^.Leaves[I].MethodMask = MethodMask) and
+         (AVersion = '') and
+         (Length(Node^.Leaves[I].Metadata.ApiVersions) = 0) then
+      begin
+        ALeaf := Node^.Leaves[I];
+        Exit(True);
+      end;
+    end;
+    Exit(False);
+  end;
+
+  SlashPos := AStartPos;
+  while (SlashPos <= AEndPos) and (APath[SlashPos] <> '/') do
+    Inc(SlashPos);
+
+  SegmentLen := SlashPos - AStartPos;
+  NextPos := SlashPos + 1;
+
+  for I := 0 to Length(Node^.Children) - 1 do
+  begin
+    Child := @Node^.Children[I];
+    if (not Child^.IsParameter) and
+       SamePathSegmentText(APath, AStartPos, SegmentLen, Child^.Segment) then
+    begin
+      if MatchCompiledNodePath(
+        Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+        Exit(True);
+    end;
+  end;
+
+  if Node^.ParameterChild <> nil then
+  begin
+    Child := Node^.ParameterChild;
+    if MatchCompiledNodePath(
+      Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+    ) then
+    begin
+      Segment := Copy(APath, AStartPos, SegmentLen);
+      AParams.Add(Child^.ParameterName, Segment);
+      Exit(True);
+    end;
+  end;
+
+  Result := False;
 end;
 
 { TRoutePattern }
@@ -436,6 +621,8 @@ begin
     FRoutes.Add(NewRoute);
     AddRouteToTree(NewRoute);
   end;
+
+  FCompiledRoot := CompileRouteNode(FRoot);
 end;
 
 destructor TRouteMatcher.Destroy;
@@ -650,14 +837,18 @@ begin
   if (StartPos <= EndPos) and (Path[StartPos] = '/') then
     Inc(StartPos);
 
-  if MatchNodePath(
-    FRoot, Path, StartPos, EndPos, Method, RequestVersion, Leaf, ARouteParams
-  ) then
   begin
-    AHandler := Leaf.Handler;
-    AMetadata := Leaf.Metadata;
-    Result := True;
-    Exit;
+    var CompiledLeaf: TDextCompiledRouteLeaf;
+    if MatchCompiledNodePath(
+      @FCompiledRoot, Path, StartPos, EndPos, Method, RequestVersion,
+      CompiledLeaf, ARouteParams
+    ) then
+    begin
+      AHandler := CompiledLeaf.Handler;
+      AMetadata := CompiledLeaf.Metadata;
+      Result := True;
+      Exit;
+    end;
   end;
 
   if Method = 'OPTIONS' then
