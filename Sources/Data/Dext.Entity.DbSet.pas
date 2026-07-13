@@ -87,6 +87,14 @@ type
   end;
 
   /// <summary>
+  ///   Helper class to project raw database query results directly to JSON.
+  /// </summary>
+  TDbProjectionHelper = class
+  public
+    class procedure ProjectToJson(const Reader: IDbReader; AStream: TStream); static;
+  end;
+
+  /// <summary>
   ///   Concrete implementation of an entity set (DbSet), providing query and persistence operations.
   /// </summary>
   TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet)
@@ -363,7 +371,8 @@ uses
   System.JSON,
   Dext.Entity.ProxyFactory,
   Dext.Logging.Telemetry,
-  Dext.Utils;
+  Dext.Utils,
+  Dext.Json.Utf8;
 
 function GetFieldType(ATypeInfo: PTypeInfo): TFieldType;
 var
@@ -1032,40 +1041,73 @@ begin
   for i := 0 to Length(Plan.Items) - 1 do
   begin
     Item := Plan.Items[i];
-    Val := Reader.GetValue(Item.ColumnIndex);
     
     if not Item.IsMultiMap then
     begin
       try
+        if Item.UseDirect then
+        begin
+          if not Reader.IsNull(Item.ColumnIndex) then
+          begin
+            case Item.DirectKind of
+              nkInt32:
+                TDextDirectAccess.WriteInt32(Target, Item.DirectOffset,
+                  Reader.GetInt32(Item.ColumnIndex));
+              nkInt64:
+                TDextDirectAccess.WriteInt64(Target, Item.DirectOffset,
+                  Reader.GetInt64(Item.ColumnIndex));
+              nkBoolean:
+                TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset,
+                  Reader.GetBoolean(Item.ColumnIndex));
+              nkSingle:
+                TDextDirectAccess.WriteSingle(Target, Item.DirectOffset,
+                  Single(Reader.GetDouble(Item.ColumnIndex)));
+              nkCurrency:
+                TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset,
+                  Currency(Reader.GetDouble(Item.ColumnIndex)));
+              nkDouble:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset,
+                  Reader.GetDouble(Item.ColumnIndex));
+              nkDateTime:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset,
+                  Reader.GetDateTime(Item.ColumnIndex));
+              nkString:
+                TDextDirectAccess.WriteString(Target, Item.DirectOffset,
+                  Reader.GetString(Item.ColumnIndex));
+            end;
+          end
+          else if not VarIsNull(Item.DefaultValue) then
+          begin
+            Val := TValue.FromVariant(Item.DefaultValue);
+            case Item.DirectKind of
+              nkInt32:
+                TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, Val.AsInteger);
+              nkInt64:
+                TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, Val.AsInt64);
+              nkBoolean:
+                TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, Val.AsBoolean);
+              nkSingle:
+                TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
+              nkCurrency:
+                TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
+              nkDouble:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
+              nkDateTime:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
+              nkString:
+                TDextDirectAccess.WriteString(Target, Item.DirectOffset, Val.AsString);
+            end;
+          end;
+          Continue;
+        end;
+
+        Val := Reader.GetValue(Item.ColumnIndex);
         if Val.IsEmpty and not VarIsNull(Item.DefaultValue) then
           Val := TValue.FromVariant(Item.DefaultValue);
 
         if Item.Converter <> nil then
           Val := Item.Converter.FromDatabase(Val, Item.Prop.PropertyType.Handle);
 
-        if Item.UseDirect and not Val.IsEmpty then
-        begin
-          case Item.DirectKind of
-            nkInt32:
-              TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, Val.AsInteger);
-            nkInt64:
-              TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, Val.AsInt64);
-            nkBoolean:
-              TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, TValueConverter.Convert(Val, TypeInfo(Boolean)).AsBoolean);
-            nkSingle:
-              TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
-            nkCurrency:
-              TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
-            nkDouble:
-              TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
-            nkDateTime:
-              TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
-            nkString:
-              TDextDirectAccess.WriteString(Target, Item.DirectOffset, Val.AsString);
-          end;
-          Continue;
-        end;
-        
         if Item.Field <> nil then
           TReflection.SetValue(Pointer(Target), Item.Field, Val)
         else
@@ -3681,6 +3723,68 @@ end;
 function TDynamicDbSetFactory<T>.CreateDbSet(const AContext: IInterface): IInterface;
 begin
   Result := TDbSet<T>.Create(AContext as IDbContext);
+end;
+
+{ TDbProjectionHelper }
+
+class procedure TDbProjectionHelper.ProjectToJson(const Reader: IDbReader;
+  AStream: TStream);
+var
+  Writer: TUtf8JsonWriter;
+  ColCount: Integer;
+  ColNames: TArray<string>;
+  ColTypes: TArray<TFieldType>;
+  i: Integer;
+begin
+  if Reader = nil then
+    Exit;
+
+  ColCount := Reader.GetColumnCount;
+  SetLength(ColNames, ColCount);
+  SetLength(ColTypes, ColCount);
+  for i := 0 to ColCount - 1 do
+  begin
+    ColNames[i] := Reader.GetColumnName(i);
+    ColTypes[i] := Reader.GetColumnType(i);
+  end;
+
+  Writer := TUtf8JsonWriter.Create(AStream, False);
+  Writer.WriteStartArray;
+
+  while Reader.Next do
+  begin
+    Writer.WriteStartObject;
+    for i := 0 to ColCount - 1 do
+    begin
+      Writer.WritePropertyName(ColNames[i]);
+      if Reader.IsNull(i) then
+      begin
+        Writer.WriteNull;
+      end
+      else
+      begin
+        case ColTypes[i] of
+          ftBoolean:
+            Writer.WriteBoolean(Reader.GetBoolean(i));
+          ftSmallint, ftShortint, ftInteger, ftWord, ftAutoInc:
+            Writer.WriteNumber(Reader.GetInt32(i));
+          ftLargeint, ftLongWord:
+            Writer.WriteNumber(Reader.GetInt64(i));
+          ftSingle, ftFloat, ftCurrency, ftBCD, ftFMTBcd:
+            Writer.WriteNumber(Reader.GetDouble(i));
+          ftDate, ftTime, ftDateTime, ftTimeStamp:
+            Writer.WriteString(DateTimeToStr(Reader.GetDateTime(i)));
+          ftGuid:
+            Writer.WriteString(Reader.GetString(i));
+        else
+          Writer.WriteString(Reader.GetString(i));
+        end;
+      end;
+    end;
+    Writer.WriteEndObject;
+  end;
+
+  Writer.WriteEndArray;
 end;
 
 end.

@@ -94,6 +94,16 @@ type
     function GetValue(AColumnIndex: Integer): TValue; overload;
     function GetColumnCount: Integer;
     function GetColumnName(AIndex: Integer): string;
+    
+    function GetInt32(AIndex: Integer): Integer;
+    function GetInt64(AIndex: Integer): Int64;
+    function GetDouble(AIndex: Integer): Double;
+    function GetBoolean(AIndex: Integer): Boolean;
+    function GetString(AIndex: Integer): string;
+    function GetDateTime(AIndex: Integer): TDateTime;
+    function GetColumnType(AIndex: Integer): TFieldType;
+    function IsNull(AIndex: Integer): Boolean;
+
     procedure Close;
   end;
 
@@ -347,6 +357,46 @@ end;
 function TFireDACReader.GetValue(const AColumnName: string): TValue;
 begin
   Result := GetValue(FQuery.FieldByName(AColumnName).Index);
+end;
+
+function TFireDACReader.GetInt32(AIndex: Integer): Integer;
+begin
+  Result := FFields[AIndex].AsInteger;
+end;
+
+function TFireDACReader.GetInt64(AIndex: Integer): Int64;
+begin
+  Result := FFields[AIndex].AsLargeInt;
+end;
+
+function TFireDACReader.GetDouble(AIndex: Integer): Double;
+begin
+  Result := FFields[AIndex].AsFloat;
+end;
+
+function TFireDACReader.GetBoolean(AIndex: Integer): Boolean;
+begin
+  Result := FFields[AIndex].AsBoolean;
+end;
+
+function TFireDACReader.GetString(AIndex: Integer): string;
+begin
+  Result := FFields[AIndex].AsWideString;
+end;
+
+function TFireDACReader.GetDateTime(AIndex: Integer): TDateTime;
+begin
+  Result := FFields[AIndex].AsDateTime;
+end;
+
+function TFireDACReader.GetColumnType(AIndex: Integer): TFieldType;
+begin
+  Result := FFields[AIndex].DataType;
+end;
+
+function TFireDACReader.IsNull(AIndex: Integer): Boolean;
+begin
+  Result := FFields[AIndex].IsNull;
 end;
 
 function TFireDACReader.Next: Boolean;
