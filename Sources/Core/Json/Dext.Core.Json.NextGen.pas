@@ -336,7 +336,6 @@ type
     class var FObjectCount: Integer;
     class var FArrayPool: array[0..1023] of TJsonArray;
     class var FArrayCount: Integer;
-    class var FLock: TSpinLock;
     class constructor Create;
     class destructor Destroy;
   public
@@ -1326,46 +1325,8 @@ begin
         if FPairs[I].Key.StrValue = Name then
           Exit(I);
       end
-      else if FPairs[I].Key.Span.Length = Len then
-      begin
-        case Len of
-          1:
-            if FPairs[I].Key.Span.Data[0] = SearchBuf[0] then
-              Exit(I);
-          2:
-            if PWord(FPairs[I].Key.Span.Data)^ =
-               PWord(@SearchBuf[0])^ then
-              Exit(I);
-          3:
-            if (PWord(FPairs[I].Key.Span.Data)^ =
-                PWord(@SearchBuf[0])^) and
-               (FPairs[I].Key.Span.Data[2] = SearchBuf[2]) then
-              Exit(I);
-          4:
-            if PCardinal(FPairs[I].Key.Span.Data)^ =
-               PCardinal(@SearchBuf[0])^ then
-              Exit(I);
-          5..7:
-            if (PCardinal(FPairs[I].Key.Span.Data)^ =
-                PCardinal(@SearchBuf[0])^) and
-               (PCardinal(FPairs[I].Key.Span.Data + Len - 4)^ =
-                PCardinal(@SearchBuf[Len - 4])^) then
-              Exit(I);
-          8:
-            if PUInt64(FPairs[I].Key.Span.Data)^ =
-               PUInt64(@SearchBuf[0])^ then
-              Exit(I);
-          9..15:
-            if (PUInt64(FPairs[I].Key.Span.Data)^ =
-                PUInt64(@SearchBuf[0])^) and
-               (PUInt64(FPairs[I].Key.Span.Data + Len - 8)^ =
-                PUInt64(@SearchBuf[Len - 8])^) then
-              Exit(I);
-        else
-          if FPairs[I].Key.Span.Equals(SearchSpan) then
-            Exit(I);
-        end;
-      end;
+      else if FPairs[I].Key.Span.Equals(SearchSpan) then
+        Exit(I);
     end;
   end
   else
@@ -2424,42 +2385,24 @@ class constructor TNextGenJsonPool.Create;
 begin
   FObjectCount := 0;
   FArrayCount := 0;
-  FLock := TSpinLock.Create(False);
 end;
 
 class destructor TNextGenJsonPool.Destroy;
 var
   I: Integer;
 begin
-  FLock.Enter;
-  try
-    for I := 0 to FObjectCount - 1 do
-      FObjectPool[I].Free;
-    for I := 0 to FArrayCount - 1 do
-      FArrayPool[I].Free;
-    FObjectCount := 0;
-    FArrayCount := 0;
-  finally
-    FLock.Exit;
-  end;
+  for I := 0 to FObjectCount - 1 do
+    FObjectPool[I].Free;
+  for I := 0 to FArrayCount - 1 do
+    FArrayPool[I].Free;
 end;
 
 class function TNextGenJsonPool.RentObject: TJsonObject;
 begin
-  Result := nil;
-  FLock.Enter;
-  try
-    if FObjectCount > 0 then
-    begin
-      Dec(FObjectCount);
-      Result := FObjectPool[FObjectCount];
-    end;
-  finally
-    FLock.Exit;
-  end;
-
-  if Result <> nil then
+  if FObjectCount > 0 then
   begin
+    Dec(FObjectCount);
+    Result := FObjectPool[FObjectCount];
     Result.FRefCounted := True;
     Result.FRefCount := 0;
   end
@@ -2470,47 +2413,27 @@ end;
 class procedure TNextGenJsonPool.ReturnObject(AnObj: TJsonObject);
 var
   I: Integer;
-  NeedFree: Boolean;
 begin
   for I := 0 to AnObj.FCount - 1 do
     AnObj.FPairs[I].Value.FNodeRef := nil;
   AnObj.FCount := 0;
   AnObj.FKeepAlive := nil;
 
-  NeedFree := False;
-  FLock.Enter;
-  try
-    if FObjectCount < 1024 then
-    begin
-      FObjectPool[FObjectCount] := AnObj;
-      Inc(FObjectCount);
-    end
-    else
-      NeedFree := True;
-  finally
-    FLock.Exit;
-  end;
-
-  if NeedFree then
+  if FObjectCount < 1024 then
+  begin
+    FObjectPool[FObjectCount] := AnObj;
+    Inc(FObjectCount);
+  end
+  else
     AnObj.Free;
 end;
 
 class function TNextGenJsonPool.RentArray: TJsonArray;
 begin
-  Result := nil;
-  FLock.Enter;
-  try
-    if FArrayCount > 0 then
-    begin
-      Dec(FArrayCount);
-      Result := FArrayPool[FArrayCount];
-    end;
-  finally
-    FLock.Exit;
-  end;
-
-  if Result <> nil then
+  if FArrayCount > 0 then
   begin
+    Dec(FArrayCount);
+    Result := FArrayPool[FArrayCount];
     Result.FRefCounted := True;
     Result.FRefCount := 0;
   end
@@ -2521,28 +2444,18 @@ end;
 class procedure TNextGenJsonPool.ReturnArray(AnArr: TJsonArray);
 var
   I: Integer;
-  NeedFree: Boolean;
 begin
   for I := 0 to AnArr.FCount - 1 do
     AnArr.FValues[I].FNodeRef := nil;
   AnArr.FCount := 0;
   AnArr.FKeepAlive := nil;
 
-  NeedFree := False;
-  FLock.Enter;
-  try
-    if FArrayCount < 1024 then
-    begin
-      FArrayPool[FArrayCount] := AnArr;
-      Inc(FArrayCount);
-    end
-    else
-      NeedFree := True;
-  finally
-    FLock.Exit;
-  end;
-
-  if NeedFree then
+  if FArrayCount < 1024 then
+  begin
+    FArrayPool[FArrayCount] := AnArr;
+    Inc(FArrayCount);
+  end
+  else
     AnArr.Free;
 end;
 
@@ -2550,17 +2463,12 @@ class procedure TNextGenJsonPool.ClearPool;
 var
   I: Integer;
 begin
-  FLock.Enter;
-  try
-    for I := 0 to FObjectCount - 1 do
-      FObjectPool[I].Free;
-    FObjectCount := 0;
-    for I := 0 to FArrayCount - 1 do
-      FArrayPool[I].Free;
-    FArrayCount := 0;
-  finally
-    FLock.Exit;
-  end;
+  for I := 0 to FObjectCount - 1 do
+    FObjectPool[I].Free;
+  FObjectCount := 0;
+  for I := 0 to FArrayCount - 1 do
+    FArrayPool[I].Free;
+  FArrayCount := 0;
 end;
 
 { TJSONBufferOwner }
