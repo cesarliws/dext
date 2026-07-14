@@ -203,6 +203,8 @@ begin
 end;
 
 function FireDACFieldToTValue(Field: TField): TValue;
+var
+  StrVal: string;
 begin
   if (Field = nil) or Field.IsNull then
     Exit(TValue.Empty);
@@ -232,7 +234,22 @@ begin
         Result := TValue.From<Double>(Field.AsFloat);
       end;
     ftBoolean:
-      Result := TValue.From<Boolean>(Field.AsBoolean);
+      if Field is TBooleanField then
+        Result := TValue.From<Boolean>(TBooleanField(Field).Value)
+      else if Field is TNumericField then
+        Result := TValue.From<Boolean>(TNumericField(Field).AsInteger <> 0)
+      else
+      begin
+        StrVal := Field.AsString;
+        if (StrVal = '1') or SameText(StrVal, 'true') or SameText(StrVal, 't') 
+           or SameText(StrVal, 'y') or SameText(StrVal, 's') then
+          Result := TValue.From<Boolean>(True)
+        else if (StrVal = '0') or SameText(StrVal, 'false') or 
+                SameText(StrVal, 'f') or SameText(StrVal, 'n') then
+          Result := TValue.From<Boolean>(False)
+        else
+          Result := TValue.From<Boolean>(StrToBoolDef(StrVal, False));
+      end;
     ftDate:
       Result := TValue.From<TDate>(DateOf(Field.AsDateTime));
     ftTime:

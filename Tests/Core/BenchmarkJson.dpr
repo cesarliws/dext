@@ -7,8 +7,8 @@ uses
   System.Classes,
   System.Diagnostics,
   Dext.Core.Span,
-  Dext.Utils,
   Dext.Json.Types,
+  DextJsonDataObjects,
   Dext.Core.Json.NextGen;
 
 const
@@ -70,7 +70,7 @@ var
   Bytes: TBytes;
   I: Integer;
   SW: TStopwatch;
-  Node1: TJsonBaseObject;
+  Node1: DextJsonDataObjects.TJsonBaseObject;
   Node2: IDextJsonNode;
   DataSpan: TByteSpan;
   DextAlloc: Int64;
@@ -81,7 +81,7 @@ begin
   DataSpan := TByteSpan.FromBytes(Bytes);
 
   // 1. Warm-up & Pool Pre-allocation
-  Node1 := TJsonBaseObject.Parse(JSON_DATA);
+  Node1 := DextJsonDataObjects.TJsonBaseObject.Parse(JSON_DATA);
   if Assigned(Node1) then
     Node1.Free;
 
@@ -94,7 +94,7 @@ begin
   SW := TStopwatch.StartNew;
   for I := 1 to ITERATIONS do
   begin
-    Node1 := TJsonBaseObject.Parse(JSON_DATA);
+    Node1 := DextJsonDataObjects.TJsonBaseObject.Parse(JSON_DATA);
     Node1.Free;
   end;
   SW.Stop;
@@ -123,5 +123,6 @@ begin
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
-  ConsolePause;
+  Writeln('Done. Press Enter to exit.');
+  Readln;
 end.

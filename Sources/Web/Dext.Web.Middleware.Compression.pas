@@ -144,11 +144,14 @@ end;
 
 { TCompressionMiddleware }
 
-procedure TCompressionMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
+procedure TCompressionMiddleware.Invoke(
+  AContext: IHttpContext;
+  ANext: TRequestDelegate
+);
 var
   AcceptEncoding: string;
-  BufferedResponse: IHttpResponse;
-  BufferedResponseClass: TBufferedResponse;
+  BufferedResponse: TBufferedResponse;
+  BufferedResponseIntf: IHttpResponse;
   OriginalResponse: IHttpResponse;
   CompressedStream: TMemoryStream;
   ZStream: TZCompressionStream;
@@ -162,22 +165,29 @@ begin
   end;
 
   OriginalResponse := AContext.Response;
-  BufferedResponseClass := TBufferedResponse.Create(OriginalResponse);
-  BufferedResponse := BufferedResponseClass;
+  BufferedResponse := TBufferedResponse.Create(OriginalResponse);
+  BufferedResponseIntf := BufferedResponse;
   try
-    AContext.Response := BufferedResponse;
+    AContext.Response := BufferedResponseIntf;
     
     ANext(AContext);
     
     // Perform compression
-    if BufferedResponseClass.Buffer.Size > 0 then
+    if BufferedResponse.Buffer.Size > 0 then
     begin
       CompressedStream := TMemoryStream.Create;
       try
-        ZStream := TZCompressionStream.Create(CompressedStream, TZCompressionLevel.zcDefault, 15 + 16); // 15+16 = GZIP mode
+        ZStream := TZCompressionStream.Create(
+          CompressedStream,
+          TZCompressionLevel.zcDefault,
+          15 + 16
+        ); // 15+16 = GZIP mode
         try
-          BufferedResponseClass.Buffer.Position := 0;
-          ZStream.CopyFrom(BufferedResponseClass.Buffer, BufferedResponseClass.Buffer.Size);
+          BufferedResponse.Buffer.Position := 0;
+          ZStream.CopyFrom(
+            BufferedResponse.Buffer,
+            BufferedResponse.Buffer.Size
+          );
         finally
           ZStream.Free;
         end;
@@ -193,7 +203,7 @@ begin
     end;
   finally
     AContext.Response := OriginalResponse;
-    // BufferedResponse will be freed automatically at procedure exit
+    BufferedResponseIntf := nil;
   end;
 end;
 
