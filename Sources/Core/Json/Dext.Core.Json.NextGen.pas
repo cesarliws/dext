@@ -330,14 +330,10 @@ type
   /// <summary>
   ///   Pool de Objetos para reciclagem rápida.
   /// </summary>
+  // Thin facade: delegates to the calling thread's own node pool (see
+  // TThreadNodePool in the implementation). The previous global class-var pool
+  // was a data race under concurrent parsing; this per-thread design needs no lock.
   TNextGenJsonPool = class
-  private
-    class var FObjectPool: array[0..1023] of TJsonObject;
-    class var FObjectCount: Integer;
-    class var FArrayPool: array[0..1023] of TJsonArray;
-    class var FArrayCount: Integer;
-    class constructor Create;
-    class destructor Destroy;
   public
     class function RentObject: TJsonObject; static;
     class procedure ReturnObject(AnObj: TJsonObject); static;
@@ -1266,7 +1262,6 @@ function TJsonObject.FindKey(const Name: string): Integer;
 var
   I: Integer;
   Len: Integer;
-  SearchBuf: array[0..127] of Byte;
   SearchSpan: TByteSpan;
   U8: TBytes;
   IsAscii: Boolean;
@@ -1274,6 +1269,9 @@ var
   Bucket: Integer;
   Idx: Integer;
   BucketCount: Integer;
+  K: Integer;
+  Matched: Boolean;
+  KeyData: PByte;
 begin
   Len := System.Length(Name);
   if Len = 0 then Exit(-1);
@@ -1300,24 +1298,19 @@ begin
   end;
 
   IsAscii := True;
-  if Len <= 128 then
-  begin
-    for I := 0 to Len - 1 do
+  for I := 1 to Len do
+    if Ord(Name[I]) > 127 then
     begin
-      if Ord(Name[I + 1]) > 127 then
-      begin
-        IsAscii := False;
-        Break;
-      end;
-      SearchBuf[I] := Byte(Name[I + 1]);
+      IsAscii := False;
+      Break;
     end;
-  end
-  else
-    IsAscii := False;
 
   if IsAscii then
   begin
-    SearchSpan := TByteSpan.Create(@SearchBuf[0], Len);
+    // Hot path: keys are short ASCII field names. A length-gated inline scalar
+    // compare (early-exit on first differing byte) beats calling the SIMD
+    // EqualsBytes per key -- for 2..15 byte names the call/dispatch overhead
+    // dominates the actual comparison.
     for I := 0 to FCount - 1 do
     begin
       if FPairs[I].Key.StrValue <> '' then
@@ -1325,8 +1318,19 @@ begin
         if FPairs[I].Key.StrValue = Name then
           Exit(I);
       end
-      else if FPairs[I].Key.Span.Equals(SearchSpan) then
-        Exit(I);
+      else if FPairs[I].Key.Span.Length = Len then
+      begin
+        KeyData := FPairs[I].Key.Span.Data;
+        Matched := True;
+        for K := 0 to Len - 1 do
+          if KeyData[K] <> Byte(Name[K + 1]) then
+          begin
+            Matched := False;
+            Break;
+          end;
+        if Matched then
+          Exit(I);
+      end;
     end;
   end
   else
@@ -2379,15 +2383,45 @@ begin
   Result := FValue.IsNull;
 end;
 
-{ TNextGenJsonPool }
+{ TThreadNodePool -- per-thread node pool. Fixes the data race of the previous }
+{ global class-var pool: each thread recycles ONLY its own TJsonObject/TJsonArray }
+{ instances, so Rent/Return need no lock. The pool is held by a threadvar        }
+{ interface (GNodePoolKeeper) so it is freed automatically when the owning thread }
+{ terminates (RTL threadvar finalization). GNodePool is a raw ref for fast access }
+{ on the hot path (no per-call AddRef/Release).                                   }
 
-class constructor TNextGenJsonPool.Create;
+type
+  TThreadNodePool = class(TInterfacedObject)
+  strict private
+    FObjectPool: array[0..1023] of TJsonObject;
+    FObjectCount: Integer;
+    FArrayPool: array[0..1023] of TJsonArray;
+    FArrayCount: Integer;
+  public
+    destructor Destroy; override;
+    function RentObject: TJsonObject;
+    procedure ReturnObject(AnObj: TJsonObject);
+    function RentArray: TJsonArray;
+    procedure ReturnArray(AnArr: TJsonArray);
+    procedure Clear;
+  end;
+
+threadvar
+  GNodePool: TThreadNodePool;
+  GNodePoolKeeper: IInterface;
+
+function CurrentNodePool: TThreadNodePool; inline;
 begin
-  FObjectCount := 0;
-  FArrayCount := 0;
+  Result := GNodePool;
+  if Result = nil then
+  begin
+    Result := TThreadNodePool.Create;
+    GNodePool := Result;
+    GNodePoolKeeper := Result;
+  end;
 end;
 
-class destructor TNextGenJsonPool.Destroy;
+destructor TThreadNodePool.Destroy;
 var
   I: Integer;
 begin
@@ -2395,9 +2429,10 @@ begin
     FObjectPool[I].Free;
   for I := 0 to FArrayCount - 1 do
     FArrayPool[I].Free;
+  inherited;
 end;
 
-class function TNextGenJsonPool.RentObject: TJsonObject;
+function TThreadNodePool.RentObject: TJsonObject;
 begin
   if FObjectCount > 0 then
   begin
@@ -2410,7 +2445,7 @@ begin
     Result := TJsonObject.Create(True);
 end;
 
-class procedure TNextGenJsonPool.ReturnObject(AnObj: TJsonObject);
+procedure TThreadNodePool.ReturnObject(AnObj: TJsonObject);
 var
   I: Integer;
 begin
@@ -2428,7 +2463,7 @@ begin
     AnObj.Free;
 end;
 
-class function TNextGenJsonPool.RentArray: TJsonArray;
+function TThreadNodePool.RentArray: TJsonArray;
 begin
   if FArrayCount > 0 then
   begin
@@ -2441,7 +2476,7 @@ begin
     Result := TJsonArray.Create(True);
 end;
 
-class procedure TNextGenJsonPool.ReturnArray(AnArr: TJsonArray);
+procedure TThreadNodePool.ReturnArray(AnArr: TJsonArray);
 var
   I: Integer;
 begin
@@ -2459,7 +2494,7 @@ begin
     AnArr.Free;
 end;
 
-class procedure TNextGenJsonPool.ClearPool;
+procedure TThreadNodePool.Clear;
 var
   I: Integer;
 begin
@@ -2469,6 +2504,33 @@ begin
   for I := 0 to FArrayCount - 1 do
     FArrayPool[I].Free;
   FArrayCount := 0;
+end;
+
+{ TNextGenJsonPool -- thin facade delegating to the current thread's pool }
+
+class function TNextGenJsonPool.RentObject: TJsonObject;
+begin
+  Result := CurrentNodePool.RentObject;
+end;
+
+class procedure TNextGenJsonPool.ReturnObject(AnObj: TJsonObject);
+begin
+  CurrentNodePool.ReturnObject(AnObj);
+end;
+
+class function TNextGenJsonPool.RentArray: TJsonArray;
+begin
+  Result := CurrentNodePool.RentArray;
+end;
+
+class procedure TNextGenJsonPool.ReturnArray(AnArr: TJsonArray);
+begin
+  CurrentNodePool.ReturnArray(AnArr);
+end;
+
+class procedure TNextGenJsonPool.ClearPool;
+begin
+  CurrentNodePool.Clear;
 end;
 
 { TJSONBufferOwner }
