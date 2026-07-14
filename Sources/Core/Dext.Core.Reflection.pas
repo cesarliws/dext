@@ -828,52 +828,73 @@ begin
   Result := GetMetadata(AType).GetHandler(APropName);
 end;
 
-class procedure TReflection.SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue);
+class procedure TReflection.SetValue(
+  AInstance: Pointer;
+  AMember: TRttiMember;
+  const AValue: TValue
+);
 var
   TargetType: PTypeInfo;
   Meta: TTypeMetadata;
   Current, Converted: TValue;
 begin
   if (AInstance = nil) or (AMember = nil) then Exit;
-  if AMember is TRttiProperty then TargetType := TRttiProperty(AMember).PropertyType.Handle
-  else if AMember is TRttiField then TargetType := TRttiField(AMember).FieldType.Handle
-  else Exit;
+  
+  if AMember is TRttiProperty then
+    TargetType := TRttiProperty(AMember).PropertyType.Handle
+  else if AMember is TRttiField then
+    TargetType := TRttiField(AMember).FieldType.Handle
+  else
+    Exit;
+
+  // Align TypeInfo pointers for identical record types to avoid EInvalidCast across DCU boundaries
+  if (AValue.TypeInfo <> TargetType) and (AValue.TypeInfo <> nil)
+     and (TargetType <> nil)
+     and (AValue.TypeInfo^.Kind = tkRecord)
+     and (TargetType^.Kind = tkRecord)
+     and SameText(string(AValue.TypeInfo^.Name),
+                  string(TargetType^.Name)) then
+  begin
+    TValue.Make(AValue.GetReferenceToRawData, TargetType, Converted);
+  end
+  else
+    Converted := AValue;
 
   Meta := TReflection.GetMetadata(TargetType);
   if Meta.IsSmartProp or Meta.IsLazy then
   begin
     // Fast path: if the value is already of the target type, just set it directly
-    if AValue.TypeInfo = TargetType then
+    if Converted.TypeInfo = TargetType then
     begin
-      if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, AValue)
-      else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, AValue);
+      if AMember is TRttiProperty then
+        TRttiProperty(AMember).SetValue(AInstance, Converted)
+      else if AMember is TRttiField then
+        TRttiField(AMember).SetValue(AInstance, Converted);
       Exit;
     end;
 
     Current := TValue.Empty;
-    if AMember is TRttiProperty then Current := TRttiProperty(AMember).GetValue(AInstance)
-    else if AMember is TRttiField then Current := TRttiField(AMember).GetValue(AInstance);
+    if AMember is TRttiProperty then
+      Current := TRttiProperty(AMember).GetValue(AInstance)
+    else if AMember is TRttiField then
+      Current := TRttiField(AMember).GetValue(AInstance);
     
-    if TReflection.TryWrapProp(Current, AValue) then
+    if TReflection.TryWrapProp(Current, Converted) then
     begin
-      if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Current)
-      else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Current);
+      if AMember is TRttiProperty then
+        TRttiProperty(AMember).SetValue(AInstance, Current)
+      else if AMember is TRttiField then
+        TRttiField(AMember).SetValue(AInstance, Current);
       Exit;
     end;
   end;
 
-  Converted := TValueConverter.Convert(AValue, TargetType);
-  
-  // Align TypeInfo pointers for identical record types to avoid EInvalidCast across DCU boundaries
-  if (Converted.TypeInfo <> TargetType) and (Converted.TypeInfo <> nil) and (TargetType <> nil) and 
-     (Converted.TypeInfo^.Kind = tkRecord) and (TargetType^.Kind = tkRecord) and
-     SameText(string(Converted.TypeInfo^.Name), string(TargetType^.Name)) then
-  begin
-    TValue.Make(Converted.GetReferenceToRawData, TargetType, Converted);
-  end;
+  Converted := TValueConverter.Convert(Converted, TargetType);
 
-  if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Converted)
-  else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Converted);
+  if AMember is TRttiProperty then
+    TRttiProperty(AMember).SetValue(AInstance, Converted)
+  else if AMember is TRttiField then
+    TRttiField(AMember).SetValue(AInstance, Converted);
 end;
 
 class function TReflection.GetValue(AInstance: TObject; const APropertyName: string): TValue;

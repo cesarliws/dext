@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,6 +29,10 @@ uses
   System.Character,
   System.Classes,
   System.SysUtils,
+  System.SyncObjs,
+  {$IFDEF MSWINDOWS}
+  Winapi.Windows,
+  {$ENDIF}
   Dext.Collections.Simd,
   Dext.Core.Span,
   Dext.Json.Types;
@@ -332,6 +336,7 @@ type
     class var FObjectCount: Integer;
     class var FArrayPool: array[0..1023] of TJsonArray;
     class var FArrayCount: Integer;
+    class var FLock: TSpinLock;
     class constructor Create;
     class destructor Destroy;
   public
@@ -764,57 +769,65 @@ class function TNextGenJsonParser.ScanStructural_SSE42(
 {$IFDEF CPUX64}
 asm
   // RCX = Ptr, RDX = Length
-  xor eax, eax
+  // Return value: EAX (offset of found char, or -1)
+  mov r8, rcx
+  mov r9, rcx
+
   cmp rdx, 16
   jl @Scalar
 
-  mov rax, 05C222C3A5D5B7D7Bh // "{}[],:\"
+  // Load the 8 search characters into XMM0: "{}[],:\"
+  mov rax, $5C222C3A5D5B7D7B
   movq xmm0, rax
 
 @Loop:
   cmp rdx, 16
   jl @Scalar
-  pcmpistri xmm0, [rcx], 0
+  pcmpistri xmm0, [r9], 0
   jc @Found
-  add rcx, 16
+  add r9, 16
   sub rdx, 16
   jmp @Loop
 
 @Found:
-  add eax, ecx
+  add r9, rcx
+  sub r9, r8
+  mov rax, r9
   ret
 
 @Scalar:
-  xor ecx, ecx
+  xor r10, r10
 @ScalarLoop:
-  cmp ecx, edx
+  cmp r10, rdx
   jge @NotFound
-  mov r8b, [rcx + r8]
-  cmp r8b, '{'
+  mov al, [r9 + r10]
+  cmp al, '{'
   je @ScalarFound
-  cmp r8b, '}'
+  cmp al, '}'
   je @ScalarFound
-  cmp r8b, '['
+  cmp al, '['
   je @ScalarFound
-  cmp r8b, ']'
+  cmp al, ']'
   je @ScalarFound
-  cmp r8b, ':'
+  cmp al, ':'
   je @ScalarFound
-  cmp r8b, ','
+  cmp al, ','
   je @ScalarFound
-  cmp r8b, '"'
+  cmp al, '"'
   je @ScalarFound
-  cmp r8b, '\'
+  cmp al, '\'
   je @ScalarFound
-  inc ecx
+  inc r10
   jmp @ScalarLoop
 
 @ScalarFound:
-  mov eax, ecx
+  add r9, r10
+  sub r9, r8
+  mov rax, r9
   ret
 
 @NotFound:
-  mov eax, -1
+  mov rax, -1
   ret
 end;
 {$ELSE}
@@ -1299,8 +1312,46 @@ begin
         if FPairs[I].Key.StrValue = Name then
           Exit(I);
       end
-      else if FPairs[I].Key.Span.Equals(SearchSpan) then
-        Exit(I);
+      else if FPairs[I].Key.Span.Length = Len then
+      begin
+        case Len of
+          1:
+            if FPairs[I].Key.Span.Data[0] = SearchBuf[0] then
+              Exit(I);
+          2:
+            if PWord(FPairs[I].Key.Span.Data)^ =
+               PWord(@SearchBuf[0])^ then
+              Exit(I);
+          3:
+            if (PWord(FPairs[I].Key.Span.Data)^ =
+                PWord(@SearchBuf[0])^) and
+               (FPairs[I].Key.Span.Data[2] = SearchBuf[2]) then
+              Exit(I);
+          4:
+            if PCardinal(FPairs[I].Key.Span.Data)^ =
+               PCardinal(@SearchBuf[0])^ then
+              Exit(I);
+          5..7:
+            if (PCardinal(FPairs[I].Key.Span.Data)^ =
+                PCardinal(@SearchBuf[0])^) and
+               (PCardinal(FPairs[I].Key.Span.Data + Len - 4)^ =
+                PCardinal(@SearchBuf[Len - 4])^) then
+              Exit(I);
+          8:
+            if PUInt64(FPairs[I].Key.Span.Data)^ =
+               PUInt64(@SearchBuf[0])^ then
+              Exit(I);
+          9..15:
+            if (PUInt64(FPairs[I].Key.Span.Data)^ =
+                PUInt64(@SearchBuf[0])^) and
+               (PUInt64(FPairs[I].Key.Span.Data + Len - 8)^ =
+                PUInt64(@SearchBuf[Len - 8])^) then
+              Exit(I);
+        else
+          if FPairs[I].Key.Span.Equals(SearchSpan) then
+            Exit(I);
+        end;
+      end;
     end;
   end
   else
@@ -2359,24 +2410,42 @@ class constructor TNextGenJsonPool.Create;
 begin
   FObjectCount := 0;
   FArrayCount := 0;
+  FLock := TSpinLock.Create(False);
 end;
 
 class destructor TNextGenJsonPool.Destroy;
 var
   I: Integer;
 begin
-  for I := 0 to FObjectCount - 1 do
-    FObjectPool[I].Free;
-  for I := 0 to FArrayCount - 1 do
-    FArrayPool[I].Free;
+  FLock.Enter;
+  try
+    for I := 0 to FObjectCount - 1 do
+      FObjectPool[I].Free;
+    for I := 0 to FArrayCount - 1 do
+      FArrayPool[I].Free;
+    FObjectCount := 0;
+    FArrayCount := 0;
+  finally
+    FLock.Exit;
+  end;
 end;
 
 class function TNextGenJsonPool.RentObject: TJsonObject;
 begin
-  if FObjectCount > 0 then
+  Result := nil;
+  FLock.Enter;
+  try
+    if FObjectCount > 0 then
+    begin
+      Dec(FObjectCount);
+      Result := FObjectPool[FObjectCount];
+    end;
+  finally
+    FLock.Exit;
+  end;
+
+  if Result <> nil then
   begin
-    Dec(FObjectCount);
-    Result := FObjectPool[FObjectCount];
     Result.FRefCounted := True;
     Result.FRefCount := 0;
   end
@@ -2387,27 +2456,47 @@ end;
 class procedure TNextGenJsonPool.ReturnObject(AnObj: TJsonObject);
 var
   I: Integer;
+  NeedFree: Boolean;
 begin
   for I := 0 to AnObj.FCount - 1 do
     AnObj.FPairs[I].Value.FNodeRef := nil;
   AnObj.FCount := 0;
   AnObj.FKeepAlive := nil;
 
-  if FObjectCount < 1024 then
-  begin
-    FObjectPool[FObjectCount] := AnObj;
-    Inc(FObjectCount);
-  end
-  else
+  NeedFree := False;
+  FLock.Enter;
+  try
+    if FObjectCount < 1024 then
+    begin
+      FObjectPool[FObjectCount] := AnObj;
+      Inc(FObjectCount);
+    end
+    else
+      NeedFree := True;
+  finally
+    FLock.Exit;
+  end;
+
+  if NeedFree then
     AnObj.Free;
 end;
 
 class function TNextGenJsonPool.RentArray: TJsonArray;
 begin
-  if FArrayCount > 0 then
+  Result := nil;
+  FLock.Enter;
+  try
+    if FArrayCount > 0 then
+    begin
+      Dec(FArrayCount);
+      Result := FArrayPool[FArrayCount];
+    end;
+  finally
+    FLock.Exit;
+  end;
+
+  if Result <> nil then
   begin
-    Dec(FArrayCount);
-    Result := FArrayPool[FArrayCount];
     Result.FRefCounted := True;
     Result.FRefCount := 0;
   end
@@ -2418,18 +2507,28 @@ end;
 class procedure TNextGenJsonPool.ReturnArray(AnArr: TJsonArray);
 var
   I: Integer;
+  NeedFree: Boolean;
 begin
   for I := 0 to AnArr.FCount - 1 do
     AnArr.FValues[I].FNodeRef := nil;
   AnArr.FCount := 0;
   AnArr.FKeepAlive := nil;
 
-  if FArrayCount < 1024 then
-  begin
-    FArrayPool[FArrayCount] := AnArr;
-    Inc(FArrayCount);
-  end
-  else
+  NeedFree := False;
+  FLock.Enter;
+  try
+    if FArrayCount < 1024 then
+    begin
+      FArrayPool[FArrayCount] := AnArr;
+      Inc(FArrayCount);
+    end
+    else
+      NeedFree := True;
+  finally
+    FLock.Exit;
+  end;
+
+  if NeedFree then
     AnArr.Free;
 end;
 
@@ -2437,12 +2536,17 @@ class procedure TNextGenJsonPool.ClearPool;
 var
   I: Integer;
 begin
-  for I := 0 to FObjectCount - 1 do
-    FObjectPool[I].Free;
-  FObjectCount := 0;
-  for I := 0 to FArrayCount - 1 do
-    FArrayPool[I].Free;
-  FArrayCount := 0;
+  FLock.Enter;
+  try
+    for I := 0 to FObjectCount - 1 do
+      FObjectPool[I].Free;
+    FObjectCount := 0;
+    for I := 0 to FArrayCount - 1 do
+      FArrayPool[I].Free;
+    FArrayCount := 0;
+  finally
+    FLock.Exit;
+  end;
 end;
 
 { TJSONBufferOwner }
