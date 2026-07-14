@@ -2391,12 +2391,14 @@ end;
 { on the hot path (no per-call AddRef/Release).                                   }
 
 type
-  TThreadNodePool = class(TInterfacedObject)
+  TThreadNodePool = class
   strict private
     FObjectPool: array[0..1023] of TJsonObject;
     FObjectCount: Integer;
     FArrayPool: array[0..1023] of TJsonArray;
     FArrayCount: Integer;
+  private
+    FNext: TThreadNodePool;
   public
     destructor Destroy; override;
     function RentObject: TJsonObject;
@@ -2406,29 +2408,63 @@ type
     procedure Clear;
   end;
 
+var
+  GNodePoolHead: TThreadNodePool = nil;
+  GNodePoolLock: TSpinLock;
+  GFinalized: Boolean = False;
+
 threadvar
   GNodePool: TThreadNodePool;
-  GNodePoolKeeper: IInterface;
 
 function CurrentNodePool: TThreadNodePool; inline;
 begin
+  if GFinalized then
+    Exit(nil);
   Result := GNodePool;
   if Result = nil then
   begin
     Result := TThreadNodePool.Create;
     GNodePool := Result;
-    GNodePoolKeeper := Result;
+    
+    GNodePoolLock.Enter;
+    try
+      Result.FNext := GNodePoolHead;
+      GNodePoolHead := Result;
+    finally
+      GNodePoolLock.Exit;
+    end;
   end;
 end;
 
 destructor TThreadNodePool.Destroy;
 var
-  I: Integer;
+  Prev, Curr: TThreadNodePool;
 begin
-  for I := 0 to FObjectCount - 1 do
-    FObjectPool[I].Free;
-  for I := 0 to FArrayCount - 1 do
-    FArrayPool[I].Free;
+  if not GFinalized then
+  begin
+    GNodePoolLock.Enter;
+    try
+      Prev := nil;
+      Curr := GNodePoolHead;
+      while Curr <> nil do
+      begin
+        if Curr = Self then
+        begin
+          if Prev <> nil then
+            Prev.FNext := FNext
+          else
+            GNodePoolHead := FNext;
+          Break;
+        end;
+        Prev := Curr;
+        Curr := Curr.FNext;
+      end;
+    finally
+      GNodePoolLock.Exit;
+    end;
+  end;
+
+  Clear;
   inherited;
 end;
 
@@ -2872,6 +2908,9 @@ begin
 end;
 
 initialization
+  GFinalized := False;
+  GNodePoolLock := TSpinLock.Create(False);
+
   FillChar(GWhitespace, SizeOf(GWhitespace), 0);
   GWhitespace[9] := 1;
   GWhitespace[10] := 1;
@@ -2889,6 +2928,19 @@ initialization
   GStructural[Ord('\')] := 1;
 
 finalization
-  TNextGenJsonPool.ClearPool;
+  GFinalized := True;
+  GNodePoolLock.Enter;
+  try
+    while GNodePoolHead <> nil do
+    begin
+      var Temp := GNodePoolHead;
+      GNodePoolHead := Temp.FNext;
+      Temp.Free;
+    end;
+  finally
+    GNodePoolLock.Exit;
+  end;
+
+  GNodePool := nil;
 
 end.

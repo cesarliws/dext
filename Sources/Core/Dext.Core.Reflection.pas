@@ -501,9 +501,11 @@ begin
   if (RttiType.TypeKind in [tkClass, tkInterface]) then
   begin
     // Check for List patterns
-    if (TypeName.Contains('IList<') or TypeName.Contains('IEnumerable<') or
+    if (TypeName.Contains('List<') or TypeName.Contains('Collection<') or
+        TypeName.Contains('IEnumerable<') or TypeName.Contains('IList<') or
         TypeName.Contains('TList<') or TypeName.Contains('TSmartList<') or
-        TypeName.EndsWith('List')) then
+        TypeName.EndsWith('List') or
+        (TypeName.Contains('<') and (RttiType.GetMethod('Add') <> nil))) then
     begin
       IsList := True;
     end;
@@ -522,19 +524,56 @@ begin
           Intf := TRttiInterfaceType(RttiType);
           while Intf <> nil do
           begin
-            if Intf.Name.Contains('IList<') or Intf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
-            if Intf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
-            if Intf.Name.Contains('ILazy') then begin IsLazy := True; Break; end;
-            if (Intf.BaseType <> nil) and (Intf.BaseType is TRttiInterfaceType) then Intf := TRttiInterfaceType(Intf.BaseType) else Intf := nil;
+            if Intf.Name.Contains('IList<') or
+               Intf.Name.Contains('IEnumerable<') or
+               Intf.Name.Contains('List<') or
+               Intf.Name.Contains('Collection<') or
+               (Intf.GetMethod('Add') <> nil) then
+            begin
+              IsList := True;
+              Break;
+            end;
+            if Intf.Name.Contains('IDictionary<') then
+            begin
+              IsDictionary := True;
+              Break;
+            end;
+            if Intf.Name.Contains('ILazy') then
+            begin
+              IsLazy := True;
+              Break;
+            end;
+            if (Intf.BaseType <> nil) and
+               (Intf.BaseType is TRttiInterfaceType) then
+              Intf := TRttiInterfaceType(Intf.BaseType)
+            else
+              Intf := nil;
           end;
        end
        else if RttiType is TRttiInstanceType then
        begin
-          for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
+          for ImplIntf in
+            TRttiInstanceType(RttiType).GetImplementedInterfaces do
           begin
-            if ImplIntf.Name.Contains('IList<') or ImplIntf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
-            if ImplIntf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
-            if ImplIntf.Name.Contains('ILazy') then begin IsLazy := True; Break; end;
+            if ImplIntf.Name.Contains('IList<') or
+               ImplIntf.Name.Contains('IEnumerable<') or
+               ImplIntf.Name.Contains('List<') or
+               ImplIntf.Name.Contains('Collection<') or
+               (ImplIntf.GetMethod('Add') <> nil) then
+            begin
+              IsList := True;
+              Break;
+            end;
+            if ImplIntf.Name.Contains('IDictionary<') then
+            begin
+              IsDictionary := True;
+              Break;
+            end;
+            if ImplIntf.Name.Contains('ILazy') then
+            begin
+              IsLazy := True;
+              Break;
+            end;
           end;
        end;
     end;
