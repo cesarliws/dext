@@ -501,9 +501,11 @@ begin
   if (RttiType.TypeKind in [tkClass, tkInterface]) then
   begin
     // Check for List patterns
-    if (TypeName.Contains('IList<') or TypeName.Contains('IEnumerable<') or
+    if (TypeName.Contains('List<') or TypeName.Contains('Collection<') or
+        TypeName.Contains('IEnumerable<') or TypeName.Contains('IList<') or
         TypeName.Contains('TList<') or TypeName.Contains('TSmartList<') or
-        TypeName.EndsWith('List')) then
+        TypeName.EndsWith('List') or
+        (TypeName.Contains('<') and (RttiType.GetMethod('Add') <> nil))) then
     begin
       IsList := True;
     end;
@@ -522,19 +524,56 @@ begin
           Intf := TRttiInterfaceType(RttiType);
           while Intf <> nil do
           begin
-            if Intf.Name.Contains('IList<') or Intf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
-            if Intf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
-            if Intf.Name.Contains('ILazy') then begin IsLazy := True; Break; end;
-            if (Intf.BaseType <> nil) and (Intf.BaseType is TRttiInterfaceType) then Intf := TRttiInterfaceType(Intf.BaseType) else Intf := nil;
+            if Intf.Name.Contains('IList<') or
+               Intf.Name.Contains('IEnumerable<') or
+               Intf.Name.Contains('List<') or
+               Intf.Name.Contains('Collection<') or
+               (Intf.GetMethod('Add') <> nil) then
+            begin
+              IsList := True;
+              Break;
+            end;
+            if Intf.Name.Contains('IDictionary<') then
+            begin
+              IsDictionary := True;
+              Break;
+            end;
+            if Intf.Name.Contains('ILazy') then
+            begin
+              IsLazy := True;
+              Break;
+            end;
+            if (Intf.BaseType <> nil) and
+               (Intf.BaseType is TRttiInterfaceType) then
+              Intf := TRttiInterfaceType(Intf.BaseType)
+            else
+              Intf := nil;
           end;
        end
        else if RttiType is TRttiInstanceType then
        begin
-          for ImplIntf in TRttiInstanceType(RttiType).GetImplementedInterfaces do
+          for ImplIntf in
+            TRttiInstanceType(RttiType).GetImplementedInterfaces do
           begin
-            if ImplIntf.Name.Contains('IList<') or ImplIntf.Name.Contains('IEnumerable<') then begin IsList := True; Break; end;
-            if ImplIntf.Name.Contains('IDictionary<') then begin IsDictionary := True; Break; end;
-            if ImplIntf.Name.Contains('ILazy') then begin IsLazy := True; Break; end;
+            if ImplIntf.Name.Contains('IList<') or
+               ImplIntf.Name.Contains('IEnumerable<') or
+               ImplIntf.Name.Contains('List<') or
+               ImplIntf.Name.Contains('Collection<') or
+               (ImplIntf.GetMethod('Add') <> nil) then
+            begin
+              IsList := True;
+              Break;
+            end;
+            if ImplIntf.Name.Contains('IDictionary<') then
+            begin
+              IsDictionary := True;
+              Break;
+            end;
+            if ImplIntf.Name.Contains('ILazy') then
+            begin
+              IsLazy := True;
+              Break;
+            end;
           end;
        end;
     end;
@@ -828,52 +867,73 @@ begin
   Result := GetMetadata(AType).GetHandler(APropName);
 end;
 
-class procedure TReflection.SetValue(AInstance: Pointer; AMember: TRttiMember; const AValue: TValue);
+class procedure TReflection.SetValue(
+  AInstance: Pointer;
+  AMember: TRttiMember;
+  const AValue: TValue
+);
 var
   TargetType: PTypeInfo;
   Meta: TTypeMetadata;
   Current, Converted: TValue;
 begin
   if (AInstance = nil) or (AMember = nil) then Exit;
-  if AMember is TRttiProperty then TargetType := TRttiProperty(AMember).PropertyType.Handle
-  else if AMember is TRttiField then TargetType := TRttiField(AMember).FieldType.Handle
-  else Exit;
+  
+  if AMember is TRttiProperty then
+    TargetType := TRttiProperty(AMember).PropertyType.Handle
+  else if AMember is TRttiField then
+    TargetType := TRttiField(AMember).FieldType.Handle
+  else
+    Exit;
+
+  // Align TypeInfo pointers for identical record types to avoid EInvalidCast across DCU boundaries
+  if (AValue.TypeInfo <> TargetType) and (AValue.TypeInfo <> nil)
+     and (TargetType <> nil)
+     and (AValue.TypeInfo^.Kind = tkRecord)
+     and (TargetType^.Kind = tkRecord)
+     and SameText(string(AValue.TypeInfo^.Name),
+                  string(TargetType^.Name)) then
+  begin
+    TValue.Make(AValue.GetReferenceToRawData, TargetType, Converted);
+  end
+  else
+    Converted := AValue;
 
   Meta := TReflection.GetMetadata(TargetType);
   if Meta.IsSmartProp or Meta.IsLazy then
   begin
     // Fast path: if the value is already of the target type, just set it directly
-    if AValue.TypeInfo = TargetType then
+    if Converted.TypeInfo = TargetType then
     begin
-      if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, AValue)
-      else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, AValue);
+      if AMember is TRttiProperty then
+        TRttiProperty(AMember).SetValue(AInstance, Converted)
+      else if AMember is TRttiField then
+        TRttiField(AMember).SetValue(AInstance, Converted);
       Exit;
     end;
 
     Current := TValue.Empty;
-    if AMember is TRttiProperty then Current := TRttiProperty(AMember).GetValue(AInstance)
-    else if AMember is TRttiField then Current := TRttiField(AMember).GetValue(AInstance);
+    if AMember is TRttiProperty then
+      Current := TRttiProperty(AMember).GetValue(AInstance)
+    else if AMember is TRttiField then
+      Current := TRttiField(AMember).GetValue(AInstance);
     
-    if TReflection.TryWrapProp(Current, AValue) then
+    if TReflection.TryWrapProp(Current, Converted) then
     begin
-      if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Current)
-      else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Current);
+      if AMember is TRttiProperty then
+        TRttiProperty(AMember).SetValue(AInstance, Current)
+      else if AMember is TRttiField then
+        TRttiField(AMember).SetValue(AInstance, Current);
       Exit;
     end;
   end;
 
-  Converted := TValueConverter.Convert(AValue, TargetType);
-  
-  // Align TypeInfo pointers for identical record types to avoid EInvalidCast across DCU boundaries
-  if (Converted.TypeInfo <> TargetType) and (Converted.TypeInfo <> nil) and (TargetType <> nil) and 
-     (Converted.TypeInfo^.Kind = tkRecord) and (TargetType^.Kind = tkRecord) and
-     SameText(string(Converted.TypeInfo^.Name), string(TargetType^.Name)) then
-  begin
-    TValue.Make(Converted.GetReferenceToRawData, TargetType, Converted);
-  end;
+  Converted := TValueConverter.Convert(Converted, TargetType);
 
-  if AMember is TRttiProperty then TRttiProperty(AMember).SetValue(AInstance, Converted)
-  else if AMember is TRttiField then TRttiField(AMember).SetValue(AInstance, Converted);
+  if AMember is TRttiProperty then
+    TRttiProperty(AMember).SetValue(AInstance, Converted)
+  else if AMember is TRttiField then
+    TRttiField(AMember).SetValue(AInstance, Converted);
 end;
 
 class function TReflection.GetValue(AInstance: TObject; const APropertyName: string): TValue;

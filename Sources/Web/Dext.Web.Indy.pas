@@ -700,7 +700,7 @@ procedure TDextIndyHttpResponse.AppendCookie(const AName, AValue: string; const 
 var
   CookieStr: string;
 begin
-  CookieStr := Format('%s=%s', [AName, TIdURI.URLEncode(AValue)]);
+  CookieStr := Format('%s=%s', [AName, TIdURI.ParamsEncode(AValue)]);
   if AOptions.Path <> '' then
     CookieStr := CookieStr + '; Path=' + AOptions.Path;
   if AOptions.Domain <> '' then

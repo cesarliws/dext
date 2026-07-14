@@ -126,10 +126,14 @@ end;
 
 { TCompressionMiddleware }
 
-procedure TCompressionMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
+procedure TCompressionMiddleware.Invoke(
+  AContext: IHttpContext;
+  ANext: TRequestDelegate
+);
 var
   AcceptEncoding: string;
   BufferedResponse: TBufferedResponse;
+  BufferedResponseIntf: IHttpResponse;
   OriginalResponse: IHttpResponse;
   CompressedStream: TMemoryStream;
   ZStream: TZCompressionStream;
@@ -145,8 +149,9 @@ begin
 
   OriginalResponse := AContext.Response;
   BufferedResponse := TBufferedResponse.Create(OriginalResponse);
+  BufferedResponseIntf := BufferedResponse;
   try
-    AContext.Response := BufferedResponse;
+    AContext.Response := BufferedResponseIntf;
     
     ANext(AContext);
     
@@ -155,10 +160,17 @@ begin
     begin
       CompressedStream := TMemoryStream.Create;
       try
-        ZStream := TZCompressionStream.Create(CompressedStream, TZCompressionLevel.zcDefault, 15 + 16); // 15+16 = GZIP mode
+        ZStream := TZCompressionStream.Create(
+          CompressedStream,
+          TZCompressionLevel.zcDefault,
+          15 + 16
+        ); // 15+16 = GZIP mode
         try
           BufferedResponse.Buffer.Position := 0;
-          ZStream.CopyFrom(BufferedResponse.Buffer, BufferedResponse.Buffer.Size);
+          ZStream.CopyFrom(
+            BufferedResponse.Buffer,
+            BufferedResponse.Buffer.Size
+          );
         finally
           ZStream.Free;
         end;
@@ -177,8 +189,7 @@ begin
     end;
   finally
     AContext.Response := OriginalResponse;
-    // BufferedResponse will be freed by interface refcount if we are careful, 
-    // but here it's a local object. TBufferedResponse is TInterfacedObject.
+    BufferedResponseIntf := nil;
   end;
 end;
 
