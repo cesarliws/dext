@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -611,6 +611,8 @@ end;
 procedure TNextGenJsonParser.ScanString(var APtr: PByte);
 var
   B: Byte;
+  HexIdx: Integer;
+  HexByte: Byte;
 begin
   while APtr < FEnd do
   begin
@@ -652,6 +654,18 @@ begin
               raise EJsonException.Create(
                 'Invalid unicode escape sequence'
               );
+            for HexIdx := 1 to 4 do
+            begin
+              HexByte := (APtr + HexIdx)^;
+              if not (
+                ((HexByte >= 48) and (HexByte <= 57)) or // '0'..'9'
+                ((HexByte >= 97) and (HexByte <= 102)) or // 'a'..'f'
+                ((HexByte >= 65) and (HexByte <= 70)) // 'A'..'F'
+              ) then
+                raise EJsonException.Create(
+                  'Invalid unicode escape sequence'
+                );
+            end;
             Inc(APtr, 4);
           end;
       else
