@@ -38,6 +38,7 @@
 uses
   System.SysUtils,
   Dext.AI.MCP.Server,
+  Dext.Server.Engine.Types,
   MCP.FullDemo.Provider in 'MCP.FullDemo.Provider.pas';
 
 // ---------------------------------------------------------------------------
@@ -65,29 +66,50 @@ end;
 // ---------------------------------------------------------------------------
 
 var
-  Server: TMCPServer;
+  Builder: TMCPServerBuilder;
+  Options: TServerEngineOptions;
   Port, Url: string;
+  Server: TMCPServer;
   Transport: TMCPTransport;
+  UseHttpSys: Boolean;
 
 begin
   ReportMemoryLeaksOnShutdown := True;
   Randomize;
 
-  Port      := GetParam('--port', '3031');
-  Url       := 'http://localhost:' + Port;
-  Transport := mtStreamable;
+  Port       := GetParam('--port', '3031');
+  Url        := 'http://localhost:' + Port;
+  Transport  := mtStreamable;
+  UseHttpSys := HasFlag('--httpsys');
 
   if HasFlag('--sse') then
     Transport := mtSSE
   else if HasFlag('--stdio') then
     Transport := mtStdio;
 
-  Server := TMCPServer.Create('full-demo', '1.0.0');
+  Builder := TMCPServerBuilder.Create;
   try
-    // Registra TODOS os tools, resources e prompts do provider em uma linha.
-    // O servidor assume ownership do TDemoProvider.
-    Server.RegisterProvider(TDemoProvider.Create);
+    Builder
+      .Name('full-demo')
+      .Version('1.0.0')
+      .Transport(Transport)
+      .Url(Url);
 
+    if UseHttpSys then
+    begin
+      Options := TServerEngineOptions.Default.WithBindAddress('localhost');
+      Builder.UseHttpSys(Options);
+    end
+    else
+      Builder.UseIndy;
+
+    Builder.RegisterProvider(TDemoProvider.Create);
+    Server := Builder.Build;
+  finally
+    Builder.Free;
+  end;
+
+  try
     // Também é possível registrar itens extras via fluent API:
     //
     // Server.Tool('tool-adicional')
@@ -109,7 +131,10 @@ begin
     Writeln('╚══════════════════════════════════════════════════╝');
     Writeln;
     Writeln('  Protocolo   : MCP 2025-03-26');
-    Writeln('  Stack HTTP  : Indy TIdHTTPServer');
+    if UseHttpSys then
+      Writeln('  Stack HTTP  : http.sys (Windows Native)')
+    else
+      Writeln('  Stack HTTP  : Indy TIdHTTPServer');
 
     if Transport = mtStreamable then
     begin
@@ -161,7 +186,7 @@ begin
     Writeln('  Pressione Enter para parar...');
     Writeln;
 
-    Server.Run(Transport, Url);
+    Server.Run;
     Readln;
 
     Writeln('Encerrando...');
