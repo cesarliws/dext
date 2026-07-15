@@ -861,6 +861,8 @@ end;
 destructor TDextNativeWebServer.Destroy;
 begin
   Stop;
+  if FEngine <> nil then
+    FEngine.SetOnRequest(nil);
   FEngine := nil;
   FPipeline := nil;
   inherited;
@@ -918,7 +920,11 @@ begin
   try
     if not FRunning then Exit;
     FRunning := False;
-    FEngine.Stop;
+    if FEngine <> nil then
+    begin
+      FEngine.Stop;
+      FEngine.SetOnRequest(nil);
+    end;
   except
     on E: Exception do
       SafeWriteLn(E.ClassName + ': ' + E.Message);

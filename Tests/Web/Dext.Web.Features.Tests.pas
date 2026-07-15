@@ -411,7 +411,7 @@ begin
   TGzipTestController.Create.Free; // Force linker to keep TGzipTestController
 
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:58374');
+    .UseUrls('http://localhost:58375');
   (Builder as TWebHostBuilder).ConfigureServicesExtended(procedure(Services: TDextServices)
     begin
       Services.AddControllers;

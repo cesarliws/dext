@@ -216,8 +216,8 @@ procedure TPropertyHandler.DiscoverMetadata;
 var
   Attr: TCustomAttribute;
   AttrName: string;
-  LProp: TRttiProperty;
-  LVal: string;
+  Prop: TRttiProperty;
+  Val: string;
 begin
   FIsPK := False;
   FIsAutoInc := False;
@@ -233,12 +233,12 @@ begin
     else if SameText(AttrName, 'ColumnAttribute') then
     begin
       // Use RTTI to get the 'Name' property of the ColumnAttribute without depending on its unit
-      LProp := TReflection.Context.GetType(Attr.ClassType).GetProperty('Name');
-      if LProp <> nil then
+      Prop := TReflection.Context.GetType(Attr.ClassType).GetProperty('Name');
+      if Prop <> nil then
       begin
-        LVal := LProp.GetValue(Attr).AsString;
-        if LVal <> '' then
-          FColumnName := LVal;
+        Val := Prop.GetValue(Attr).AsString;
+        if Val <> '' then
+          FColumnName := Val;
       end;
     end;
   end;

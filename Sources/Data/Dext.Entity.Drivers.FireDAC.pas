@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -392,8 +392,36 @@ begin
 end;
 
 function TFireDACReader.GetBoolean(AIndex: Integer): Boolean;
+var
+  Field: TField;
+  StrVal: string;
 begin
-  Result := FFields[AIndex].AsBoolean;
+  Field := FFields[AIndex];
+
+  case Field.DataType of
+    // 1. Boolean
+    ftBoolean:
+      Result := Field.AsBoolean;
+
+    // 2. Numeric
+    ftInteger, ftSmallint, ftWord, ftLargeint, ftShortint, ftByte, 
+    ftFMTBcd, ftBCD, ftFloat, ftCurrency: // Adicionado outros tipos numéricos comuns para blindar o método
+      Result := Field.AsInteger <> 0;
+
+    // 3. Fallback
+  else
+    StrVal := Field.AsString;
+
+    // Short-Circuit
+    if (StrVal = '1') or SameText(StrVal, 'true') or SameText(StrVal, 't') or
+       SameText(StrVal, 'y') or SameText(StrVal, 's') then
+      Result := True
+    else if (StrVal = '0') or SameText(StrVal, 'false') or
+            SameText(StrVal, 'f') or SameText(StrVal, 'n') then
+      Result := False
+    else
+      Result := StrToBoolDef(StrVal, False);
+  end;
 end;
 
 function TFireDACReader.GetString(AIndex: Integer): string;

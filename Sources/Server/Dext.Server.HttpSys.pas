@@ -910,7 +910,9 @@ end;
 
 destructor TDextHttpSysResponse.Destroy;
 begin
-  FResponseWriter.Reset;
+  // Reset releases response buffers; Clear also releases the dynamically
+  // grown segment table allocated by GrowSegments.
+  FResponseWriter.Clear;
   inherited;
 end;
 

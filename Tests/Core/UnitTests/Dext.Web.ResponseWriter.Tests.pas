@@ -23,7 +23,6 @@ type
   TResponseWriterTests = class
   private
     FReleasedCount: Integer;
-    procedure CustomReleaseProc(AOwner: Pointer);
   public
     [Setup]
     procedure Setup;
@@ -76,11 +75,6 @@ end;
 procedure TResponseWriterTests.TearDown;
 begin
   TDextBufferPool.ResetPools;
-end;
-
-procedure TResponseWriterTests.CustomReleaseProc(AOwner: Pointer);
-begin
-  Inc(FReleasedCount);
 end;
 
 procedure TResponseWriterTests.Test_Pool_Rent_Release_Local;

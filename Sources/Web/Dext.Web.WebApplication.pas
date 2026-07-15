@@ -562,6 +562,7 @@ begin
   // ? Break circular references by niling interfaces that might be captured in closures
   FServices := nil;
   FConfiguration := nil;
+  FServerFactory := nil;
 end;
 
 procedure TWebApplication.Run;
