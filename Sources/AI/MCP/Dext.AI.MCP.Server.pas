@@ -196,10 +196,15 @@ type
       ADescription: string): IMCPPromptBuilder;
 
     // ---- HTTP Stack Selection ----
+
+    /// <summary>Configures the server to use Indy (default).</summary>
     function UseIndy: TMCPServer;
+    /// <summary>Configures the server to use native Windows http.sys.</summary>
     function UseHttpSys: TMCPServer; overload;
+    /// <summary>Configures the server to use native Windows http.sys with options.</summary>
     function UseHttpSys(
       const AOptions: TServerEngineOptions): TMCPServer; overload;
+    /// <summary>Configures custom web host options.</summary>
     function ConfigureHost(
       AProc: TProc<IWebHostBuilder>): TMCPServer;
 
@@ -229,6 +234,7 @@ type
   // TMCPServerBuilder - fluent builder for TMCPServer
   // ---------------------------------------------------------------------------
 
+  /// <summary>Fluent builder for creating and configuring a TMCPServer.</summary>
   TMCPServerBuilder = class
   private
     FName: string;
@@ -240,25 +246,37 @@ type
     FConfigureHostProc: TProc<IWebHostBuilder>;
     FProviders: TArray<TMCPToolProvider>;
   public
+    /// <summary>Creates a new TMCPServerBuilder with default values.</summary>
     constructor Create;
+    /// <summary>Destroys the builder and frees any registered providers if Build wasn't called.</summary>
     destructor Destroy; override;
 
+    /// <summary>Sets the name of the MCP server.</summary>
     function Name(const AValue: string): TMCPServerBuilder;
+    /// <summary>Sets the version of the MCP server.</summary>
     function Version(const AValue: string): TMCPServerBuilder;
+    /// <summary>Sets the default listening URL.</summary>
     function Url(const AValue: string): TMCPServerBuilder;
+    /// <summary>Sets the default transport mode.</summary>
     function Transport(AValue: TMCPTransport): TMCPServerBuilder;
 
+    /// <summary>Forces the built server to use Indy.</summary>
     function UseIndy: TMCPServerBuilder;
+    /// <summary>Forces the built server to use HTTP.sys.</summary>
     function UseHttpSys: TMCPServerBuilder; overload;
+    /// <summary>Forces the built server to use HTTP.sys with custom options.</summary>
     function UseHttpSys(
       const AOptions: TServerEngineOptions): TMCPServerBuilder; overload;
 
+    /// <summary>Allows custom configuration of the WebHostBuilder before building.</summary>
     function ConfigureHost(
       AProc: TProc<IWebHostBuilder>): TMCPServerBuilder;
 
+    /// <summary>Registers an MCP provider class.</summary>
     function RegisterProvider(
       AProvider: TMCPToolProvider): TMCPServerBuilder;
 
+    /// <summary>Builds and returns the configured TMCPServer instance.</summary>
     function Build: TMCPServer;
   end;
 
