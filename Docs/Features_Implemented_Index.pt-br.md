@@ -880,4 +880,15 @@ Implementação do protocolo de transporte binário de alta performance.
 
 ---
 
+## 📡 28. Servidor Model Context Protocol (MCP) (`Sources\AI\MCP`)
+
+Oferece suporte nativo ao protocolo MCP v2025-03-26.
+
+### 28.1 TMCPServer & TMCPServerBuilder
+- **TMCPServerBuilder** — Builder fluente para configurar servidores MCP.
+- **Seleção de Stack HTTP** — Escolha entre as stacks Indy e HTTP.sys.
+- **Registro de Provedores** — Mapeamento automatizado de provedores customizados.
+
+---
+
 *Dext Framework — Exhaustive Technical Map & Features Index. (Revision: Jul 2026).*

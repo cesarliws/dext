@@ -150,22 +150,35 @@ end;
 
 ---
 
-## 🚀 Running the MCP Server
+## 🚀 Running the MCP Server (Fluent Builder API)
+
+Use `TMCPServerBuilder` to configure the transport layer, choose the HTTP stack (`UseIndy` or `UseHttpSys`), and register your providers.
 
 ```pascal
 var
   Server: TMCPServer;
+  Builder: TMCPServerBuilder;
 begin
-  Server := TMCPServer.Create('my-mcp-service', '1.0.0');
+  Builder := TMCPServerBuilder.Create;
   try
-    // Server takes ownership of the provider
-    Server.RegisterProvider(TMyDatabaseProvider.Create(FDConnection1));
-    
-    // mtStreamable: Non-blocking HTTP Server (Indy) - perfect for VCL/FMX
-    // mtStdio: Blocking Standard Input/Output loop (Claude Desktop)
-    Server.Run(mtStreamable, 'http://localhost:3031');
-    
-    // Application keeps running...
+    Builder
+      .Name('my-mcp-service')
+      .Version('1.0.0')
+      .Transport(mtStreamable)
+      .Url('http://localhost:3031')
+      .RegisterProvider(
+        TMyDatabaseProvider.Create(FDConnection1));
+
+    // Choose HTTP Stack: UseIndy (default) or UseHttpSys
+    Builder.UseHttpSys; // Or: Builder.UseIndy;
+
+    Server := Builder.Build;
+  finally
+    Builder.Free;
+  end;
+
+  try
+    Server.Run; // Runs with configured transport/stack/URL
   finally
     Server.Stop;
     Server.Free;
