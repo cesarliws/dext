@@ -297,7 +297,7 @@ begin
   SpanLen := ASpan.Length;
   while SpanLen > 0 do
   begin
-    Writable := GetSpan(SpanLen);
+    Writable := GetSpan(1);
     Chunk := Writable.Length;
     if Chunk > SpanLen then
       Chunk := SpanLen;

@@ -459,7 +459,6 @@ begin
             AContext.Response.AddHeader('grpc-status', '0');
             AContext.Response.AddHeader('grpc-message', 'OK');
             AContext.Response.SetContentLength(Length(Framed));
-            AContext.Response.Flush;
             AContext.Response.Write(Framed);
 
             if TimingActive then

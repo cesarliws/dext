@@ -1006,11 +1006,13 @@ var
   Ret: ULONG;
   Seg: PDextBufferSegment;
   SegCount: Integer;
+  BatchStart: Integer;
+  BatchCount: Integer;
+  BatchFlags: ULONG;
   TotalLen: Int64;
 begin
   try
-    try
-      if not FHeadersSent then
+    if not FHeadersSent then
       begin
         FillChar(Response, SizeOf(Response), 0);
         Response.StatusCode := FStatusCode;
@@ -1051,10 +1053,11 @@ begin
         SegCount := FResponseWriter.SegmentCount;
         if SegCount > 0 then
         begin
-          if SegCount > Length(Chunks) then
-            raise EInvalidOp.CreateFmt('Too many response segments: %d', [SegCount]);
           Seg := FResponseWriter.Segments;
-          for I := 0 to SegCount - 1 do
+          BatchCount := SegCount;
+          if BatchCount > Length(Chunks) then
+            BatchCount := Length(Chunks);
+          for I := 0 to BatchCount - 1 do
           begin
             FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
             Chunks[I].DataChunkType := hctFromMemory;
@@ -1063,15 +1066,19 @@ begin
             Inc(Seg);
           end;
 
-          Response.EntityChunkCount := SegCount;
+          Response.EntityChunkCount := BatchCount;
           Response.pEntityChunks := @Chunks[0];
         end;
 
-        SafeWriteLn('--- calling HttpSendHttpResponse: RequestId=' + IntToStr(FRequestId) + ' StatusCode=' + IntToStr(FStatusCode) + ' SegCount=' + IntToStr(SegCount));
+        if SegCount > Length(Chunks) then
+          BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
+        else
+          BatchFlags := 0;
+
         Ret := HttpSendHttpResponse(
           FReqQueue,
           FRequestId,
-          0,
+          BatchFlags,
           @Response,
           nil,
           BytesSent,
@@ -1080,10 +1087,49 @@ begin
           nil,
           nil
         );
-        SafeWriteLn('--- HttpSendHttpResponse returned: ' + IntToStr(Ret) + ' BytesSent: ' + IntToStr(BytesSent));
-
         if Ret <> ERROR_SUCCESS then
           raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
+
+        BatchStart := Length(Chunks);
+        while BatchStart < SegCount do
+        begin
+          BatchCount := SegCount - BatchStart;
+          if BatchCount > Length(Chunks) then
+            BatchCount := Length(Chunks);
+
+          Seg := FResponseWriter.Segments;
+          Inc(Seg, BatchStart);
+          for I := 0 to BatchCount - 1 do
+          begin
+            FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+            Chunks[I].DataChunkType := hctFromMemory;
+            Chunks[I].pBuffer := Seg^.Data;
+            Chunks[I].BufferLength := Seg^.Length;
+            Inc(Seg);
+          end;
+
+          if BatchStart + BatchCount < SegCount then
+            BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
+          else
+            BatchFlags := 0;
+
+          Ret := HttpSendResponseEntityBody(
+            FReqQueue,
+            FRequestId,
+            BatchFlags,
+            BatchCount,
+            @Chunks[0],
+            BytesSent,
+            nil,
+            nil,
+            nil,
+            nil
+          );
+          if Ret <> ERROR_SUCCESS then
+            raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
+
+          Inc(BatchStart, BatchCount);
+        end;
 
         FHeadersSent := True;
       end
@@ -1094,30 +1140,46 @@ begin
         SegCount := FResponseWriter.SegmentCount;
         if SegCount > 0 then
         begin
-          if SegCount > Length(Chunks) then
-            raise EInvalidOp.CreateFmt('Too many response segments: %d', [SegCount]);
-          Seg := FResponseWriter.Segments;
-          for I := 0 to SegCount - 1 do
+          BatchStart := 0;
+          while BatchStart < SegCount do
           begin
-            FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-            Chunks[I].DataChunkType := hctFromMemory;
-            Chunks[I].pBuffer := Seg^.Data;
-            Chunks[I].BufferLength := Seg^.Length;
-            Inc(Seg);
-          end;
+            BatchCount := SegCount - BatchStart;
+            if BatchCount > Length(Chunks) then
+              BatchCount := Length(Chunks);
 
-          Ret := HttpSendResponseEntityBody(
-            FReqQueue,
-            FRequestId,
-            0,
-            SegCount,
-            @Chunks[0],
-            BytesSent,
-            nil,
-            nil,
-            nil,
-            nil
-          );
+            Seg := FResponseWriter.Segments;
+            Inc(Seg, BatchStart);
+            for I := 0 to BatchCount - 1 do
+            begin
+              FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+              Chunks[I].DataChunkType := hctFromMemory;
+              Chunks[I].pBuffer := Seg^.Data;
+              Chunks[I].BufferLength := Seg^.Length;
+              Inc(Seg);
+            end;
+
+            if BatchStart + BatchCount < SegCount then
+              BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
+            else
+              BatchFlags := 0;
+
+            Ret := HttpSendResponseEntityBody(
+              FReqQueue,
+              FRequestId,
+              BatchFlags,
+              BatchCount,
+              @Chunks[0],
+              BytesSent,
+              nil,
+              nil,
+              nil,
+              nil
+            );
+            if Ret <> ERROR_SUCCESS then
+              raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
+
+            Inc(BatchStart, BatchCount);
+          end;
         end
         else
         begin
@@ -1133,19 +1195,12 @@ begin
             nil,
             nil
           );
+          if Ret <> ERROR_SUCCESS then
+            raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
         end;
-        if Ret <> ERROR_SUCCESS then
-          raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
       end;
-    finally
-      FResponseWriter.Reset;
-    end;
-  except
-    on E: Exception do
-    begin
-      SafeWriteLn('--- EXCEPTION IN TDextHttpSysResponse.Close: ' + E.ClassName + ': ' + E.Message);
-      raise;
-    end;
+  finally
+    FResponseWriter.Reset;
   end;
 end;
 
@@ -1158,6 +1213,9 @@ var
   I: Integer;
   SegCount: Integer;
   Seg: PDextBufferSegment;
+  BatchStart: Integer;
+  BatchCount: Integer;
+  BatchFlags: ULONG;
 begin
   if FHeadersSent then Exit;
 
@@ -1189,10 +1247,11 @@ begin
     SegCount := FResponseWriter.SegmentCount;
     if SegCount > 0 then
     begin
-      if SegCount > Length(Chunks) then
-        raise EInvalidOp.CreateFmt('Too many response segments: %d', [SegCount]);
       Seg := FResponseWriter.Segments;
-      for I := 0 to SegCount - 1 do
+      BatchCount := SegCount;
+      if BatchCount > Length(Chunks) then
+        BatchCount := Length(Chunks);
+      for I := 0 to BatchCount - 1 do
       begin
         FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
         Chunks[I].DataChunkType := hctFromMemory;
@@ -1201,7 +1260,7 @@ begin
         Inc(Seg);
       end;
 
-      Response.EntityChunkCount := SegCount;
+      Response.EntityChunkCount := BatchCount;
       Response.pEntityChunks := @Chunks[0];
     end;
 
@@ -1222,13 +1281,50 @@ begin
       raise EOSError.Create('HttpSendHttpResponse failed with error code: '
         + IntToStr(Ret));
 
+    BatchStart := Length(Chunks);
+    while BatchStart < SegCount do
+    begin
+      BatchCount := SegCount - BatchStart;
+      if BatchCount > Length(Chunks) then
+        BatchCount := Length(Chunks);
+
+      Seg := FResponseWriter.Segments;
+      Inc(Seg, BatchStart);
+      for I := 0 to BatchCount - 1 do
+      begin
+        FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+        Chunks[I].DataChunkType := hctFromMemory;
+        Chunks[I].pBuffer := Seg^.Data;
+        Chunks[I].BufferLength := Seg^.Length;
+        Inc(Seg);
+      end;
+
+      BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA;
+      Ret := HttpSendResponseEntityBody(
+        FReqQueue,
+        FRequestId,
+        BatchFlags,
+        BatchCount,
+        @Chunks[0],
+        BytesSent,
+        nil,
+        nil,
+        nil,
+        nil
+      );
+      if Ret <> ERROR_SUCCESS then
+        raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
+          + IntToStr(Ret));
+
+      Inc(BatchStart, BatchCount);
+    end;
+
     FHeadersSent := True;
   finally
     FResponseWriter.Reset;
     FResponseWriter.Init;
   end;
 end;
-
 procedure TDextHttpSysResponse.SendHeaders;
 begin
   SendHeadersInternal(False);
