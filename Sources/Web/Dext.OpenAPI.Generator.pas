@@ -787,7 +787,7 @@ var
   RequiredArray: TJsonArray;
   PropPairs: TArray<TPair<string, TOpenAPISchema>>;
 begin
-  Result := TJsonObject.Create;
+  Result := TJsonObject.Create(True);
 
   if ASchema.Ref <> '' then
   begin
@@ -816,7 +816,7 @@ begin
   // Enum values
   if Length(ASchema.Enum) > 0 then
   begin
-    EnumArray := TJsonArray.Create;
+    EnumArray := TJsonArray.Create(True);
     for i := 0 to High(ASchema.Enum) do
       EnumArray.Add(ASchema.Enum[i]);
     Result.A['enum'] := EnumArray;
@@ -825,7 +825,7 @@ begin
   // Properties (for objects)
   if (ASchema.DataType = odtObject) and (ASchema.Properties.Count > 0) then
   begin
-    PropertiesJson := TJsonObject.Create;
+    PropertiesJson := TJsonObject.Create(True);
     PropPairs := ASchema.Properties.ToArray;
     for i := 0 to High(PropPairs) do
     begin
@@ -838,7 +838,7 @@ begin
     // Required fields
     if Length(ASchema.Required) > 0 then
     begin
-      RequiredArray := TJsonArray.Create;
+      RequiredArray := TJsonArray.Create(True);
       for i := 0 to High(ASchema.Required) do
         RequiredArray.Add(ASchema.Required[i]);
       Result.A['required'] := RequiredArray;
@@ -1250,19 +1250,19 @@ var
 begin
   Doc := Generate(AEndpoints);
   try
-    Json := TJsonObject.Create;
+    Json := TJsonObject.Create(True);
     try
       Json.S['openapi'] := Doc.OpenAPI;
 
       // Info section
-      InfoJson := TJsonObject.Create;
+      InfoJson := TJsonObject.Create(True);
       InfoJson.S['title'] := Doc.Info.Title;
       InfoJson.S['description'] := Doc.Info.Description;
       InfoJson.S['version'] := Doc.Info.Version;
 
       if Assigned(Doc.Info.Contact) then
       begin
-        ContactJson := TJsonObject.Create;
+        ContactJson := TJsonObject.Create(True);
         if Doc.Info.Contact.Name <> '' then
           ContactJson.S['name'] := Doc.Info.Contact.Name;
         if Doc.Info.Contact.Email <> '' then
@@ -1272,7 +1272,7 @@ begin
 
       if Assigned(Doc.Info.License) then
       begin
-        LicenseJson := TJsonObject.Create;
+        LicenseJson := TJsonObject.Create(True);
         LicenseJson.S['name'] := Doc.Info.License.Name;
         if Doc.Info.License.Url <> '' then
           LicenseJson.S['url'] := Doc.Info.License.Url;
@@ -1282,11 +1282,11 @@ begin
       Json.O['info'] := InfoJson;
 
       // Servers section
-      ServersArray := TJsonArray.Create;
+      ServersArray := TJsonArray.Create(True);
       for i := 0 to Doc.Servers.Count - 1 do
       begin
         Server := Doc.Servers[i];
-        ServerJson := TJsonObject.Create;
+        ServerJson := TJsonObject.Create(True);
         ServerJson.S['url'] := Server.Url;
         ServerJson.S['description'] := Server.Description;
         ServersArray.Add(ServerJson);
@@ -1294,13 +1294,13 @@ begin
       Json.A['servers'] := ServersArray;
 
       // Paths section
-      PathsJson := TJsonObject.Create;
+      PathsJson := TJsonObject.Create(True);
       Pairs := Doc.Paths.ToArray;
       for i := 0 to High(Pairs) do
       begin
         Pair := Pairs[i];
         PathItem := Pair.Value;
-        PathItemJson := TJsonObject.Create;
+        PathItemJson := TJsonObject.Create(True);
 
         // Helper procedure to add operation
         AddOperation := procedure(Op: TOpenAPIOperation; MethodName: string)
@@ -1331,7 +1331,7 @@ begin
         begin
           if not Assigned(Op) then Exit;
 
-          OperationJson := TJsonObject.Create;
+          OperationJson := TJsonObject.Create(True);
           if Op.Summary <> '' then
             OperationJson.S['summary'] := Op.Summary;
           if Op.Description <> '' then
@@ -1341,7 +1341,7 @@ begin
           // Tags
           if Length(Op.Tags) > 0 then
           begin
-            TagsArray := TJsonArray.Create;
+            TagsArray := TJsonArray.Create(True);
             for i := 0 to High(Op.Tags) do
               TagsArray.Add(Op.Tags[i]);
             OperationJson.A['tags'] := TagsArray;
@@ -1350,11 +1350,11 @@ begin
           // Parameters
           if Op.Parameters.Count > 0 then
           begin
-            ParamsArray := TJsonArray.Create;
+            ParamsArray := TJsonArray.Create(True);
             for i := 0 to Op.Parameters.Count - 1 do
             begin
               Param := Op.Parameters[i];
-              ParamJson := TJsonObject.Create;
+              ParamJson := TJsonObject.Create(True);
               ParamJson.S['name'] := Param.Name;
 
               case Param.Location of
@@ -1379,17 +1379,17 @@ begin
           // Request Body
           if Assigned(Op.RequestBody) then
           begin
-            RequestBodyJson := TJsonObject.Create;
+            RequestBodyJson := TJsonObject.Create(True);
             RequestBodyJson.B['required'] := Op.RequestBody.Required;
 
-            ContentJson := TJsonObject.Create;
+            ContentJson := TJsonObject.Create(True);
             SchemaPairs := Op.RequestBody.Content.ToArray;
             for i := 0 to High(SchemaPairs) do
             begin
               LSchemaPair := SchemaPairs[i];
               LSchema := LSchemaPair.Value;
               // OpenAPI 3.0 requires: content -> mediaType -> schema -> {schema definition}
-              MediaTypeJson := TJsonObject.Create;
+              MediaTypeJson := TJsonObject.Create(True);
               MediaTypeJson.O['schema'] := SchemaToJson(LSchema);
               ContentJson.O[LSchemaPair.Key] := MediaTypeJson;
             end;
@@ -1399,25 +1399,25 @@ begin
           end;
 
           // Responses
-          ResponsesJson := TJsonObject.Create;
+          ResponsesJson := TJsonObject.Create(True);
           ResponsePairs := Op.Responses.ToArray;
           for i := 0 to High(ResponsePairs) do
           begin
             ResponsePair := ResponsePairs[i];
             Response := ResponsePair.Value;
-            ResponseJson := TJsonObject.Create;
+            ResponseJson := TJsonObject.Create(True);
             ResponseJson.S['description'] := Response.Description;
 
             if Response.Content.Count > 0 then
             begin
-              ContentJson := TJsonObject.Create;
+              ContentJson := TJsonObject.Create(True);
               SchemaPairs := Response.Content.ToArray;
               for j := 0 to High(SchemaPairs) do
               begin
                 LSchemaPair := SchemaPairs[j];
                 LSchema := LSchemaPair.Value;
                 // OpenAPI 3.0 requires: content -> mediaType -> schema -> {schema definition}
-                MediaTypeJson := TJsonObject.Create;
+                MediaTypeJson := TJsonObject.Create(True);
                 MediaTypeJson.O['schema'] := SchemaToJson(LSchema);
                 ContentJson.O[LSchemaPair.Key] := MediaTypeJson;
               end;
@@ -1430,16 +1430,16 @@ begin
 
           if Op.Security.Count > 0 then
           begin
-            SecurityArray := TJsonArray.Create;
+            SecurityArray := TJsonArray.Create(True);
             for i := 0 to Op.Security.Count - 1 do
             begin
               SecReq := Op.Security[i];
-              SecJson := TJsonObject.Create;
+              SecJson := TJsonObject.Create(True);
               SecPairs := SecReq.ToArray;
               for j := 0 to High(SecPairs) do
               begin
                 SecPair := SecPairs[j];
-                ScopesArray := TJsonArray.Create;
+                ScopesArray := TJsonArray.Create(True);
                 for k := 0 to High(SecPair.Value) do
                   ScopesArray.Add(SecPair.Value[k]);
                 SecJson.A[SecPair.Key] := ScopesArray;
@@ -1465,11 +1465,11 @@ begin
       // Components
       if (Doc.Schemas.Count > 0) or (Doc.SecuritySchemes.Count > 0) then
       begin
-         ComponentsJson := TJsonObject.Create;
+         ComponentsJson := TJsonObject.Create(True);
 
          if Doc.Schemas.Count > 0 then
          begin
-           SchemasJson := TJsonObject.Create;
+           SchemasJson := TJsonObject.Create(True);
            SchemaPairs := Doc.Schemas.ToArray;
             for i := 0 to High(SchemaPairs) do
             begin
@@ -1481,13 +1481,13 @@ begin
 
          if Doc.SecuritySchemes.Count > 0 then
          begin
-           SecSchemesJson := TJsonObject.Create;
+           SecSchemesJson := TJsonObject.Create(True);
            SecSchemePairs := Doc.SecuritySchemes.ToArray;
             for i := 0 to High(SecSchemePairs) do
             begin
               SecSchemePair := SecSchemePairs[i];
              Scheme := SecSchemePair.Value;
-             SchemeJson := TJsonObject.Create;
+             SchemeJson := TJsonObject.Create(True);
 
              case Scheme.SchemeType of
                sstHttp:
