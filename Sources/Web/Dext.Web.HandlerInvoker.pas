@@ -201,16 +201,16 @@ begin
     except
     end;
 
-    if BoundVal.IsEmpty or (BoundVal.AsObject = nil) then
-    begin
-      if (Invoker.Context.Request.Method = 'GET') or
-         (Invoker.Context.Request.Method = 'DELETE') then
-        BoundVal := TValue.From<T>(TModelBinderHelper.BindQuery<T>(
-          Invoker.ModelBinder, Invoker.Context))
-      else
-        BoundVal := TValue.From<T>(TModelBinderHelper.BindBody<T>(
-          Invoker.ModelBinder, Invoker.Context));
-    end;
+    if not BoundVal.IsEmpty and (BoundVal.AsObject <> nil) then
+      Exit(BoundVal);
+
+    if (Invoker.Context.Request.Method = 'GET') or
+       (Invoker.Context.Request.Method = 'DELETE') then
+      BoundVal := TValue.From<T>(TModelBinderHelper.BindQuery<T>(
+        Invoker.ModelBinder, Invoker.Context))
+    else
+      BoundVal := TValue.From<T>(TModelBinderHelper.BindBody<T>(
+        Invoker.ModelBinder, Invoker.Context));
 
     Invoker.Track(BoundVal, FIsEntity);
     Exit(BoundVal);

@@ -39,8 +39,14 @@ function Invoke-DextRequest {
     catch {
         $resp = $_.Exception.Response
         if ($resp) {
-            $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
-            $errBody = $reader.ReadToEnd()
+            $errBody = ""
+            if ($resp.Content -and ($resp.Content.PSObject.Methods.Name -contains "ReadAsStringAsync")) {
+                $errBody = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+            }
+            elseif ($resp.PSObject.Methods.Name -contains "GetResponseStream") {
+                $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
+                $errBody = $reader.ReadToEnd()
+            }
             Write-Host "   [ERROR BODY]: $errBody" -ForegroundColor Red
         }
         throw "Request to $Uri failed: $($_.Exception.Message)"

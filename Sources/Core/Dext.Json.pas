@@ -868,6 +868,8 @@ var
   TypePlan: IDextTypeCodecPlan;
   TypeFields: TArray<TDextFieldPlan>;
   TypeField: TDextFieldPlan;
+  SmartMeta: TTypeMetadata;
+  BackingField: TRttiField;
 begin
   // Lock-free slot cache lookup
   for I := 0 to 15 do
@@ -987,6 +989,32 @@ begin
     Item.IsSmartProp := (LTypeKind = tkRecord) and (LTypeInfo <> nil) and
                          TReflection.IsSmartProp(LTypeInfo);
 
+    if Item.IsSmartProp then
+    begin
+      SmartMeta := TReflection.GetMetadata(LTypeInfo);
+      if (SmartMeta <> nil) and (SmartMeta.ValueField <> nil) then
+      begin
+        if not Item.UseDirect then
+        begin
+          BackingField := RttiType.GetField('F' + Prop.Name);
+          if (BackingField <> nil) and (SmartMeta.InnerType <> nil) then
+          begin
+            Item.DirectKind := TDextTypeModel.NativeKindOf(SmartMeta.InnerType);
+            if TDextTypeModel.IsDirectKind(Item.DirectKind) or
+               TDextTypeModel.IsDirectReferenceKind(Item.DirectKind) then
+            begin
+              Item.DirectOffset := BackingField.Offset;
+              Item.UseDirect := True;
+            end;
+          end;
+        end;
+
+        if Item.UseDirect then
+          Item.DirectOffset := Item.DirectOffset + SmartMeta.ValueField.Offset;
+      end
+      else
+        Item.UseDirect := False;
+    end;
     // If SmartProp, classify by inner type
     if Item.IsSmartProp then
     begin
