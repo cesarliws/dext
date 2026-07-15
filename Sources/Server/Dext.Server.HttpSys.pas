@@ -141,6 +141,7 @@ type
     FReqQueue: THandle;
     FRequestId: HTTP_REQUEST_ID;
     FHeadersSent: Boolean;
+    FResponseComplete: Boolean;
     FStatusCode: USHORT;
     FHeaderData: array[0..4095] of AnsiChar;
     FHeaderDataLen: Integer;
@@ -328,6 +329,7 @@ type
 
     FIocp: THandle;
     FContextPool: TList;
+    FAllContexts: TList;
     FContextPoolLock: TSpinLock;
     FWorkers: TList;
     FBufferPool: TDextHttpSysBufferPool;
@@ -389,7 +391,8 @@ uses
   System.SysConst,
   Dext.WebSocket.Handshake,
   Dext.WebSocket.Protocol,
-  Dext.Core.Span;
+  Dext.Core.Span,
+  Dext.Utils;
 
 var
   KnownRequestHeadersMapGlobal: TDictionary<string, Integer>;
@@ -457,7 +460,10 @@ begin
       FContextPool.Delete(FContextPool.Count - 1);
     end
     else
+    begin
       Result := TDextHttpSysContext.Create;
+      FAllContexts.Add(Result);
+    end;
   finally
     FContextPoolLock.Exit;
   end;
@@ -671,15 +677,8 @@ begin
           FEntityBodyBuffer.Memory,
           FEntityBodyBuffer.Size,
           BytesReceived,
-          @FContext.FBodyOp.Overlapped
+          nil
         );
-
-        if Ret = ERROR_IO_PENDING then
-        begin
-          FContext.FBodyEvent.WaitFor(INFINITE);
-          Ret := FContext.FBodyError;
-          BytesReceived := FContext.FBodyBytesReceived;
-        end;
 
         if Ret = ERROR_SUCCESS then
         begin
@@ -892,6 +891,7 @@ begin
   FReqQueue := AReqQueue;
   FRequestId := ARequestId;
   FHeadersSent := False;
+  FResponseComplete := False;
   FStatusCode := 200;
 
   FReasonBuffer[0] := 'O';
@@ -922,6 +922,7 @@ begin
   FRequestId := ARequestId;
   FContext := AContext;
   FHeadersSent := False;
+  FResponseComplete := False;
   FStatusCode := 200;
 
   FReasonBuffer[0] := 'O';
@@ -998,6 +999,158 @@ end;
 
 procedure TDextHttpSysResponse.Close;
 var
+  BytesSent: ULONG;
+  Chunks: array[0..31] of HTTP_DATA_CHUNK;
+  I: Integer;
+  Response: HTTP_RESPONSE;
+  Ret: ULONG;
+  Seg: PDextBufferSegment;
+  SegCount: Integer;
+  TotalLen: Int64;
+begin
+  try
+    try
+      if not FHeadersSent then
+      begin
+        FillChar(Response, SizeOf(Response), 0);
+        Response.StatusCode := FStatusCode;
+        Response.ReasonLength := FReasonLen;
+        Response.pReason := @FReasonBuffer[0];
+        Response.Version.MajorVersion := 1;
+        Response.Version.MinorVersion := 1;
+
+        if FHeaderValues[11].Length = 0 then
+        begin
+          TotalLen := 0;
+          Seg := FResponseWriter.Segments;
+          for I := 0 to FResponseWriter.SegmentCount - 1 do
+          begin
+            TotalLen := TotalLen + Seg^.Length;
+            Inc(Seg);
+          end;
+          SetHeaderInt(11, TotalLen);
+        end;
+
+        for I := 0 to 29 do
+        begin
+          if FHeaderValues[I].Length > 0 then
+          begin
+            Response.Headers.KnownHeaders[I].pRawValue :=
+              @FHeaderData[FHeaderValues[I].Offset];
+            Response.Headers.KnownHeaders[I].RawValueLength :=
+              FHeaderValues[I].Length;
+          end;
+        end;
+
+        if FUnknownHeadersCount > 0 then
+        begin
+          Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
+          Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
+        end;
+
+        SegCount := FResponseWriter.SegmentCount;
+        if SegCount > 0 then
+        begin
+          if SegCount > Length(Chunks) then
+            raise EInvalidOp.CreateFmt('Too many response segments: %d', [SegCount]);
+          Seg := FResponseWriter.Segments;
+          for I := 0 to SegCount - 1 do
+          begin
+            FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+            Chunks[I].DataChunkType := hctFromMemory;
+            Chunks[I].pBuffer := Seg^.Data;
+            Chunks[I].BufferLength := Seg^.Length;
+            Inc(Seg);
+          end;
+
+          Response.EntityChunkCount := SegCount;
+          Response.pEntityChunks := @Chunks[0];
+        end;
+
+        SafeWriteLn('--- calling HttpSendHttpResponse: RequestId=' + IntToStr(FRequestId) + ' StatusCode=' + IntToStr(FStatusCode) + ' SegCount=' + IntToStr(SegCount));
+        Ret := HttpSendHttpResponse(
+          FReqQueue,
+          FRequestId,
+          0,
+          @Response,
+          nil,
+          BytesSent,
+          nil,
+          0,
+          nil,
+          nil
+        );
+        SafeWriteLn('--- HttpSendHttpResponse returned: ' + IntToStr(Ret) + ' BytesSent: ' + IntToStr(BytesSent));
+
+        if Ret <> ERROR_SUCCESS then
+          raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
+
+        FHeadersSent := True;
+      end
+      else
+      begin
+        if FResponseComplete then
+          Exit;
+        SegCount := FResponseWriter.SegmentCount;
+        if SegCount > 0 then
+        begin
+          if SegCount > Length(Chunks) then
+            raise EInvalidOp.CreateFmt('Too many response segments: %d', [SegCount]);
+          Seg := FResponseWriter.Segments;
+          for I := 0 to SegCount - 1 do
+          begin
+            FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+            Chunks[I].DataChunkType := hctFromMemory;
+            Chunks[I].pBuffer := Seg^.Data;
+            Chunks[I].BufferLength := Seg^.Length;
+            Inc(Seg);
+          end;
+
+          Ret := HttpSendResponseEntityBody(
+            FReqQueue,
+            FRequestId,
+            0,
+            SegCount,
+            @Chunks[0],
+            BytesSent,
+            nil,
+            nil,
+            nil,
+            nil
+          );
+        end
+        else
+        begin
+          Ret := HttpSendResponseEntityBody(
+            FReqQueue,
+            FRequestId,
+            0,
+            0,
+            nil,
+            BytesSent,
+            nil,
+            nil,
+            nil,
+            nil
+          );
+        end;
+        if Ret <> ERROR_SUCCESS then
+          raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
+      end;
+    finally
+      FResponseWriter.Reset;
+    end;
+  except
+    on E: Exception do
+    begin
+      SafeWriteLn('--- EXCEPTION IN TDextHttpSysResponse.Close: ' + E.ClassName + ': ' + E.Message);
+      raise;
+    end;
+  end;
+end;
+
+procedure TDextHttpSysResponse.Flush;
+var
   Response: HTTP_RESPONSE;
   Chunks: array[0..31] of HTTP_DATA_CHUNK;
   BytesSent: ULONG;
@@ -1005,28 +1158,16 @@ var
   I: Integer;
   SegCount: Integer;
   Seg: PDextBufferSegment;
-  TotalLen: Int64;
 begin
-  if not FHeadersSent then
-  begin
+  if FHeadersSent then Exit;
+
+  try
     FillChar(Response, SizeOf(Response), 0);
     Response.StatusCode := FStatusCode;
     Response.ReasonLength := FReasonLen;
     Response.pReason := @FReasonBuffer[0];
     Response.Version.MajorVersion := 1;
     Response.Version.MinorVersion := 1;
-
-    if FHeaderValues[11].Length = 0 then
-    begin
-      TotalLen := 0;
-      Seg := FResponseWriter.Segments;
-      for I := 0 to FResponseWriter.SegmentCount - 1 do
-      begin
-        TotalLen := TotalLen + Seg^.Length;
-        Inc(Seg);
-      end;
-      SetHeaderInt(11, TotalLen);
-    end;
 
     for I := 0 to 29 do
     begin
@@ -1048,9 +1189,8 @@ begin
     SegCount := FResponseWriter.SegmentCount;
     if SegCount > 0 then
     begin
-      if SegCount > 32 then
-        raise EInvalidOp.Create('Too many segments');
-
+      if SegCount > Length(Chunks) then
+        raise EInvalidOp.CreateFmt('Too many response segments: %d', [SegCount]);
       Seg := FResponseWriter.Segments;
       for I := 0 to SegCount - 1 do
       begin
@@ -1068,7 +1208,7 @@ begin
     Ret := HttpSendHttpResponse(
       FReqQueue,
       FRequestId,
-      0,
+      HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
       @Response,
       nil,
       BytesSent,
@@ -1077,141 +1217,16 @@ begin
       nil,
       nil
     );
+
     if Ret <> ERROR_SUCCESS then
       raise EOSError.Create('HttpSendHttpResponse failed with error code: '
         + IntToStr(Ret));
 
     FHeadersSent := True;
-  end
-  else
-  begin
-    SegCount := FResponseWriter.SegmentCount;
-    if SegCount > 0 then
-    begin
-      if SegCount > 32 then
-        raise EInvalidOp.Create('Too many segments');
-
-      Seg := FResponseWriter.Segments;
-      for I := 0 to SegCount - 1 do
-      begin
-        FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-        Chunks[I].DataChunkType := hctFromMemory;
-        Chunks[I].pBuffer := Seg^.Data;
-        Chunks[I].BufferLength := Seg^.Length;
-        Inc(Seg);
-      end;
-
-      Ret := HttpSendResponseEntityBody(
-        FReqQueue,
-        FRequestId,
-        0,
-        SegCount,
-        @Chunks[0],
-        BytesSent,
-        nil,
-        nil,
-        nil,
-        nil
-      );
-    end
-    else
-    begin
-      Ret := HttpSendResponseEntityBody(
-        FReqQueue,
-        FRequestId,
-        0,
-        0,
-        nil,
-        BytesSent,
-        nil,
-        nil,
-        nil,
-        nil
-      );
-    end;
-    if Ret <> ERROR_SUCCESS then
-      raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
-        + IntToStr(Ret));
+  finally
+    FResponseWriter.Reset;
+    FResponseWriter.Init;
   end;
-  FResponseWriter.Reset;
-end;
-
-procedure TDextHttpSysResponse.Flush;
-var
-  Response: HTTP_RESPONSE;
-  Chunks: array[0..31] of HTTP_DATA_CHUNK;
-  BytesSent: ULONG;
-  Ret: ULONG;
-  I: Integer;
-  SegCount: Integer;
-  Seg: PDextBufferSegment;
-begin
-  if FHeadersSent then Exit;
-
-  FillChar(Response, SizeOf(Response), 0);
-  Response.StatusCode := FStatusCode;
-  Response.ReasonLength := FReasonLen;
-  Response.pReason := @FReasonBuffer[0];
-  Response.Version.MajorVersion := 1;
-  Response.Version.MinorVersion := 1;
-
-  for I := 0 to 29 do
-  begin
-    if FHeaderValues[I].Length > 0 then
-    begin
-      Response.Headers.KnownHeaders[I].pRawValue :=
-        @FHeaderData[FHeaderValues[I].Offset];
-      Response.Headers.KnownHeaders[I].RawValueLength :=
-        FHeaderValues[I].Length;
-    end;
-  end;
-
-  if FUnknownHeadersCount > 0 then
-  begin
-    Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
-    Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
-  end;
-
-  SegCount := FResponseWriter.SegmentCount;
-  if SegCount > 0 then
-  begin
-    if SegCount > 32 then
-      raise EInvalidOp.Create('Too many segments');
-
-    Seg := FResponseWriter.Segments;
-    for I := 0 to SegCount - 1 do
-    begin
-      FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-      Chunks[I].DataChunkType := hctFromMemory;
-      Chunks[I].pBuffer := Seg^.Data;
-      Chunks[I].BufferLength := Seg^.Length;
-      Inc(Seg);
-    end;
-
-    Response.EntityChunkCount := SegCount;
-    Response.pEntityChunks := @Chunks[0];
-  end;
-
-  Ret := HttpSendHttpResponse(
-    FReqQueue,
-    FRequestId,
-    HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
-    @Response,
-    nil,
-    BytesSent,
-    nil,
-    0,
-    nil,
-    nil
-  );
-
-  if Ret <> ERROR_SUCCESS then
-    raise EOSError.Create('HttpSendHttpResponse failed with error code: '
-      + IntToStr(Ret));
-
-  FHeadersSent := True;
-  FResponseWriter.Reset;
-  FResponseWriter.Init;
 end;
 
 procedure TDextHttpSysResponse.SendHeaders;
@@ -1395,7 +1410,7 @@ begin
     Ret := HttpSendResponseEntityBody(
       FReqQueue,
       FRequestId,
-      HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+      0,
       1,
       @Chunk,
       BytesSent,
@@ -1407,6 +1422,7 @@ begin
     if Ret <> ERROR_SUCCESS then
       raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
         + IntToStr(Ret));
+    FResponseComplete := True;
   end
   else
   begin
@@ -1991,11 +2007,22 @@ begin
           RawResponse := Context.FResponse;
 
           try
-            if Assigned(FEngine.FOnRequest) then
-              FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+            try
+              if Assigned(FEngine.FOnRequest) then
+                FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+            except
+              on E: Exception do
+                SafeWriteLn('--- EXCEPTION IN WORKER FOnRequest: ' + E.ClassName + ': ' + E.Message);
+            end;
           finally
-            RawResponse.Close;
+            try
+              RawResponse.Close;
+            except
+              on E: Exception do
+                SafeWriteLn('--- EXCEPTION IN RawResponse.Close: ' + E.ClassName + ': ' + E.Message);
+            end;
             RawRequest := nil;
+            RawResponse := nil;
             Connection := nil;
             TInterlocked.Decrement(FEngine.FActiveConnections);
           end;
@@ -2024,6 +2051,7 @@ begin
   FRunning := False;
   FIocp := 0;
   FContextPool := TList.Create;
+  FAllContexts := TList.Create;
   FContextPoolLock := TSpinLock.Create(False);
   FWorkers := TList.Create;
   FBufferPool := TDextHttpSysBufferPool.Create(64);
@@ -2036,13 +2064,15 @@ destructor TDextHttpSysEngine.Destroy;
 var
   I: Integer;
 begin
+  //raise Exception.Create('TDextHttpSysEngine.Destroy CALLED');
   Stop;
   FWorkers.Free;
   FRequestPool.Free;
   FResponsePool.Free;
   FBufferPool.Free;
-  for I := 0 to FContextPool.Count - 1 do
-    TDextHttpSysContext(FContextPool[I]).Free;
+  for I := 0 to FAllContexts.Count - 1 do
+    TDextHttpSysContext(FAllContexts[I]).Free;
+  FAllContexts.Free;
   FContextPool.Free;
   inherited;
 end;
@@ -2194,14 +2224,11 @@ begin
 
   FRunning := False;
 
-  if FIocp <> 0 then
-  begin
-    CloseHandle(FIocp);
-    FIocp := 0;
-  end;
-
   if FReqQueue <> 0 then
+  begin
     HttpCloseRequestQueue(FReqQueue);
+    FReqQueue := 0;
+  end;
 
   // Stop threads
   for I := 0 to FWorkers.Count - 1 do
@@ -2217,6 +2244,12 @@ begin
     Worker.Free;
   end;
   FWorkers.Clear;
+
+  if FIocp <> 0 then
+  begin
+    CloseHandle(FIocp);
+    FIocp := 0;
+  end;
 
   if FUrlGroupId <> 0 then
   begin

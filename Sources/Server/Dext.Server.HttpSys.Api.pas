@@ -309,7 +309,6 @@ type
   HTTP_DATA_CHUNK = record
     case DataChunkType: THttpChunkType of
       hctFromMemory: (
-        Reserved1: ULONG;
         pBuffer: Pointer;
         BufferLength: ULONG;
         {$IFDEF CPUX64}

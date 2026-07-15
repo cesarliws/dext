@@ -73,10 +73,6 @@ begin
   TDextBufferPool.Release(AOwner);
 end;
 
-threadvar
-  TLocalHeads: array[0..4] of Pointer;
-  TLocalCounts: array[0..4] of Integer;
-
 function SizeToSizeClass(ASize: Integer; out AClassSize: Integer): Integer;
 begin
   if ASize <= 4096 then
@@ -124,14 +120,6 @@ begin
   Idx := SizeToSizeClass(ASize, ClassSize);
   ARentedSize := ClassSize;
 
-  Node := TLocalHeads[Idx];
-  if Node <> nil then
-  begin
-    TLocalHeads[Idx] := Node.Next;
-    Dec(TLocalCounts[Idx]);
-    Exit(PByte(Node) + SizeOf(TDextBufferNode));
-  end;
-
   repeat
     OldHead := FGlobalHeads[Idx];
     if OldHead = nil then
@@ -163,26 +151,20 @@ begin
   Node := PDextBufferNode(PByte(APtr) - SizeOf(TDextBufferNode));
   Idx := Node.SizeClass;
 
+  if (Idx < -1) or (Idx > 4) then
+    raise EInvalidOp.Create('Invalid response buffer size class');
+
   if Idx = -1 then
   begin
     FreeMem(Node);
     Exit;
   end;
 
-  if TLocalCounts[Idx] < 32 then
-  begin
-    Node.Next := TLocalHeads[Idx];
-    TLocalHeads[Idx] := Node;
-    Inc(TLocalCounts[Idx]);
-  end
-  else
-  begin
-    repeat
-      OldHead := FGlobalHeads[Idx];
-      Node.Next := OldHead;
-    until TInterlocked.CompareExchange(FGlobalHeads[Idx], Node,
-      OldHead) = OldHead;
-  end;
+  repeat
+    OldHead := FGlobalHeads[Idx];
+    Node.Next := OldHead;
+  until TInterlocked.CompareExchange(FGlobalHeads[Idx], Node,
+    OldHead) = OldHead;
 end;
 
 class procedure TDextBufferPool.ResetPools;
@@ -201,16 +183,6 @@ begin
       OldHead) = OldHead;
 
     Node := OldHead;
-    while Node <> nil do
-    begin
-      Temp := Node.Next;
-      FreeMem(Node);
-      Node := Temp;
-    end;
-
-    Node := TLocalHeads[Idx];
-    TLocalHeads[Idx] := nil;
-    TLocalCounts[Idx] := 0;
     while Node <> nil do
     begin
       Temp := Node.Next;
@@ -325,7 +297,7 @@ begin
   SpanLen := ASpan.Length;
   while SpanLen > 0 do
   begin
-    Writable := GetSpan(1);
+    Writable := GetSpan(SpanLen);
     Chunk := Writable.Length;
     if Chunk > SpanLen then
       Chunk := SpanLen;
@@ -389,5 +361,10 @@ begin
   FCurrentSegmentRemaining := 0;
   FCurrentSegmentTotal := 0;
 end;
+
+initialization
+
+finalization
+  TDextBufferPool.ResetPools;
 
 end.
