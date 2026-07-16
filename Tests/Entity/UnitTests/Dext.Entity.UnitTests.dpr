@@ -34,6 +34,7 @@ uses
   Dext.Entity.BulkBatchSize.Tests in 'Dext.Entity.BulkBatchSize.Tests.pas',
   Dext.Entity.DynamicQueryFilter.Tests in 'Dext.Entity.DynamicQueryFilter.Tests.pas',
   Dext.Entity.Sequences.Tests in 'Dext.Entity.Sequences.Tests.pas',
+  Dext.Entity.SaveChanges.Tests in 'Dext.Entity.SaveChanges.Tests.pas',
   Dext.Grpc.Tests in 'Dext.Grpc.Tests.pas';
 
 begin
@@ -80,6 +81,7 @@ begin
         TDynamicQueryFilterUnitTests,
         TDynamicQueryFilterIntegrationTests,
         TEntitySequencesTests,
+        TSaveChangesTests,
         TGrpcTests
       ]));
   except
