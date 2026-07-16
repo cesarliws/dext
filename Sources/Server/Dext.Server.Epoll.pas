@@ -448,7 +448,7 @@ begin
   FSendFileFd := -1;
   FSendFileOffset := 0;
   FSendFileLen := 0;
-  FLastActive := TThread.GetTickCount64;
+  FLastActive := GetTickCount64;
 end;
  
 { TDextEpollHttpParser }
@@ -1409,7 +1409,7 @@ begin
               Context.FSendFileFd := -1;
               Context.FSendFileOffset := 0;
               Context.FSendFileLen := 0;
-              Context.FLastActive := TThread.GetTickCount64;
+              Context.FLastActive := GetTickCount64;
             end
             else
               Context := TDextEpollContext.Create(ClientFd, FEpollFd);
@@ -1443,7 +1443,7 @@ begin
         else
         begin
           Context := TDextEpollContext(Event.data.ptr);
-          Context.FLastActive := TThread.GetTickCount64;
+          Context.FLastActive := GetTickCount64;
 
           if (Event.events and EPOLLOUT) <> 0 then
           begin
@@ -1650,7 +1650,7 @@ begin
       end;
 
       // Keep-Alive connection timeout sweep
-      NowTicks := TThread.GetTickCount64;
+      NowTicks := GetTickCount64;
       for j := FActiveContexts.Count - 1 downto 0 do
       begin
         Ctx := TDextEpollContext(FActiveContexts[j]);
