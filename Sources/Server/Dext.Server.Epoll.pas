@@ -93,6 +93,11 @@ type
     FLastActive: Int64;
 
     FConnection: IDextTransportConnection;
+    FEngine: TObject; // Ref to TDextEpollEngine
+    FWakeupTime: Int64;
+    FQueueStartTime: Int64;
+    FHandlerEndTime: Int64;
+    FKeepAlive: Boolean;
     
     constructor Create(AFd: Integer; AEpollFd: Integer);
   end;
@@ -236,6 +241,7 @@ type
     FCoreId: Integer;
     FContextPool: TList;
     FActiveContexts: TList;
+    FLastSweepTick: Int64;
     procedure CreateLocalReactor;
     procedure CloseLocalReactor;
     procedure ReleaseContext(AContext: TDextEpollContext);
@@ -278,6 +284,15 @@ type
     FTotalRequests: Int64;
 
     FWorkers: TList;
+    FProfileEnabled: Boolean;
+    FTotalQueueDelayTicks: Int64;
+    FTotalHandlerTicks: Int64;
+    FTotalReadParseTicks: Int64;
+    FTotalSendTicks: Int64;
+    FTotalSweepTicks: Int64;
+    FSweepCount: Int64;
+    FProfiledRequestCount: Int64;
+    procedure ReportMetrics(const AContext: TDextEpollContext);
   public
     /// <summary>Initializes a new epoll server engine.</summary>
     /// <param name="AOptions">The engine configuration options.</param>
@@ -355,6 +370,7 @@ implementation
 {$IFDEF LINUX}
 uses
   System.Threading,
+  System.Diagnostics,
   Dext.Resilience,
   Posix.Base,
   Posix.SysTypes,
@@ -367,6 +383,7 @@ uses
   Posix.Errno;
 
 const
+  TCP_NODELAY  = 1;
   EPOLLIN      = $00000001;
   EPOLLOUT     = $00000004;
   EPOLLERR     = $00000008;
@@ -630,7 +647,6 @@ end;
 
 destructor TDextEpollConnection.Destroy;
 begin
-  Close;
   inherited;
 end;
 
@@ -902,7 +918,15 @@ var
   Event: epoll_event;
   SentFileBytes: NativeInt;
   HasPendingWrite: Boolean;
+  StartSend: Int64;
 begin
+  StartSend := 0;
+  if (FContext <> nil) and (FContext.FEngine <> nil) and
+     TDextEpollEngine(FContext.FEngine).FProfileEnabled then
+  begin
+    StartSend := TStopwatch.GetTimeStamp;
+  end;
+
   if not FHeadersSent then
     SendHeaders;
 
@@ -1001,6 +1025,14 @@ begin
       epoll_ctl(FContext.FEpollFd, EPOLL_CTL_MOD, FSocket, @Event);
     end;
   end;
+
+  if (StartSend > 0) and (FContext <> nil) and
+     (FContext.FEngine <> nil) then
+  begin
+    TInterlocked.Add(
+      TDextEpollEngine(FContext.FEngine).FTotalSendTicks,
+      TStopwatch.GetTimeStamp - StartSend);
+  end;
 end;
 
 procedure TDextEpollResponse.SendHeaders;
@@ -1026,6 +1058,22 @@ begin
 
   if not FHeaders.ContainsKey('Content-Type') then
     FHeaders.Add('Content-Type', 'text/plain');
+
+  if not FHeaders.ContainsKey('Connection') then
+  begin
+    if FContext.FKeepAlive then
+      FHeaders.Add('Connection', 'keep-alive')
+    else
+      FHeaders.Add('Connection', 'close');
+  end;
+
+  if not FHeaders.ContainsKey('Content-Length') then
+  begin
+    if FContext.FSendFileLen > 0 then
+      FHeaders.Add('Content-Length', FContext.FSendFileLen.ToString)
+    else
+      FHeaders.Add('Content-Length', FBodyLen.ToString);
+  end;
 
   SetLength(FResponseBuffer, 512);
   BufferOffset := 0;
@@ -1122,6 +1170,7 @@ begin
   SetLength(FReadBuffer, 8192);
   FContextPool := TList.Create;
   FActiveContexts := TList.Create;
+  FLastSweepTick := GetTickCount64;
 end;
 
 destructor TDextEpollWorker.Destroy;
@@ -1270,12 +1319,27 @@ begin
       LFd: Integer;
       HasPendingWrite: Boolean;
       LLocalEvent: epoll_event;
+      IsKeepAlive: Boolean;
     begin
       LConnection := AConnection;
       LRequest := ARequest;
       LResponse := AResponse;
       LContext := AContext;
       LFd := LContext.FFd;
+
+      IsKeepAlive := not SameText(LRequest.GetHeader('Connection'), 'close');
+      if LContext <> nil then
+        LContext.FKeepAlive := IsKeepAlive;
+
+      if (LContext <> nil) and (LContext.FEngine <> nil) and
+         TDextEpollEngine(LContext.FEngine).FProfileEnabled then
+      begin
+        LContext.FQueueStartTime := TStopwatch.GetTimeStamp;
+        TInterlocked.Add(
+          TDextEpollEngine(LContext.FEngine).FTotalQueueDelayTicks,
+          LContext.FQueueStartTime - LContext.FWakeupTime);
+      end;
+
       try
         try
           if Assigned(FEngine.FOnRequest) then
@@ -1293,14 +1357,37 @@ begin
 
         if not HasPendingWrite then
         begin
-          shutdown(LFd, 1);
-          if LContext <> nil then
+          if not IsKeepAlive then
           begin
-            FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
-            LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
-            LLocalEvent.data.ptr := LContext;
-            epoll_ctl(LLocalEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
+            shutdown(LFd, 1);
+            if LContext <> nil then
+            begin
+              FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
+              LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+              LLocalEvent.data.ptr := LContext;
+              epoll_ctl(LLocalEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
+            end;
+          end
+          else
+          begin
+            if LContext <> nil then
+            begin
+              LContext.FReadLen := 0;
+              FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
+              LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+              LLocalEvent.data.ptr := LContext;
+              epoll_ctl(LLocalEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
+            end;
           end;
+        end;
+        if (LContext <> nil) and (LContext.FEngine <> nil) and
+           TDextEpollEngine(LContext.FEngine).FProfileEnabled then
+        begin
+          LContext.FHandlerEndTime := TStopwatch.GetTimeStamp;
+          TInterlocked.Add(
+            TDextEpollEngine(LContext.FEngine).FTotalHandlerTicks,
+            LContext.FHandlerEndTime - LContext.FQueueStartTime);
+          TDextEpollEngine(LContext.FEngine).ReportMetrics(LContext);
         end;
         LResponse := nil;
         LRequest := nil;
@@ -1397,12 +1484,18 @@ begin
             LingerOption.l_linger := 5;
             setsockopt(ClientFd, SOL_SOCKET, SO_LINGER, LingerOption, SizeOf(LingerOption));
 
+            // TCP_NODELAY to disable Nagle's algorithm
+            OptVal := 1;
+            setsockopt(
+              ClientFd, IPPROTO_TCP, TCP_NODELAY, OptVal, SizeOf(OptVal));
+
             // Reuse context from pool or create new one
             if FContextPool.Count > 0 then
             begin
               Context := TDextEpollContext(FContextPool[FContextPool.Count - 1]);
               FContextPool.Delete(FContextPool.Count - 1);
               Context.FFd := ClientFd;
+              Context.FEngine := FEngine;
               Context.FReadLen := 0;
               Context.FWriteOffset := 0;
               Context.FWriteLen := 0;
@@ -1412,7 +1505,10 @@ begin
               Context.FLastActive := GetTickCount64;
             end
             else
+            begin
               Context := TDextEpollContext.Create(ClientFd, FEpollFd);
+              Context.FEngine := FEngine;
+            end;
 
             FActiveContexts.Add(Context);
 
@@ -1444,6 +1540,8 @@ begin
         begin
           Context := TDextEpollContext(Event.data.ptr);
           Context.FLastActive := GetTickCount64;
+          if FEngine.FProfileEnabled then
+            Context.FWakeupTime := TStopwatch.GetTimeStamp;
 
           if (Event.events and EPOLLOUT) <> 0 then
           begin
@@ -1499,12 +1597,25 @@ begin
 
             if (Context.FWriteLen = 0) and (Context.FSendFileLen = 0) then
             begin
-              // Escrita concluída com sucesso! Agora podemos fechar.
-              __close(Context.FFd);
-              FActiveContexts.Remove(Context);
-              ReleaseContext(Context);
-              TInterlocked.Decrement(FEngine.FActiveConnections);
-              Continue;
+              if not Context.FKeepAlive then
+              begin
+                // Escrita concluída com sucesso! Agora podemos fechar.
+                __close(Context.FFd);
+                FActiveContexts.Remove(Context);
+                ReleaseContext(Context);
+                TInterlocked.Decrement(FEngine.FActiveConnections);
+                Continue;
+              end
+              else
+              begin
+                // Keep-Alive: reset read index and re-arm for reading!
+                Context.FReadLen := 0;
+                FillChar(Event, SizeOf(Event), 0);
+                Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+                Event.data.ptr := Context;
+                epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
+                Continue;
+              end;
             end;
 
             // Se ainda tem dados a enviar, rearmamos em modo EPOLLOUT
@@ -1622,6 +1733,10 @@ begin
               RawRequest := TDextEpollRequest.Create(Method, Path, Query, HeaderSegments, Context.FReadBuffer, BodyOffset, Context.FReadLen - BodyOffset, ContentLength);
               RawResponse := TDextEpollResponse.Create(Context);
 
+              if FEngine.FProfileEnabled then
+                TInterlocked.Add(FEngine.FTotalReadParseTicks,
+                  TStopwatch.GetTimeStamp - Context.FWakeupTime);
+
               ProcessRequestAsync(Context, Connection, RawRequest, RawResponse);
 
               Connection := nil;
@@ -1649,17 +1764,32 @@ begin
         end;
       end;
 
-      // Keep-Alive connection timeout sweep
+      // Keep-Alive connection timeout sweep (throttled to once per second)
       NowTicks := GetTickCount64;
-      for j := FActiveContexts.Count - 1 downto 0 do
+      if NowTicks - FLastSweepTick > 1000 then
       begin
-        Ctx := TDextEpollContext(FActiveContexts[j]);
-        if NowTicks - Ctx.FLastActive > 15000 then
+        FLastSweepTick := NowTicks;
+        var StartSweep: Int64 := 0;
+        if FEngine.FProfileEnabled then
+          StartSweep := TStopwatch.GetTimeStamp;
+
+        for j := FActiveContexts.Count - 1 downto 0 do
         begin
-          __close(Ctx.FFd);
-          FActiveContexts.Delete(j);
-          ReleaseContext(Ctx);
-          TInterlocked.Decrement(FEngine.FActiveConnections);
+          Ctx := TDextEpollContext(FActiveContexts[j]);
+          if NowTicks - Ctx.FLastActive > 15000 then
+          begin
+            __close(Ctx.FFd);
+            FActiveContexts.Delete(j);
+            ReleaseContext(Ctx);
+            TInterlocked.Decrement(FEngine.FActiveConnections);
+          end;
+        end;
+
+        if FEngine.FProfileEnabled then
+        begin
+          TInterlocked.Add(FEngine.FTotalSweepTicks,
+            TStopwatch.GetTimeStamp - StartSweep);
+          TInterlocked.Increment(FEngine.FSweepCount);
         end;
       end;
     end;
@@ -1682,6 +1812,8 @@ begin
   FOptions := AOptions;
   FRunning := False;
   FWorkers := TList.Create;
+  FProfileEnabled := SameText(
+    GetEnvironmentVariable('DEXT_PROFILE_EPOLL'), 'true');
 end;
 
 destructor TDextEpollEngine.Destroy;
@@ -1689,6 +1821,34 @@ begin
   Stop;
   FWorkers.Free;
   inherited;
+end;
+
+procedure TDextEpollEngine.ReportMetrics(const AContext: TDextEpollContext);
+var
+  ReqCount: Int64;
+  Freq: Double;
+  AvgQueue, AvgHandler, AvgRead, AvgSend, AvgSweep: Double;
+begin
+  ReqCount := TInterlocked.Increment(FProfiledRequestCount);
+  if ReqCount mod 1000 = 0 then
+  begin
+    Freq := TStopwatch.Frequency;
+    AvgQueue := (FTotalQueueDelayTicks / ReqCount) / Freq * 1000.0;
+    AvgHandler := (FTotalHandlerTicks / ReqCount) / Freq * 1000.0;
+    AvgRead := (FTotalReadParseTicks / ReqCount) / Freq * 1000.0;
+    AvgSend := (FTotalSendTicks / ReqCount) / Freq * 1000.0;
+
+    if FSweepCount > 0 then
+      AvgSweep := (FTotalSweepTicks / FSweepCount) / Freq * 1000.0
+    else
+      AvgSweep := 0.0;
+
+    Writeln(Format(
+      '[Profile] Req: %d | QDelay: %.3fms | Hdlr: %.3fms | ' +
+      'RP: %.3fms | Send: %.3fms | Sweep: %.3fms (%d)',
+      [ReqCount, AvgQueue, AvgHandler, AvgRead, AvgSend, AvgSweep,
+       FSweepCount]));
+  end;
 end;
 
 procedure TDextEpollEngine.Bind(const AAddress: string; APort: Word);

@@ -194,42 +194,54 @@ Statistics        Avg      Stdev        Max
 
 ## 🐧 Testing Benchmarks on Linux
 
-Dext contains a high-performance native `epoll` socket server engine built specifically for Linux. You can compile and benchmark Dext directly on Linux to compare performance.
+Dext contains a high-performance native `epoll` socket server engine built
+specifically for Linux. You can compile and benchmark Dext directly on
+Linux (or WSL2) to compare performance.
 
-### 1. Compile the Benchmark for Linux
-You can cross-compile the binary from Windows to Linux64 (refer to the **How to Compile - C** section above). The compiled binary `Dext.Benchmarks` will be outputted to:
-```
-DextRepository\Output\37.0\Linux64\Release\Dext.Benchmarks
-```
-Copy this binary to your target Linux system.
+### 1. Compile and Deploy for Linux
+- **Via Delphi IDE**:
+  - Open `DextFramework.groupproj`.
+  - Set the target platform of `Dext.Benchmarks` to **Linux 64-bit**.
+  - Set configuration to **Release**.
+  - Configure your Connection Profile to point to your Linux/WSL PAServer.
+  - Right-click `Dext.Benchmarks` and select **Deploy** (this compiles and
+    sends the executable `Dext_Benchmarks` to your Linux target).
 
-### 2. Standalone Server with Epoll
-Execute the standalone Dext server using the high-performance native `epoll` engine on Linux:
+- **Via MSBuild (Windows)**:
+  ```powershell
+  msbuild Dext.Benchmarks.dproj /t:Clean;Build `
+    /p:Config=Release /p:Platform=Linux64 /v:minimal
+  ```
+  The binary is outputted to:
+  `DextRepository\Output\37.0\Linux64\Release\Dext.Benchmarks`.
+
+### 2. Run Standalone Epoll Server (Linux/WSL)
+Navigate to the directory containing the deployed binary on Linux (e.g.
+`~/PAServer/scratch-dir/<Profile>/Dext.Benchmarks/`):
 ```bash
-# Allow executing the binary
-chmod +x ./Dext.Benchmarks
+# Allow execution
+chmod +x ./Dext_Benchmarks
 
-# Start the epoll server (defaults to port 8085)
-./Dext.Benchmarks --server -epoll
+# Start Epoll with profiling and telemetry (Sidecar disabled)
+export DEXT_PROFILE_EPOLL=true
+export DEXT_SIDECAR_ENABLED=false
+./Dext_Benchmarks --server -epoll
 ```
-*(Note: Bypassing http.sys on Linux, `-epoll` or `-native` will automatically instantiate the `TDextEpollEngine` sockets.)*
+*Note: Disabling the sidecar prevents debugger halts and connection errors
+to port 3030 if the Sidecar is not running.*
 
-### 3. Load Testing with Bombardier on Linux
-To stress-test your server on Linux:
-1. **Download Bombardier**: Get the pre-compiled binary for Linux from the [Bombardier Releases page](https://github.com/codesenberg/bombardier/releases):
-   ```bash
-   wget https://github.com/codesenberg/bombardier/releases/download/v1.2.6/bombardier-linux-amd64
-   chmod +x bombardier-linux-amd64
-   ```
-2. **Execute Stress Test**: Send a load of 125 concurrent connections for 10 seconds to the epoll server:
-   ```bash
-   ./bombardier-linux-amd64 -c 125 -d 10s http://127.0.0.1:8085/ping
-   ```
+### 3. Load Testing from Windows Host to WSL Guest
+Because WSL2 supports automatic localhost loopback, you can run the load
+test client from your Windows host pointing directly to `localhost:8085`:
+```powershell
+& "C:\dev\tools\bombardier-windows-amd64.exe" `
+  -c 125 -d 10s http://localhost:8085/ping
+```
 
 ### 4. Running Microbenchmarks on Linux
 To run the in-memory, routing, and ORM Google/Spring microbenchmarks on Linux:
 ```bash
-./Dext.Benchmarks --benchmark_repetitions=3
+./Dext_Benchmarks --benchmark_repetitions=3
 ```
 *The `ReadLn` console blocking is automatically bypassed on non-Windows platforms so the suite runs cleanly inside Linux shell scripts and CI environments without hanging.*
 
