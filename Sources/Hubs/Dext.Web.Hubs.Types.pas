@@ -33,9 +33,16 @@ unit Dext.Web.Hubs.Types;
 interface
 
 uses
+  System.Rtti,
   System.SysUtils;
 
 type
+  /// <summary>
+  /// Explicitly allows a public Hub method to be invoked by a remote client.
+  /// Public methods without this attribute remain server-side only.
+  /// </summary>
+  HubMethodAttribute = class(TCustomAttribute);
+
   /// <summary>
   /// Transport information in negotiate response.
   /// </summary>
@@ -125,6 +132,11 @@ type
   /// Exception when invocation fails.
   /// </summary>
   EHubInvocationException = class(EHubException);
+
+  /// <summary>
+  /// Exception when a Hub request exceeds the configured receive limit.
+  /// </summary>
+  EHubPayloadTooLargeException = class(EHubException);
 
 implementation
 

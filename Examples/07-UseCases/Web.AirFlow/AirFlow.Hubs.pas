@@ -6,13 +6,17 @@ uses
   System.SysUtils,
   System.Rtti,
   Dext.Web.Hubs.Hub,
+  Dext.Web.Hubs.Types,
   AirFlow.Domain;
 
 type
   TAirFlowHub = class(THub)
   public
+    [HubMethod]
     procedure JoinRegion(const ARegionName: string);
+    [HubMethod]
     procedure LeaveRegion(const ARegionName: string);
+    [HubMethod]
     procedure BroadcastAlert(const AVehicleId, AMessage: string);
   end;
 

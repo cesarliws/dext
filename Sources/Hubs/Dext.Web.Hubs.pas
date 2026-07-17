@@ -31,6 +31,7 @@
 {    type                                                                   }
 {      TMyHub = class(THub)                                                 }
 {      public                                                               }
+{        [HubMethod]                                                        }
 {        procedure SendMessage(const Text: string);                         }
 {      end;                                                                 }
 {                                                                           }
@@ -85,6 +86,7 @@ type
   THubMessage = Dext.Web.Hubs.Interfaces.THubMessage;
   THubOptions = Dext.Web.Hubs.Types.THubOptions;
   TNegotiateResponse = Dext.Web.Hubs.Types.TNegotiateResponse;
+  HubMethodAttribute = Dext.Web.Hubs.Types.HubMethodAttribute;
   
   // Implementations
   THubConnection = Dext.Web.Hubs.Connections.THubConnection;
@@ -98,6 +100,7 @@ type
   EConnectionNotFoundException = Dext.Web.Hubs.Types.EConnectionNotFoundException;
   EHubMethodNotFoundException = Dext.Web.Hubs.Types.EHubMethodNotFoundException;
   EHubInvocationException = Dext.Web.Hubs.Types.EHubInvocationException;
+  EHubPayloadTooLargeException = Dext.Web.Hubs.Types.EHubPayloadTooLargeException;
 
 implementation
 

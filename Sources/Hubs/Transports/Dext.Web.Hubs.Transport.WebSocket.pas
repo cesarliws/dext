@@ -83,8 +83,9 @@ type
     FOnConnected: TOnConnectionEvent;
     FOnDisconnected: TOnConnectionEvent;
     FShuttingDown: Boolean;
+    FMaximumReceiveMessageSize: Int64;
   public
-    constructor Create;
+    constructor Create(AMaximumReceiveMessageSize: Int64 = 32 * 1024);
     destructor Destroy; override;
 
     // IHubTransport
@@ -202,18 +203,24 @@ end;
 
 { TWebSocketHubTransport }
 
-constructor TWebSocketHubTransport.Create;
+constructor TWebSocketHubTransport.Create(AMaximumReceiveMessageSize: Int64);
 begin
   inherited Create;
+  if (AMaximumReceiveMessageSize <= 0) or
+     (AMaximumReceiveMessageSize > High(Integer) - 14) then
+    raise EArgumentOutOfRangeException.Create(
+      'MaximumReceiveMessageSize is outside the supported range');
   FConnections := TCollections.CreateDictionary<string, TWebSocketHubConnection>;
   FLock := TCriticalSection.Create;
   FShuttingDown := False;
+  FMaximumReceiveMessageSize := AMaximumReceiveMessageSize;
 end;
 
 destructor TWebSocketHubTransport.Destroy;
 begin
-  CloseAllConnections;
-  FLock.Free;
+  if FLock <> nil then
+    CloseAllConnections;
+  FreeAndNil(FLock);
   inherited;
 end;
 
@@ -311,7 +318,7 @@ var
   PayloadStr: string;
   KeepAliveTimer: TDateTime;
 begin
-  WSConn := AContext.Connection.UpgradeToWebSocket;
+  WSConn := AContext.GetConnection.UpgradeToWebSocket;
   if WSConn = nil then
   begin
     AConnectionId := '';
@@ -337,13 +344,18 @@ begin
   if Assigned(FOnConnected) then
     FOnConnected(ConnectionId);
 
-  SetLength(Buffer, 65536);
+  SetLength(Buffer, Integer(FMaximumReceiveMessageSize) + 14);
   BufferOffset := 0;
   KeepAliveTimer := Now;
 
   try
     while (not FShuttingDown) and (HubConnection.State = csConnected) do
     begin
+      if BufferOffset >= Length(Buffer) then
+      begin
+        HubConnection.Close('Message too large');
+        Break;
+      end;
       BytesRead := WSConn.Receive(Buffer, BufferOffset, Length(Buffer) - BufferOffset);
       if BytesRead <= 0 then
         Break;
@@ -355,6 +367,11 @@ begin
         BytesConsumed := 0;
         if TWebSocketFrameCodec.TryDecode(Buffer, 0, BufferOffset, Frame, BytesConsumed) then
         begin
+          if Length(Frame.Payload) > FMaximumReceiveMessageSize then
+          begin
+            HubConnection.Close('Message too large');
+            Break;
+          end;
           case Frame.Opcode of
             wsText:
             begin

@@ -34,21 +34,25 @@ type
     /// <summary>
     /// Client invokes this to send a message to everyone
     /// </summary>
+    [HubMethod]
     procedure SendMessage(const User, Message: string);
     
     /// <summary>
     /// Client invokes this to join a group
     /// </summary>
+    [HubMethod]
     procedure JoinGroup(const GroupName: string);
     
     /// <summary>
     /// Client invokes this to leave a group
     /// </summary>
+    [HubMethod]
     procedure LeaveGroup(const GroupName: string);
     
     /// <summary>
     /// Client invokes this to send a message to a group
     /// </summary>
+    [HubMethod]
     procedure SendToGroup(const GroupName, User, Message: string);
   end;
 

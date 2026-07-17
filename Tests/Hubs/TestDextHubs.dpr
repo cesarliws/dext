@@ -331,13 +331,20 @@ end;
 type
   TTestHub = class(THub)
   public
+    [HubMethod]
     procedure TestMethod(const Message: string);
+    procedure ServerOnlyMethod;
   end;
 
 procedure TTestHub.TestMethod(const Message: string);
 begin
   // Test method - would normally send to clients
   Clients.All.SendAsync('Echo', [TValue.From(Message)]);
+end;
+
+procedure TTestHub.ServerOnlyMethod;
+begin
+  // Intentionally public, but not remotely invokable.
 end;
 
 procedure TestTHub;
@@ -380,6 +387,88 @@ begin
     end;
   finally
     Hub.Free;
+  end;
+end;
+
+procedure TestHubMethodAllowlist;
+var
+  ConnectionManager: IConnectionManager;
+  ConcreteConnectionManager: TConnectionManager;
+  GroupManager: IGroupManager;
+  Connection: IHubConnection;
+  SSETransport: TSSETransport;
+  Dispatcher: THubDispatcher;
+begin
+  WriteLn;
+  WriteLn('=== Hub Method Allowlist Tests ===');
+
+  GroupManager := TGroupManager.Create;
+  ConcreteConnectionManager := TConnectionManager.Create;
+  ConcreteConnectionManager.SetGroupManager(GroupManager);
+  ConnectionManager := ConcreteConnectionManager;
+  Connection := THubConnection.Create('allowlist-connection',
+    ttServerSentEvents);
+  ConnectionManager.Add(Connection);
+  SSETransport := TSSETransport.Create;
+  Dispatcher := THubDispatcher.Create(TTestHub, ConnectionManager,
+    GroupManager, SSETransport);
+  try
+    try
+      Dispatcher.InvokeMethod('allowlist-connection', 'TestMethod',
+        [TValue.From('allowed')]);
+      Check(True, 'Annotated Hub method is client-invokable');
+    except
+      Check(False, 'Annotated Hub method is client-invokable');
+    end;
+
+    try
+      Dispatcher.InvokeMethod('allowlist-connection', 'ServerOnlyMethod', []);
+      Check(False, 'Public server-only method is blocked');
+    except
+      on E: EHubMethodNotFoundException do
+        Check(True, 'Public server-only method is blocked');
+      else
+        Check(False, 'Public server-only method is blocked');
+    end;
+
+    try
+      Dispatcher.InvokeMethod('allowlist-connection', 'OnConnectedAsync', []);
+      Check(False, 'Hub lifecycle method is blocked');
+    except
+      on E: EHubMethodNotFoundException do
+        Check(True, 'Hub lifecycle method is blocked');
+      else
+        Check(False, 'Hub lifecycle method is blocked');
+    end;
+  finally
+    Dispatcher.Free;
+    SSETransport.Free;
+  end;
+end;
+
+procedure TestHubReceiveLimitConfiguration;
+var
+  Options: THubOptions;
+  Middleware: THubMiddleware;
+begin
+  WriteLn;
+  WriteLn('=== Hub Receive Limit Configuration Tests ===');
+
+  Options := THubOptions.Default;
+  Options.MaximumReceiveMessageSize := 0;
+  Middleware := nil;
+  try
+    try
+      Middleware := THubMiddleware.Create(Options);
+      Check(False, 'Zero receive limit is rejected');
+    except
+      on E: EArgumentOutOfRangeException do
+        Check(True, 'Zero receive limit is rejected');
+      else
+        Check(False, 'Zero receive limit is rejected');
+    end;
+  finally
+    Middleware.Free;
   end;
 end;
 
@@ -656,6 +745,8 @@ begin
     TestTHubCallerContext;
     TestAuthenticatedCallerContextAbort;
     TestTHub;
+    TestHubMethodAllowlist;
+    TestHubReceiveLimitConfiguration;
     TestValueSerialization;
     
     // New tests
