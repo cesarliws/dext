@@ -37,6 +37,7 @@ uses
   System.JSON,
   System.Rtti,
   System.SysUtils,
+  Dext.Auth.Identity,
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
@@ -71,6 +72,9 @@ type
     FGroupManager: IGroupManager;
     FSSETransport: TSSETransport;
     FProtocol: TJsonHubProtocol;
+    function CreateCallerContext(const ConnectionId: string): IHubCallerContext;
+    function IsClientInvokableMethod(const Method: TRttiMethod;
+      const RttiType: TRttiType): Boolean;
   public
     constructor Create(AHubClass: THubClass;
                        const AConnectionManager: IConnectionManager;
@@ -159,6 +163,36 @@ begin
   end;
 end;
 
+function IsValidConnectionId(const AValue: string): Boolean;
+var
+  LChar: Char;
+begin
+  if AValue.Length <> 32 then
+    Exit(False);
+  for LChar in AValue do
+    if not CharInSet(LChar, ['0'..'9', 'a'..'f', 'A'..'F']) then
+      Exit(False);
+  Result := True;
+end;
+
+function PrincipalKey(const APrincipal: IClaimsPrincipal): string;
+begin
+  if APrincipal = nil then
+    Exit('');
+  if APrincipal.HasClaim('sub') then
+    Exit(APrincipal.FindClaim('sub').Value);
+  if APrincipal.Identity <> nil then
+    Exit(APrincipal.Identity.Name);
+  Result := '';
+end;
+
+function IsSamePrincipal(const AExpected, AActual: IClaimsPrincipal): Boolean;
+begin
+  if (AExpected = nil) or (AActual = nil) then
+    Exit((AExpected = nil) and (AActual = nil));
+  Result := SameText(PrincipalKey(AExpected), PrincipalKey(AActual));
+end;
+
 { THubDispatcher }
 
 constructor THubDispatcher.Create(AHubClass: THubClass;
@@ -180,6 +214,32 @@ begin
   inherited;
 end;
 
+function THubDispatcher.CreateCallerContext(
+  const ConnectionId: string): IHubCallerContext;
+var
+  LConnection: IHubConnection;
+begin
+  if not FConnectionManager.TryGet(ConnectionId, LConnection) then
+    raise EConnectionNotFoundException.CreateFmt(
+      'Connection not found: %s', [ConnectionId]);
+
+  Result := THubCallerContext.Create(ConnectionId,
+    LConnection.TransportType, LConnection.User, LConnection.AbortToken,
+    procedure
+    begin
+      LConnection.Close('Aborted by Hub');
+    end);
+end;
+
+function THubDispatcher.IsClientInvokableMethod(const Method: TRttiMethod;
+  const RttiType: TRttiType): Boolean;
+begin
+  Result := Assigned(Method) and (Method.Parent = RttiType) and
+    not SameText(Method.Name, 'OnConnectedAsync') and
+    not SameText(Method.Name, 'OnDisconnectedAsync') and
+    not SameText(Method.Name, 'SetContext');
+end;
+
 function THubDispatcher.InvokeMethod(const ConnectionId, MethodName: string;
   const Args: TArray<TValue>): TValue;
 var
@@ -196,7 +256,7 @@ begin
   Hub := FHubClass.Create;
   try
     // Setup context
-    CallerContext := THubCallerContext.Create(ConnectionId, ttServerSentEvents);
+    CallerContext := CreateCallerContext(ConnectionId);
     HubClients := THubClients.Create(FConnectionManager, ConnectionId);
     Hub.SetContext(CallerContext, HubClients, FGroupManager);
     
@@ -204,7 +264,7 @@ begin
     RttiType := TReflection.Context.GetType(FHubClass);
     Method := RttiType.GetMethod(MethodName);
     
-    if Method = nil then
+    if not IsClientInvokableMethod(Method, RttiType) then
       raise EHubMethodNotFoundException.CreateFmt('Method not found: %s', [MethodName]);
     
     // Convert args if needed
@@ -223,7 +283,7 @@ var
 begin
   Hub := FHubClass.Create;
   try
-    CallerContext := THubCallerContext.Create(ConnectionId, ttServerSentEvents);
+    CallerContext := CreateCallerContext(ConnectionId);
     HubClients := THubClients.Create(FConnectionManager, ConnectionId);
     Hub.SetContext(CallerContext, HubClients, FGroupManager);
     Hub.OnConnectedAsync;
@@ -240,7 +300,7 @@ var
 begin
   Hub := FHubClass.Create;
   try
-    CallerContext := THubCallerContext.Create(ConnectionId, ttServerSentEvents);
+    CallerContext := CreateCallerContext(ConnectionId);
     HubClients := THubClients.Create(FConnectionManager, ConnectionId);
     Hub.SetContext(CallerContext, HubClients, FGroupManager);
     Hub.OnDisconnectedAsync(Error);
@@ -272,15 +332,16 @@ begin
       Dispatcher: THubDispatcher;
     begin
       Conn := FWebSocketTransport.GetConnection(ConnectionId);
-      if Conn <> nil then
-        FConnectionManager.Add(Conn);
+      if Conn = nil then
+        Exit;
+      FConnectionManager.Add(Conn);
         
       if FConnectionDispatchers.TryGetValue(ConnectionId, Dispatcher) then
       begin
         try
           Dispatcher.OnConnected(ConnectionId);
         except
-          // Log but don't fail
+          Conn.Close('Hub rejected connection');
         end;
       end;
     end
@@ -291,7 +352,6 @@ begin
     var
       Dispatcher: THubDispatcher;
     begin
-      FConnectionManager.Remove(ConnectionId);
       if FConnectionDispatchers.TryGetValue(ConnectionId, Dispatcher) then
       begin
         try
@@ -301,6 +361,7 @@ begin
         end;
         FConnectionDispatchers.Remove(ConnectionId);
       end;
+      FConnectionManager.Remove(ConnectionId);
     end
   );
   
@@ -415,12 +476,19 @@ begin
     Exit;
   end;
   
-  // Check for WebSocket upgrade request
-  if SameText(Ctx.Request.Method, 'GET') and 
-     SameText(Ctx.Request.GetHeader('Upgrade'), 'websocket') and
-     Ctx.Connection.SupportsUpgrade then
+  // A WebSocket upgrade must never silently fall through to an SSE stream.
+  if SameText(Ctx.Request.Method, 'GET') and
+     SameText(Ctx.Request.GetHeader('Upgrade'), 'websocket') then
   begin
-    HandleWebSocket(HubPath, Ctx, Dispatcher);
+    if Ctx.Connection.SupportsUpgrade then
+      HandleWebSocket(HubPath, Ctx, Dispatcher)
+    else
+    begin
+      Ctx.Response.StatusCode := 426;
+      Ctx.Response.AddHeader('Upgrade', 'websocket');
+      Ctx.Response.SetContentType('application/json');
+      Ctx.Response.Write('{"error":"WebSocket upgrade is not supported by the active HTTP engine"}');
+    end;
     Exit;
   end;
   
@@ -446,7 +514,8 @@ begin
   ConnectionId := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
   
   // Build negotiate response
-  Response := TNegotiateResponse.Create(ConnectionId);
+  Response := TNegotiateResponse.Create(ConnectionId,
+    Ctx.Connection.SupportsUpgrade);
   
   Ctx.Response.StatusCode := 200;
   Ctx.Response.SetContentType('application/json');
@@ -466,17 +535,25 @@ begin
   // Get connection ID from query
   if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
     ConnectionId := '';
-  if ConnectionId = '' then
+  if not IsValidConnectionId(ConnectionId) then
   begin
     Ctx.Response.StatusCode := 400;
-    Ctx.Response.Write('{"error": "Missing connection id"}');
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Invalid connection id"}');
+    Exit;
+  end;
+  if FConnectionManager.Contains(ConnectionId) then
+  begin
+    Ctx.Response.StatusCode := 409;
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Connection id is already active"}');
     Exit;
   end;
   
   // Writeln('Hub: SSE stream requested for HubPath: ', HubPath, ', ConnectionId: ', ConnectionId);
   
   // Create SSE connection
-  Connection := FSSETransport.CreateConnection(ConnectionId);
+  Connection := FSSETransport.CreateConnection(ConnectionId, Ctx.User);
   Connection.SetConnected;
   
   // Add to connection manager (as interface)
@@ -492,52 +569,48 @@ begin
     Dispatcher.OnConnected(ConnectionId);
   except
     on E: Exception do
-      // Writeln('Hub: Error invoking OnConnected: ', E.Message);
+      Connection.Close('Hub rejected connection');
   end;
   
-  // Send connected event
-  TSSEWriter.WriteEvent(Ctx.Response, 'connected', '{"connectionId":"' + ConnectionId + '"}');
-  Ctx.Response.Flush;
-  // Writeln('Hub: Connected event sent to ID: ', ConnectionId);
-  
-  KeepAliveCounter := 0;
-  
-  // SSE loop - keep connection open
-  // Check BOTH connection closed AND transport shutdown
-  while (not Connection.Closed) and (not FSSETransport.IsShuttingDown) do
+  if not Connection.Closed then
   begin
-    // Check for pending messages
-    HasMessages := False;
-    while Connection.HasPendingMessages and (not FSSETransport.IsShuttingDown) do
+    // Send connected event only after the Hub accepted the connection.
+    TSSEWriter.WriteEvent(Ctx.Response, 'connected',
+      '{"connectionId":"' + ConnectionId + '"}');
+    Ctx.Response.Flush;
+
+    KeepAliveCounter := 0;
+
+    // SSE loop - keep connection open
+    while (not Connection.Closed) and (not FSSETransport.IsShuttingDown) do
     begin
-      Msg := Connection.DequeueMessage;
-      if Msg <> '' then
+      HasMessages := False;
+      while Connection.HasPendingMessages and
+        (not FSSETransport.IsShuttingDown) do
       begin
-        // Writeln('Hub: Sending SSE payload to ID ', ConnectionId, ': ', Msg);
-        TSSEWriter.WriteData(Ctx.Response, Msg);
-        HasMessages := True;
+        Msg := Connection.DequeueMessage;
+        if Msg <> '' then
+        begin
+          TSSEWriter.WriteData(Ctx.Response, Msg);
+          HasMessages := True;
+        end;
       end;
+      if HasMessages then
+        Ctx.Response.Flush;
+
+      Inc(KeepAliveCounter);
+      if KeepAliveCounter >= 150 then
+      begin
+        TSSEWriter.WriteComment(Ctx.Response, 'ping');
+        Ctx.Response.Flush;
+        KeepAliveCounter := 0;
+      end;
+
+      Sleep(100);
     end;
-    if HasMessages then
-      Ctx.Response.Flush;
-    
-    // Send keep-alive comment every 15 seconds (150 * 100ms)
-    Inc(KeepAliveCounter);
-    if KeepAliveCounter >= 150 then
-    begin
-      TSSEWriter.WriteComment(Ctx.Response, 'ping');
-      Ctx.Response.Flush;
-      KeepAliveCounter := 0;
-    end;
-    
-    Sleep(100);
   end;
   
   // Writeln('Hub: SSE Connection closed for ID: ', ConnectionId, ' (Connection.Closed=', Connection.Closed, ', FSSETransport.IsShuttingDown=', FSSETransport.IsShuttingDown, ')');
-  
-  // Cleanup
-  FConnectionManager.Remove(ConnectionId);
-  FSSETransport.RemoveConnection(ConnectionId);
   
   // Trigger OnDisconnected
   try
@@ -546,6 +619,10 @@ begin
     on E: Exception do
       Writeln('Hub: Error invoking OnDisconnected: ', E.Message);
   end;
+
+  // Keep the connection available while OnDisconnectedAsync executes.
+  FConnectionManager.Remove(ConnectionId);
+  FSSETransport.RemoveConnection(ConnectionId);
 end;
 
 procedure THubMiddleware.HandlePoll(const HubPath: string; Ctx: IHttpContext;
@@ -553,24 +630,35 @@ procedure THubMiddleware.HandlePoll(const HubPath: string; Ctx: IHttpContext;
 var
   ConnectionId: string;
   Connection: TSSEConnection;
+  HubConnection: IHubConnection;
   Messages: TJSONArray;
   Msg: string;
 begin
   if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
     ConnectionId := '';
-  if ConnectionId = '' then
+  if not IsValidConnectionId(ConnectionId) then
   begin
     Ctx.Response.StatusCode := 400;
-    Ctx.Response.Write('{"error": "Missing connection id"}');
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Invalid connection id"}');
     Exit;
   end;
   
   // Get connection
   Connection := FSSETransport.GetConnection(ConnectionId);
+  if (Connection <> nil) and
+    (not FConnectionManager.TryGet(ConnectionId, HubConnection) or
+     not IsSamePrincipal(HubConnection.User, Ctx.User)) then
+  begin
+    Ctx.Response.StatusCode := 403;
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Connection principal mismatch"}');
+    Exit;
+  end;
   if Connection = nil then
   begin
     // No connection yet - create one
-    Connection := FSSETransport.CreateConnection(ConnectionId);
+    Connection := FSSETransport.CreateConnection(ConnectionId, Ctx.User);
     Connection.SetConnected;
     FConnectionManager.Add(Connection);
     
@@ -578,7 +666,7 @@ begin
     try
       Dispatcher.OnConnected(ConnectionId);
     except
-      // Log but don't fail
+      Connection.Close('Hub rejected connection');
     end;
   end;
   
@@ -610,19 +698,35 @@ var
   I: Integer;
   ResultValue: TValue;
   ConnectionId: string;
+  Connection: IHubConnection;
 begin
   if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
     ConnectionId := '';
-  if ConnectionId = '' then
+  if not IsValidConnectionId(ConnectionId) then
   begin
     Ctx.Response.StatusCode := 400;
-    Ctx.Response.Write('{"error": "Missing connection id"}');
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Invalid connection id"}');
+    Exit;
+  end;
+
+  if not FConnectionManager.TryGet(ConnectionId, Connection) then
+  begin
+    Ctx.Response.StatusCode := 404;
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Connection not found"}');
+    Exit;
+  end;
+  if not IsSamePrincipal(Connection.User, Ctx.User) then
+  begin
+    Ctx.Response.StatusCode := 403;
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Connection principal mismatch"}');
     Exit;
   end;
   
   // Read body
   Body := ReadStreamToString(Ctx.Request.Body);
-  Writeln('Hub: Invoking method target on Path: ', HubPath, ', ConnectionId: ', ConnectionId, ', Body: ', Body);
   
   try
     // Parse invocation request
@@ -671,7 +775,24 @@ procedure THubMiddleware.HandleWebSocket(const HubPath: string; Ctx: IHttpContex
 var
   ConnectionId: string;
 begin
-  ConnectionId := TGUID.NewGuid.ToString.Replace('{', '').Replace('}', '').Replace('-', '');
+  if not Ctx.Request.Query.TryGetValue('id', ConnectionId) then
+    ConnectionId := '';
+  if not IsValidConnectionId(ConnectionId) then
+  begin
+    Ctx.Response.StatusCode := 400;
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Invalid connection id"}');
+    Exit;
+  end;
+  if FConnectionManager.Contains(ConnectionId) or
+    FConnectionDispatchers.ContainsKey(ConnectionId) then
+  begin
+    Ctx.Response.StatusCode := 409;
+    Ctx.Response.SetContentType('application/json');
+    Ctx.Response.Write('{"error":"Connection id is already active"}');
+    Exit;
+  end;
+
   FConnectionDispatchers.Add(ConnectionId, Dispatcher);
   try
     FWebSocketTransport.ProcessConnection(Ctx, ConnectionId);

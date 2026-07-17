@@ -11,6 +11,7 @@ uses
   System.Rtti,
   System.JSON,
   Dext.Collections,
+  Dext.Auth.Identity,
   // Dext.Hubs units
   Dext.Web.Hubs.Interfaces,
   Dext.Web.Hubs.Types,
@@ -18,7 +19,9 @@ uses
   Dext.Web.Hubs.Connections,
   Dext.Web.Hubs.Clients,
   Dext.Web.Hubs.Context,
+  Dext.Web.Hubs.Middleware,
   Dext.Web.Hubs.Protocol.Json,
+  Dext.Web.Hubs.Transport.SSE,
   Dext.Web.Hubs.Client.Tests;
 
 var
@@ -205,7 +208,7 @@ end;
 
 procedure TestTNegotiateResponse;
 var
-  Response: TNegotiateResponse;
+  Response, WebSocketResponse: TNegotiateResponse;
   Json: string;
 begin
   WriteLn;
@@ -215,12 +218,68 @@ begin
   
   Check(Response.ConnectionId = 'test-connection-id', 'ConnectionId');
   Check(Response.NegotiateVersion = 1, 'NegotiateVersion');
-  Check(Length(Response.AvailableTransports) = 3, 'AvailableTransports count');
+  Check(Length(Response.AvailableTransports) = 1, 'SSE-only transport count');
+  Check(Response.AvailableTransports[0].Transport = 'ServerSentEvents',
+    'SSE-only negotiation does not over-advertise transports');
+
+  WebSocketResponse := TNegotiateResponse.Create('test-connection-id', True);
+  Check(Length(WebSocketResponse.AvailableTransports) = 2,
+    'WebSocket-capable transport count');
+  Check(WebSocketResponse.AvailableTransports[0].Transport = 'WebSockets',
+    'WebSocket is preferred when the HTTP engine supports upgrade');
+  Check(WebSocketResponse.AvailableTransports[1].Transport = 'ServerSentEvents',
+    'SSE remains the WebSocket fallback');
   
   Json := Response.ToJson;
   Check(Pos('"connectionId":"test-connection-id"', Json) > 0, 'ToJson connectionId');
   Check(Pos('"negotiateVersion":1', Json) > 0, 'ToJson negotiateVersion');
   Check(Pos('"availableTransports":', Json) > 0, 'ToJson availableTransports');
+end;
+
+procedure TestAuthenticatedCallerContextAbort;
+var
+  Identity: IIdentity;
+  Principal: IClaimsPrincipal;
+  ClaimsBuilder: IClaimsBuilder;
+  Connection: THubConnection;
+  Context: THubCallerContext;
+begin
+  WriteLn;
+  WriteLn('=== Authenticated Hub Context Tests ===');
+
+  Identity := TClaimsIdentity.Create('user-1', 'Test');
+  ClaimsBuilder := TClaimsBuilder.Create;
+  ClaimsBuilder.WithNameIdentifier('user-1');
+  Principal := TClaimsPrincipal.Create(Identity, ClaimsBuilder.Build);
+
+  Connection := THubConnection.Create('auth-connection', ttWebSockets,
+    Principal);
+  try
+    Connection.SetState(csConnected);
+    Context := THubCallerContext.Create(Connection.ConnectionId,
+      Connection.TransportType, Connection.GetUser, Connection.GetAbortToken,
+      procedure
+      begin
+        Connection.Close('test abort');
+      end);
+    try
+      Check(Context.User = Principal, 'Caller principal is propagated');
+      Check(Context.UserIdentifier = 'user-1',
+        'Caller user identifier is propagated');
+      Check(Context.TransportType = ttWebSockets,
+        'Caller transport type is propagated');
+
+      Context.Abort;
+      Check(Connection.State = csDisconnected,
+        'Abort closes the underlying connection');
+      Check(Connection.GetAbortToken.IsCancellationRequested,
+        'Abort cancels the connection token');
+    finally
+      Context.Free;
+    end;
+  finally
+    Connection.Free;
+  end;
 end;
 
 procedure TestTHubContext;
@@ -595,6 +654,7 @@ begin
     TestTNegotiateResponse;
     TestTHubContext;
     TestTHubCallerContext;
+    TestAuthenticatedCallerContextAbort;
     TestTHub;
     TestValueSerialization;
     

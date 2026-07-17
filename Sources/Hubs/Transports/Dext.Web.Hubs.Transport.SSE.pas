@@ -56,12 +56,15 @@ type
   private
     FConnectionId: string;
     FState: TConnectionState;
+    FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FAbortTokenSource: TCancellationTokenSource;
     FMessageQueue: IQueue<string>;
     FQueueLock: TCriticalSection;
     FClosed: Int64; // 0 = open, 1 = closed (using Integer for TInterlocked)
   public
-    constructor Create(const AConnectionId: string);
+    constructor Create(const AConnectionId: string;
+      const AUser: IClaimsPrincipal = nil);
     destructor Destroy; override;
     
     // IHubConnection
@@ -113,7 +116,8 @@ type
     procedure SetOnDisconnected(const Handler: TOnConnectionEvent);
     
     // Connection management
-    function CreateConnection(const ConnectionId: string): TSSEConnection;
+    function CreateConnection(const ConnectionId: string;
+      const User: IClaimsPrincipal = nil): TSSEConnection;
     function GetConnection(const ConnectionId: string): TSSEConnection;
     procedure RemoveConnection(const ConnectionId: string);
     
@@ -150,12 +154,15 @@ implementation
 
 { TSSEConnection }
 
-constructor TSSEConnection.Create(const AConnectionId: string);
+constructor TSSEConnection.Create(const AConnectionId: string;
+  const AUser: IClaimsPrincipal);
 begin
   inherited Create;
   FConnectionId := AConnectionId;
   FState := csConnecting;
+  FUser := AUser;
   FItems := TCollections.CreateDictionary<string, TValue>;
+  FAbortTokenSource := TCancellationTokenSource.Create;
   FMessageQueue := TCollections.CreateQueue<string>;
   FQueueLock := TCriticalSection.Create;
   FClosed := 0;
@@ -163,6 +170,8 @@ end;
 
 destructor TSSEConnection.Destroy;
 begin
+  FAbortTokenSource.Free;
+  FUser := nil;
   FQueueLock.Free;
   // FMessageQueue is ARC managed
   // FItems is ARC
@@ -186,12 +195,15 @@ end;
 
 function TSSEConnection.GetUser: IClaimsPrincipal;
 begin
-  Result := nil; // Set externally if needed
+  Result := FUser;
 end;
 
 function TSSEConnection.GetUserIdentifier: string;
 begin
-  Result := '';
+  if (FUser <> nil) and FUser.HasClaim('sub') then
+    Result := FUser.FindClaim('sub').Value
+  else
+    Result := '';
 end;
 
 function TSSEConnection.GetItems: IDictionary<string, TValue>;
@@ -201,7 +213,7 @@ end;
 
 function TSSEConnection.GetAbortToken: ICancellationToken;
 begin
-  Result := nil; // Could be implemented with external source
+  Result := FAbortTokenSource.Token;
 end;
 
 procedure TSSEConnection.SendAsync(const Message: string);
@@ -219,6 +231,7 @@ end;
 procedure TSSEConnection.Close(const Reason: string);
 begin
   FState := csDisconnected;
+  FAbortTokenSource.Cancel;
   TInterlocked.Exchange(FClosed, 1);
 end;
 
@@ -379,9 +392,10 @@ begin
   FOnDisconnected := Handler;
 end;
 
-function TSSETransport.CreateConnection(const ConnectionId: string): TSSEConnection;
+function TSSETransport.CreateConnection(const ConnectionId: string;
+  const User: IClaimsPrincipal): TSSEConnection;
 begin
-  Result := TSSEConnection.Create(ConnectionId);
+  Result := TSSEConnection.Create(ConnectionId, User);
   
   FLock.Enter;
   try

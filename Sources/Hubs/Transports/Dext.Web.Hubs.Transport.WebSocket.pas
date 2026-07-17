@@ -46,10 +46,14 @@ type
     FConnectionId: string;
     FWSConnection: IDextWebSocketConnection;
     FState: TConnectionState;
+    FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FAbortTokenSource: TCancellationTokenSource;
     FLock: TCriticalSection;
   public
-    constructor Create(const AConnectionId: string; const AWSConnection: IDextWebSocketConnection);
+    constructor Create(const AConnectionId: string;
+      const AWSConnection: IDextWebSocketConnection;
+      const AUser: IClaimsPrincipal = nil);
     destructor Destroy; override;
 
     // IHubConnection
@@ -109,19 +113,24 @@ uses
 { TWebSocketHubConnection }
 
 constructor TWebSocketHubConnection.Create(const AConnectionId: string;
-  const AWSConnection: IDextWebSocketConnection);
+  const AWSConnection: IDextWebSocketConnection;
+  const AUser: IClaimsPrincipal);
 begin
   inherited Create;
   FConnectionId := AConnectionId;
   FWSConnection := AWSConnection;
   FState := csConnected;
+  FUser := AUser;
   FItems := TCollections.CreateDictionary<string, TValue>;
+  FAbortTokenSource := TCancellationTokenSource.Create;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TWebSocketHubConnection.Destroy;
 begin
+  FAbortTokenSource.Free;
   FItems := nil;
+  FUser := nil;
   FWSConnection := nil;
   FLock.Free;
   inherited;
@@ -144,12 +153,15 @@ end;
 
 function TWebSocketHubConnection.GetUser: IClaimsPrincipal;
 begin
-  Result := nil;
+  Result := FUser;
 end;
 
 function TWebSocketHubConnection.GetUserIdentifier: string;
 begin
-  Result := '';
+  if (FUser <> nil) and FUser.HasClaim('sub') then
+    Result := FUser.FindClaim('sub').Value
+  else
+    Result := '';
 end;
 
 function TWebSocketHubConnection.GetItems: IDictionary<string, TValue>;
@@ -159,7 +171,7 @@ end;
 
 function TWebSocketHubConnection.GetAbortToken: ICancellationToken;
 begin
-  Result := nil;
+  Result := FAbortTokenSource.Token;
 end;
 
 procedure TWebSocketHubConnection.SendAsync(const Message: string);
@@ -180,6 +192,7 @@ begin
     if FState = csConnected then
     begin
       FState := csDisconnected;
+      FAbortTokenSource.Cancel;
       FWSConnection.Close(1000, Reason);
     end;
   finally
@@ -311,7 +324,8 @@ begin
     ConnectionId := AConnectionId;
     
   AConnectionId := ConnectionId;
-  HubConnection := TWebSocketHubConnection.Create(ConnectionId, WSConn);
+  HubConnection := TWebSocketHubConnection.Create(ConnectionId, WSConn,
+    AContext.User);
 
   FLock.Enter;
   try

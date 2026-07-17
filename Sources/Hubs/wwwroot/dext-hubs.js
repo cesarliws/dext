@@ -22,7 +22,9 @@ class DextHubConnection {
   constructor(hubUrl, options = {}) {
     this.hubUrl = hubUrl;
     this.options = {
-      transport: typeof WebSocket !== 'undefined' ? 'webSockets' : 'serverSentEvents', // or 'serverSentEvents', 'longPolling'
+      transport: 'auto',
+      fallback: true,
+      withCredentials: true,
       reconnect: true,
       reconnectDelay: 3000,
       ...options
@@ -31,6 +33,7 @@ class DextHubConnection {
     this.connectionId = null;
     this.eventSource = null;
     this.socket = null;
+    this.transport = null;
     this.handlers = new Map();
     this.state = 'disconnected'; // disconnected, connecting, connected, reconnecting
     this.invocationId = 0;
@@ -84,13 +87,27 @@ class DextHubConnection {
       const negotiateResponse = await this._negotiate();
       this.connectionId = negotiateResponse.connectionId;
       
-      // Step 2: Connect transport
-      if (this.options.transport === 'webSockets') {
-        await this._connectWebSocket();
-      } else if (this.options.transport === 'serverSentEvents') {
-        await this._connectSSE();
-      } else {
-        await this._connectLongPolling();
+      // Step 2: Connect the best advertised transport, with a real fallback.
+      const transports = this._getTransportCandidates(negotiateResponse);
+      let lastError = null;
+      for (const transport of transports) {
+        try {
+          if (transport === 'webSockets') {
+            await this._connectWebSocket();
+          } else if (transport === 'serverSentEvents') {
+            await this._connectSSE();
+          }
+          this.transport = transport;
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          this._cleanupTransport();
+        }
+      }
+
+      if (lastError || !this.transport) {
+        throw lastError || new Error('No compatible Hub transport is available');
       }
       
       this.state = 'connected';
@@ -107,18 +124,16 @@ class DextHubConnection {
    * @returns {Promise<void>}
    */
   async stop() {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
+    this._cleanupTransport();
+
+    for (const pending of this.pendingInvocations.values()) {
+      pending.reject(new Error('Hub connection stopped'));
     }
-    
-    if (this.eventSource) {
-      this.eventSource.close();
-      this.eventSource = null;
-    }
+    this.pendingInvocations.clear();
     
     this.state = 'disconnected';
     this.connectionId = null;
+    this.transport = null;
     this._triggerHandlers('disconnected', {});
   }
   
@@ -142,7 +157,7 @@ class DextHubConnection {
       arguments: args
     };
     
-    if (this.options.transport === 'webSockets' && this.socket) {
+    if (this.transport === 'webSockets' && this.socket) {
       return new Promise((resolve, reject) => {
         this.pendingInvocations.set(invocationId, { resolve, reject });
         try {
@@ -163,6 +178,7 @@ class DextHubConnection {
           headers: {
             'Content-Type': 'application/json'
           },
+          credentials: this.options.withCredentials ? 'same-origin' : 'omit',
           body: JSON.stringify(request)
         });
         
@@ -198,7 +214,7 @@ class DextHubConnection {
       arguments: args
     };
     
-    if (this.options.transport === 'webSockets' && this.socket) {
+    if (this.transport === 'webSockets' && this.socket) {
       this.socket.send(JSON.stringify(request) + '\x1e');
     } else {
       await fetch(`${this.hubUrl}?id=${this.connectionId}`, {
@@ -206,6 +222,7 @@ class DextHubConnection {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: this.options.withCredentials ? 'same-origin' : 'omit',
         body: JSON.stringify(request)
       });
     }
@@ -220,7 +237,8 @@ class DextHubConnection {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      credentials: this.options.withCredentials ? 'same-origin' : 'omit'
     });
     
     if (!response.ok) {
@@ -228,6 +246,62 @@ class DextHubConnection {
     }
     
     return await response.json();
+  }
+
+  /**
+   * Returns client/server compatible transports in connection priority order.
+   * @private
+   */
+  _getTransportCandidates(negotiateResponse) {
+    const advertised = new Set(
+      (negotiateResponse.availableTransports || []).map(item => item.transport)
+    );
+    const supported = [];
+    if (advertised.has('WebSockets') && typeof WebSocket !== 'undefined') {
+      supported.push('webSockets');
+    }
+    if (advertised.has('ServerSentEvents') && typeof EventSource !== 'undefined') {
+      supported.push('serverSentEvents');
+    }
+
+    const requested = String(this.options.transport || 'auto').toLowerCase();
+    if (requested === 'auto') {
+      return supported;
+    }
+
+    const normalized = requested === 'websockets'
+      ? 'webSockets'
+      : requested === 'serversentevents'
+        ? 'serverSentEvents'
+        : null;
+    if (!normalized) {
+      throw new Error(`Unsupported Hub transport: ${this.options.transport}`);
+    }
+
+    const selected = supported.filter(item => item === normalized);
+    if (this.options.fallback && normalized === 'webSockets') {
+      selected.push(...supported.filter(item => item !== normalized));
+    }
+    return selected;
+  }
+
+  /** @private */
+  _cleanupTransport() {
+    if (this.socket) {
+      this.socket.onopen = null;
+      this.socket.onerror = null;
+      this.socket.onclose = null;
+      this.socket.onmessage = null;
+      this.socket.close();
+      this.socket = null;
+    }
+    if (this.eventSource) {
+      this.eventSource.onopen = null;
+      this.eventSource.onerror = null;
+      this.eventSource.onmessage = null;
+      this.eventSource.close();
+      this.eventSource = null;
+    }
   }
   
   /**
@@ -237,14 +311,19 @@ class DextHubConnection {
   async _connectSSE() {
     return new Promise((resolve, reject) => {
       const url = `${this.hubUrl}?id=${this.connectionId}`;
-      this.eventSource = new EventSource(url);
+      let settled = false;
+      this.eventSource = new EventSource(url, {
+        withCredentials: this.options.withCredentials
+      });
       
       this.eventSource.onopen = () => {
+        settled = true;
         resolve();
       };
       
       this.eventSource.onerror = (event) => {
-        if (this.state === 'connecting') {
+        if (!settled) {
+          settled = true;
           reject(new Error('SSE connection failed'));
         } else if (this.options.reconnect && this.state === 'connected') {
           this._handleReconnect();
@@ -271,6 +350,7 @@ class DextHubConnection {
   async _connectWebSocket() {
     return new Promise((resolve, reject) => {
       let wsUrl;
+      let settled = false;
       if (this.hubUrl.startsWith('http://') || this.hubUrl.startsWith('https://')) {
         wsUrl = this.hubUrl.replace(/^http/, 'ws');
       } else {
@@ -286,11 +366,13 @@ class DextHubConnection {
       this.socket = new WebSocket(wsUrl);
       
       this.socket.onopen = () => {
+        settled = true;
         resolve();
       };
       
       this.socket.onerror = (error) => {
-        if (this.state === 'connecting') {
+        if (!settled) {
+          settled = true;
           reject(new Error('WebSocket connection failed'));
         } else if (this.options.reconnect && this.state === 'connected') {
           this._handleReconnect();
@@ -298,6 +380,11 @@ class DextHubConnection {
       };
       
       this.socket.onclose = () => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('WebSocket connection closed before opening'));
+          return;
+        }
         if (this.state === 'connected') {
           if (this.options.reconnect) {
             this._handleReconnect();
