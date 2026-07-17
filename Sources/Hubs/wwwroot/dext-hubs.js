@@ -5,7 +5,7 @@
  * 
  * Usage:
  *   const connection = new DextHubConnection('/hubs/dashboard');
- *   connection.on('ReceiveMessage', (msg) => console.log(msg));
+ *   connection.on('ReceiveMessage', handleMessage);
  *   await connection.start();
  *   await connection.invoke('SendMessage', 'Hello!');
  * 
@@ -330,12 +330,6 @@ class DextHubConnection {
         }
       };
       
-      // Handle 'connected' event
-      this.eventSource.addEventListener('connected', (event) => {
-        const data = JSON.parse(event.data);
-        console.log('Hub connected:', data.connectionId);
-      });
-      
       // Handle default message event (Hub invocations)
       this.eventSource.onmessage = (event) => {
         this._handleMessage(event.data);
@@ -475,7 +469,6 @@ class DextHubConnection {
    * @private
    */
   _handleClose(message) {
-    console.log('Hub connection closed:', message.error || 'No error');
     this.stop();
   }
   
@@ -487,8 +480,6 @@ class DextHubConnection {
     if (this.state === 'reconnecting') return;
     
     this.state = 'reconnecting';
-    console.log('Attempting to reconnect...');
-    
     if (this.socket) {
       this.socket.close();
       this.socket = null;
@@ -502,7 +493,6 @@ class DextHubConnection {
     setTimeout(async () => {
       try {
         await this.start();
-        console.log('Reconnected successfully');
       } catch (error) {
         console.error('Reconnection failed:', error);
         this._handleReconnect(); // Try again
