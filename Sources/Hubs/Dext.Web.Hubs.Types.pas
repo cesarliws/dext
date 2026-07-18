@@ -33,9 +33,16 @@ unit Dext.Web.Hubs.Types;
 interface
 
 uses
+  System.Rtti,
   System.SysUtils;
 
 type
+  /// <summary>
+  /// Explicitly allows a public Hub method to be invoked by a remote client.
+  /// Public methods without this attribute remain server-side only.
+  /// </summary>
+  HubMethodAttribute = class(TCustomAttribute);
+
   /// <summary>
   /// Transport information in negotiate response.
   /// </summary>
@@ -58,7 +65,10 @@ type
     AvailableTransports: TArray<TTransportInfo>;
     
     function ToJson: string;
-    class function Create(const AConnectionId: string): TNegotiateResponse; static;
+    class function Create(const AConnectionId: string): TNegotiateResponse;
+      overload; static;
+    class function Create(const AConnectionId: string;
+      ASupportsWebSockets: Boolean): TNegotiateResponse; overload; static;
   end;
   
   /// <summary>
@@ -123,6 +133,11 @@ type
   /// </summary>
   EHubInvocationException = class(EHubException);
 
+  /// <summary>
+  /// Exception when a Hub request exceeds the configured receive limit.
+  /// </summary>
+  EHubPayloadTooLargeException = class(EHubException);
+
 implementation
 
 uses
@@ -152,10 +167,19 @@ end;
 
 class function TNegotiateResponse.Create(const AConnectionId: string): TNegotiateResponse;
 begin
+  Result := Create(AConnectionId, False);
+end;
+
+class function TNegotiateResponse.Create(const AConnectionId: string;
+  ASupportsWebSockets: Boolean): TNegotiateResponse;
+begin
   Result.ConnectionId := AConnectionId;
   Result.ConnectionToken := AConnectionId; // For now, same as ConnectionId
   Result.NegotiateVersion := 1;
-  Result.AvailableTransports := [TTransportInfo.WebSockets, TTransportInfo.SSE, TTransportInfo.LongPolling];
+  if ASupportsWebSockets then
+    Result.AvailableTransports := [TTransportInfo.WebSockets, TTransportInfo.SSE]
+  else
+    Result.AvailableTransports := [TTransportInfo.SSE];
 end;
 
 function TNegotiateResponse.ToJson: string;
@@ -267,7 +291,7 @@ begin
   Result.ClientTimeoutInterval := 30;
   Result.KeepAliveInterval := 15;
   Result.MaximumReceiveMessageSize := 32 * 1024; // 32KB
-  Result.EnabledTransports := ['WebSockets', 'ServerSentEvents', 'LongPolling'];
+  Result.EnabledTransports := ['WebSockets', 'ServerSentEvents'];
 end;
 
 end.

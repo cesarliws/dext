@@ -75,11 +75,13 @@ type
     FItems: IDictionary<string, TValue>;
     FAbortToken: ICancellationToken;
     FTransportType: TTransportType;
+    FAbortHandler: TProc;
   public
     constructor Create(const AConnectionId: string;
                        ATransportType: TTransportType;
                        const AUser: IClaimsPrincipal = nil;
-                       const AAbortToken: ICancellationToken = nil);
+                       const AAbortToken: ICancellationToken = nil;
+                       const AAbortHandler: TProc = nil);
     destructor Destroy; override;
     
     function GetConnectionId: string;
@@ -124,13 +126,14 @@ end;
 
 constructor THubCallerContext.Create(const AConnectionId: string;
   ATransportType: TTransportType; const AUser: IClaimsPrincipal;
-  const AAbortToken: ICancellationToken);
+  const AAbortToken: ICancellationToken; const AAbortHandler: TProc);
 begin
   inherited Create;
   FConnectionId := AConnectionId;
   FTransportType := ATransportType;
   FUser := AUser;
   FAbortToken := AAbortToken;
+  FAbortHandler := AAbortHandler;
   FItems := TCollections.CreateDictionary<string, TValue>;
 end;
 
@@ -175,8 +178,8 @@ end;
 
 procedure THubCallerContext.Abort;
 begin
-  // Abort is handled at transport level
-  // This is just a marker
+  if Assigned(FAbortHandler) then
+    FAbortHandler();
 end;
 
 end.
