@@ -380,7 +380,9 @@ uses
   Posix.Fcntl,
   Posix.ArpaInet,
   Posix.NetinetIn,
-  Posix.Errno;
+  Posix.Errno,
+  Posix.Dlfcn,
+  Posix.Pthread;
 
 const
   TCP_NODELAY  = 1;
@@ -408,8 +410,11 @@ type
   end;
   pcpu_set_t = ^cpu_set_t;
 
-function pthread_self: NativeUInt; cdecl; external libc name 'pthread_self';
-function pthread_setaffinity_np(thread: NativeUInt; cpusetsize: NativeUInt; cpuset: pcpu_set_t): Integer; cdecl; external libc name 'pthread_setaffinity_np';
+  TFnPthreadSetAffinity = function(
+    thread: NativeUInt;
+    cpusetsize: NativeUInt;
+    cpuset: pcpu_set_t): Integer; cdecl;
+
 function sendfile(out_fd: Integer; in_fd: Integer; offset: PInt64; count: NativeUInt): NativeInt; cdecl; external libc name 'sendfile';
 
 procedure CPU_ZERO(var cpuset: cpu_set_t); inline;
@@ -1425,11 +1430,23 @@ var
   NowTicks: Int64;
   j: Integer;
   Ctx: TDextEpollContext;
+  pthread_setaffinity_np: TFnPthreadSetAffinity;
+  LibHandle: NativeUInt;
 begin
-  // CPU Pinning
-  CPU_ZERO(Mask);
-  CPU_SET(FCoreId, Mask);
-  pthread_setaffinity_np(pthread_self, SizeOf(Mask), @Mask);
+  // CPU Pinning (resolved dynamically to avoid linker errors)
+  LibHandle := dlopen(nil, RTLD_LAZY);
+  if LibHandle <> 0 then
+  begin
+    pthread_setaffinity_np := TFnPthreadSetAffinity(
+      dlsym(LibHandle, 'pthread_setaffinity_np'));
+    if Assigned(pthread_setaffinity_np) then
+    begin
+      CPU_ZERO(Mask);
+      CPU_SET(FCoreId, Mask);
+      pthread_setaffinity_np(pthread_self, SizeOf(Mask), @Mask);
+    end;
+    dlclose(LibHandle);
+  end;
 
   try
     CreateLocalReactor;
