@@ -72,7 +72,8 @@ uses
   Dext.Web.Interfaces,
   Dext.Web.Sessions.Streamable,
   Dext.WebHost,
-  Dext.DI.Interfaces;
+  Dext.DI.Interfaces,
+  Dext.Server.Engine.Types;
 
 
 type
@@ -132,6 +133,12 @@ type
     FSessions: IStreamableSessionManager;
     FHost: IWebHost;
     FShuttingDown: Boolean;
+    FUseNative: Boolean;
+    FNativeOptions: TServerEngineOptions;
+    FConfigureHostProc: TProc<IWebHostBuilder>;
+    FConfigureAppProc: TProc<IApplicationBuilder>;
+    FTransport: TMCPTransport;
+    FUrl: string;
 
     // ---- JSON-RPC dispatch ----
     function Dispatch(const Body: string; const SessionId: string = ''): string; reintroduce; overload;
@@ -190,6 +197,22 @@ type
     function Prompt(const AName,
       ADescription: string): IMCPPromptBuilder;
 
+    // ---- HTTP Stack Selection ----
+
+    /// <summary>Configures the server to use Indy (default).</summary>
+    function UseIndy: TMCPServer;
+    /// <summary>Configures the server to use native Windows http.sys.</summary>
+    function UseHttpSys: TMCPServer; overload;
+    /// <summary>Configures the server to use native Windows http.sys with options.</summary>
+    function UseHttpSys(
+      const AOptions: TServerEngineOptions): TMCPServer; overload;
+    /// <summary>Configures custom web host options.</summary>
+    function ConfigureHost(
+      AProc: TProc<IWebHostBuilder>): TMCPServer;
+    /// <summary>Configures custom application pipeline options.</summary>
+    function ConfigureApp(
+      AProc: TProc<IApplicationBuilder>): TMCPServer;
+
     // ---- Lifecycle ----
 
     /// <summary>
@@ -198,8 +221,9 @@ type
     ///   mtSSE        - non-blocking HTTP (legacy)
     ///   mtStdio      - blocking stdin loop
     /// </summary>
-    procedure Run(ATransport: TMCPTransport = mtStreamable;
-      const AUrl: string = 'http://localhost:3031');
+    procedure Run; overload;
+    procedure Run(ATransport: TMCPTransport;
+      const AUrl: string = ''); overload;
 
     /// <summary>Stops the HTTP server. No-op for stdio.</summary>
     procedure Stop;
@@ -209,6 +233,64 @@ type
     property Registry: TMCPToolRegistry read FRegistry;
     property Resources: TMCPResourceRegistry read FResources;
     property Prompts: TMCPPromptRegistry read FPrompts;
+  end;
+
+  // ---------------------------------------------------------------------------
+  // TMCPServerBuilder - fluent builder for TMCPServer
+  // ---------------------------------------------------------------------------
+
+  /// <summary>Fluent builder for creating and configuring a TMCPServer.</summary>
+  TMCPServerBuilder = class
+  private
+    FName: string;
+    FVersion: string;
+    FTransport: TMCPTransport;
+    FUrl: string;
+    FUseNative: Boolean;
+    FNativeOptions: TServerEngineOptions;
+    FConfigureHostProc: TProc<IWebHostBuilder>;
+    FConfigureAppProc: TProc<IApplicationBuilder>;
+    FProviders: TArray<TMCPToolProvider>;
+  public
+    /// <summary>Creates a new TMCPServerBuilder with default values.</summary>
+    constructor Create;
+    /// <summary>Destroys the builder and frees any registered providers if Build wasn't called.</summary>
+    destructor Destroy; override;
+
+    /// <summary>Sets the name of the MCP server.</summary>
+    function Name(const AValue: string): TMCPServerBuilder;
+    /// <summary>Sets the version of the MCP server.</summary>
+    function Version(const AValue: string): TMCPServerBuilder;
+    /// <summary>Sets the default listening URL.</summary>
+    function Url(const AValue: string): TMCPServerBuilder;
+    /// <summary>Sets the default transport mode.</summary>
+    function Transport(AValue: TMCPTransport): TMCPServerBuilder;
+
+    /// <summary>Forces the built server to use Indy.</summary>
+    function UseIndy: TMCPServerBuilder;
+    /// <summary>Forces the built server to use HTTP.sys.</summary>
+    function UseHttpSys: TMCPServerBuilder; overload;
+    /// <summary>Forces the built server to use HTTP.sys with custom options.</summary>
+    function UseHttpSys(
+      const AOptions: TServerEngineOptions): TMCPServerBuilder; overload;
+
+    /// <summary>
+    /// Allows custom configuration of the WebHostBuilder.
+    /// </summary>
+    function ConfigureHost(
+      AProc: TProc<IWebHostBuilder>): TMCPServerBuilder;
+    /// <summary>
+    /// Allows custom configuration of the pipeline.
+    /// </summary>
+    function ConfigureApp(
+      AProc: TProc<IApplicationBuilder>): TMCPServerBuilder;
+
+    /// <summary>Registers an MCP provider class.</summary>
+    function RegisterProvider(
+      AProvider: TMCPToolProvider): TMCPServerBuilder;
+
+    /// <summary>Builds and returns the configured TMCPServer instance.</summary>
+    function Build: TMCPServer;
   end;
 
 implementation
@@ -877,6 +959,11 @@ begin
   FPrompts   := TMCPPromptRegistry.Create;
   FSessions  := TInMemoryStreamableSessionManager.Create;
   FShuttingDown := False;
+  FUseNative := False;
+  FConfigureHostProc := nil;
+  FConfigureAppProc := nil;
+  FTransport := mtStreamable;
+  FUrl := 'http://localhost:3031';
 end;
 
 destructor TMCPServer.Destroy;
@@ -917,7 +1004,50 @@ begin
   Result := FPrompts.Register(AName, ADescription);
 end;
 
+function TMCPServer.UseIndy: TMCPServer;
+begin
+  FUseNative := False;
+  Result := Self;
+end;
+
+function TMCPServer.UseHttpSys: TMCPServer;
+begin
+  FUseNative := True;
+  FNativeOptions := TServerEngineOptions.Default;
+  Result := Self;
+end;
+
+function TMCPServer.UseHttpSys(
+  const AOptions: TServerEngineOptions): TMCPServer;
+begin
+  FUseNative := True;
+  FNativeOptions := AOptions;
+  Result := Self;
+end;
+
+function TMCPServer.ConfigureHost(
+  AProc: TProc<IWebHostBuilder>): TMCPServer;
+begin
+  FConfigureHostProc := AProc;
+  Result := Self;
+end;
+
+function TMCPServer.ConfigureApp(
+  AProc: TProc<IApplicationBuilder>): TMCPServer;
+begin
+  FConfigureAppProc := AProc;
+  Result := Self;
+end;
+
+procedure TMCPServer.Run;
+begin
+  Run(FTransport, FUrl);
+end;
+
 procedure TMCPServer.Run(ATransport: TMCPTransport; const AUrl: string);
+var
+  Builder: IWebHostBuilder;
+  RealUrl: string;
 begin
   if ATransport = mtStdio then
   begin
@@ -925,14 +1055,23 @@ begin
     Exit;
   end;
 
-  FHost := TWebHostBuilder.CreateDefault(nil)
-    .UseUrls(AUrl)
+  RealUrl := AUrl;
+  if RealUrl = '' then
+    RealUrl := FUrl;
+  if RealUrl = '' then
+    RealUrl := 'http://localhost:3031';
+
+  Builder := TWebHostBuilder.CreateDefault(nil)
+    .UseUrls(RealUrl)
     .ConfigureServices(procedure(Services: IServiceCollection)
       begin
         // Add application services here if needed.
       end)
     .Configure(procedure(App: IApplicationBuilder)
       begin
+        if Assigned(FConfigureAppProc) then
+          FConfigureAppProc(App);
+
         if ATransport = mtStreamable then
         begin
           // MCP 2025-03-26 HTTP Streamable transport
@@ -987,17 +1126,24 @@ begin
               [FName, FVersion, MCP_PROTOCOL_VERSION,
                FRegistry.Count, FResources.Count, FPrompts.Count]));
           end);
-      end)
-    .Build;
+      end);
+
+  if Assigned(FConfigureHostProc) then
+    FConfigureHostProc(Builder);
+
+  FHost := Builder.Build;
+
+  if FUseNative then
+    (FHost as IWebApplication).UseNativeServer(FNativeOptions);
 
   FHost.Start;
 
   if ATransport = mtStreamable then
     LogDebug(Format('%s v%s listening at %s (Streamable, MCP %s)',
-      [FName, FVersion, AUrl, MCP_PROTOCOL_VERSION]))
+      [FName, FVersion, RealUrl, MCP_PROTOCOL_VERSION]))
   else
     LogDebug(Format('%s v%s listening at %s (SSE legacy)',
-      [FName, FVersion, AUrl]));
+      [FName, FVersion, RealUrl]));
 end;
 
 procedure TMCPServer.Stop;
@@ -1012,6 +1158,131 @@ begin
       // Swallow shutdown errors
     end;
     FHost := nil;
+  end;
+end;
+
+{ TMCPServerBuilder }
+
+constructor TMCPServerBuilder.Create;
+begin
+  inherited Create;
+  FName := 'mcp-server';
+  FVersion := '1.0.0';
+  FTransport := mtStreamable;
+  FUrl := 'http://localhost:3031';
+  FUseNative := False;
+  FConfigureHostProc := nil;
+  FConfigureAppProc := nil;
+  FProviders := nil;
+end;
+
+destructor TMCPServerBuilder.Destroy;
+var
+  Prov: TMCPToolProvider;
+begin
+  for Prov in FProviders do
+    Prov.Free;
+  inherited;
+end;
+
+function TMCPServerBuilder.Name(const AValue: string): TMCPServerBuilder;
+begin
+  FName := AValue;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.Version(
+  const AValue: string): TMCPServerBuilder;
+begin
+  FVersion := AValue;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.Url(const AValue: string): TMCPServerBuilder;
+begin
+  FUrl := AValue;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.Transport(
+  AValue: TMCPTransport): TMCPServerBuilder;
+begin
+  FTransport := AValue;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.UseIndy: TMCPServerBuilder;
+begin
+  FUseNative := False;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.UseHttpSys: TMCPServerBuilder;
+begin
+  FUseNative := True;
+  FNativeOptions := TServerEngineOptions.Default;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.UseHttpSys(
+  const AOptions: TServerEngineOptions): TMCPServerBuilder;
+begin
+  FUseNative := True;
+  FNativeOptions := AOptions;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.ConfigureHost(
+  AProc: TProc<IWebHostBuilder>): TMCPServerBuilder;
+begin
+  FConfigureHostProc := AProc;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.ConfigureApp(
+  AProc: TProc<IApplicationBuilder>): TMCPServerBuilder;
+begin
+  FConfigureAppProc := AProc;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.RegisterProvider(
+  AProvider: TMCPToolProvider): TMCPServerBuilder;
+begin
+  SetLength(FProviders, Length(FProviders) + 1);
+  FProviders[High(FProviders)] := AProvider;
+  Result := Self;
+end;
+
+function TMCPServerBuilder.Build: TMCPServer;
+var
+  Server: TMCPServer;
+  Prov: TMCPToolProvider;
+begin
+  Server := TMCPServer.Create(FName, FVersion);
+  try
+    Server.FTransport := FTransport;
+    Server.FUrl := FUrl;
+
+    if FUseNative then
+      Server.UseHttpSys(FNativeOptions)
+    else
+      Server.UseIndy;
+
+    if Assigned(FConfigureHostProc) then
+      Server.ConfigureHost(FConfigureHostProc);
+
+    if Assigned(FConfigureAppProc) then
+      Server.ConfigureApp(FConfigureAppProc);
+
+    for Prov in FProviders do
+      Server.RegisterProvider(Prov);
+
+    FProviders := nil;
+    Result := Server;
+  except
+    Server.Free;
+    raise;
   end;
 end;
 

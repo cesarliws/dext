@@ -39,3 +39,4 @@ history.json
 *.dcp
 *.hpp
 dext-symbols.*
+*.deployproj

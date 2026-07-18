@@ -152,29 +152,45 @@ end.
 
 ---
 
-## 🚀 Inicializando o Servidor MCP
+## 🚀 Inicializando o Servidor MCP (Fluent Builder API)
 
-Uma vez definido o seu provider, inicializar o servidor em sua aplicação (seja Console, Service, ou uma aplicação GUI VCL/FMX) é extremamente direto:
+Uma vez definido o seu provider, a melhor prática para inicializar o servidor em sua aplicação (seja Console, Service ou GUI VCL/FMX) é utilizando o `TMCPServerBuilder`:
 
 ```pascal
 uses
   Dext.AI.MCP.Server,
+  Dext.Server.Engine.Types,
   MCP.Demo.Provider;
 
 var
   Server: TMCPServer;
+  Builder: TMCPServerBuilder;
+  Options: TServerEngineOptions;
 begin
-  Server := TMCPServer.Create('meu-mcp-db', '1.0.0');
+  Builder := TMCPServerBuilder.Create;
   try
-    // O Servidor assume ownership do Provider e libera sua memória ao finalizar
-    Server.RegisterProvider(TDemoDbProvider.Create(FDConnection1));
+    Builder
+      .Name('meu-mcp-db')
+      .Version('1.0.0')
+      .Transport(mtStreamable)
+      .Url('http://localhost:3031')
+      .RegisterProvider(
+        TDemoDbProvider.Create(FDConnection1));
+
+    // Seleciona a stack: UseIndy (padrão) ou UseHttpSys
+    Builder.UseHttpSys; 
     
-    // Inicia na porta padrão 3031 no modo Streamable (não-bloqueante)
-    Server.Run(mtStreamable, 'http://localhost:3031');
+    Server := Builder.Build;
+  finally
+    Builder.Free;
+  end;
+
+  try
+    // Inicia com as configurações definidas no builder
+    Server.Run;
     
     // Mantenha a aplicação rodando...
   finally
-    // Parar o servidor antes de liberar a memória
     Server.Stop;
     Server.Free;
   end;

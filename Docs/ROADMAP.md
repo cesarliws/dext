@@ -63,6 +63,7 @@ Status | Task | Spec | Description
 ✅ | **HTTP QUERY Method** | [S49](Specs/S49-Http-Query-Method.md) | Standardized HTTP QUERY method support (RFC 10008) on client and server.
 ✅ | **Linux Epoll Evolution** | [S50](Specs/S50-Linux-Epoll-Evolution.md) | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, lock-free buffer pooling, and keep-alive timing wheels.
 ✅ | **Direct Codecs & Static Code Generation** | [S54](Specs/S54-Codegen-Direct-Codecs.md) | Runtime finalized: shared direct-offset and generated-code codecs for gRPC, REST/JSON, ORM hydration, and EntityDataSet sync. Expert DX deferred.
+✅ | **Model Context Protocol (MCP)** | [S23](Specs/S23-Http-Streamable-HTMX.md) | Native MCP v2025-03-26 server integration with builder API and HTTP.sys support.
 
 ## 🔮 Future / Post-V1
 - [ ] **OData Support**: Full OData query support.
@@ -129,6 +130,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Método HTTP QUERY** | [S49](Specs/S49-Http-Query-Method.md) | Suporte ao método HTTP QUERY padronizado (RFC 10008) no cliente e no servidor.
 ✅ | **Evolução do Epoll Linux** | [S50](Specs/S50-Linux-Epoll-Evolution.md) | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, buffer pools lock-free e keep-alive timing wheels.
 ✅ | **Codecs Diretos & Geração Estática** | [S54](Specs/S54-Codegen-Direct-Codecs.md) | Runtime finalizado: codecs compartilhados por offset direto e geração estática para gRPC, REST/JSON, hidratação ORM e sync do EntityDataSet. Expert DX adiado.
+✅ | **Model Context Protocol (MCP)** | [S23](Specs/S23-Http-Streamable-HTMX.md) | Integração nativa do servidor MCP v2025-03-26 com API builder e suporte a HTTP.sys.
 
 ## 🔮 Futuro / Pós-V1
 - [ ] **Suporte a OData**: Suporte completo a queries OData.

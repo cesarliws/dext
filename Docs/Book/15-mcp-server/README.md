@@ -152,29 +152,45 @@ end.
 
 ---
 
-## 🚀 Starting the MCP Server
+## 🚀 Starting the MCP Server (Fluent Builder API)
 
-Once you have defined your provider, starting the server within any Delphi application (Console, Service, or GUI VCL/FMX) is simple:
+Once you have defined your provider, the best practice to configure and start the server within any Delphi application (Console, Service, or GUI VCL/FMX) is using the `TMCPServerBuilder`:
 
 ```pascal
 uses
   Dext.AI.MCP.Server,
+  Dext.Server.Engine.Types,
   MCP.Demo.Provider;
 
 var
   Server: TMCPServer;
+  Builder: TMCPServerBuilder;
+  Options: TServerEngineOptions;
 begin
-  Server := TMCPServer.Create('my-mcp-db', '1.0.0');
+  Builder := TMCPServerBuilder.Create;
   try
-    // Server takes ownership of the Provider and will free it automatically
-    Server.RegisterProvider(TDemoDbProvider.Create(FDConnection1));
+    Builder
+      .Name('my-mcp-db')
+      .Version('1.0.0')
+      .Transport(mtStreamable)
+      .Url('http://localhost:3031')
+      .RegisterProvider(
+        TDemoDbProvider.Create(FDConnection1));
+
+    // Choose HTTP Stack: UseIndy (default) or UseHttpSys
+    Builder.UseHttpSys; 
     
-    // Starts listening on default port 3031 in Streamable mode (non-blocking)
-    Server.Run(mtStreamable, 'http://localhost:3031');
+    Server := Builder.Build;
+  finally
+    Builder.Free;
+  end;
+
+  try
+    // Starts listening with configurations defined in builder
+    Server.Run;
     
     // Keep application running...
   finally
-    // Stop the server before freeing it
     Server.Stop;
     Server.Free;
   end;
