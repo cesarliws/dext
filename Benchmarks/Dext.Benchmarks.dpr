@@ -12,6 +12,9 @@ uses
   RDPSimd64 in 'RDPSimd64.pas',
   {$ENDIF}
 {$ENDIF}
+  {$IFDEF LINUX}
+  Dext.LinuxExceptionLogger in 'Sources\Dext.LinuxExceptionLogger.pas',
+  {$ENDIF}
   System.SysUtils,
   Spring.Benchmark in '..\External\Spring4D\Spring.Benchmark.pas',
   BM.Http in 'Sources\BM.Http.pas',

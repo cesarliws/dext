@@ -28,21 +28,22 @@ unit Dext.Entity.SaveChanges.Tests;
 interface
 
 uses
-  System.SysUtils,
+  Data.DB,
   System.Classes,
   System.Rtti,
-  Data.DB,
+  System.SysUtils,
+  System.TypInfo,
   Dext.Assertions,
-  Dext.Testing.Attributes,
-  Dext.Mocks,
-  Dext.Mocks.Matching,
   Dext.Collections,
-  Dext.Interception,
   Dext.Core.Reflection,
   Dext.Entity.Attributes,
   Dext.Entity.Context,
   Dext.Entity.Dialects,
-  Dext.Entity.Drivers.Interfaces;
+  Dext.Entity.Drivers.Interfaces,
+  Dext.Interception,
+  Dext.Mocks,
+  Dext.Mocks.Matching,
+  Dext.Testing.Attributes;
 
 type
 {$M+}

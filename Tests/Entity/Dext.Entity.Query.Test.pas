@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.Query.Test;
+unit Dext.Entity.Query.Test;
 
 interface
 
@@ -34,6 +34,7 @@ type
     procedure TestSkipTakeOptimization;
     procedure TestScalarOptimization;
     procedure TestThenBy;
+    procedure TestEntityTrackingLifetime;
   end;
 
 implementation
@@ -52,6 +53,7 @@ begin
   TestSkipTakeOptimization;
   TestScalarOptimization;
   TestThenBy;
+  TestEntityTrackingLifetime;
 end;
 
 procedure TQueryParityTest.TestTypedOrderBy;
@@ -167,6 +169,24 @@ begin
   
   Should(Query.Count).Be(42);
   Should(CountCalled).BeTrue;
+  WriteLn('✅');
+
+  Query := Default(TFluentQuery<TUser>);
+  Spec := nil;
+end;
+
+procedure TQueryParityTest.TestEntityTrackingLifetime;
+var
+  Query: TFluentQuery<TUser>;
+  Spec: ISpecification<TUser>;
+begin
+  Write('  - Entity Tracking Lifetime (AsNoTracking): ');
+  Spec := TSpecification<TUser>.Create;
+  Query := TFluentQuery<TUser>.Create(nil, Spec);
+  
+  Query.AsNoTracking;
+  
+  Should(Spec.IsTrackingEnabled).BeFalse;
   WriteLn('✅');
 
   Query := Default(TFluentQuery<TUser>);

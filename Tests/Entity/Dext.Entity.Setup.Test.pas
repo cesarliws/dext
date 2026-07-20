@@ -1,4 +1,4 @@
-unit Dext.Entity.Setup.Test;
+﻿unit Dext.Entity.Setup.Test;
 
 interface
 
@@ -40,12 +40,12 @@ begin
     Options := TDbContextOptions.Create;
     try
       Options.ConnectionString := 'Server=localhost;Port=5432;Database=postgres;User_Name=postgres;Password=123456';
-      
+
       Conn := Options.BuildConnection;
       if Conn is TFireDACConnection then
       begin
         FDConn := TFireDACConnection(Conn).Connection;
-        
+
         // Check if connection string or params are set correctly
         if (FDConn.ConnectionString <> '') and (FDConn.Params.Database = 'postgres') then
           WriteLn('   ✅ ConnectionString/Params propagated correctly.')
@@ -61,7 +61,7 @@ begin
           WriteLn('   ✅ Password correctly parsed by FireDAC.')
         else
           WriteLn('   ❌ Password NOT parsed: ' + FDConn.Params.Password);
-          
+
         if FDConn.Params.UserName = 'postgres' then
           WriteLn('   ✅ UserName correctly parsed.')
         else
@@ -84,7 +84,7 @@ begin
     try
       Options.UseFirebird('Database=c:\temp\db.fdb;User_Name=SYSDBA;Password=masterkey')
              .WithPooling(True, 10);
-      
+
       // Print what is inside Options.Params
       WriteLn('   Options.Params keys:');
       for Pair in Options.Params do
@@ -136,7 +136,7 @@ begin
     // Ensure the FDManager is active
     FDManager.SilentMode := True;
     FDManager.Active := True;
-    
+
     // Register a mock Firebird connection definition
     if not FDManager.IsConnectionDef('TestFBDef') then
     begin
