@@ -88,6 +88,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    procedure DetectChanges;
     /// <summary>
     ///   Starts tracking an entity with a specific state.
     /// </summary>
@@ -1197,37 +1198,39 @@ end;
 
 function TDbContext.SaveChanges: Integer;
 var
-  Pair: TPair<TObject, TEntityState>;
-  Entity: TObject;
-  DbSet: IDbSet;
   AddedGroups: IDictionary<PTypeInfo, IList<TObject>>;
-  ModifiedGroups: IDictionary<PTypeInfo, IList<TObject>>;
+  DbSet: IDbSet;
   DeletedGroups: IDictionary<PTypeInfo, IList<TObject>>;
-  TenantAware: ITenantAware;
-  Map: TEntityMap;
-  List: IList<TObject>;
-  Item: TObject;
-  Span: TSpan;
-  Meta: TTypeMetadata;
-  ValidatorIntf: IInterface;
   DIProvider: IServiceProvider;
-  Validator: IValidator;
-  ValRes: TValidationResult;
+  Entity: TObject;
+  i: Integer;
+  Item: TObject;
+  ItemType: PTypeInfo;
+  List: IList<TObject>;
+  Map: TEntityMap;
+  Meta: TTypeMetadata;
+  ModifiedGroups: IDictionary<PTypeInfo, IList<TObject>>;
+  OwnsTransaction: Boolean;
+  Pair: TPair<TObject, TEntityState>;
   PropMap: TPropertyMap;
   SeqId: Int64;
+  SortedDeletes: IList<PTypeInfo>;
+  Span: TSpan;
+  TenantAware: ITenantAware;
+  Validator: IValidator;
+  ValidatorIntf: IInterface;
+  ValRes: TValidationResult;
   ValToSet: TValue;
-  LOwnsTransaction: Boolean;
-  LType: PTypeInfo;
-  LSortedDeletes: IList<PTypeInfo>;
-  i: Integer;
 begin
   Span := TTracer.BeginSpan('DbContext.SaveChanges', 'SQL');
   ApplyTenantConfig(False);
   Result := 0;
   if not FChangeTracker.HasChanges then Exit;
+  for Pair in FChangeTracker.GetTrackedEntities do
+    WriteLn('   [DEBUG SaveChanges] Entity Class: ', Pair.Key.ClassName, ', State Ord: ', Ord(Pair.Value));
  
-  LOwnsTransaction := not InTransaction;
-  if LOwnsTransaction then BeginTransaction;
+  OwnsTransaction := not InTransaction;
+  if OwnsTransaction then BeginTransaction;
   try
     // 1. Process Inserts (Bulk Optimized)
     AddedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
@@ -1308,11 +1311,11 @@ begin
         end;
       end;
  
-      for LType in GetSortedTypes(AddedGroups.Keys) do
+      for ItemType in GetSortedTypes(AddedGroups.Keys) do
       begin
-        List := AddedGroups[LType];
-        DbSet := DataSet(LType);
-        
+        List := AddedGroups[ItemType];
+        DbSet := DataSet(ItemType);
+
         if DbSet.IsBulkInsertSafe and (List.Count > 1) then
         begin
           DbSet.PersistAddRange(List.ToArray);
@@ -1380,10 +1383,10 @@ begin
         end;
       end;
  
-      for LType in GetSortedTypes(ModifiedGroups.Keys) do
+      for ItemType in GetSortedTypes(ModifiedGroups.Keys) do
       begin
-        List := ModifiedGroups[LType];
-        DbSet := DataSet(LType);
+        List := ModifiedGroups[ItemType];
+        DbSet := DataSet(ItemType);
         if DbSet.IsBulkUpdateSafe and (List.Count > 1) then
         begin
           DbSet.PersistUpdateRange(List.ToArray);
@@ -1413,13 +1416,13 @@ begin
         end;
       end;
  
-      LSortedDeletes := GetSortedTypes(DeletedGroups.Keys);
-      for i := LSortedDeletes.Count - 1 downto 0 do
+      SortedDeletes := GetSortedTypes(DeletedGroups.Keys);
+      for i := SortedDeletes.Count - 1 downto 0 do
       begin
-        LType := LSortedDeletes[i];
-        List := DeletedGroups[LType];
-        DbSet := DataSet(LType);
-        
+        ItemType := SortedDeletes[i];
+        List := DeletedGroups[ItemType];
+        DbSet := DataSet(ItemType);
+
         for Item in List do
           FChangeTracker.Remove(Item);
  
@@ -1436,15 +1439,15 @@ begin
       end;
     finally
       DeletedGroups := nil;
-      LSortedDeletes := nil;
+      SortedDeletes := nil;
     end;
     
-    if LOwnsTransaction then Commit;
+    if OwnsTransaction then Commit;
     FChangeTracker.AcceptAllChanges;
     Span.SetStatus('Success');
     Span.SetAttribute('affected_rows', Result);
   except
-    if LOwnsTransaction then Rollback;
+    if OwnsTransaction then Rollback;
     Span.SetStatus('Error', Exception(ExceptObject).Message);
      raise;
    end;
@@ -1615,9 +1618,24 @@ begin
 end;
 
 procedure TChangeTracker.Track(const AEntity: TObject; AState: TEntityState);
+var
+  State: TEntityShadowState;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
   if AEntity = nil then Exit;
   FTrackedEntities.AddOrSetValue(AEntity, AState);
+  
+  if AState = esUnchanged then
+  begin
+    State := GetShadowState(AEntity);
+    if State.ShadowValues.Count = 0 then
+    begin
+      Meta := TReflection.GetMetadata(AEntity.ClassInfo);
+      for Handler in Meta.GetPropertyHandlers() do
+        State.ShadowValues.AddOrSetValue(Handler.Name, Handler.GetValue(Pointer(AEntity)));
+    end;
+  end;
 end;
 
 procedure TChangeTracker.Remove(const AEntity: TObject);
@@ -1632,10 +1650,97 @@ begin
     Result := esDetached;
 end;
 
+procedure TChangeTracker.DetectChanges;
+var
+  Entity: TObject;
+  State: TEntityShadowState;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
+  CurrentVal, OriginalVal: TValue;
+  IsModifiedProp: Boolean;
+  HasAnyModified: Boolean;
+  CurrentState: TEntityState;
+  KeysList: IList<TObject>;
+  i: Integer;
+begin
+  KeysList := TCollections.CreateList<TObject>;
+  KeysList.AddRange(FTrackedEntities.Keys);
+  for i := 0 to KeysList.Count - 1 do
+  begin
+    Entity := KeysList[i];
+    CurrentState := FTrackedEntities[Entity];
+    if CurrentState in [esUnchanged, esModified] then
+    begin
+      State := GetShadowState(Entity);
+      Meta := TReflection.GetMetadata(Entity.ClassInfo);
+      HasAnyModified := False;
+      
+      for Handler in Meta.GetPropertyHandlers() do
+      begin
+        CurrentVal := Handler.GetValue(Pointer(Entity));
+        if not State.ShadowValues.TryGetValue(
+          Handler.Name, OriginalVal) then
+          OriginalVal := TValue.Empty;
+
+        TReflection.TryUnwrapProp(CurrentVal, CurrentVal);
+        TReflection.TryUnwrapProp(OriginalVal, OriginalVal);
+          
+        IsModifiedProp := False;
+        if CurrentVal.TypeInfo <> OriginalVal.TypeInfo then
+        begin
+          if not (CurrentVal.IsEmpty and OriginalVal.IsEmpty) then
+            IsModifiedProp := True;
+        end
+        else if not CurrentVal.IsEmpty then
+        begin
+          case CurrentVal.Kind of
+            tkInteger, tkInt64, tkEnumeration:
+              IsModifiedProp := CurrentVal.AsOrdinal <> OriginalVal.AsOrdinal;
+            tkFloat:
+              IsModifiedProp := CurrentVal.AsExtended <> OriginalVal.AsExtended;
+            tkString, tkLString, tkWString, tkUString:
+              IsModifiedProp := CurrentVal.AsString <> OriginalVal.AsString;
+            tkVariant:
+              IsModifiedProp := CurrentVal.AsVariant <> OriginalVal.AsVariant;
+            tkClass:
+              IsModifiedProp := CurrentVal.AsObject <> OriginalVal.AsObject;
+            tkInterface:
+              IsModifiedProp := CurrentVal.AsInterface <> OriginalVal.AsInterface;
+            else
+              IsModifiedProp := CurrentVal.ToString <> OriginalVal.ToString;
+          end;
+        end
+        else
+          IsModifiedProp := not OriginalVal.IsEmpty;
+          
+        if IsModifiedProp then
+        begin
+          State.ModifiedProperties.AddOrSetValue(Handler.Name, True);
+          HasAnyModified := True;
+        end
+        else
+          State.ModifiedProperties.Remove(Handler.Name);
+      end;
+      
+      if HasAnyModified then
+      begin
+        if CurrentState = esUnchanged then
+          FTrackedEntities[Entity] := esModified;
+      end
+      else
+      begin
+        if CurrentState = esModified then
+          FTrackedEntities[Entity] := esUnchanged;
+      end;
+    end;
+  end;
+end;
+
 function TChangeTracker.HasChanges: Boolean;
 var
   LPair: TPair<TObject, TEntityState>;
 begin
+  DetectChanges;
   Result := False;
   for LPair in FTrackedEntities do
   begin
@@ -1669,6 +1774,7 @@ end;
 
 function TChangeTracker.GetTrackedEntities: IDictionary<TObject, TEntityState>;
 begin
+  DetectChanges;
   Result := FTrackedEntities;
 end;
 

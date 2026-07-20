@@ -1008,6 +1008,8 @@ begin
     if Tracking and (PKVal <> '') then
     begin
       FIdentityMap.Add(PKVal, Result);
+      if (FContext <> nil) and (FContext.ChangeTracker <> nil) then
+        FContext.ChangeTracker.Track(Result, esUnchanged);
     end;
     
     HydrateTarget(Reader, Result, Plan);
@@ -2123,7 +2125,7 @@ begin
         end;
 
         // Priority 2: Check if it's the specific SoftDelete filter property
-        if PropName <> '' then
+        if (PropName <> '') and not ((PropMap <> nil) and PropMap.IsDeletedAt) then
         begin
           if SameText(Prop.Name, PropName) then
           begin

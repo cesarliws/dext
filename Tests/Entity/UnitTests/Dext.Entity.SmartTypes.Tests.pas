@@ -1,3 +1,28 @@
+{***************************************************************************}
+{                                                                           }
+{           Dext Framework                                                  }
+{                                                                           }
+{           Copyright (C) 2025 Cesar Romero & Dext Contributors             }
+{                                                                           }
+{           Licensed under the Apache License, Version 2.0 (the "License"); }
+{           you may not use this file except in compliance with the License.}
+{           You may obtain a copy of the License at                         }
+{                                                                           }
+{               http://www.apache.org/licenses/LICENSE-2.0                  }
+{                                                                           }
+{           Unless required by applicable law or agreed to in writing,      }
+{           software distributed under the License is distributed on an     }
+{           "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,    }
+{           either express or implied. See the License for the specific     }
+{           language governing permissions and limitations under the        }
+{           License.                                                        }
+{                                                                           }
+{***************************************************************************}
+{                                                                           }
+{  Author:  Cesar Romero                                                    }
+{  Created: 2025-12-08                                                      }
+{                                                                           }
+{***************************************************************************}
 unit Dext.Entity.SmartTypes.Tests;
 
 interface
@@ -6,6 +31,7 @@ uses
   System.SysUtils,
   System.DateUtils,
   System.Rtti,
+  Data.DB,
   Dext.Assertions,
   Dext.Testing.Attributes,
   Dext.Core.Reflection,
@@ -17,7 +43,9 @@ uses
   Dext.Entity.Query,
   Dext.Specifications.Interfaces,
   Dext.Specifications.Base,
-  Dext.Specifications.Types;
+  Dext.Specifications.Types,
+  Dext.Entity.Dialects,
+  Dext.Specifications.SQL.Generator;
 
 type
   [Table('plain_users')]
@@ -56,6 +84,28 @@ type
   public
     [PK, AutoInc] property Id: Prop<Integer> read FId write FId;
     property Aktif: Prop<string> read FAktif write FAktif;
+  end;
+
+  /// <summary>
+  ///   Entity for testing change tracking and datetime range guarding.
+  /// </summary>
+  [Table('test_tracking_entities')]
+  TTestTrackingEntity = class
+  private
+    FId: Prop<Integer>;
+    FName: Prop<string>;
+    FUpdatedDate: Prop<TDateTime>;
+  public
+    /// <summary>Gets or sets the entity identifier.</summary>
+    [PK, AutoInc]
+    property Id: Prop<Integer> read FId write FId;
+    /// <summary>Gets or sets the entity name.</summary>
+    [Column('name')]
+    property Name: Prop<string> read FName write FName;
+    /// <summary>Gets or sets the updated datetime value.</summary>
+    [Column('updated_date'), DbType(ftDateTime)]
+    property UpdatedDate: Prop<TDateTime> read FUpdatedDate
+      write FUpdatedDate;
   end;
 
   [TestFixture('SmartTypes (Prop<T>) Tests')]
@@ -100,6 +150,14 @@ type
     [Test]
     [Description('Issue #155: Verify empty/null value wrapping on Prop<T> resets FValue to empty')]
     procedure Test_Issue155_EmptyNullPropWrapping;
+
+    /// <summary>
+    ///   Verify entity change tracking registration during hydration and
+    ///   the datetime range guard to prevent smalldatetime overflow.
+    /// </summary>
+    [Test]
+    [Description('Verify tracking and datetime range guard (< 1900-01-01)')]
+    procedure TestChangeTrackingAndDateTimeGuard;
   end;
 
   [TestFixture('SmartTypes Combinatorial Matrix')]
@@ -307,6 +365,38 @@ begin
     Should(string(Entity.Aktif)).Be('');
   finally
     Entity.Free;
+  end;
+end;
+
+procedure TSmartTypesTests.TestChangeTrackingAndDateTimeGuard;
+var
+  Generator: TSQLGenerator<TTestTrackingEntity>;
+  Entity: TTestTrackingEntity;
+  Dialect: ISQLDialect;
+  SQL: string;
+begin
+  Dialect := TSQLiteDialect.Create;
+  Generator := TSQLGenerator<TTestTrackingEntity>.Create(Dialect);
+  try
+    Entity := TTestTrackingEntity.Create;
+    try
+      Entity.Id := 1;
+      Entity.Name := 'Test';
+      // 0.0 date (30.12.1899) falls below 1900-01-01
+      Entity.UpdatedDate := 0.0;
+
+      // 1. Test GenerateInsert datetime range guard
+      SQL := Generator.GenerateInsert(Entity);
+      Should(SQL).Contain('NULL'); // out-of-range -> NULL
+
+      // 2. Test GenerateUpdate datetime range guard
+      SQL := Generator.GenerateUpdate(Entity);
+      Should(SQL).Contain('updated_date" = NULL');
+    finally
+      Entity.Free;
+    end;
+  finally
+    Generator.Free;
   end;
 end;
 

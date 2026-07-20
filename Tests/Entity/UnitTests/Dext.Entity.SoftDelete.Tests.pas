@@ -127,6 +127,10 @@ begin
   SetupDatabase;
 
   FContext := TSoftDeleteTestContext.Create(TFireDACConnection.Create(FConn, False), TSQLiteDialect.Create);
+  FContext.OnLog := procedure(SQL: string)
+    begin
+      WriteLn('[SQL LOG] ', SQL);
+    end;
 end;
 
 procedure TSoftDeleteIntegrationTests.TearDown;

@@ -215,6 +215,9 @@ type
 
 implementation
 
+uses
+  Dext.Entity.Context;
+
 { TSQLParamCollector }
 
 constructor TSQLParamCollector.Create(AParams: IDictionary<string, TValue>);
@@ -1286,6 +1289,19 @@ begin
       TryUnwrapSmartValue(Val);
 
 
+
+      // DateTime Range Guard: out-of-range (< 1900-01-01) -> NULL
+      if (Val.Kind = tkFloat) and (Val.AsExtended < 2.0) and
+         (((PropMap <> nil) and
+           (PropMap.DataType in [ftDateTime, ftDate, ftTime])) or
+          (Val.TypeInfo = TypeInfo(TDateTime)) or
+          (Val.TypeInfo = TypeInfo(TDate)) or
+          (Val.TypeInfo = TypeInfo(TTime))) then
+      begin
+        SBVals.Append('NULL');
+        Continue;
+      end;
+
       // After unwrapping, check if the value is Null or Empty
       if Val.IsEmpty then
       begin
@@ -1618,6 +1634,8 @@ var
   NullableHelper: TNullableHelper;
   Meta: TTypeMetadata;
   Handler: IPropertyHandler;
+  Shadow: TEntityShadowState;
+  HasModifiedFilter: Boolean;
 begin
   FParams.Clear;
   FParamTypes.Clear;
@@ -1626,8 +1644,23 @@ begin
   SBSet := TStringBuilder.Create;
   SBWhere := TStringBuilder.Create;
   try
+    WriteLn('   [DEBUG GenerateUpdate] AEntity Pointer: ', IntToHex(IntPtr(Pointer(AEntity)), 8));
     FirstSet := True;
     FirstWhere := True;
+    
+    Shadow := nil;
+    HasModifiedFilter := False;
+    if (FContext <> nil) and (FContext.ChangeTracker <> nil) then
+    begin
+      if TObject(FContext.ChangeTracker) is TChangeTracker then
+      begin
+        Shadow := TChangeTracker(FContext.ChangeTracker)
+          .GetShadowState(Pointer(AEntity));
+        if (Shadow <> nil) and
+           (Shadow.ModifiedProperties.Count > 0) then
+          HasModifiedFilter := True;
+      end;
+    end;
     
     Meta := TReflection.GetMetadata(TypeInfo(T));
     for Handler in Meta.GetPropertyHandlers() do
@@ -1665,6 +1698,12 @@ begin
          ColName := FNamingStrategy.GetColumnName(TRttiProperty(Handler.GetMember()));
       
       if not IsMapped then Continue;
+
+      if HasModifiedFilter and not IsPK and not IsVersion then
+      begin
+        if not Shadow.ModifiedProperties.ContainsKey(Handler.GetName()) then
+          Continue;
+      end;
       
       Val := Handler.GetValue(Pointer(AEntity));
       
@@ -1742,6 +1781,7 @@ begin
         if IsNullable(Val.TypeInfo) then
         begin
           NullableHelper := TNullableHelper.Create(Val.TypeInfo);
+          WriteLn('   [DEBUG GenerateUpdate] Property: ', Handler.GetName(), ', HasValue: ', NullableHelper.HasValue(Val.GetReferenceToRawData));
           if not NullableHelper.HasValue(Val.GetReferenceToRawData) then
           begin
             if not FirstSet then SBSet.Append(', ');
@@ -1753,8 +1793,26 @@ begin
             Val := NullableHelper.GetValue(Val.GetReferenceToRawData);
         end;
 
-        // Unwrap Prop<T> (Smart Type) / Nullable<T>
         TryUnwrapSmartValue(Val);
+        if Val.Kind = tkFloat then
+          WriteLn('   [DEBUG GenerateUpdate] Unwrapped Kind: ', GetEnumName(TypeInfo(TTypeKind), Ord(Val.Kind)),
+                  ', AsExtended: ', Val.AsExtended:0:4)
+        else
+          WriteLn('   [DEBUG GenerateUpdate] Unwrapped Kind: ', GetEnumName(TypeInfo(TTypeKind), Ord(Val.Kind)));
+
+        // DateTime Range Guard: out-of-range (< 1900-01-01) -> NULL
+        if (Val.Kind = tkFloat) and (Val.AsExtended < 2.0) and
+           (((PropMap <> nil) and
+             (PropMap.DataType in [ftDateTime, ftDate, ftTime])) or
+            (Val.TypeInfo = TypeInfo(TDateTime)) or
+            (Val.TypeInfo = TypeInfo(TDate)) or
+            (Val.TypeInfo = TypeInfo(TTime))) then
+        begin
+          if not FirstSet then SBSet.Append(', ');
+          FirstSet := False;
+          SBSet.Append(FDialect.QuoteIdentifier(ColName)).Append(' = NULL');
+          Continue;
+        end;
 
         ParamName := GetNextParamName;
         
@@ -1798,8 +1856,15 @@ begin
     begin
       for PropMap in FMap.Properties.Values do
       begin
+        WriteLn('   [DEBUG GenerateUpdate] Checking Shadow Prop: ', PropMap.PropertyName, 
+                ', IsShadow: ', PropMap.IsShadow, ', IsIgnored: ', PropMap.IsIgnored, ', IsPK: ', PropMap.IsPK);
         if PropMap.IsShadow and not PropMap.IsIgnored and not PropMap.IsPK then
         begin
+          if HasModifiedFilter and
+             not Shadow.ModifiedProperties.ContainsKey(
+               PropMap.PropertyName) then
+            Continue;
+
           ColName := PropMap.ColumnName;
           if ColName = '' then ColName := PropMap.PropertyName;
           
@@ -1807,6 +1872,18 @@ begin
           
           Val := FContext.Entry(AEntity).Member(PropMap.PropertyName).CurrentValue;
           TryUnwrapSmartValue(Val);
+
+          // DateTime Range Guard: out-of-range (< 1900-01-01) -> NULL
+          if (Val.Kind = tkFloat) and (Val.AsExtended < 2.0) and
+             (((PropMap <> nil) and
+               (PropMap.DataType in [ftDateTime, ftDate, ftTime])) or
+              (Val.TypeInfo = TypeInfo(TDateTime)) or
+              (Val.TypeInfo = TypeInfo(TDate)) or
+              (Val.TypeInfo = TypeInfo(TTime))) then
+          begin
+             SBSet.Append(Format('%s = NULL', [FDialect.QuoteIdentifier(ColName)]));
+             Continue;
+          end;
           
           if Val.IsEmpty then
           begin
@@ -1840,6 +1917,7 @@ begin
 
     Result := Format('UPDATE %s SET %s WHERE %s', 
       [GetTableName, SBSet.ToString, SBWhere.ToString]);
+    WriteLn('   [DEBUG GenerateUpdate] Returned Result SQL: ', Result);
       
   finally
     SBSet.Free;
