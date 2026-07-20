@@ -164,10 +164,10 @@ var Page := Context.Users
 Use `.AsNoTracking` for **Read-Only** scenarios. This returns objects without adding them to the `IdentityMap` or `ChangeTracker`, resulting in ~30-50% better performance and lower memory usage.
 
 > [!IMPORTANT]
-> **Memory Management**: In No Tracking mode, the returned `IList<T>` **owns** the objects. They are freed automatically when the list reference goes out of scope.
+> **Memory Management & Lifetime**: In Tracked mode (default), the `DbContext` `IdentityMap` owns the entity instances. When the `DbContext` is disposed (`Db.Free`), tracked entities are destroyed. To return entities that must survive past `DbContext` disposal (e.g. from domain services to controllers/views), use `.AsNoTracking.ToList`. In No Tracking mode, the returned `IList<T>` **owns** the objects and keeps them alive until the list goes out of scope.
 
 ```pascal
-// Ideal for APIs and Reports
+// Ideal for APIs and Reports passing entities beyond DbContext scope
 var Users := Context.Users
   .AsNoTracking
   .Where(u.IsActive = True)

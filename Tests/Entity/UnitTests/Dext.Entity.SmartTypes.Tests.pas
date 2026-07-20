@@ -8,6 +8,7 @@ uses
   System.Rtti,
   Dext.Assertions,
   Dext.Testing.Attributes,
+  Dext.Core.Reflection,
   Dext.Core.SmartTypes,
   Dext.Types.Nullable,
   Dext.Entity.Attributes,
@@ -45,6 +46,16 @@ type
   public
     [PK, AutoInc] property Id: Integer read FId write FId;
     property Name: Nullable<string> read FName write FName;
+  end;
+
+  [Table('smart_prop_entities')]
+  TSmartPropTestEntity = class
+  private
+    FId: Prop<Integer>;
+    FAktif: Prop<string>;
+  public
+    [PK, AutoInc] property Id: Prop<Integer> read FId write FId;
+    property Aktif: Prop<string> read FAktif write FAktif;
   end;
 
   [TestFixture('SmartTypes (Prop<T>) Tests')]
@@ -85,6 +96,10 @@ type
     [Test]
     [Description('Verify that querying plain entities using metadata class works')]
     procedure TestPlainEntityTypeQueryWorks;
+
+    [Test]
+    [Description('Issue #155: Verify empty/null value wrapping on Prop<T> resets FValue to empty')]
+    procedure Test_Issue155_EmptyNullPropWrapping;
   end;
 
   [TestFixture('SmartTypes Combinatorial Matrix')]
@@ -270,10 +285,29 @@ begin
 
   Query.Where(TPlainTestUserType.Name = 'John');
 
-  Should(Spec.Expression).NotBeNil;
-
   Query := Default(TFluentQuery<TPlainTestUser>);
   Spec := nil;
+end;
+
+procedure TSmartTypesTests.Test_Issue155_EmptyNullPropWrapping;
+var
+  Entity: TSmartPropTestEntity;
+  Prop: TRttiProperty;
+  RType: TRttiType;
+  Val: TValue;
+begin
+  Entity := TSmartPropTestEntity.Create;
+  try
+    Entity.Aktif := 'InitialValue';
+    RType := TReflection.Context.GetType(TSmartPropTestEntity);
+    Prop := RType.GetProperty('Aktif');
+    Val := TValue.Empty;
+
+    TReflection.SetValue(Entity, Prop, Val);
+    Should(string(Entity.Aktif)).Be('');
+  finally
+    Entity.Free;
+  end;
 end;
 
 

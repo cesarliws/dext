@@ -140,10 +140,10 @@ var Pagina := Context.Users
 Use `.AsNoTracking` para cenários de **Apenas Leitura**. Isso retorna objetos sem adicioná-los ao `IdentityMap` ou `ChangeTracker`, resultando em uma performance ~30-50% superior e menor uso de memória.
 
 > [!IMPORTANT]
-> **Gerenciamento de Memória**: No modo No Tracking, a `IList<T>` retornada **é dona** dos objetos. Eles são liberados automaticamente quando a referência da lista sai de escopo.
+> **Gerenciamento de Memória & Ciclo de Vida**: No modo Tracked (padrão), o `IdentityMap` do `DbContext` é dono dos objetos. Quando o `DbContext` é liberado (`Db.Free`), as entidades rastreadas são destruídas. Para retornar entidades que devem sobreviver ao descarte do `DbContext` (ex: de serviços para controllers/views), utilize `.AsNoTracking.ToList`. No modo No Tracking, a `IList<T>` retornada **é dona** dos objetos e os mantêm vivos até a lista sair de escopo.
 
 ```pascal
-// Ideal para APIs e Relatórios
+// Ideal para APIs e Relatórios que trafegam fora do escopo do DbContext
 var Users := Context.Users
   .AsNoTracking
   .Where(u.IsActive = True)

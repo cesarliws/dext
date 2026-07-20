@@ -204,10 +204,12 @@ type
 
     /// <summary>
     ///   Executes the query and returns a list of entities.
+    ///   Tracked entities (default) are owned by the DbContext IdentityMap
+    ///   and are freed when the DbContext is disposed.
+    ///   Use AsNoTracking.ToList to obtain an untracked list owned by the caller.
     /// </summary>
     function ToList: IList<T>; overload;
     function ToList(const ASpec: ISpecification<T>): IList<T>; overload;
-
     function ToList(const AExpression: IExpression): IList<T>; overload;
     function FirstOrDefault(const AExpression: IExpression): T; overload;
     function FirstOrDefault(const ASpec: ISpecification<T>): T; overload;
@@ -1043,25 +1045,49 @@ begin
         if Item.Converter <> nil then
           Val := Item.Converter.FromDatabase(Val, Item.Prop.PropertyType.Handle);
 
-        if Item.UseDirect and not Val.IsEmpty then
+        if Item.UseDirect then
         begin
-          case Item.DirectKind of
-            nkInt32:
-              TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, Val.AsInteger);
-            nkInt64:
-              TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, Val.AsInt64);
-            nkBoolean:
-              TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, TValueConverter.Convert(Val, TypeInfo(Boolean)).AsBoolean);
-            nkSingle:
-              TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
-            nkCurrency:
-              TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
-            nkDouble:
-              TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
-            nkDateTime:
-              TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
-            nkString:
-              TDextDirectAccess.WriteString(Target, Item.DirectOffset, Val.AsString);
+          if not Val.IsEmpty then
+          begin
+            case Item.DirectKind of
+              nkInt32:
+                TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, Val.AsInteger);
+              nkInt64:
+                TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, Val.AsInt64);
+              nkBoolean:
+                TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, TValueConverter.Convert(Val, TypeInfo(Boolean)).AsBoolean);
+              nkSingle:
+                TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
+              nkCurrency:
+                TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
+              nkDouble:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
+              nkDateTime:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
+              nkString:
+                TDextDirectAccess.WriteString(Target, Item.DirectOffset, Val.AsString);
+            end;
+          end
+          else
+          begin
+            case Item.DirectKind of
+              nkInt32:
+                TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, 0);
+              nkInt64:
+                TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, 0);
+              nkBoolean:
+                TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, False);
+              nkSingle:
+                TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, 0);
+              nkCurrency:
+                TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, 0);
+              nkDouble:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, 0);
+              nkDateTime:
+                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, 0);
+              nkString:
+                TDextDirectAccess.WriteString(Target, Item.DirectOffset, '');
+            end;
           end;
           Continue;
         end;
