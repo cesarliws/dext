@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -317,7 +317,7 @@ begin
       end;
     tkInt64:
       Result := PInt64(LP)^ = PInt64(RP)^;
-    tkClass:
+    tkClass, tkPointer:
       Result := PPointer(LP)^ = PPointer(RP)^;
     tkInterface:
       begin
@@ -345,10 +345,11 @@ begin
       Result := THashBobJenkins.GetHashValue(string(PAnsiString(VP)^));
     tkWString:
       Result := THashBobJenkins.GetHashValue(string(PWideString(VP)^));
-    tkClass:
-      Result := THashBobJenkins.GetHashValue(PPointer(VP)^, SizeOf(Pointer));
-    tkInterface:
-      Result := THashBobJenkins.GetHashValue(PPointer(VP)^, SizeOf(Pointer));
+    tkClass, tkInterface, tkPointer:
+      Result := THashBobJenkins.GetHashValue(
+        PPointer(VP)^,
+        SizeOf(Pointer)
+      );
   else
     // Integer, Float, Int64, Enum, Set, Record, etc: hash raw bytes
     Result := THashBobJenkins.GetHashValue(Value, SizeOf(T));
