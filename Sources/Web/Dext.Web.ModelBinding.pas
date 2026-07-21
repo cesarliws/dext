@@ -152,10 +152,15 @@ type
   /// </summary>
   TModelBinder = class(TInterfacedObject, IModelBinder)
   private
+    class var FDefault: IModelBinder;
     function BindBodyPrimitive(AParam: TRttiParameter; Context: IHttpContext): TValue;
   public
+    class constructor Create;
+    class destructor Destroy;
     constructor Create;
     destructor Destroy; override;
+    /// <summary>Returns the immutable stateless binder shared by execution plans.</summary>
+    class function Default: IModelBinder; static;
 
     // Interface methods
     function BindBody(AType: PTypeInfo; Context: IHttpContext): TValue; overload;
@@ -322,9 +327,24 @@ end;
 
 { TModelBinder }
 
+class constructor TModelBinder.Create;
+begin
+  FDefault := TModelBinder.Create;
+end;
+
+class destructor TModelBinder.Destroy;
+begin
+  FDefault := nil;
+end;
+
 constructor TModelBinder.Create;
 begin
   inherited Create;
+end;
+
+class function TModelBinder.Default: IModelBinder;
+begin
+  Result := FDefault;
 end;
 
 destructor TModelBinder.Destroy;

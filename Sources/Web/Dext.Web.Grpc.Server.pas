@@ -87,6 +87,69 @@ uses
   System.Diagnostics, System.JSON, Dext.Logging, Dext.Logging.Global,
   Dext.Logging.Telemetry, Dext.Logging.Tracing;
 
+type
+  TGrpcBufferPool = class
+  private
+    class var FLock: TObject;
+    class var FBuffers: IList<TMemoryStream>;
+    class constructor Create;
+    class destructor Destroy;
+  public
+    class function Acquire: TMemoryStream; static;
+    class procedure Release(ABuffer: TMemoryStream); static;
+  end;
+
+class constructor TGrpcBufferPool.Create;
+begin
+  FLock := TObject.Create;
+  FBuffers := TCollections.CreateList<TMemoryStream>;
+end;
+
+class destructor TGrpcBufferPool.Destroy;
+var
+  i: Integer;
+begin
+  for i := 0 to FBuffers.Count - 1 do
+    FBuffers[i].Free;
+  FBuffers := nil;
+  FLock.Free;
+end;
+
+class function TGrpcBufferPool.Acquire: TMemoryStream;
+begin
+  TMonitor.Enter(FLock);
+  try
+    if FBuffers.Count > 0 then
+    begin
+      Result := FBuffers[FBuffers.Count - 1];
+      FBuffers.Delete(FBuffers.Count - 1);
+    end
+    else
+      Result := TMemoryStream.Create;
+  finally
+    TMonitor.Exit(FLock);
+  end;
+  Result.Size := 0;
+  Result.Position := 0;
+end;
+
+class procedure TGrpcBufferPool.Release(ABuffer: TMemoryStream);
+begin
+  if ABuffer = nil then
+    Exit;
+  ABuffer.Size := 0;
+  ABuffer.Position := 0;
+  TMonitor.Enter(FLock);
+  try
+    if FBuffers.Count < 64 then
+      FBuffers.Add(ABuffer)
+    else
+      ABuffer.Free;
+  finally
+    TMonitor.Exit(FLock);
+  end;
+end;
+
 { TGrpcServiceMeta }
 
 constructor TGrpcServiceMeta.Create;
@@ -250,8 +313,11 @@ var
   Response: TObject;
   ServiceInstance: TObject;
   Intf: IInterface;
-  Serialized: TBytes;
-  Framed: TBytes;
+  SerializationBuffer: TMemoryStream;
+  ResponseSink: IUtf8ResponseSink;
+  PayloadSize: Integer;
+  FrameSize: Integer;
+  FrameData: PByte;
   Sw: TStopwatch;
   SwSub: TStopwatch;
   Span: TSpan;
@@ -426,48 +492,57 @@ begin
           try
             if TelemetryActive then
               SwSub := TStopwatch.StartNew;
-            Serialized := TProtobufSerializer.Serialize(Response, pcmAuto);
+            SerializationBuffer := TGrpcBufferPool.Acquire;
+            try
+              SerializationBuffer.Size := 5;
+              SerializationBuffer.Position := 5;
+              TProtobufSerializer.SerializeToStream(Response,
+                SerializationBuffer, pcmAuto);
+              PayloadSize := SerializationBuffer.Size - 5;
+              FrameSize := PayloadSize + 5;
+              FrameData := SerializationBuffer.Memory;
+              FrameData[0] := 0;
+              FrameData[1] := Byte(Cardinal(PayloadSize) shr 24);
+              FrameData[2] := Byte(Cardinal(PayloadSize) shr 16);
+              FrameData[3] := Byte(Cardinal(PayloadSize) shr 8);
+              FrameData[4] := Byte(PayloadSize);
 
-            if TelemetryActive then
-            begin
-              SwSub.Stop;
-              Payload := TJSONObject.Create;
-              Payload.AddPair('service', ServicePath);
-              Payload.AddPair('method', MethodPath);
-              Payload.AddPair('size', TJSONNumber.Create(Length(Serialized)));
-              TDiagnosticSource.Instance.Write('gRPC.Server.Serialize', Payload,
-                'gRPC', SwSub.ElapsedMilliseconds);
+              if TelemetryActive then
+              begin
+                SwSub.Stop;
+                Payload := TJSONObject.Create;
+                Payload.AddPair('service', ServicePath);
+                Payload.AddPair('method', MethodPath);
+                Payload.AddPair('size', TJSONNumber.Create(PayloadSize));
+                TDiagnosticSource.Instance.Write('gRPC.Server.Serialize',
+                  Payload, 'gRPC', SwSub.ElapsedMilliseconds);
+              end;
+
+              AContext.Response.StatusCode := 200;
+              AContext.Response.ContentType := 'application/grpc';
+              AContext.Response.AddHeader('grpc-status', '0');
+              AContext.Response.AddHeader('grpc-message', 'OK');
+              AContext.Response.SetContentLength(FrameSize);
+              if Supports(AContext.Response, IUtf8ResponseSink,
+                ResponseSink) then
+                ResponseSink.WriteUtf8(FrameData, FrameSize)
+              else
+              begin
+                SerializationBuffer.Position := 0;
+                AContext.Response.Write(SerializationBuffer);
+              end;
+
+              if TimingActive then
+                Sw.Stop;
+              if LogInfoActive then
+                Log.Info('[gRPC-Server] Invoke: {Service}/{Method} | ' +
+                  'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
+                  [ServicePath, MethodPath, Sw.ElapsedMilliseconds, RequestSize,
+                   FrameSize]);
+            finally
+              ResponseSink := nil;
+              TGrpcBufferPool.Release(SerializationBuffer);
             end;
-
-            if TelemetryActive then
-              SwSub := TStopwatch.StartNew;
-            Framed := TGrpcMessageCodec.Encode(Serialized, False);
-
-            if TelemetryActive then
-            begin
-              SwSub.Stop;
-              Payload := TJSONObject.Create;
-              Payload.AddPair('service', ServicePath);
-              Payload.AddPair('method', MethodPath);
-              Payload.AddPair('size', TJSONNumber.Create(Length(Framed)));
-              TDiagnosticSource.Instance.Write('gRPC.Server.Encode', Payload,
-                'gRPC', SwSub.ElapsedMilliseconds);
-            end;
-
-            AContext.Response.StatusCode := 200;
-            AContext.Response.ContentType := 'application/grpc';
-            AContext.Response.AddHeader('grpc-status', '0');
-            AContext.Response.AddHeader('grpc-message', 'OK');
-            AContext.Response.SetContentLength(Length(Framed));
-            AContext.Response.Write(Framed);
-
-            if TimingActive then
-              Sw.Stop;
-            if LogInfoActive then
-              Log.Info('[gRPC-Server] Invoke: {Service}/{Method} | ' +
-                'Duration: {Time} ms | Req: {ReqSz} bytes | Res: {ResSz} bytes',
-                [ServicePath, MethodPath, Sw.ElapsedMilliseconds, RequestSize,
-                 Length(Framed)]);
 
             Span.SetStatus('Success');
             if TelemetryActive then
@@ -476,7 +551,7 @@ begin
               Payload.AddPair('service', ServicePath);
               Payload.AddPair('method', MethodPath);
               Payload.AddPair('req_size', TJSONNumber.Create(RequestSize));
-              Payload.AddPair('res_size', TJSONNumber.Create(Length(Framed)));
+              Payload.AddPair('res_size', TJSONNumber.Create(FrameSize));
               TDiagnosticSource.Instance.Write('gRPC.Server.Invoke', Payload,
                 'gRPC', Sw.ElapsedMilliseconds);
             end;

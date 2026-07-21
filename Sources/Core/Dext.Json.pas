@@ -46,6 +46,8 @@ uses
 
 type
   TJsonSettings = Dext.Json.Types.TJsonSettings;
+  /// <summary>Non-capturing sink callback for direct UTF-8 serialization.</summary>
+  TDextJsonWriteProc = procedure(AContext, AData: Pointer; ALength: Integer);
   /// <summary>
   ///   Exception raised for errors during JSON serialization or deserialization.
   /// </summary>
@@ -240,6 +242,13 @@ type
     ///   Serializes a TValue into UTF-8 JSON bytes using custom settings.
     /// </summary>
     class function SerializeUtf8(const AValue: TValue; const ASettings: TJsonSettings): TBytes; overload; static;
+    /// <summary>Serializes a TValue directly to a UTF-8 byte sink.</summary>
+    class procedure SerializeUtf8To(const AValue: TValue; AContext: Pointer;
+      AWrite: TDextJsonWriteProc); overload; static;
+    /// <summary>Serializes a TValue directly to a UTF-8 byte sink.</summary>
+    class procedure SerializeUtf8To(const AValue: TValue;
+      const ASettings: TJsonSettings; AContext: Pointer;
+      AWrite: TDextJsonWriteProc); overload; static;
 
     /// <summary>
     ///   Serializes a TValue into a JSON string using custom settings.
@@ -479,6 +488,7 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
+  Dext.Json.Utf8,
   Dext.Core.Json.NextGen; // Default driver NextGen
 
 type
@@ -573,6 +583,25 @@ begin
 
   Json := Serialize(AValue, ASettings);
   Result := TEncoding.UTF8.GetBytes(Json);
+end;
+
+class procedure TDextJson.SerializeUtf8To(const AValue: TValue;
+  AContext: Pointer; AWrite: TDextJsonWriteProc);
+begin
+  SerializeUtf8To(AValue, GetDefaultSettings, AContext, AWrite);
+end;
+
+class procedure TDextJson.SerializeUtf8To(const AValue: TValue;
+  const ASettings: TJsonSettings; AContext: Pointer;
+  AWrite: TDextJsonWriteProc);
+var
+  Writer: TUtf8JsonWriter;
+begin
+  if not Assigned(AWrite) then
+    raise EArgumentNilException.Create('AWrite');
+  Writer := TUtf8JsonWriter.Create(AContext, TUtf8WriteProc(AWrite), False);
+  Writer.Settings := ASettings;
+  Writer.WriteValue(AValue);
 end;
 
 { TJsonUtils }

@@ -43,6 +43,13 @@ uses
 
 {$M+}
 type
+  /// <summary>Optional direct UTF-8 response sink for formatters and codecs.</summary>
+  IUtf8ResponseSink = interface
+    ['{45C94DC4-1DA8-453F-8F91-21030FFDA829}']
+    /// <summary>Writes UTF-8 bytes without creating a managed byte array.</summary>
+    procedure WriteUtf8(AData: Pointer; ALength: Integer);
+  end;
+
   IHttpContext = interface;
   IHttpRequest = interface;
   IHttpResponse = interface;
@@ -94,6 +101,9 @@ type
   TRouteParamPair = record
     Key: string;
     Value: string;
+    Source: string;
+    Offset: Integer;
+    Length: Integer;
   end;
 
   /// <summary>
@@ -108,6 +118,8 @@ type
   public
     /// <summary>Adds a key/value pair to the dictionary.</summary>
     procedure Add(const AKey, AValue: string);
+    /// <summary>Adds a value as a lazy slice of a source string.</summary>
+    procedure AddSlice(const AKey, ASource: string; AOffset, ALength: Integer);
     /// <summary>Clears all parameters without deallocating the structure.</summary>
     procedure Clear;
     /// <summary>Attempts to get a value by key. Returns True if found.</summary>
@@ -602,37 +614,66 @@ end;
 
 procedure TRouteValueDictionary.Add(const AKey, AValue: string);
 begin
-  if FCount < Length(FPairs) then
-  begin
-    FPairs[FCount].Key := AKey;
-    FPairs[FCount].Value := AValue;
-    Inc(FCount);
-  end;
+  if FCount >= Length(FPairs) then
+    raise EInvalidOp.Create('Maximum route parameter count exceeded');
+  FPairs[FCount].Key := AKey;
+  FPairs[FCount].Value := AValue;
+  FPairs[FCount].Source := '';
+  FPairs[FCount].Offset := 0;
+  FPairs[FCount].Length := 0;
+  Inc(FCount);
+end;
+
+procedure TRouteValueDictionary.AddSlice(const AKey, ASource: string;
+  AOffset, ALength: Integer);
+begin
+  if FCount >= Length(FPairs) then
+    raise EInvalidOp.Create('Maximum route parameter count exceeded');
+  if (AOffset < 1) or (ALength < 0) or
+     (AOffset + ALength - 1 > System.Length(ASource)) then
+    raise EArgumentOutOfRangeException.Create('Invalid route parameter slice');
+  FPairs[FCount].Key := AKey;
+  FPairs[FCount].Value := '';
+  FPairs[FCount].Source := ASource;
+  FPairs[FCount].Offset := AOffset;
+  FPairs[FCount].Length := ALength;
+  Inc(FCount);
 end;
 
 procedure TRouteValueDictionary.Clear;
+var
+  i: Integer;
 begin
+  for i := 0 to FCount - 1 do
+    FPairs[i] := Default(TRouteParamPair);
   FCount := 0;
 end;
 
 function TRouteValueDictionary.GetItem(const AKey: string): string;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to FCount - 1 do
-    if SameText(FPairs[I].Key, AKey) then
-      Exit(FPairs[I].Value);
+  for i := 0 to FCount - 1 do
+    if SameText(FPairs[i].Key, AKey) then
+    begin
+      if FPairs[i].Source <> '' then
+        Exit(Copy(FPairs[i].Source, FPairs[i].Offset, FPairs[i].Length));
+      Exit(FPairs[i].Value);
+    end;
   Result := '';
 end;
 
 function TRouteValueDictionary.TryGetValue(const AKey: string; out AValue: string): Boolean;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to FCount - 1 do
-    if SameText(FPairs[I].Key, AKey) then
+  for i := 0 to FCount - 1 do
+    if SameText(FPairs[i].Key, AKey) then
     begin
-      AValue := FPairs[I].Value;
+      if FPairs[i].Source <> '' then
+        AValue := Copy(FPairs[i].Source, FPairs[i].Offset, FPairs[i].Length)
+      else
+        AValue := FPairs[i].Value;
       Exit(True);
     end;
   AValue := '';
@@ -641,10 +682,10 @@ end;
 
 function TRouteValueDictionary.ContainsKey(const AKey: string): Boolean;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to FCount - 1 do
-    if SameText(FPairs[I].Key, AKey) then
+  for i := 0 to FCount - 1 do
+    if SameText(FPairs[i].Key, AKey) then
       Exit(True);
   Result := False;
 end;
@@ -660,7 +701,13 @@ end;
 function TRouteValueDictionary.GetValueByIndex(AIndex: Integer): string;
 begin
   if (AIndex >= 0) and (AIndex < FCount) then
-    Result := FPairs[AIndex].Value
+  begin
+    if FPairs[AIndex].Source <> '' then
+      Result := Copy(FPairs[AIndex].Source, FPairs[AIndex].Offset,
+        FPairs[AIndex].Length)
+    else
+      Result := FPairs[AIndex].Value;
+  end
   else
     Result := '';
 end;

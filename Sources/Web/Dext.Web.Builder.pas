@@ -333,17 +333,8 @@ function TApplicationBuilder.MapGet(const Path: string; Handler: TStaticHandler)
 begin
   Result := MapEndpoint('GET', Path,
     procedure(Context: IHttpContext)
-    var
-      Invoker: THandlerInvoker;
-      Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
-      try
-        Invoker.Invoke(Handler);
-      finally
-        Invoker.Free;
-      end;
+      Handler(Context);
     end
   );
 end;
@@ -352,17 +343,8 @@ function TApplicationBuilder.MapPost(const Path: string; Handler: TStaticHandler
 begin
   Result := MapEndpoint('POST', Path,
     procedure(Context: IHttpContext)
-    var
-      Invoker: THandlerInvoker;
-      Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
-      try
-        Invoker.Invoke(Handler);
-      finally
-        Invoker.Free;
-      end;
+      Handler(Context);
     end
   );
 end;
@@ -371,20 +353,8 @@ function TApplicationBuilder.MapPut(const Path: string; Handler: TStaticHandler)
 begin
   Result := MapEndpoint('PUT', Path,
     procedure(Context: IHttpContext)
-    var
-      Invoker: THandlerInvoker;
-      Binder: IModelBinder;
     begin
-      // Method check is now handled by Routing Middleware, but double check is fine
-      if Context.Request.Method <> 'PUT' then Exit;
-      
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
-      try
-        Invoker.Invoke(Handler);
-      finally
-        Invoker.Free;
-      end;
+      Handler(Context);
     end
   );
 end;
@@ -393,19 +363,8 @@ function TApplicationBuilder.MapDelete(const Path: string; Handler: TStaticHandl
 begin
   Result := MapEndpoint('DELETE', Path,
     procedure(Context: IHttpContext)
-    var
-      Invoker: THandlerInvoker;
-      Binder: IModelBinder;
     begin
-      if Context.Request.Method <> 'DELETE' then Exit;
-      
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
-      try
-        Invoker.Invoke(Handler);
-      finally
-        Invoker.Free;
-      end;
+      Handler(Context);
     end
   );
 end;
@@ -414,19 +373,8 @@ function TApplicationBuilder.MapQuery(const Path: string; Handler: TStaticHandle
 begin
   Result := MapEndpoint('QUERY', Path,
     procedure(Context: IHttpContext)
-    var
-      Invoker: THandlerInvoker;
-      Binder: IModelBinder;
     begin
-      if Context.Request.Method <> 'QUERY' then Exit;
-      
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
-      try
-        Invoker.Invoke(Handler);
-      finally
-        Invoker.Free;
-      end;
+      Handler(Context);
     end
   );
 end;

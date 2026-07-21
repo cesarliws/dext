@@ -57,6 +57,12 @@ type
     MaxExecutorThreads: Integer;
     /// <summary>Max queue capacity for task executor (default: 1024).</summary>
     MaxQueueCapacity: Integer;
+    /// <summary>Outstanding Http.Sys receives per I/O worker (default: 2).</summary>
+    OutstandingReceiveDepth: Integer;
+    /// <summary>Maximum accepted native request-header buffer size.</summary>
+    MaxRequestHeaderSize: Integer;
+    /// <summary>Maximum accepted request body size.</summary>
+    MaxRequestBodySize: Int64;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -89,6 +95,12 @@ type
     function WithMaxExecutorThreads(ACount: Integer): TServerEngineOptions;
     /// <summary>Configures max queue capacity for request executor.</summary>
     function WithMaxQueueCapacity(ACapacity: Integer): TServerEngineOptions;
+    /// <summary>Configures outstanding Http.Sys receives per worker (1..8).</summary>
+    function WithOutstandingReceiveDepth(
+      ADepth: Integer): TServerEngineOptions;
+    /// <summary>Configures native request header and body size limits.</summary>
+    function WithRequestSizeLimits(AHeaderBytes: Integer;
+      ABodyBytes: Int64): TServerEngineOptions;
   end;
 
   /// <summary>
@@ -116,6 +128,9 @@ begin
   Result.BindAddress := '0.0.0.0';
   Result.MaxExecutorThreads := 0;
   Result.MaxQueueCapacity := 1024;
+  Result.OutstandingReceiveDepth := 2;
+  Result.MaxRequestHeaderSize := 64 * 1024;
+  Result.MaxRequestBodySize := 16 * 1024 * 1024;
 end;
 
 { TServerEngineOptionsHelper }
@@ -169,6 +184,25 @@ function TServerEngineOptionsHelper.WithMaxQueueCapacity(
   ACapacity: Integer): TServerEngineOptions;
 begin
   Self.MaxQueueCapacity := ACapacity;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithOutstandingReceiveDepth(
+  ADepth: Integer): TServerEngineOptions;
+begin
+  if ADepth < 1 then
+    ADepth := 1
+  else if ADepth > 8 then
+    ADepth := 8;
+  Self.OutstandingReceiveDepth := ADepth;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithRequestSizeLimits(
+  AHeaderBytes: Integer; ABodyBytes: Int64): TServerEngineOptions;
+begin
+  Self.MaxRequestHeaderSize := AHeaderBytes;
+  Self.MaxRequestBodySize := ABodyBytes;
   Result := Self;
 end;
 

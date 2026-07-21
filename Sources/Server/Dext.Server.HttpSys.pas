@@ -62,6 +62,7 @@ type
     Overlapped: TOverlapped;
     Kind: TDextHttpSysOperationKind;
     Context: Pointer;
+    Generation: Cardinal;
   end;
   PDextHttpSysOperation = ^TDextHttpSysOperation;
 
@@ -80,6 +81,8 @@ type
     FBodyEvent: TEvent;
     FBodyBytesReceived: DWORD;
     FBodyError: DWORD;
+    FBodyBuffer: TBytes;
+    FPrefetchedBody: TMemoryStream;
     constructor Create;
     destructor Destroy; override;
     procedure Reset;
@@ -135,7 +138,8 @@ type
   /// <summary>
   ///   Raw response implementation wrapper for Windows http.sys.
   /// </summary>
-  TDextHttpSysResponse = class(TInterfacedObject, IDextRawResponse)
+  TDextHttpSysResponse = class(TInterfacedObject, IDextRawResponse,
+    IDextRawResponseSink)
   private
     FEngine: TDextHttpSysEngine;
     FReqQueue: THandle;
@@ -186,6 +190,8 @@ type
     /// <param name="AOffset">The zero-based byte offset in ABuffer from which to begin writing.</param>
     /// <param name="ACount">The number of bytes to write.</param>
     procedure Write(const ABuffer: TBytes; AOffset, ACount: Integer);
+    /// <summary>Writes a raw byte span into response-owned segments.</summary>
+    procedure WriteBytes(AData: Pointer; ALength: Integer);
     /// <summary>Writes a file directly to the response socket using zero-copy transmission.</summary>
     /// <param name="APath">The path to the file to serve.</param>
     /// <param name="AOffset">The byte offset from where to start reading the file.</param>
@@ -296,6 +302,8 @@ type
     FRequestCache: TDextHttpSysRequest;
     FResponseCache: TDextHttpSysResponse;
     FConnectionCache: TDextHttpSysConnection;
+    procedure DispatchRequest(AContext: TDextHttpSysContext);
+    procedure PostBodyReceive(AContext: TDextHttpSysContext);
   protected
     procedure Execute; override;
   public
@@ -408,6 +416,8 @@ begin
   FBodyOp.Kind := hokReceiveBody;
   FBodyOp.Context := Self;
   FBodyEvent := TEvent.Create(nil, False, False, '');
+  SetLength(FBodyBuffer, 65536);
+  FPrefetchedBody := TMemoryStream.Create;
   FBufferCapacity := 16384;
   SetLength(FBuffer, FBufferCapacity);
   FGeneration := 1;
@@ -421,12 +431,16 @@ end;
 
 destructor TDextHttpSysContext.Destroy;
 begin
+  FPrefetchedBody.Free;
   FBodyEvent.Free;
   inherited;
 end;
 
 procedure TDextHttpSysContext.Reset;
 begin
+  Inc(FGeneration);
+  if FGeneration = 0 then
+    FGeneration := 1;
   FRequestId := 0;
   FRequest := nil;
   FResponse := nil;
@@ -434,6 +448,10 @@ begin
   FillChar(FReceiveOp.Overlapped, SizeOf(TOverlapped), 0);
   FillChar(FBodyOp.Overlapped, SizeOf(TOverlapped), 0);
   FBodyEvent.ResetEvent;
+  FBodyBytesReceived := 0;
+  FBodyError := ERROR_SUCCESS;
+  FPrefetchedBody.Size := 0;
+  FPrefetchedBody.Position := 0;
 end;
 
 procedure TDextHttpSysContext.ReleaseRequestReference;
@@ -484,9 +502,14 @@ procedure TDextHttpSysEngine.PostReceiveRequest(AContext: TDextHttpSysContext);
 var
   Ret: ULONG;
   BytesReturned: ULONG;
+  Request: PHTTP_REQUEST;
 begin
   BytesReturned := 0;
-  AContext.Reset;
+  if AContext.FRequestId = 0 then
+    AContext.Reset
+  else
+    FillChar(AContext.FReceiveOp.Overlapped, SizeOf(TOverlapped), 0);
+  AContext.FReceiveOp.Generation := AContext.FGeneration;
   
   Ret := HttpReceiveHttpRequest(
     FReqQueue,
@@ -502,10 +525,20 @@ begin
   begin
     if Ret = ERROR_MORE_DATA then
     begin
+      if (FOptions.MaxRequestHeaderSize > 0) and
+         (BytesReturned > Cardinal(FOptions.MaxRequestHeaderSize)) then
+      begin
+        ReleaseContext(AContext);
+        Exit;
+      end;
+      Request := PHTTP_REQUEST(@AContext.FBuffer[0]);
+      AContext.FRequestId := Request.RequestId;
       AContext.FBufferCapacity := BytesReturned;
       SetLength(AContext.FBuffer, AContext.FBufferCapacity);
       PostReceiveRequest(AContext);
-    end;
+    end
+    else
+      ReleaseContext(AContext);
   end;
 end;
 
@@ -639,68 +672,18 @@ begin
 end;
 
 function TDextHttpSysRequest.GetBodyStream: TStream;
-var
-  PChunk: PHTTP_DATA_CHUNK_INMEMORY;
-  I: Integer;
-  BytesReceived: ULONG;
-  Ret: ULONG;
 begin
+  if FContext <> nil then
+  begin
+    FContext.FPrefetchedBody.Position := 0;
+    FBodyRead := True;
+    Exit(FContext.FPrefetchedBody);
+  end;
+
   if FBodyStream = nil then
     FBodyStream := TMemoryStream.Create;
-
-  if not FBodyRead then
-  begin
-    FBodyRead := True;
-
-    if (FRequest.EntityChunkCount > 0) and (FRequest.pEntityChunks <> nil) then
-    begin
-      PChunk := PHTTP_DATA_CHUNK_INMEMORY(FRequest.pEntityChunks);
-      for I := 0 to FRequest.EntityChunkCount - 1 do
-      begin
-        if (PChunk.DataChunkType = hctFromMemory) and (PChunk.pBuffer <> nil) and (PChunk.BufferLength > 0) then
-          FBodyStream.WriteBuffer(PChunk.pBuffer^, PChunk.BufferLength);
-        Inc(PChunk);
-      end;
-    end;
-
-    if (FRequest.Flags and HTTP_REQUEST_FLAG_MORE_ENTITY_BODY_EXISTS) <> 0 then
-    begin
-      while True do
-      begin
-        FEntityBodyBuffer.Position := 0;
-        FEntityBodyBuffer.Size := 65536;
-        BytesReceived := 0;
-        Ret := HttpReceiveRequestEntityBody(
-          FReqQueue,
-          FRequest.RequestId,
-          0,
-          FEntityBodyBuffer.Memory,
-          FEntityBodyBuffer.Size,
-          BytesReceived,
-          nil
-        );
-
-        if Ret = ERROR_SUCCESS then
-        begin
-          if BytesReceived > 0 then
-            FBodyStream.WriteBuffer(FEntityBodyBuffer.Memory^, BytesReceived)
-          else
-            Break;
-        end
-        else if Ret = ERROR_HANDLE_EOF then
-        begin
-          if BytesReceived > 0 then
-            FBodyStream.WriteBuffer(FEntityBodyBuffer.Memory^, BytesReceived);
-          Break;
-        end
-        else
-          raise EOSError.Create('HttpReceiveRequestEntityBody failed '
-            + 'with error: ' + IntToStr(Ret));
-      end;
-    end;
-
-    FBodyStream.Position := 0;
-  end;
+  FBodyRead := True;
+  FBodyStream.Position := 0;
   Result := FBodyStream;
 end;
 
@@ -2041,6 +2024,94 @@ begin
   inherited;
 end;
 
+procedure TDextHttpSysResponse.WriteBytes(AData: Pointer; ALength: Integer);
+var
+  Chunk: HTTP_DATA_CHUNK;
+  BytesSent: ULONG;
+  ResultCode: ULONG;
+begin
+  if ALength <= 0 then
+    Exit;
+  if not FHeadersSent then
+  begin
+    FResponseWriter.Write(TByteSpan.Create(AData, ALength));
+    Exit;
+  end;
+
+  FillChar(Chunk, SizeOf(Chunk), 0);
+  Chunk.DataChunkType := hctFromMemory;
+  Chunk.pBuffer := AData;
+  Chunk.BufferLength := ALength;
+  ResultCode := HttpSendResponseEntityBody(FReqQueue, FRequestId, 0, 1,
+    @Chunk, BytesSent, nil, nil, nil, nil);
+  if ResultCode <> ERROR_SUCCESS then
+    raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
+      + IntToStr(ResultCode));
+  FResponseComplete := True;
+end;
+
+procedure TDextHttpSysWorker.PostBodyReceive(AContext: TDextHttpSysContext);
+var
+  BytesReceived: ULONG;
+  ResultCode: ULONG;
+begin
+  BytesReceived := 0;
+  FillChar(AContext.FBodyOp.Overlapped, SizeOf(TOverlapped), 0);
+  AContext.FBodyOp.Generation := AContext.FGeneration;
+  ResultCode := HttpReceiveRequestEntityBody(FReqQueue, AContext.FRequestId,
+    0, @AContext.FBodyBuffer[0], Length(AContext.FBodyBuffer), BytesReceived,
+    @AContext.FBodyOp.Overlapped);
+  if (ResultCode <> ERROR_SUCCESS) and (ResultCode <> ERROR_IO_PENDING) then
+  begin
+    if ResultCode = ERROR_HANDLE_EOF then
+      DispatchRequest(AContext)
+    else
+      FEngine.ReleaseContext(AContext);
+  end;
+end;
+
+procedure TDextHttpSysWorker.DispatchRequest(AContext: TDextHttpSysContext);
+var
+  Connection: IDextServerConnection;
+  RawRequest: IDextRawRequest;
+  RawResponse: IDextRawResponse;
+begin
+  AContext.FPrefetchedBody.Position := 0;
+  AContext.FConnection := TDextHttpSysConnection.Create(
+    PHTTP_REQUEST(@AContext.FBuffer[0])^, FReqQueue);
+  AContext.FRequest := FEngine.FRequestPool.Acquire(FEngine,
+    PHTTP_REQUEST(@AContext.FBuffer[0]), AContext);
+  AContext.FResponse := FEngine.FResponsePool.Acquire(FEngine,
+    FReqQueue, AContext.FRequestId, AContext);
+  AContext.FRefCount := 2;
+
+  Connection := AContext.FConnection;
+  RawRequest := AContext.FRequest;
+  RawResponse := AContext.FResponse;
+  try
+    try
+      if Assigned(FEngine.FOnRequest) then
+        FEngine.FOnRequest(Connection, RawRequest, RawResponse);
+    except
+      on E: Exception do
+        SafeWriteLn('--- EXCEPTION IN WORKER FOnRequest: ' + E.ClassName +
+          ': ' + E.Message);
+    end;
+  finally
+    try
+      RawResponse.Close;
+    except
+      on E: Exception do
+        SafeWriteLn('--- EXCEPTION IN RawResponse.Close: ' + E.ClassName +
+          ': ' + E.Message);
+    end;
+    RawRequest := nil;
+    RawResponse := nil;
+    Connection := nil;
+    TInterlocked.Decrement(FEngine.FActiveConnections);
+  end;
+end;
+
 procedure TDextHttpSysWorker.Execute;
 var
   Transferred: DWORD;
@@ -2049,9 +2120,8 @@ var
   Op: PDextHttpSysOperation;
   Context: TDextHttpSysContext;
   Ret: DWORD;
-  Connection: IDextServerConnection;
-  RawRequest: IDextRawRequest;
-  RawResponse: IDextRawResponse;
+  BodyChunk: PHTTP_DATA_CHUNK_INMEMORY;
+  BodyChunkIndex: Integer;
 begin
   ApplyGroupAffinityToThread(GetCurrentThread, FAffinity);
 
@@ -2078,6 +2148,8 @@ begin
       case Op^.Kind of
         hokReceiveRequest:
         begin
+          if Op^.Generation <> Context.FGeneration then
+            Continue;
           if Ret <> ERROR_SUCCESS then
           begin
             FEngine.ReleaseContext(Context);
@@ -2090,47 +2162,55 @@ begin
           // Post replacement receive
           FEngine.PostReceiveRequest(FEngine.AcquireContext);
 
-          // Prepare connections & requests
-          Context.FConnection := TDextHttpSysConnection.Create(
-            PHTTP_REQUEST(@Context.FBuffer[0])^, FReqQueue);
-          Context.FRequest := FEngine.FRequestPool.Acquire(FEngine,
-            PHTTP_REQUEST(@Context.FBuffer[0]), Context);
-          Context.FResponse := FEngine.FResponsePool.Acquire(FEngine,
-            FReqQueue, PHTTP_REQUEST(@Context.FBuffer[0]).RequestId, Context);
-
-          Context.FRefCount := 2;
-
-          Connection := Context.FConnection;
-          RawRequest := Context.FRequest;
-          RawResponse := Context.FResponse;
-
-          try
-            try
-              if Assigned(FEngine.FOnRequest) then
-                FEngine.FOnRequest(Connection, RawRequest, RawResponse);
-            except
-              on E: Exception do
-                SafeWriteLn('--- EXCEPTION IN WORKER FOnRequest: ' + E.ClassName + ': ' + E.Message);
-            end;
-          finally
-            try
-              RawResponse.Close;
-            except
-              on E: Exception do
-                SafeWriteLn('--- EXCEPTION IN RawResponse.Close: ' + E.ClassName + ': ' + E.Message);
-            end;
-            RawRequest := nil;
-            RawResponse := nil;
-            Connection := nil;
-            TInterlocked.Decrement(FEngine.FActiveConnections);
+          Context.FRequestId := PHTTP_REQUEST(
+            @Context.FBuffer[0]).RequestId;
+          Context.FPrefetchedBody.Size := 0;
+          BodyChunk := PHTTP_DATA_CHUNK_INMEMORY(PHTTP_REQUEST(
+            @Context.FBuffer[0]).pEntityChunks);
+          for BodyChunkIndex := 0 to PHTTP_REQUEST(
+            @Context.FBuffer[0]).EntityChunkCount - 1 do
+          begin
+            if (BodyChunk^.DataChunkType = hctFromMemory) and
+               (BodyChunk^.pBuffer <> nil) and
+               (BodyChunk^.BufferLength > 0) then
+              Context.FPrefetchedBody.WriteBuffer(BodyChunk^.pBuffer^,
+                BodyChunk^.BufferLength);
+            Inc(BodyChunk);
           end;
+
+          if (PHTTP_REQUEST(@Context.FBuffer[0]).Flags and
+              HTTP_REQUEST_FLAG_MORE_ENTITY_BODY_EXISTS) <> 0 then
+            PostBodyReceive(Context)
+          else
+            DispatchRequest(Context);
         end;
 
         hokReceiveBody:
         begin
-          Context.FBodyBytesReceived := Transferred;
-          Context.FBodyError := Ret;
-          Context.FBodyEvent.SetEvent;
+          if Op^.Generation <> Context.FGeneration then
+            Continue;
+          if Transferred > 0 then
+          begin
+            if (FEngine.FOptions.MaxRequestBodySize > 0) and
+               (Context.FPrefetchedBody.Size + Transferred >
+                FEngine.FOptions.MaxRequestBodySize) then
+            begin
+              TInterlocked.Decrement(FEngine.FActiveConnections);
+              FEngine.ReleaseContext(Context);
+              Continue;
+            end;
+            Context.FPrefetchedBody.WriteBuffer(Context.FBodyBuffer[0],
+              Transferred);
+          end;
+          if (Ret = ERROR_SUCCESS) and (Transferred > 0) then
+            PostBodyReceive(Context)
+          else if (Ret = ERROR_SUCCESS) or (Ret = ERROR_HANDLE_EOF) then
+            DispatchRequest(Context)
+          else
+          begin
+            TInterlocked.Decrement(FEngine.FActiveConnections);
+            FEngine.ReleaseContext(Context);
+          end;
         end;
       end;
     end;
@@ -2308,8 +2388,11 @@ begin
     Worker.Start;
   end;
 
-  // Post initial receives (2 per worker thread)
-  for i := 0 to (ThreadCount * 2) - 1 do
+  if FOptions.OutstandingReceiveDepth < 1 then
+    FOptions.OutstandingReceiveDepth := 2
+  else if FOptions.OutstandingReceiveDepth > 8 then
+    FOptions.OutstandingReceiveDepth := 8;
+  for i := 0 to (ThreadCount * FOptions.OutstandingReceiveDepth) - 1 do
     PostReceiveRequest(AcquireContext);
 end;
 

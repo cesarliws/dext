@@ -419,6 +419,8 @@ procedure RunStandaloneServer(const AEngine: string);
 var
   Host: IWebApplication;
   Builder: IWebHostBuilder;
+  DurationText: string;
+  DurationMs: Integer;
 begin
   Builder := TDextWebHost.CreateDefaultBuilder;
   Builder.Configure(
@@ -458,8 +460,17 @@ begin
     Exit;
   end;
 
-  Writeln('Server is running. Press [ENTER] to stop.');
-  Readln;
+  DurationText := GetEnvironmentVariable('DEXT_SERVER_DURATION_MS');
+  if TryStrToInt(DurationText, DurationMs) and (DurationMs > 0) then
+  begin
+    Writeln('Server is running for ', DurationMs, ' ms.');
+    TThread.Sleep(DurationMs);
+  end
+  else
+  begin
+    Writeln('Server is running. Press [ENTER] to stop.');
+    Readln;
+  end;
   Host.Stop;
 end;
 

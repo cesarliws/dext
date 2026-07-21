@@ -36,6 +36,9 @@ uses
   Dext.Json.Types;
 
 type
+  /// <summary>Non-capturing byte sink used by the direct UTF-8 writer.</summary>
+  TUtf8WriteProc = procedure(AContext, AData: Pointer; ALength: Integer);
+
   /// <summary>
   ///   Exception type for JSON parsing and processing errors.
   /// </summary>
@@ -127,16 +130,23 @@ type
   TUtf8JsonWriter = record
   private
     FStream: TStream;
+    FSinkContext: Pointer;
+    FSinkWrite: TUtf8WriteProc;
     FIndented: Boolean;
     FSettings: TJsonSettings;
     FNeedComma: array[0..63] of Boolean; // Max depth of 64
     FDepth: Integer;
     procedure WriteRaw(const S: string); inline;
     procedure WriteRawByte(B: Byte); inline;
+    procedure WriteBytes(AData: Pointer; ALength: Integer); inline;
+    procedure WriteEscapedStringContent(const AValue: string);
     procedure WriteIndent;
     procedure CheckComma;
   public
-    constructor Create(AStream: TStream; AIndented: Boolean = False);
+    constructor Create(AStream: TStream; AIndented: Boolean = False); overload;
+    /// <summary>Creates a writer over a non-capturing direct byte sink.</summary>
+    constructor Create(AContext: Pointer; AWrite: TUtf8WriteProc;
+      AIndented: Boolean = False); overload;
     
     property Settings: TJsonSettings read FSettings write FSettings;
     
@@ -658,15 +668,45 @@ end;
 
 { TUtf8JsonWriter }
 
+procedure WriteUtf8ToStream(AContext, AData: Pointer; ALength: Integer);
+begin
+  if ALength > 0 then
+    TStream(AContext).WriteBuffer(AData^, ALength);
+end;
+
 constructor TUtf8JsonWriter.Create(AStream: TStream; AIndented: Boolean);
 begin
   FStream := AStream;
+  FSinkContext := AStream;
+  FSinkWrite := WriteUtf8ToStream;
   FIndented := AIndented;
   FSettings := TJsonSettings.Default;
   if AIndented then 
     FSettings.Formatting := TJsonFormatting.Indented;
   FDepth := 0;
   FillChar(FNeedComma, SizeOf(FNeedComma), 0);
+end;
+
+constructor TUtf8JsonWriter.Create(AContext: Pointer; AWrite: TUtf8WriteProc;
+  AIndented: Boolean);
+begin
+  if not Assigned(AWrite) then
+    raise EArgumentNilException.Create('AWrite');
+  FStream := nil;
+  FSinkContext := AContext;
+  FSinkWrite := AWrite;
+  FIndented := AIndented;
+  FSettings := TJsonSettings.Default;
+  if AIndented then
+    FSettings.Formatting := TJsonFormatting.Indented;
+  FDepth := 0;
+  FillChar(FNeedComma, SizeOf(FNeedComma), 0);
+end;
+
+procedure TUtf8JsonWriter.WriteBytes(AData: Pointer; ALength: Integer);
+begin
+  if ALength > 0 then
+    FSinkWrite(FSinkContext, AData, ALength);
 end;
 
 procedure TUtf8JsonWriter.CheckComma;
@@ -694,12 +734,144 @@ var
 begin
   B := TEncoding.UTF8.GetBytes(S);
   if Length(B) > 0 then
-    FStream.WriteBuffer(B[0], Length(B));
+    WriteBytes(@B[0], Length(B));
 end;
 
 procedure TUtf8JsonWriter.WriteRawByte(B: Byte);
 begin
-  FStream.WriteBuffer(B, 1);
+  WriteBytes(@B, 1);
+end;
+
+procedure TUtf8JsonWriter.WriteEscapedStringContent(const AValue: string);
+var
+  i: Integer;
+  Character: Char;
+  ByteValue: Byte;
+  CodePoint: Cardinal;
+  Utf8: array[0..3] of Byte;
+  Utf8Length: Integer;
+  OutputBuffer: array[0..255] of Byte;
+  OutputCount: Integer;
+
+  procedure FlushOutput;
+  begin
+    if OutputCount > 0 then
+    begin
+      WriteBytes(@OutputBuffer[0], OutputCount);
+      OutputCount := 0;
+    end;
+  end;
+
+  procedure AppendByte(AByte: Byte);
+  begin
+    if OutputCount = Length(OutputBuffer) then
+      FlushOutput;
+    OutputBuffer[OutputCount] := AByte;
+    Inc(OutputCount);
+  end;
+begin
+  OutputCount := 0;
+  i := 1;
+  while i <= Length(AValue) do
+  begin
+    Character := AValue[i];
+    case Character of
+      '"', '\':
+        begin
+          AppendByte(Ord('\'));
+          AppendByte(Ord(Character));
+        end;
+      #8:
+        begin
+          AppendByte(Ord('\'));
+          AppendByte(Ord('b'));
+        end;
+      #9:
+        begin
+          AppendByte(Ord('\'));
+          AppendByte(Ord('t'));
+        end;
+      #10:
+        begin
+          AppendByte(Ord('\'));
+          AppendByte(Ord('n'));
+        end;
+      #12:
+        begin
+          AppendByte(Ord('\'));
+          AppendByte(Ord('f'));
+        end;
+      #13:
+        begin
+          AppendByte(Ord('\'));
+          AppendByte(Ord('r'));
+        end;
+    else
+      if Ord(Character) < 32 then
+      begin
+        AppendByte(Ord('\'));
+        AppendByte(Ord('u'));
+        AppendByte(Ord('0'));
+        AppendByte(Ord('0'));
+        ByteValue := Byte(Ord(Character) shr 4);
+        if ByteValue < 10 then
+          AppendByte(Ord('0') + ByteValue)
+        else
+          AppendByte(Ord('a') + ByteValue - 10);
+        ByteValue := Byte(Ord(Character) and $0F);
+        if ByteValue < 10 then
+          AppendByte(Ord('0') + ByteValue)
+        else
+          AppendByte(Ord('a') + ByteValue - 10);
+      end
+      else
+      begin
+        CodePoint := Ord(Character);
+        if CodePoint <= $7F then
+          AppendByte(Byte(CodePoint))
+        else
+        begin
+          if (CodePoint >= $D800) and (CodePoint <= $DBFF) and
+             (i < Length(AValue)) and
+             (Ord(AValue[i + 1]) >= $DC00) and
+             (Ord(AValue[i + 1]) <= $DFFF) then
+          begin
+            CodePoint := $10000 + ((CodePoint - $D800) shl 10) +
+              (Cardinal(Ord(AValue[i + 1])) - $DC00);
+            Inc(i);
+          end
+          else if (CodePoint >= $D800) and (CodePoint <= $DFFF) then
+            CodePoint := $FFFD;
+
+          if CodePoint <= $7FF then
+          begin
+            Utf8[0] := $C0 or Byte(CodePoint shr 6);
+            Utf8[1] := $80 or Byte(CodePoint and $3F);
+            Utf8Length := 2;
+          end
+          else if CodePoint <= $FFFF then
+          begin
+            Utf8[0] := $E0 or Byte(CodePoint shr 12);
+            Utf8[1] := $80 or Byte((CodePoint shr 6) and $3F);
+            Utf8[2] := $80 or Byte(CodePoint and $3F);
+            Utf8Length := 3;
+          end
+          else
+          begin
+            Utf8[0] := $F0 or Byte(CodePoint shr 18);
+            Utf8[1] := $80 or Byte((CodePoint shr 12) and $3F);
+            Utf8[2] := $80 or Byte((CodePoint shr 6) and $3F);
+            Utf8[3] := $80 or Byte(CodePoint and $3F);
+            Utf8Length := 4;
+          end;
+          for ByteValue := 0 to Utf8Length - 1 do
+            AppendByte(Utf8[ByteValue]);
+        end;
+      end;
+    end;
+    Inc(i);
+  end;
+  FlushOutput;
 end;
 
 procedure TUtf8JsonWriter.WriteStartObject;
@@ -740,38 +912,91 @@ procedure TUtf8JsonWriter.WritePropertyName(const AName: string);
 begin
   CheckComma;
   WriteIndent;
-  WriteRaw('"' + EscapeJsonString(AName) + '":');
+  WriteRawByte(Ord('"'));
+  WriteEscapedStringContent(AName);
+  WriteRawByte(Ord('"'));
+  WriteRawByte(Ord(':'));
   FNeedComma[FDepth - 1] := False; // Property written, next is value (no comma)
 end;
 
 procedure TUtf8JsonWriter.WriteString(const AValue: string);
 begin
   CheckComma;
-  WriteRaw('"' + EscapeJsonString(AValue) + '"');
+  WriteRawByte(Ord('"'));
+  WriteEscapedStringContent(AValue);
+  WriteRawByte(Ord('"'));
 end;
 
 procedure TUtf8JsonWriter.WriteNumber(AValue: Int64);
+var
+  Buffer: array[0..20] of Byte;
+  Index: Integer;
+  Magnitude: UInt64;
 begin
   CheckComma;
-  WriteRaw(IntToStr(AValue));
+  Index := Length(Buffer);
+  if AValue < 0 then
+    Magnitude := UInt64(-(AValue + 1)) + 1
+  else
+    Magnitude := UInt64(AValue);
+
+  repeat
+    Dec(Index);
+    Buffer[Index] := Ord('0') + Byte(Magnitude mod 10);
+    Magnitude := Magnitude div 10;
+  until Magnitude = 0;
+
+  if AValue < 0 then
+  begin
+    Dec(Index);
+    Buffer[Index] := Ord('-');
+  end;
+  WriteBytes(@Buffer[Index], Length(Buffer) - Index);
 end;
 
 procedure TUtf8JsonWriter.WriteNumber(AValue: Double);
+var
+  TextBuffer: array[0..63] of Char;
+  Utf8Buffer: array[0..63] of Byte;
+  CharacterCount: Integer;
+  i: Integer;
 begin
   CheckComma;
-  WriteRaw(FloatToStr(AValue, TFormatSettings.Invariant));
+  CharacterCount := FloatToText(PChar(@TextBuffer[0]), AValue, fvExtended,
+    ffGeneral, 15, 0, TFormatSettings.Invariant);
+  for i := 0 to CharacterCount - 1 do
+    Utf8Buffer[i] := Byte(Ord(TextBuffer[i]));
+  if CharacterCount > 0 then
+    WriteBytes(@Utf8Buffer[0], CharacterCount);
 end;
 
 procedure TUtf8JsonWriter.WriteBoolean(AValue: Boolean);
 begin
   CheckComma;
-  if AValue then WriteRaw('true') else WriteRaw('false');
+  if AValue then
+  begin
+    WriteRawByte(Ord('t'));
+    WriteRawByte(Ord('r'));
+    WriteRawByte(Ord('u'));
+    WriteRawByte(Ord('e'));
+  end
+  else
+  begin
+    WriteRawByte(Ord('f'));
+    WriteRawByte(Ord('a'));
+    WriteRawByte(Ord('l'));
+    WriteRawByte(Ord('s'));
+    WriteRawByte(Ord('e'));
+  end;
 end;
 
 procedure TUtf8JsonWriter.WriteNull;
 begin
   CheckComma;
-  WriteRaw('null');
+  WriteRawByte(Ord('n'));
+  WriteRawByte(Ord('u'));
+  WriteRawByte(Ord('l'));
+  WriteRawByte(Ord('l'));
 end;
 
 procedure TUtf8JsonWriter.WriteValue(const AValue: TValue);

@@ -30,6 +30,7 @@ interface
 uses
   Data.DB,
   System.Classes,
+  System.DateUtils,
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
@@ -43,6 +44,7 @@ uses
   Dext.Core.TypeModel,
   Dext.Core.SmartTypes,
   Dext.Core.ValueConverters,
+  Dext.Json.Utf8,
   Dext.Entity.Attributes,
   Dext.Entity.Collections,
   Dext.Entity.Core,
@@ -67,6 +69,10 @@ uses
   System.Diagnostics;
 
 type
+  /// <summary>Non-capturing byte sink for direct database JSON projection.</summary>
+  TDbProjectionWriteProc = procedure(AContext, AData: Pointer;
+    ALength: Integer);
+
   TColumnHydrationItem = record
     ColumnIndex: Integer;
     Prop: TRttiProperty;
@@ -91,8 +97,16 @@ type
   ///   Helper class to project raw database query results directly to JSON.
   /// </summary>
   TDbProjectionHelper = class
+  private
+    class procedure WriteRows(const Reader: IDbReader;
+      var Writer: TUtf8JsonWriter); static;
   public
-    class procedure ProjectToJson(const Reader: IDbReader; AStream: TStream); static;
+    /// <summary>Writes database rows as JSON to a stream.</summary>
+    class procedure ProjectToJson(const Reader: IDbReader;
+      AStream: TStream); overload; static;
+    /// <summary>Writes database rows as JSON directly to a byte sink.</summary>
+    class procedure ProjectToJson(const Reader: IDbReader; AContext: Pointer;
+      AWrite: TDbProjectionWriteProc); overload; static;
   end;
 
   /// <summary>
@@ -103,6 +117,7 @@ type
     FColumns: IDictionary<string, string>;
     FContextPtr: Pointer;
     FFields: IDictionary<string, TRttiField>;
+    FHydrationPlans: IDictionary<string, THydrationPlan>;
     FIdentityMap: IDictionary<string, T>;
     FIgnoreQueryFilters: Boolean; // Filters control
     FMap: TEntityMap;
@@ -374,8 +389,7 @@ uses
   System.JSON,
   Dext.Entity.ProxyFactory,
   Dext.Logging.Telemetry,
-  Dext.Utils,
-  Dext.Json.Utf8;
+  Dext.Utils;
 
 function GetFieldType(ATypeInfo: PTypeInfo): TFieldType;
 var
@@ -611,6 +625,7 @@ begin
   FContextPtr := Pointer(AContext);
   FProps := TCollections.CreateDictionary<string, TRttiProperty>;
   FFields := TCollections.CreateDictionary<string, TRttiField>;
+  FHydrationPlans := TCollections.CreateDictionary<string, THydrationPlan>;
   FColumns := TCollections.CreateDictionary<string, string>;
   FPKColumns := TCollections.CreateList<string>;
   FIdentityMap := TCollections.CreateDictionary<string, T>(True);
@@ -626,6 +641,7 @@ begin
   FOrphans := nil;
   FProps := nil;
   FFields := nil;
+  FHydrationPlans := nil;
   FColumns := nil;
   FPKColumns := nil;
   inherited;
@@ -852,8 +868,26 @@ var
   PKCol: string;
   Item: TColumnHydrationItem;
   ItemIdx, PKIdx: Integer;
+  Signature: string;
+  SignatureBuilder: TStringBuilder;
 begin
   ColCount := Reader.GetColumnCount;
+  SignatureBuilder := TStringBuilder.Create(ColCount * 24);
+  try
+    for i := 0 to ColCount - 1 do
+    begin
+      SignatureBuilder.Append(Reader.GetColumnName(i).ToLower);
+      SignatureBuilder.Append(Char(Ord(Reader.GetColumnType(i))));
+      SignatureBuilder.Append(#1);
+    end;
+    Signature := SignatureBuilder.ToString;
+  finally
+    SignatureBuilder.Free;
+  end;
+
+  if FHydrationPlans.TryGetValue(Signature, Result) then
+    Exit;
+
   SetLength(Result.Items, ColCount);
   SetLength(Result.PKColumns, ColCount);
   ItemIdx := 0;
@@ -956,6 +990,7 @@ begin
 
   SetLength(Result.Items, ItemIdx);
   SetLength(Result.PKColumns, PKIdx);
+  FHydrationPlans.AddOrSetValue(Signature, Result);
 end;
 
 
@@ -3784,6 +3819,23 @@ class procedure TDbProjectionHelper.ProjectToJson(const Reader: IDbReader;
   AStream: TStream);
 var
   Writer: TUtf8JsonWriter;
+begin
+  Writer := TUtf8JsonWriter.Create(AStream, False);
+  WriteRows(Reader, Writer);
+end;
+
+class procedure TDbProjectionHelper.ProjectToJson(const Reader: IDbReader;
+  AContext: Pointer; AWrite: TDbProjectionWriteProc);
+var
+  Writer: TUtf8JsonWriter;
+begin
+  Writer := TUtf8JsonWriter.Create(AContext, TUtf8WriteProc(AWrite), False);
+  WriteRows(Reader, Writer);
+end;
+
+class procedure TDbProjectionHelper.WriteRows(const Reader: IDbReader;
+  var Writer: TUtf8JsonWriter);
+var
   ColCount: Integer;
   ColNames: TArray<string>;
   ColTypes: TArray<TFieldType>;
@@ -3801,7 +3853,6 @@ begin
     ColTypes[i] := Reader.GetColumnType(i);
   end;
 
-  Writer := TUtf8JsonWriter.Create(AStream, False);
   Writer.WriteStartArray;
 
   while Reader.Next do
@@ -3829,7 +3880,7 @@ begin
             Writer.WriteNumber(Reader.GetDouble(i));
           Data.DB.ftDate, Data.DB.ftTime, Data.DB.ftDateTime,
           Data.DB.ftTimeStamp:
-            Writer.WriteString(DateTimeToStr(Reader.GetDateTime(i)));
+            Writer.WriteString(DateToISO8601(Reader.GetDateTime(i), False));
           Data.DB.ftGuid:
             Writer.WriteString(Reader.GetString(i));
         else

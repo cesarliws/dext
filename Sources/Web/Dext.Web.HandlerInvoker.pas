@@ -29,6 +29,7 @@ interface
 
 uses
   System.SysUtils,
+  System.SyncObjs,
   System.Rtti,
   System.TypInfo,
   Dext.Types.UUID,
@@ -81,6 +82,11 @@ type
   /// </summary>
   THandlerInvoker = class
   private
+    class var FPoolLock: TObject;
+    class var FRegisteredInvokers: THandlerInvoker;
+    var
+    FPoolNext: THandlerInvoker;
+    FRegistryNext: THandlerInvoker;
     FModelBinder: IModelBinder;
     FContext: IHttpContext;
     FBoundObjects: TArray<TObject>;  // Tracks objects created by Model Binding for automatic cleanup
@@ -90,7 +96,14 @@ type
     /// <summary>Frees all objects instantiated by binding that are not managed elsewhere.</summary>
     procedure CleanupBoundObjects;
   public
+    class constructor Create;
+    class destructor Destroy;
     constructor Create(AContext: IHttpContext; AModelBinder: IModelBinder);
+    /// <summary>Acquires a worker-local invoker initialized for one request.</summary>
+    class function Acquire(AContext: IHttpContext;
+      AModelBinder: IModelBinder): THandlerInvoker; static;
+    /// <summary>Clears request state and returns this invoker to its worker-local pool.</summary>
+    procedure Release;
     property Context: IHttpContext read FContext;
     property ModelBinder: IModelBinder read FModelBinder;
     procedure Track(const AValue: TValue; AIsEntity: Boolean = False);
@@ -133,6 +146,9 @@ uses
   ,Dext.Validation
   ,Dext.Core.Reflection
   ,Dext.DI.Interfaces;
+
+threadvar
+  FInvokerPoolHead: THandlerInvoker;
 
 { TDextBinderFactory<T> }
 
@@ -231,6 +247,28 @@ end;
 
 { THandlerInvoker }
 
+class constructor THandlerInvoker.Create;
+begin
+  FPoolLock := TObject.Create;
+end;
+
+class destructor THandlerInvoker.Destroy;
+var
+  Invoker: THandlerInvoker;
+  NextInvoker: THandlerInvoker;
+begin
+  Invoker := FRegisteredInvokers;
+  while Invoker <> nil do
+  begin
+    NextInvoker := Invoker.FRegistryNext;
+    Invoker.Free;
+    Invoker := NextInvoker;
+  end;
+  FRegisteredInvokers := nil;
+  FInvokerPoolHead := nil;
+  FPoolLock.Free;
+end;
+
 constructor THandlerInvoker.Create(AContext: IHttpContext; AModelBinder: IModelBinder);
 begin
   inherited Create;
@@ -240,18 +278,55 @@ begin
   FBoundObjectCount := 0;
 end;
 
+class function THandlerInvoker.Acquire(AContext: IHttpContext;
+  AModelBinder: IModelBinder): THandlerInvoker;
+begin
+  Result := FInvokerPoolHead;
+  if Result = nil then
+  begin
+    Result := THandlerInvoker.Create(AContext, AModelBinder);
+    TMonitor.Enter(FPoolLock);
+    try
+      Result.FRegistryNext := FRegisteredInvokers;
+      FRegisteredInvokers := Result;
+    finally
+      TMonitor.Exit(FPoolLock);
+    end;
+  end
+  else
+  begin
+    FInvokerPoolHead := Result.FPoolNext;
+    Result.FPoolNext := nil;
+    Result.FContext := AContext;
+    Result.FModelBinder := AModelBinder;
+  end;
+end;
+
+procedure THandlerInvoker.Release;
+var
+  i: Integer;
+begin
+  CleanupBoundObjects;
+  for i := 0 to Length(FArgsBuffer) - 1 do
+    FArgsBuffer[i] := TValue.Empty;
+  FContext := nil;
+  FModelBinder := nil;
+  FPoolNext := FInvokerPoolHead;
+  FInvokerPoolHead := Self;
+end;
+
 procedure THandlerInvoker.CleanupBoundObjects;
 var
-  I: Integer;
+  i: Integer;
   Obj: TObject;
 begin
-  for I := 0 to FBoundObjectCount - 1 do
+  for i := 0 to FBoundObjectCount - 1 do
   begin
-    Obj := FBoundObjects[I];
+    Obj := FBoundObjects[i];
     if Obj <> nil then
-       Obj.Free;
+      Obj.Free;
+    FBoundObjects[i] := nil;
   end;
-  FBoundObjects := nil;
   FBoundObjectCount := 0;
 end;
 

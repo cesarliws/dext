@@ -46,11 +46,12 @@ type
     FThreads: TArray<TThread>;
     FQueue: TDextTaskQueue;
     FLock: TCriticalSection;
-    FSemaphore: TSimpleEvent;
+    FSemaphore: TSemaphore;
     FMaxThreads: Integer;
     FMaxQueueCapacity: Integer;
     FRunning: Boolean;
     FQueueCount: Integer;
+    FOnException: TProc<Exception>;
     procedure WorkerExecute(AThread: TThread);
   public
     constructor Create(AMaxThreads, AMaxQueueCapacity: Integer);
@@ -58,6 +59,7 @@ type
     function TryEnqueue(const AProc: TDextTaskProc): Boolean;
     procedure Shutdown;
     property QueueCount: Integer read FQueueCount;
+    property OnException: TProc<Exception> read FOnException write FOnException;
   end;
 
 type
@@ -78,10 +80,10 @@ end;
 
 procedure TDextTaskQueue.Clear;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to Length(FItems) - 1 do
-    FItems[I] := nil;
+  for i := 0 to Length(FItems) - 1 do
+    FItems[i] := nil;
   FHead := 0;
   FTail := 0;
   FCount := 0;
@@ -115,27 +117,27 @@ end;
 constructor TDextBoundedExecutor.Create(
   AMaxThreads, AMaxQueueCapacity: Integer);
 var
-  I: Integer;
+  i: Integer;
 begin
   inherited Create;
   FMaxThreads := AMaxThreads;
   FMaxQueueCapacity := AMaxQueueCapacity;
   FQueue.Initialize(FMaxQueueCapacity);
   FLock := TCriticalSection.Create;
-  FSemaphore := TSimpleEvent.Create(nil, False, False, '');
+  FSemaphore := TSemaphore.Create(nil, 0, FMaxQueueCapacity + FMaxThreads, '');
   FRunning := True;
   FQueueCount := 0;
 
   SetLength(FThreads, FMaxThreads);
-  for I := 0 to FMaxThreads - 1 do
+  for i := 0 to FMaxThreads - 1 do
   begin
-    FThreads[I] := TThread.CreateAnonymousThread(
+    FThreads[i] := TThread.CreateAnonymousThread(
       procedure
       begin
         WorkerExecute(TThread.CurrentThread);
       end);
-    FThreads[I].FreeOnTerminate := False;
-    FThreads[I].Start;
+    FThreads[i].FreeOnTerminate := False;
+    FThreads[i].Start;
   end;
 end;
 
@@ -150,24 +152,28 @@ end;
 
 procedure TDextBoundedExecutor.Shutdown;
 var
-  I: Integer;
+  i: Integer;
 begin
-  if not FRunning then
-    Exit;
-  FRunning := False;
+  FLock.Enter;
+  try
+    if not FRunning then
+      Exit;
+    FRunning := False;
+  finally
+    FLock.Leave;
+  end;
 
-  // Signal all threads to wake up and exit
-  for I := 0 to Length(FThreads) - 1 do
-    FSemaphore.SetEvent;
+  if Length(FThreads) > 0 then
+    FSemaphore.Release(Length(FThreads));
 
-  for I := 0 to Length(FThreads) - 1 do
+  for i := 0 to Length(FThreads) - 1 do
   begin
-    if FThreads[I] <> nil then
+    if FThreads[i] <> nil then
     begin
-      FThreads[I].Terminate;
-      FThreads[I].WaitFor;
-      FThreads[I].Free;
-      FThreads[I] := nil;
+      FThreads[i].Terminate;
+      FThreads[i].WaitFor;
+      FThreads[i].Free;
+      FThreads[i] := nil;
     end;
   end;
 end;
@@ -176,28 +182,30 @@ function TDextBoundedExecutor.TryEnqueue(
   const AProc: TDextTaskProc): Boolean;
 begin
   Result := False;
-  if not FRunning then
-    Exit;
-
   FLock.Enter;
   try
-    if FQueue.Enqueue(AProc) then
+    if FRunning and FQueue.Enqueue(AProc) then
     begin
       FQueueCount := FQueue.Count;
       Result := True;
-      FSemaphore.SetEvent;
     end;
   finally
     FLock.Leave;
   end;
+  if Result then
+    FSemaphore.Release;
 end;
 
 procedure TDextBoundedExecutor.WorkerExecute(AThread: TThread);
 var
   Task: TDextTaskProc;
 begin
-  while FRunning and not THackThread(AThread).Terminated do
+  while not THackThread(AThread).Terminated do
   begin
+    FSemaphore.WaitFor(INFINITE);
+    if not FRunning then
+      Break;
+
     Task := nil;
     FLock.Enter;
     try
@@ -212,13 +220,11 @@ begin
       try
         Task();
       except
-        // Prevent worker thread termination on exception
+        on E: Exception do
+          if Assigned(FOnException) then
+            FOnException(E);
       end;
     end;
-
-    // Wake or wait
-    if FQueueCount = 0 then
-      FSemaphore.WaitFor(100);
   end;
 end;
 

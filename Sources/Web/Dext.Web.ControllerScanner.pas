@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -695,12 +695,12 @@ begin
         Exit;
       end;
 
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Context, Binder);
       try
         Invoker.InvokeAction(ControllerInstance, CachedMethod.RttiMethod);
       finally
-        Invoker.Free;
+        Invoker.Release;
         Binder := nil;
         // Transient controllers MUST be freed by the invoker
         if ControllerInstance <> nil then
@@ -712,12 +712,12 @@ begin
     else
     begin
       // STATIC RECORDS
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Context, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Context, Binder);
       try
         Invoker.InvokeAction(nil, CachedMethod.RttiMethod);
       finally
-        Invoker.Free;
+        Invoker.Release;
         Binder := nil;
       end;
     end;

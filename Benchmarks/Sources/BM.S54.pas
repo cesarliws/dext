@@ -217,6 +217,7 @@ type
 procedure TrackedBenchmark(state: PState; const Action: TProc);
 var
   Stats: TDextAllocStats;
+  Counter: TCounter;
 begin
   TDextAllocationTracker.Reset;
   TDextAllocationTracker.Start;
@@ -225,6 +226,22 @@ begin
   finally
     TDextAllocationTracker.Stop;
     Stats := TDextAllocationTracker.GetStats;
+    Counter.Init(Stats.AllocationCount, [kAvgIterations]);
+    state^.Counters['allocations'] := Counter;
+    Counter.Init(Stats.GetMemCount, [kAvgIterations]);
+    state^.Counters['getmem'] := Counter;
+    Counter.Init(Stats.AllocMemCount, [kAvgIterations]);
+    state^.Counters['allocmem'] := Counter;
+    Counter.Init(Stats.ReallocMemCount, [kAvgIterations]);
+    state^.Counters['reallocmem'] := Counter;
+    Counter.Init(Stats.FreeCount, [kAvgIterations]);
+    state^.Counters['frees'] := Counter;
+    Counter.Init(Stats.AllocatedBytes, [kAvgIterations]);
+    state^.Counters['allocated_bytes'] := Counter;
+    Counter.Init(Stats.ReallocatedBytes, [kAvgIterations]);
+    state^.Counters['reallocated_bytes'] := Counter;
+    Counter.Init(Stats.RetainedBytes, [kAvgIterations]);
+    state^.Counters['retained_bytes'] := Counter;
     if state^.Iterations > 0 then
       state^.SetLabel(Format('allocs/op:%.2f bytes/op:%.1f',
         [Stats.AllocationCount / state^.Iterations,

@@ -129,7 +129,8 @@ type
   /// <summary>
   ///   Dext native implementation of IHttpResponse.
   /// </summary>
-  TDextNativeHttpResponse = class(TInterfacedObject, IHttpResponse)
+  TDextNativeHttpResponse = class(TInterfacedObject, IHttpResponse,
+    IUtf8ResponseSink)
   private
     FRawResponse: IDextRawResponse;
     FHtmx: IHtmxResponse;
@@ -162,6 +163,8 @@ type
     procedure Write(const ABuffer: TBytes); overload;
     /// <summary>Writes a stream contents directly to the response body.</summary>
     procedure Write(const AStream: TStream); overload;
+    /// <summary>Writes UTF-8 bytes directly to a native response sink.</summary>
+    procedure WriteUtf8(AData: Pointer; ALength: Integer);
     /// <summary>Sends a JSON string directly as response.</summary>
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue to JSON and sends it.</summary>
@@ -722,6 +725,23 @@ end;
 procedure TDextNativeHttpResponse.Write(const ABuffer: TBytes);
 begin
   FRawResponse.Write(ABuffer, 0, Length(ABuffer));
+end;
+
+procedure TDextNativeHttpResponse.WriteUtf8(AData: Pointer; ALength: Integer);
+var
+  Sink: IDextRawResponseSink;
+  Buffer: TBytes;
+begin
+  if ALength <= 0 then
+    Exit;
+  if Supports(FRawResponse, IDextRawResponseSink, Sink) then
+  begin
+    Sink.WriteBytes(AData, ALength);
+    Exit;
+  end;
+  SetLength(Buffer, ALength);
+  Move(AData^, Buffer[0], ALength);
+  FRawResponse.Write(Buffer, 0, ALength);
 end;
 
 procedure TDextNativeHttpResponse.Write(const AStream: TStream);

@@ -14,6 +14,7 @@ uses
   Dext.Testing,
   Dext.Testing.Fluent,
   Dext.Core.Span,
+  Dext.Performance.Allocator,
   Dext.Web.ResponseWriter,
   System.SysUtils,
   System.Classes;
@@ -33,6 +34,10 @@ type
     [Test]
     procedure Test_Pool_CrossThread_Release;
     [Test]
+    procedure Test_Pool_Concurrent_Rent_Release_Stress;
+    [Test]
+    procedure Test_Pool_Reset_During_Concurrent_Use;
+    [Test]
     procedure Test_Writer_BasicWrite;
     [Test]
     procedure Test_Writer_SegmentTransitions;
@@ -40,6 +45,14 @@ type
     procedure Test_Writer_Reserve;
     [Test]
     procedure Test_Writer_AddExternal;
+    [Test]
+    procedure Test_Writer_DetachTransfersOwnership;
+    [Test]
+    procedure Test_Writer_OverflowSegmentsReleaseExactlyOnce;
+    [Test]
+    procedure Test_Cursor_PartialSendAtEveryByteBoundary;
+    [Test]
+    procedure Test_Writer_SmallResponse_ZeroAllocAfterWarmup;
   end;
 
 implementation
@@ -99,7 +112,7 @@ end;
 
 procedure TResponseWriterTests.Test_Pool_CrossThread_Release;
 var
-  Ptr1: Pointer;
+  Ptr1, Ptr2: Pointer;
   RentedSize: Integer;
   Th: TThread;
 begin
@@ -117,8 +130,82 @@ begin
   Th.WaitFor;
   Th.Free;
 
-  // Verify we can reset the global pools cleanly without leak
-  TDextBufferPool.ResetPools;
+  Ptr2 := TDextBufferPool.Rent(8000, RentedSize);
+  Should(Ptr2 = Ptr1).BeTrue;
+  TDextBufferPool.Release(Ptr2);
+end;
+
+procedure TResponseWriterTests.Test_Pool_Concurrent_Rent_Release_Stress;
+const
+  ThreadCount = 8;
+  IterationCount = 10000;
+var
+  Threads: array[0..ThreadCount - 1] of TThread;
+  i: Integer;
+begin
+  for i := 0 to ThreadCount - 1 do
+  begin
+    Threads[i] := TThread.CreateAnonymousThread(
+      procedure
+      var
+        Buffer: Pointer;
+        RentedSize: Integer;
+        j: Integer;
+      begin
+        for j := 1 to IterationCount do
+        begin
+          Buffer := TDextBufferPool.Rent(1024 + (j and 4095), RentedSize);
+          PByte(Buffer)^ := Byte(j);
+          TDextBufferPool.Release(Buffer);
+        end;
+      end);
+    Threads[i].FreeOnTerminate := False;
+    Threads[i].Start;
+  end;
+
+  for i := 0 to ThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+    Threads[i].Free;
+  end;
+end;
+
+procedure TResponseWriterTests.Test_Pool_Reset_During_Concurrent_Use;
+const
+  ThreadCount = 4;
+  IterationCount = 5000;
+var
+  Threads: array[0..ThreadCount - 1] of TThread;
+  i: Integer;
+begin
+  for i := 0 to ThreadCount - 1 do
+  begin
+    Threads[i] := TThread.CreateAnonymousThread(
+      procedure
+      var
+        Buffer: Pointer;
+        RentedSize: Integer;
+        j: Integer;
+      begin
+        for j := 1 to IterationCount do
+        begin
+          Buffer := TDextBufferPool.Rent(4096, RentedSize);
+          PByte(Buffer)^ := Byte(j);
+          TDextBufferPool.Release(Buffer);
+        end;
+      end);
+    Threads[i].FreeOnTerminate := False;
+    Threads[i].Start;
+  end;
+
+  for i := 1 to 100 do
+    TDextBufferPool.ResetPools;
+
+  for i := 0 to ThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+    Threads[i].Free;
+  end;
 end;
 
 procedure TResponseWriterTests.Test_Writer_BasicWrite;
@@ -151,10 +238,10 @@ var
   Writer: TDextResponseWriter;
   LargeData: array[0..5000] of Byte;
   Span: TByteSpan;
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to 5000 do
-    LargeData[I] := 65; // 'A'
+  for i := 0 to 5000 do
+    LargeData[i] := 65; // 'A'
 
   Writer.Init;
   try
@@ -224,6 +311,100 @@ begin
   finally
     Writer.Clear;
   end;
+end;
+
+procedure TResponseWriterTests.Test_Writer_DetachTransfersOwnership;
+var
+  Writer: TDextResponseWriter;
+  Text: AnsiString;
+begin
+  Writer.Init;
+  try
+    Text := 'detached';
+    Writer.AddExternal(PAnsiChar(Text), Length(Text), nil, TestReleaseProc);
+    Writer.DetachSegment(0);
+    Writer.Reset;
+    Should(GReleasedCount).Be(0);
+  finally
+    Writer.Clear;
+  end;
+end;
+
+procedure TResponseWriterTests.Test_Writer_OverflowSegmentsReleaseExactlyOnce;
+var
+  Writer: TDextResponseWriter;
+  Data: Byte;
+  i: Integer;
+begin
+  Writer.Init;
+  try
+    for i := 1 to 40 do
+      Writer.AddExternal(@Data, 1, nil, TestReleaseProc);
+    Should(Writer.SegmentCount).Be(40);
+    Writer.Reset;
+    Should(GReleasedCount).Be(40);
+  finally
+    Writer.Clear;
+  end;
+end;
+
+procedure TResponseWriterTests.Test_Cursor_PartialSendAtEveryByteBoundary;
+const
+  ExpectedIndex: array[0..9] of Integer = (0, 0, 1, 1, 1, 2, 2, 2, 2, 3);
+  ExpectedOffset: array[0..9] of Integer = (0, 1, 0, 1, 2, 0, 1, 2, 3, 0);
+  ExpectedReleases: array[0..9] of Integer = (0, 0, 1, 1, 1, 2, 2, 2, 2, 3);
+var
+  Segments: array[0..2] of TDextBufferSegment;
+  SegmentIndex: Integer;
+  SegmentOffset: Integer;
+  SentBytes: Integer;
+begin
+  for SentBytes := 0 to 9 do
+  begin
+    FillChar(Segments, SizeOf(Segments), 0);
+    Segments[0].Length := 2;
+    Segments[1].Length := 3;
+    Segments[2].Length := 4;
+    Segments[0].ReleaseProc := TestReleaseProc;
+    Segments[1].ReleaseProc := TestReleaseProc;
+    Segments[2].ReleaseProc := TestReleaseProc;
+    SegmentIndex := 0;
+    SegmentOffset := 0;
+    GReleasedCount := 0;
+
+    TDextBufferCursor.Advance(@Segments[0], Length(Segments), SentBytes,
+      SegmentIndex, SegmentOffset);
+
+    Should(SegmentIndex).Be(ExpectedIndex[SentBytes]);
+    Should(SegmentOffset).Be(ExpectedOffset[SentBytes]);
+    Should(GReleasedCount).Be(ExpectedReleases[SentBytes]);
+    TDextBufferCursor.Advance(@Segments[0], Length(Segments), 0,
+      SegmentIndex, SegmentOffset);
+    Should(GReleasedCount).Be(ExpectedReleases[SentBytes]);
+  end;
+end;
+
+procedure TResponseWriterTests.Test_Writer_SmallResponse_ZeroAllocAfterWarmup;
+var
+  Writer: TDextResponseWriter;
+  Data: array[0..15] of Byte;
+  Stats: TDextAllocStats;
+begin
+  Writer.Init;
+  Writer.Write(TByteSpan.Create(@Data[0], Length(Data)));
+  Writer.Reset;
+
+  TDextAllocationTracker.Reset;
+  TDextAllocationTracker.Start;
+  try
+    Writer.Write(TByteSpan.Create(@Data[0], Length(Data)));
+    Writer.Reset;
+  finally
+    TDextAllocationTracker.Stop;
+  end;
+  Stats := TDextAllocationTracker.GetStats;
+  Should(Stats.AllocationCount).Be(0);
+  Writer.Clear;
 end;
 
 end.
