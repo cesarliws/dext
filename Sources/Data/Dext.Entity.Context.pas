@@ -88,6 +88,7 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    procedure DetectChanges;
     /// <summary>
     ///   Starts tracking an entity with a specific state.
     /// </summary>
@@ -214,6 +215,7 @@ type
     procedure ApplyTenantConfig(ACreateSchema: Boolean = False);
     function GetModelBuilder: TModelBuilder;
     procedure EnsureSequence(const ASequenceName: string; AAllocationSize: Integer = 1);
+    function GetSortedTypes(const ATypes: TArray<PTypeInfo>): IList<PTypeInfo>;
   protected
     // IDbContext Implementation
     function QueryInterface(const IID: TGUID; out Obj): HResult; stdcall;
@@ -1090,145 +1092,191 @@ begin
   inherited;
 end;
 
+function TDbContext.GetSortedTypes(const ATypes: TArray<PTypeInfo>): IList<PTypeInfo>;
+var
+  Nodes: IList<TEntityNode>;
+  Node: TEntityNode;
+  Created: IList<PTypeInfo>;
+  T: PTypeInfo;
+  Typ: TRttiType;
+  Prop: TRttiProperty;
+  Attr: TCustomAttribute;
+  DepType: PTypeInfo;
+  LMeta: TTypeMetadata;
+  HasProgress, CanCreate: Boolean;
+  i: Integer;
+  Dep: PTypeInfo;
+  LTypesList: IList<PTypeInfo>;
+begin
+  Result := TCollections.CreateList<PTypeInfo>;
+  Nodes := TCollections.CreateList<TEntityNode>(True);
+  Created := TCollections.CreateList<PTypeInfo>;
+  LTypesList := TCollections.CreateList<PTypeInfo>;
+  try
+    for T in ATypes do
+      LTypesList.Add(T);
+
+    for T in LTypesList do
+    begin
+      Node := TEntityNode.Create;
+      Node.TypeInfo := T;
+      Nodes.Add(Node);
+
+      Typ := TReflection.Context.GetType(T);
+      if Typ = nil then Continue;
+
+      for Prop in Typ.GetProperties do
+      begin
+        for Attr in Prop.GetAttributes do
+        begin
+          if Attr is ForeignKeyAttribute then
+          begin
+            DepType := nil;
+            if Prop.PropertyType.TypeKind = tkClass then
+              DepType := Prop.PropertyType.Handle
+            else if Prop.PropertyType.TypeKind = tkRecord then
+            begin
+              LMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
+              if (LMeta <> nil) and (LMeta.InnerType <> nil) then
+                DepType := LMeta.InnerType;
+            end;
+
+            if (DepType <> nil) and (DepType <> T) and
+               LTypesList.Contains(DepType) then
+            begin
+              if not Node.Dependencies.Contains(DepType) then
+                Node.Dependencies.Add(DepType);
+            end;
+          end;
+        end;
+      end;
+    end;
+
+    while Nodes.Count > 0 do
+    begin
+      HasProgress := False;
+      for i := Nodes.Count - 1 downto 0 do
+      begin
+        Node := Nodes[i];
+        CanCreate := True;
+
+        for Dep in Node.Dependencies do
+        begin
+          if not Created.Contains(Dep) then
+          begin
+            CanCreate := False;
+            Break;
+          end;
+        end;
+
+        if CanCreate then
+        begin
+          Created.Add(Node.TypeInfo);
+          Result.Add(Node.TypeInfo);
+          Nodes.Delete(i);
+          HasProgress := True;
+        end;
+      end;
+
+      if not HasProgress then
+      begin
+        for i := Nodes.Count - 1 downto 0 do
+        begin
+          Node := Nodes[i];
+          Result.Add(Node.TypeInfo);
+          Nodes.Delete(i);
+        end;
+        Break;
+      end;
+    end;
+  finally
+    Created := nil;
+    Nodes := nil;
+    LTypesList := nil;
+  end;
+end;
+
 function TDbContext.SaveChanges: Integer;
 var
-  Pair: TPair<TObject, TEntityState>;
-  Entity: TObject;
-  DbSet: IDbSet;
   AddedGroups: IDictionary<PTypeInfo, IList<TObject>>;
-  ModifiedGroups: IDictionary<PTypeInfo, IList<TObject>>;
+  DbSet: IDbSet;
   DeletedGroups: IDictionary<PTypeInfo, IList<TObject>>;
-  TenantAware: ITenantAware;
-  Map: TEntityMap;
-  APair: TPair<PTypeInfo, IList<TObject>>;
-  List: IList<TObject>;
-  Item: TObject;
-  Span: TSpan;
-  Meta: TTypeMetadata;
-  ValidatorIntf: IInterface;
   DIProvider: IServiceProvider;
-  Validator: IValidator;
-  ValRes: TValidationResult;
+  Entity: TObject;
+  i: Integer;
+  Item: TObject;
+  ItemType: PTypeInfo;
+  List: IList<TObject>;
+  Map: TEntityMap;
+  Meta: TTypeMetadata;
+  ModifiedGroups: IDictionary<PTypeInfo, IList<TObject>>;
+  OwnsTransaction: Boolean;
+  Pair: TPair<TObject, TEntityState>;
   PropMap: TPropertyMap;
   SeqId: Int64;
+  SortedDeletes: IList<PTypeInfo>;
+  Span: TSpan;
+  TenantAware: ITenantAware;
+  Validator: IValidator;
+  ValidatorIntf: IInterface;
+  ValRes: TValidationResult;
   ValToSet: TValue;
 begin
   Span := TTracer.BeginSpan('DbContext.SaveChanges', 'SQL');
   ApplyTenantConfig(False);
   Result := 0;
   if not FChangeTracker.HasChanges then Exit;
+  for Pair in FChangeTracker.GetTrackedEntities do
+    WriteLn('   [DEBUG SaveChanges] Entity Class: ', Pair.Key.ClassName, ', State Ord: ', Ord(Pair.Value));
  
-   if not InTransaction then BeginTransaction;
-   try
-     // 1. Process Inserts (Bulk Optimized)
-     AddedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
-     try
-       for Pair in FChangeTracker.GetTrackedEntities do
-       begin
-         if Pair.Value = esAdded then
-         begin
-           Entity := Pair.Key;
-           if not AddedGroups.ContainsKey(Entity.ClassInfo) then
-             AddedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
-           
-            // Auto-populate TenantId if applicable (Security & Convenience)
-            if (FTenantProvider <> nil) and (FTenantProvider.Tenant <> nil) then
-            begin
-              if Supports(Entity, ITenantAware, TenantAware) then
-              begin
-                 // Always enforce current tenant ID on insert
-                 TenantAware.TenantId := FTenantProvider.Tenant.Id;
-              end;
-            end;
+  OwnsTransaction := not InTransaction;
+  if OwnsTransaction then BeginTransaction;
+  try
+    // 1. Process Inserts (Bulk Optimized)
+    AddedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
+    try
+      for Pair in FChangeTracker.GetTrackedEntities do
+      begin
+        if Pair.Value = esAdded then
+        begin
+          Entity := Pair.Key;
+          if not AddedGroups.ContainsKey(Entity.ClassInfo) then
+            AddedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
+          
+           // Auto-populate TenantId if applicable (Security & Convenience)
+           if (FTenantProvider <> nil) and (FTenantProvider.Tenant <> nil) then
+           begin
+             if Supports(Entity, ITenantAware, TenantAware) then
+             begin
+                // Always enforce current tenant ID on insert
+                TenantAware.TenantId := FTenantProvider.Tenant.Id;
+             end;
+           end;
  
-            // Validate Entity
-            Map := nil;
-            if FModelBuilder <> nil then
-              Map := FModelBuilder.GetMap(Entity.ClassInfo);
-
-            // Auto-populate Sequence keys if applicable (S46)
-            if Map <> nil then
-            begin
-              for PropMap in Map.OrderedProperties do
-              begin
-                if PropMap.IsSequenced then
-                begin
-                  SeqId := TSequenceManager.Instance.GenerateId(PropMap.SequenceName, PropMap.SequenceAllocationSize, FConnection, FDialect);
-                  if PropMap.PropertyType = TypeInfo(Integer) then
-                    ValToSet := TValue.From<Integer>(Integer(SeqId))
-                  else
-                    ValToSet := TValue.From<Int64>(SeqId);
-                  TReflection.SetValue(Pointer(Entity), PropMap.Prop, ValToSet);
-                end;
-              end;
-            end;
-              
-            Meta := TReflection.GetMetadata(Entity.ClassInfo);
-            ValidatorIntf := nil;
-            if Meta.ValidatorInterfaceType <> nil then
-            begin
-              DIProvider := TDextServices.DefaultProvider;
-              if DIProvider <> nil then
-              begin
-                try
-                  ValidatorIntf := DIProvider.GetServiceAsInterface(TServiceType.FromInterface(Meta.ValidatorInterfaceType));
-                except
-                end;
-              end;
-            end;
-            
-            if (ValidatorIntf <> nil) and Supports(ValidatorIntf, IValidator, Validator) then
-            begin
-              ValRes := Validator.ValidateInstance(TValue.From<TObject>(Entity));
-              try
-                if not ValRes.IsValid then
-                  raise EValidationException.Create('Validation failed: ' + ValRes.Errors[0].ErrorMessage);
-              finally
-                ValRes.Free;
-              end;
-            end
-            else
-              TEntityValidator.Validate(Entity, Map);
- 
-            AddedGroups[Entity.ClassInfo].Add(Entity);
-         end;
-       end;
- 
-       for APair in AddedGroups do
-       begin
-         List := APair.Value;
-         DbSet := DataSet(APair.Key);
-         
-         if DbSet.IsBulkInsertSafe and (List.Count > 1) then
-         begin
-           DbSet.PersistAddRange(List.ToArray);
-         end
-         else
-         begin
-           for Item in List do
-             DbSet.PersistAdd(Item);
-         end;
-           
-         Inc(Result, List.Count);
-       end;
-      finally
-        AddedGroups := nil;
-      end;
-     
-     // 2. Process Updates
-     ModifiedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
-     try
-       for Pair in FChangeTracker.GetTrackedEntities do
-       begin
-         if Pair.Value = esModified then
-         begin
-           Entity := Pair.Key;
-           
            // Validate Entity
            Map := nil;
            if FModelBuilder <> nil then
              Map := FModelBuilder.GetMap(Entity.ClassInfo);
-              
+ 
+           // Auto-populate Sequence keys if applicable (S46)
+           if Map <> nil then
+           begin
+             for PropMap in Map.OrderedProperties do
+             begin
+               if PropMap.IsSequenced then
+               begin
+                 SeqId := TSequenceManager.Instance.GenerateId(
+                   PropMap.SequenceName, PropMap.SequenceAllocationSize,
+                   FConnection, FDialect);
+                 if PropMap.PropertyType = TypeInfo(Integer) then
+                   ValToSet := TValue.From<Integer>(Integer(SeqId))
+                 else
+                   ValToSet := TValue.From<Int64>(SeqId);
+                 TReflection.SetValue(Pointer(Entity), PropMap.Prop, ValToSet);
+               end;
+             end;
+           end;
+             
            Meta := TReflection.GetMetadata(Entity.ClassInfo);
            ValidatorIntf := nil;
            if Meta.ValidatorInterfaceType <> nil then
@@ -1237,95 +1285,170 @@ begin
              if DIProvider <> nil then
              begin
                try
-                 ValidatorIntf := DIProvider.GetServiceAsInterface(TServiceType.FromInterface(Meta.ValidatorInterfaceType));
+                 ValidatorIntf := DIProvider.GetServiceAsInterface(
+                   TServiceType.FromInterface(Meta.ValidatorInterfaceType));
                except
                end;
              end;
            end;
            
-           Validator := nil;
-           if (ValidatorIntf <> nil) and Supports(ValidatorIntf, IValidator, Validator) then
+           if (ValidatorIntf <> nil) and 
+              Supports(ValidatorIntf, IValidator, Validator) then
            begin
              ValRes := Validator.ValidateInstance(TValue.From<TObject>(Entity));
              try
                if not ValRes.IsValid then
-                 raise EValidationException.Create('Validation failed: ' + ValRes.Errors[0].ErrorMessage);
+                 raise EValidationException.Create(
+                   'Validation failed: ' + ValRes.Errors[0].ErrorMessage);
              finally
                ValRes.Free;
              end;
            end
            else
              TEntityValidator.Validate(Entity, Map);
+ 
+           AddedGroups[Entity.ClassInfo].Add(Entity);
+        end;
+      end;
+ 
+      for ItemType in GetSortedTypes(AddedGroups.Keys) do
+      begin
+        List := AddedGroups[ItemType];
+        DbSet := DataSet(ItemType);
 
-           if not ModifiedGroups.ContainsKey(Entity.ClassInfo) then
-             ModifiedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
-           ModifiedGroups[Entity.ClassInfo].Add(Entity);
-         end;
-       end;
-
-       for APair in ModifiedGroups do
-       begin
-         List := APair.Value;
-         DbSet := DataSet(APair.Key);
-         if DbSet.IsBulkUpdateSafe and (List.Count > 1) then
-         begin
-           DbSet.PersistUpdateRange(List.ToArray);
-         end
-         else
-         begin
-           for Item in List do
-             DbSet.PersistUpdate(Item);
-         end;
-         Inc(Result, List.Count);
-       end;
-     finally
-       ModifiedGroups := nil;
-     end;
+        if DbSet.IsBulkInsertSafe and (List.Count > 1) then
+        begin
+          DbSet.PersistAddRange(List.ToArray);
+        end
+        else
+        begin
+          for Item in List do
+            DbSet.PersistAdd(Item);
+        end;
+          
+        Inc(Result, List.Count);
+      end;
+    finally
+      AddedGroups := nil;
+    end;
      
-     // 3. Process Deletes
-     DeletedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
-     try
-       for Pair in FChangeTracker.GetTrackedEntities do
-       begin
-         if Pair.Value = esDeleted then
-         begin
-           Entity := Pair.Key;
-           if not DeletedGroups.ContainsKey(Entity.ClassInfo) then
-             DeletedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
-           DeletedGroups[Entity.ClassInfo].Add(Entity);
-         end;
-       end;
+    // 2. Process Updates
+    ModifiedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
+    try
+      for Pair in FChangeTracker.GetTrackedEntities do
+      begin
+        if Pair.Value = esModified then
+        begin
+          Entity := Pair.Key;
+          
+          // Validate Entity
+          Map := nil;
+          if FModelBuilder <> nil then
+            Map := FModelBuilder.GetMap(Entity.ClassInfo);
+             
+          Meta := TReflection.GetMetadata(Entity.ClassInfo);
+          ValidatorIntf := nil;
+          if Meta.ValidatorInterfaceType <> nil then
+          begin
+            DIProvider := TDextServices.DefaultProvider;
+            if DIProvider <> nil then
+            begin
+              try
+                ValidatorIntf := DIProvider.GetServiceAsInterface(
+                  TServiceType.FromInterface(Meta.ValidatorInterfaceType));
+              except
+              end;
+            end;
+          end;
+          
+          Validator := nil;
+          if (ValidatorIntf <> nil) and 
+             Supports(ValidatorIntf, IValidator, Validator) then
+          begin
+            ValRes := Validator.ValidateInstance(TValue.From<TObject>(Entity));
+            try
+              if not ValRes.IsValid then
+                raise EValidationException.Create(
+                  'Validation failed: ' + ValRes.Errors[0].ErrorMessage);
+            finally
+              ValRes.Free;
+            end;
+          end
+          else
+            TEntityValidator.Validate(Entity, Map);
+ 
+          if not ModifiedGroups.ContainsKey(Entity.ClassInfo) then
+            ModifiedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
+          ModifiedGroups[Entity.ClassInfo].Add(Entity);
+        end;
+      end;
+ 
+      for ItemType in GetSortedTypes(ModifiedGroups.Keys) do
+      begin
+        List := ModifiedGroups[ItemType];
+        DbSet := DataSet(ItemType);
+        if DbSet.IsBulkUpdateSafe and (List.Count > 1) then
+        begin
+          DbSet.PersistUpdateRange(List.ToArray);
+        end
+        else
+        begin
+          for Item in List do
+            DbSet.PersistUpdate(Item);
+        end;
+        Inc(Result, List.Count);
+      end;
+    finally
+      ModifiedGroups := nil;
+    end;
+    
+    // 3. Process Deletes
+    DeletedGroups := TCollections.CreateDictionary<PTypeInfo, IList<TObject>>;
+    try
+      for Pair in FChangeTracker.GetTrackedEntities do
+      begin
+        if Pair.Value = esDeleted then
+        begin
+          Entity := Pair.Key;
+          if not DeletedGroups.ContainsKey(Entity.ClassInfo) then
+            DeletedGroups.Add(Entity.ClassInfo, TCollections.CreateList<TObject>);
+          DeletedGroups[Entity.ClassInfo].Add(Entity);
+        end;
+      end;
+ 
+      SortedDeletes := GetSortedTypes(DeletedGroups.Keys);
+      for i := SortedDeletes.Count - 1 downto 0 do
+      begin
+        ItemType := SortedDeletes[i];
+        List := DeletedGroups[ItemType];
+        DbSet := DataSet(ItemType);
 
-       for APair in DeletedGroups do
-       begin
-         List := APair.Value;
-         DbSet := DataSet(APair.Key);
-         
-         for Item in List do
-           FChangeTracker.Remove(Item);
-
-         if DbSet.IsBulkDeleteSafe and (List.Count > 1) then
-         begin
-           DbSet.PersistRemoveRange(List.ToArray);
-         end
-         else
-         begin
-           for Item in List do
-             DbSet.PersistRemove(Item);
-         end;
-         Inc(Result, List.Count);
-       end;
-     finally
-       DeletedGroups := nil;
-     end;
-     
-     Commit;
-     FChangeTracker.AcceptAllChanges;
-     Span.SetStatus('Success');
-     Span.SetAttribute('affected_rows', Result);
-   except
-     Rollback;
-     Span.SetStatus('Error', Exception(ExceptObject).Message);
+        for Item in List do
+          FChangeTracker.Remove(Item);
+ 
+        if DbSet.IsBulkDeleteSafe and (List.Count > 1) then
+        begin
+          DbSet.PersistRemoveRange(List.ToArray);
+        end
+        else
+        begin
+          for Item in List do
+            DbSet.PersistRemove(Item);
+        end;
+        Inc(Result, List.Count);
+      end;
+    finally
+      DeletedGroups := nil;
+      SortedDeletes := nil;
+    end;
+    
+    if OwnsTransaction then Commit;
+    FChangeTracker.AcceptAllChanges;
+    Span.SetStatus('Success');
+    Span.SetAttribute('affected_rows', Result);
+  except
+    if OwnsTransaction then Rollback;
+    Span.SetStatus('Error', Exception(ExceptObject).Message);
      raise;
    end;
 end;
@@ -1495,9 +1618,24 @@ begin
 end;
 
 procedure TChangeTracker.Track(const AEntity: TObject; AState: TEntityState);
+var
+  State: TEntityShadowState;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
 begin
   if AEntity = nil then Exit;
   FTrackedEntities.AddOrSetValue(AEntity, AState);
+  
+  if AState = esUnchanged then
+  begin
+    State := GetShadowState(AEntity);
+    if State.ShadowValues.Count = 0 then
+    begin
+      Meta := TReflection.GetMetadata(AEntity.ClassInfo);
+      for Handler in Meta.GetPropertyHandlers() do
+        State.ShadowValues.AddOrSetValue(Handler.Name, Handler.GetValue(Pointer(AEntity)));
+    end;
+  end;
 end;
 
 procedure TChangeTracker.Remove(const AEntity: TObject);
@@ -1512,10 +1650,97 @@ begin
     Result := esDetached;
 end;
 
+procedure TChangeTracker.DetectChanges;
+var
+  Entity: TObject;
+  State: TEntityShadowState;
+  Meta: TTypeMetadata;
+  Handler: IPropertyHandler;
+  CurrentVal, OriginalVal: TValue;
+  IsModifiedProp: Boolean;
+  HasAnyModified: Boolean;
+  CurrentState: TEntityState;
+  KeysList: IList<TObject>;
+  i: Integer;
+begin
+  KeysList := TCollections.CreateList<TObject>;
+  KeysList.AddRange(FTrackedEntities.Keys);
+  for i := 0 to KeysList.Count - 1 do
+  begin
+    Entity := KeysList[i];
+    CurrentState := FTrackedEntities[Entity];
+    if CurrentState in [esUnchanged, esModified] then
+    begin
+      State := GetShadowState(Entity);
+      Meta := TReflection.GetMetadata(Entity.ClassInfo);
+      HasAnyModified := False;
+      
+      for Handler in Meta.GetPropertyHandlers() do
+      begin
+        CurrentVal := Handler.GetValue(Pointer(Entity));
+        if not State.ShadowValues.TryGetValue(
+          Handler.Name, OriginalVal) then
+          OriginalVal := TValue.Empty;
+
+        TReflection.TryUnwrapProp(CurrentVal, CurrentVal);
+        TReflection.TryUnwrapProp(OriginalVal, OriginalVal);
+          
+        IsModifiedProp := False;
+        if CurrentVal.TypeInfo <> OriginalVal.TypeInfo then
+        begin
+          if not (CurrentVal.IsEmpty and OriginalVal.IsEmpty) then
+            IsModifiedProp := True;
+        end
+        else if not CurrentVal.IsEmpty then
+        begin
+          case CurrentVal.Kind of
+            tkInteger, tkInt64, tkEnumeration:
+              IsModifiedProp := CurrentVal.AsOrdinal <> OriginalVal.AsOrdinal;
+            tkFloat:
+              IsModifiedProp := CurrentVal.AsExtended <> OriginalVal.AsExtended;
+            tkString, tkLString, tkWString, tkUString:
+              IsModifiedProp := CurrentVal.AsString <> OriginalVal.AsString;
+            tkVariant:
+              IsModifiedProp := CurrentVal.AsVariant <> OriginalVal.AsVariant;
+            tkClass:
+              IsModifiedProp := CurrentVal.AsObject <> OriginalVal.AsObject;
+            tkInterface:
+              IsModifiedProp := CurrentVal.AsInterface <> OriginalVal.AsInterface;
+            else
+              IsModifiedProp := CurrentVal.ToString <> OriginalVal.ToString;
+          end;
+        end
+        else
+          IsModifiedProp := not OriginalVal.IsEmpty;
+          
+        if IsModifiedProp then
+        begin
+          State.ModifiedProperties.AddOrSetValue(Handler.Name, True);
+          HasAnyModified := True;
+        end
+        else
+          State.ModifiedProperties.Remove(Handler.Name);
+      end;
+      
+      if HasAnyModified then
+      begin
+        if CurrentState = esUnchanged then
+          FTrackedEntities[Entity] := esModified;
+      end
+      else
+      begin
+        if CurrentState = esModified then
+          FTrackedEntities[Entity] := esUnchanged;
+      end;
+    end;
+  end;
+end;
+
 function TChangeTracker.HasChanges: Boolean;
 var
   LPair: TPair<TObject, TEntityState>;
 begin
+  DetectChanges;
   Result := False;
   for LPair in FTrackedEntities do
   begin
@@ -1549,6 +1774,7 @@ end;
 
 function TChangeTracker.GetTrackedEntities: IDictionary<TObject, TEntityState>;
 begin
+  DetectChanges;
   Result := FTrackedEntities;
 end;
 

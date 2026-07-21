@@ -1,4 +1,4 @@
-unit Dext.Entity.DbType.Test;
+﻿unit Dext.Entity.DbType.Test;
 
 interface
 

@@ -135,6 +135,7 @@ type
     FUseNative: Boolean;
     FNativeOptions: TServerEngineOptions;
     FConfigureHostProc: TProc<IWebHostBuilder>;
+    FConfigureAppProc: TProc<IApplicationBuilder>;
     FTransport: TMCPTransport;
     FUrl: string;
 
@@ -207,6 +208,9 @@ type
     /// <summary>Configures custom web host options.</summary>
     function ConfigureHost(
       AProc: TProc<IWebHostBuilder>): TMCPServer;
+    /// <summary>Configures custom application pipeline options.</summary>
+    function ConfigureApp(
+      AProc: TProc<IApplicationBuilder>): TMCPServer;
 
     // ---- Lifecycle ----
 
@@ -244,6 +248,7 @@ type
     FUseNative: Boolean;
     FNativeOptions: TServerEngineOptions;
     FConfigureHostProc: TProc<IWebHostBuilder>;
+    FConfigureAppProc: TProc<IApplicationBuilder>;
     FProviders: TArray<TMCPToolProvider>;
   public
     /// <summary>Creates a new TMCPServerBuilder with default values.</summary>
@@ -268,9 +273,16 @@ type
     function UseHttpSys(
       const AOptions: TServerEngineOptions): TMCPServerBuilder; overload;
 
-    /// <summary>Allows custom configuration of the WebHostBuilder before building.</summary>
+    /// <summary>
+    /// Allows custom configuration of the WebHostBuilder.
+    /// </summary>
     function ConfigureHost(
       AProc: TProc<IWebHostBuilder>): TMCPServerBuilder;
+    /// <summary>
+    /// Allows custom configuration of the pipeline.
+    /// </summary>
+    function ConfigureApp(
+      AProc: TProc<IApplicationBuilder>): TMCPServerBuilder;
 
     /// <summary>Registers an MCP provider class.</summary>
     function RegisterProvider(
@@ -948,6 +960,7 @@ begin
   FShuttingDown := False;
   FUseNative := False;
   FConfigureHostProc := nil;
+  FConfigureAppProc := nil;
   FTransport := mtStreamable;
   FUrl := 'http://localhost:3031';
 end;
@@ -1018,6 +1031,13 @@ begin
   Result := Self;
 end;
 
+function TMCPServer.ConfigureApp(
+  AProc: TProc<IApplicationBuilder>): TMCPServer;
+begin
+  FConfigureAppProc := AProc;
+  Result := Self;
+end;
+
 procedure TMCPServer.Run;
 begin
   Run(FTransport, FUrl);
@@ -1048,6 +1068,9 @@ begin
       end)
     .Configure(procedure(App: IApplicationBuilder)
       begin
+        if Assigned(FConfigureAppProc) then
+          FConfigureAppProc(App);
+
         if ATransport = mtStreamable then
         begin
           // MCP 2025-03-26 HTTP Streamable transport
@@ -1148,6 +1171,7 @@ begin
   FUrl := 'http://localhost:3031';
   FUseNative := False;
   FConfigureHostProc := nil;
+  FConfigureAppProc := nil;
   FProviders := nil;
 end;
 
@@ -1214,6 +1238,13 @@ begin
   Result := Self;
 end;
 
+function TMCPServerBuilder.ConfigureApp(
+  AProc: TProc<IApplicationBuilder>): TMCPServerBuilder;
+begin
+  FConfigureAppProc := AProc;
+  Result := Self;
+end;
+
 function TMCPServerBuilder.RegisterProvider(
   AProvider: TMCPToolProvider): TMCPServerBuilder;
 begin
@@ -1229,6 +1260,9 @@ var
 begin
   Server := TMCPServer.Create(FName, FVersion);
   try
+    Server.FTransport := FTransport;
+    Server.FUrl := FUrl;
+
     if FUseNative then
       Server.UseHttpSys(FNativeOptions)
     else
@@ -1236,6 +1270,9 @@ begin
 
     if Assigned(FConfigureHostProc) then
       Server.ConfigureHost(FConfigureHostProc);
+
+    if Assigned(FConfigureAppProc) then
+      Server.ConfigureApp(FConfigureAppProc);
 
     for Prov in FProviders do
       Server.RegisterProvider(Prov);

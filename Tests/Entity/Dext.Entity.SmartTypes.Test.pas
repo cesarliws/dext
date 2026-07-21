@@ -1,11 +1,13 @@
-﻿unit Dext.Entity.SmartTypes.Test;
+unit Dext.Entity.SmartTypes.Test;
 
 interface
 
 uses
   System.SysUtils,
+  System.Rtti,
   Dext.Assertions,
   Dext.Collections,
+  Dext.Core.Reflection,
   Dext.Core.SmartTypes,
   Dext.Entity.Query,
   Dext.Specifications.Interfaces,
@@ -21,6 +23,7 @@ type
     procedure TestAsMethods;
     procedure TestAssertions;
     procedure TestThenIncludePath;
+    procedure TestEmptyNullPropWrapping;
   end;
 
   TTestOrderItem = class
@@ -61,6 +64,7 @@ begin
   TestAsMethods;
   TestAssertions;
   TestThenIncludePath;
+  TestEmptyNullPropWrapping;
 end;
 
 procedure TSmartTypesTest.TestExplicitCasts;
@@ -149,6 +153,24 @@ begin
   // Cleanup
   Query := Default(TFluentQuery<TTestUser>);
   Spec := nil;
+end;
+
+procedure TSmartTypesTest.TestEmptyNullPropWrapping;
+var
+  StrProp: Prop<string>;
+  Val: TValue;
+  TargetVal: TValue;
+begin
+  Write('  - Empty/Null Prop Wrapping: ');
+  StrProp := 'Initial';
+  TValue.Make(@StrProp, TypeInfo(Prop<string>), TargetVal);
+  Val := TValue.Empty;
+  
+  TReflection.TryWrapProp(TargetVal, Val);
+  StrProp := TargetVal.AsType<Prop<string>>;
+  
+  Should(string(StrProp)).Be('');
+  WriteLn('✅');
 end;
 
 end.

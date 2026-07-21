@@ -62,6 +62,27 @@ This document tracks historical benchmark runs for the Dext Framework across dif
 > [!NOTE]
 > This run was captured after the S54 benchmark runner was split so the HTTP server path does not start when the filter is only `BM_S54_`. It is a local baseline for future regression tracking.
 
+## 🖥️ Test Environment 4: WSL2 Ubuntu Linux (WSL bridge) - Epoll Otimizado
+* **Date**: July 17, 2026
+* **Reporter**: Cezar (Local Run)
+* **Hardware**: Resource-constrained developer PC (WSL2 Ubuntu)
+* **Engine / RTL**: Linux64 Release (Epoll optimized vs Indy)
+* **Benchmark Tool**: Bombardier from Windows Host to WSL2 Guest
+
+### 📊 Results Table
+
+| Server Engine | Avg Reqs/sec | Avg Latency | Max Latency | Total Reqs |
+| :--- | :---: | :---: | :---: | :---: |
+| **Indy (Linux)** | 2,506.30 | 49.87 ms | 365.32 ms | 25,113 |
+| **Epoll (Opt)** | **6,022.93** | **20.77 ms** | **1.60 s** | **60,166** |
+
+> [!NOTE]
+> This run compares Indy vs the optimized Epoll implementation on Linux.
+> The optimized Epoll includes HTTP/1.1 Keep-Alive socket recycling,
+> automatic header generation, Nagle's algorithm disabled (TCP_NODELAY),
+> and connection sweep loop throttling. Performance improved by 2.4x
+> over Indy and 16.3x over the original Epoll implementation.
+
 ## 🛠️ Future Benchmarks & Roadmap
 1. **TCP Socket Tuning**: Adjust system-level TCP ports configuration to prevent "connection refused" errors under extreme concurrency.
 2. **Windows Server 2025 Verification**: Evaluate performance under modern server environments.

@@ -1144,6 +1144,17 @@ begin
       begin
         Converted := TValueConverter.Convert(ASource, Meta.InnerType);
         Meta.ValueField.SetValue(PData, Converted);
+      end
+      else
+      begin
+        if (Meta.InnerType <> nil) and (Meta.InnerType.Kind in [tkString, tkUString, tkWString, tkLString, tkChar, tkWChar]) then
+          Converted := TValue.FromVariant('')
+        else if Meta.InnerType <> nil then
+          Converted := TValueConverter.Convert(TValue.FromVariant(0), Meta.InnerType)
+        else
+          Converted := TValue.FromVariant('');
+
+        Meta.ValueField.SetValue(PData, Converted);
       end;
       Result := True;
     end;

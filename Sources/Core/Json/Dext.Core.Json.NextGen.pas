@@ -775,7 +775,7 @@ class function TNextGenJsonParser.ScanStructural_SSE42(
   Ptr: PByte;
   Length: Integer
 ): Integer;
-{$IFDEF CPUX64}
+{$IF defined(CPUX64) and defined(MSWINDOWS)}
 asm
   // RCX = Ptr, RDX = Length
   // Return value: EAX (offset of found char, or -1)

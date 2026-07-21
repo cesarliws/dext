@@ -213,10 +213,12 @@ type
 
     /// <summary>
     ///   Executes the query and returns a list of entities.
+    ///   Tracked entities (default) are owned by the DbContext IdentityMap
+    ///   and are freed when the DbContext is disposed.
+    ///   Use AsNoTracking.ToList to obtain an untracked list owned by the caller.
     /// </summary>
     function ToList: IList<T>; overload;
     function ToList(const ASpec: ISpecification<T>): IList<T>; overload;
-
     function ToList(const AExpression: IExpression): IList<T>; overload;
     function FirstOrDefault(const AExpression: IExpression): T; overload;
     function FirstOrDefault(const ASpec: ISpecification<T>): T; overload;
@@ -1016,6 +1018,8 @@ begin
     if Tracking and (PKVal <> '') then
     begin
       FIdentityMap.Add(PKVal, Result);
+      if (FContext <> nil) and (FContext.ChangeTracker <> nil) then
+        FContext.ChangeTracker.Track(Result, esUnchanged);
     end;
     
     HydrateTarget(Reader, Result, Plan);
@@ -1052,51 +1056,100 @@ begin
           begin
             case Item.DirectKind of
               nkInt32:
-                TDextDirectAccess.WriteInt32(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteInt32(
+                  Target, Item.DirectOffset,
                   Reader.GetInt32(Item.ColumnIndex));
               nkInt64:
-                TDextDirectAccess.WriteInt64(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteInt64(
+                  Target, Item.DirectOffset,
                   Reader.GetInt64(Item.ColumnIndex));
               nkBoolean:
-                TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteBoolean(
+                  Target, Item.DirectOffset,
                   Reader.GetBoolean(Item.ColumnIndex));
               nkSingle:
-                TDextDirectAccess.WriteSingle(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteSingle(
+                  Target, Item.DirectOffset,
                   Single(Reader.GetDouble(Item.ColumnIndex)));
               nkCurrency:
-                TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteCurrency(
+                  Target, Item.DirectOffset,
                   Currency(Reader.GetDouble(Item.ColumnIndex)));
               nkDouble:
-                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteDouble(
+                  Target, Item.DirectOffset,
                   Reader.GetDouble(Item.ColumnIndex));
               nkDateTime:
-                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteDouble(
+                  Target, Item.DirectOffset,
                   Reader.GetDateTime(Item.ColumnIndex));
               nkString:
-                TDextDirectAccess.WriteString(Target, Item.DirectOffset,
+                TDextDirectAccess.WriteString(
+                  Target, Item.DirectOffset,
                   Reader.GetString(Item.ColumnIndex));
             end;
           end
-          else if not VarIsNull(Item.DefaultValue) then
+          else
           begin
-            Val := TValue.FromVariant(Item.DefaultValue);
-            case Item.DirectKind of
-              nkInt32:
-                TDextDirectAccess.WriteInt32(Target, Item.DirectOffset, Val.AsInteger);
-              nkInt64:
-                TDextDirectAccess.WriteInt64(Target, Item.DirectOffset, Val.AsInt64);
-              nkBoolean:
-                TDextDirectAccess.WriteBoolean(Target, Item.DirectOffset, Val.AsBoolean);
-              nkSingle:
-                TDextDirectAccess.WriteSingle(Target, Item.DirectOffset, Single(Val.AsExtended));
-              nkCurrency:
-                TDextDirectAccess.WriteCurrency(Target, Item.DirectOffset, Val.AsCurrency);
-              nkDouble:
-                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
-              nkDateTime:
-                TDextDirectAccess.WriteDouble(Target, Item.DirectOffset, Val.AsExtended);
-              nkString:
-                TDextDirectAccess.WriteString(Target, Item.DirectOffset, Val.AsString);
+            if not VarIsNull(Item.DefaultValue) then
+            begin
+              Val := TValue.FromVariant(Item.DefaultValue);
+              case Item.DirectKind of
+                nkInt32:
+                  TDextDirectAccess.WriteInt32(
+                    Target, Item.DirectOffset, Val.AsInteger);
+                nkInt64:
+                  TDextDirectAccess.WriteInt64(
+                    Target, Item.DirectOffset, Val.AsInt64);
+                nkBoolean:
+                  TDextDirectAccess.WriteBoolean(
+                    Target, Item.DirectOffset, Val.AsBoolean);
+                nkSingle:
+                  TDextDirectAccess.WriteSingle(
+                    Target, Item.DirectOffset,
+                    Single(Val.AsExtended));
+                nkCurrency:
+                  TDextDirectAccess.WriteCurrency(
+                    Target, Item.DirectOffset, Val.AsCurrency);
+                nkDouble:
+                  TDextDirectAccess.WriteDouble(
+                    Target, Item.DirectOffset, Val.AsExtended);
+                nkDateTime:
+                  TDextDirectAccess.WriteDouble(
+                    Target, Item.DirectOffset, Val.AsExtended);
+                nkString:
+                  TDextDirectAccess.WriteString(
+                    Target, Item.DirectOffset, Val.AsString);
+              end;
+            end
+            else
+            begin
+              case Item.DirectKind of
+                nkInt32:
+                  TDextDirectAccess.WriteInt32(
+                    Target, Item.DirectOffset, 0);
+                nkInt64:
+                  TDextDirectAccess.WriteInt64(
+                    Target, Item.DirectOffset, 0);
+                nkBoolean:
+                  TDextDirectAccess.WriteBoolean(
+                    Target, Item.DirectOffset, False);
+                nkSingle:
+                  TDextDirectAccess.WriteSingle(
+                    Target, Item.DirectOffset, 0);
+                nkCurrency:
+                  TDextDirectAccess.WriteCurrency(
+                    Target, Item.DirectOffset, 0);
+                nkDouble:
+                  TDextDirectAccess.WriteDouble(
+                    Target, Item.DirectOffset, 0);
+                nkDateTime:
+                  TDextDirectAccess.WriteDouble(
+                    Target, Item.DirectOffset, 0);
+                nkString:
+                  TDextDirectAccess.WriteString(
+                    Target, Item.DirectOffset, '');
+              end;
             end;
           end;
           Continue;
@@ -1108,7 +1161,6 @@ begin
 
         if Item.Converter <> nil then
           Val := Item.Converter.FromDatabase(Val, Item.Prop.PropertyType.Handle);
-
         if Item.Field <> nil then
           TReflection.SetValue(Pointer(Target), Item.Field, Val)
         else
@@ -2140,7 +2192,7 @@ begin
         end;
 
         // Priority 2: Check if it's the specific SoftDelete filter property
-        if PropName <> '' then
+        if (PropName <> '') and not ((PropMap <> nil) and PropMap.IsDeletedAt) then
         begin
           if SameText(Prop.Name, PropName) then
           begin

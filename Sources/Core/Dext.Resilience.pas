@@ -184,6 +184,8 @@ type
     property Instance: IResiliencePipeline read FInstance;
   end;
 
+function GetTickCount64: UInt64;
+
 implementation
 
 uses
