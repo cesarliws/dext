@@ -76,6 +76,8 @@ type
     FRequestId: HTTP_REQUEST_ID;
     FRequest: TDextHttpSysRequest;
     FResponse: TDextHttpSysResponse;
+    FResponseIntf: IDextRawResponse;
+    FRequestIntf: IDextRawRequest;
     FConnection: TDextHttpSysConnection;
     FRefCount: Integer;
     FBodyEvent: TEvent;
@@ -160,6 +162,9 @@ type
     FUnknownHeadersCount: Integer;
     FLastUnknownHeadersCount: Integer;
     FContext: TDextHttpSysContext;
+    FSendOp: TDextHttpSysOperation;
+    FNativeResponse: HTTP_RESPONSE;
+    FChunks: TArray<HTTP_DATA_CHUNK>;
     procedure ResetUnknownHeaders;
     procedure SendHeadersInternal(AMoreData: Boolean);
     function _Release: Integer; stdcall;
@@ -406,6 +411,11 @@ var
   KnownRequestHeadersMapGlobal: TDictionary<string, Integer>;
   KnownResponseHeadersMapGlobal: TDictionary<string, Integer>;
 
+threadvar
+  FLocalContextPool: TList;
+  FLocalRequestPool: TList;
+  FLocalResponsePool: TList;
+
 { TDextHttpSysContext }
 
 constructor TDextHttpSysContext.Create;
@@ -444,6 +454,8 @@ begin
   FRequestId := 0;
   FRequest := nil;
   FResponse := nil;
+  FResponseIntf := nil;
+  FRequestIntf := nil;
   FConnection := nil;
   FillChar(FReceiveOp.Overlapped, SizeOf(TOverlapped), 0);
   FillChar(FBodyOp.Overlapped, SizeOf(TOverlapped), 0);
@@ -470,31 +482,52 @@ end;
 
 function TDextHttpSysEngine.AcquireContext: TDextHttpSysContext;
 begin
-  FContextPoolLock.Enter;
-  try
-    if FContextPool.Count > 0 then
-    begin
-      Result := TDextHttpSysContext(FContextPool.Last);
-      FContextPool.Delete(FContextPool.Count - 1);
-    end
-    else
-    begin
-      Result := TDextHttpSysContext.Create;
-      FAllContexts.Add(Result);
+  if FLocalContextPool = nil then
+    FLocalContextPool := TList.Create;
+
+  if FLocalContextPool.Count > 0 then
+  begin
+    Result := TDextHttpSysContext(FLocalContextPool.Last);
+    FLocalContextPool.Delete(FLocalContextPool.Count - 1);
+  end
+  else
+  begin
+    FContextPoolLock.Enter;
+    try
+      if FContextPool.Count > 0 then
+      begin
+        Result := TDextHttpSysContext(FContextPool.Last);
+        FContextPool.Delete(FContextPool.Count - 1);
+      end
+      else
+      begin
+        Result := TDextHttpSysContext.Create;
+        FAllContexts.Add(Result);
+      end;
+    finally
+      FContextPoolLock.Exit;
     end;
-  finally
-    FContextPoolLock.Exit;
   end;
 end;
 
 procedure TDextHttpSysEngine.ReleaseContext(AContext: TDextHttpSysContext);
 begin
   AContext.Reset;
-  FContextPoolLock.Enter;
-  try
-    FContextPool.Add(AContext);
-  finally
-    FContextPoolLock.Exit;
+  if FLocalContextPool = nil then
+    FLocalContextPool := TList.Create;
+
+  if FLocalContextPool.Count < 64 then
+  begin
+    FLocalContextPool.Add(AContext);
+  end
+  else
+  begin
+    FContextPoolLock.Enter;
+    try
+      FContextPool.Add(AContext);
+    finally
+      FContextPoolLock.Exit;
+    end;
   end;
 end;
 
@@ -921,6 +954,11 @@ begin
 
   FResponseWriter.Reset;
   FResponseWriter.Init;
+
+  FSendOp.Kind := hokSendBody;
+  FSendOp.Context := AContext;
+  if AContext <> nil then
+    FSendOp.Generation := AContext.FGeneration;
 end;
 
 function TDextHttpSysResponse._Release: Integer;
@@ -984,330 +1022,246 @@ end;
 
 procedure TDextHttpSysResponse.Close;
 var
-  BytesSent: ULONG;
-  Chunks: array[0..31] of HTTP_DATA_CHUNK;
   I: Integer;
-  Response: HTTP_RESPONSE;
-  Ret: ULONG;
   Seg: PDextBufferSegment;
   SegCount: Integer;
-  BatchStart: Integer;
-  BatchCount: Integer;
-  BatchFlags: ULONG;
   TotalLen: Int64;
+  Ret: ULONG;
+  BytesSent: ULONG;
 begin
+  if FContext.FGeneration <> FSendOp.Generation then Exit;
+  if FResponseComplete then Exit;
+  FResponseComplete := True;
+
+  // Retain context interface references to keep this response alive during async IOCP
+  FContext.FResponseIntf := Self;
+  FContext.FRequestIntf := FContext.FRequest;
+
   try
     if not FHeadersSent then
+    begin
+      FillChar(FNativeResponse, SizeOf(FNativeResponse), 0);
+      FNativeResponse.StatusCode := FStatusCode;
+      FNativeResponse.ReasonLength := FReasonLen;
+      FNativeResponse.pReason := @FReasonBuffer[0];
+      FNativeResponse.Version.MajorVersion := 1;
+      FNativeResponse.Version.MinorVersion := 1;
+
+      if FHeaderValues[11].Length = 0 then
       begin
-        FillChar(Response, SizeOf(Response), 0);
-        Response.StatusCode := FStatusCode;
-        Response.ReasonLength := FReasonLen;
-        Response.pReason := @FReasonBuffer[0];
-        Response.Version.MajorVersion := 1;
-        Response.Version.MinorVersion := 1;
-
-        if FHeaderValues[11].Length = 0 then
+        TotalLen := 0;
+        Seg := FResponseWriter.Segments;
+        for I := 0 to FResponseWriter.SegmentCount - 1 do
         begin
-          TotalLen := 0;
-          Seg := FResponseWriter.Segments;
-          for I := 0 to FResponseWriter.SegmentCount - 1 do
-          begin
-            TotalLen := TotalLen + Seg^.Length;
-            Inc(Seg);
-          end;
-          SetHeaderInt(11, TotalLen);
+          TotalLen := TotalLen + Seg^.Length;
+          Inc(Seg);
+        end;
+        SetHeaderInt(11, TotalLen);
+      end;
+
+      for I := 0 to 29 do
+      begin
+        if FHeaderValues[I].Length > 0 then
+        begin
+          FNativeResponse.Headers.KnownHeaders[I].pRawValue :=
+            @FHeaderData[FHeaderValues[I].Offset];
+          FNativeResponse.Headers.KnownHeaders[I].RawValueLength :=
+            FHeaderValues[I].Length;
+        end;
+      end;
+
+      if FUnknownHeadersCount > 0 then
+      begin
+        FNativeResponse.Headers.UnknownHeaderCount := FUnknownHeadersCount;
+        FNativeResponse.Headers.pUnknownHeaders := @FUnknownHeaders[0];
+      end;
+
+      SegCount := FResponseWriter.SegmentCount;
+      if SegCount > 0 then
+      begin
+        SetLength(FChunks, SegCount);
+        Seg := FResponseWriter.Segments;
+        for I := 0 to SegCount - 1 do
+        begin
+          FillChar(FChunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+          FChunks[I].DataChunkType := hctFromMemory;
+          FChunks[I].pBuffer := Seg^.Data;
+          FChunks[I].BufferLength := Seg^.Length;
+          Inc(Seg);
         end;
 
-        for I := 0 to 29 do
+        FNativeResponse.EntityChunkCount := SegCount;
+        FNativeResponse.pEntityChunks := @FChunks[0];
+      end;
+
+      FillChar(FSendOp.Overlapped, SizeOf(TOverlapped), 0);
+      FSendOp.Generation := FContext.FGeneration;
+
+      Ret := HttpSendHttpResponse(
+        FReqQueue,
+        FRequestId,
+        0,
+        @FNativeResponse,
+        nil,
+        BytesSent,
+        nil,
+        0,
+        @FSendOp.Overlapped,
+        nil
+      );
+      if (Ret <> ERROR_SUCCESS) and (Ret <> ERROR_IO_PENDING) then
+        raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
+
+      FHeadersSent := True;
+    end
+    else
+    begin
+      SegCount := FResponseWriter.SegmentCount;
+      FillChar(FSendOp.Overlapped, SizeOf(TOverlapped), 0);
+      FSendOp.Generation := FContext.FGeneration;
+
+      if SegCount > 0 then
+      begin
+        SetLength(FChunks, SegCount);
+        Seg := FResponseWriter.Segments;
+        for I := 0 to SegCount - 1 do
         begin
-          if FHeaderValues[I].Length > 0 then
-          begin
-            Response.Headers.KnownHeaders[I].pRawValue :=
-              @FHeaderData[FHeaderValues[I].Offset];
-            Response.Headers.KnownHeaders[I].RawValueLength :=
-              FHeaderValues[I].Length;
-          end;
+          FillChar(FChunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+          FChunks[I].DataChunkType := hctFromMemory;
+          FChunks[I].pBuffer := Seg^.Data;
+          FChunks[I].BufferLength := Seg^.Length;
+          Inc(Seg);
         end;
 
-        if FUnknownHeadersCount > 0 then
-        begin
-          Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
-          Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
-        end;
-
-        SegCount := FResponseWriter.SegmentCount;
-        if SegCount > 0 then
-        begin
-          Seg := FResponseWriter.Segments;
-          BatchCount := SegCount;
-          if BatchCount > Length(Chunks) then
-            BatchCount := Length(Chunks);
-          for I := 0 to BatchCount - 1 do
-          begin
-            FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-            Chunks[I].DataChunkType := hctFromMemory;
-            Chunks[I].pBuffer := Seg^.Data;
-            Chunks[I].BufferLength := Seg^.Length;
-            Inc(Seg);
-          end;
-
-          Response.EntityChunkCount := BatchCount;
-          Response.pEntityChunks := @Chunks[0];
-        end;
-
-        if SegCount > Length(Chunks) then
-          BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
-        else
-          BatchFlags := 0;
-
-        Ret := HttpSendHttpResponse(
+        Ret := HttpSendResponseEntityBody(
           FReqQueue,
           FRequestId,
-          BatchFlags,
-          @Response,
-          nil,
+          0,
+          SegCount,
+          @FChunks[0],
           BytesSent,
           nil,
-          0,
           nil,
+          @FSendOp.Overlapped,
           nil
         );
-        if Ret <> ERROR_SUCCESS then
-          raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
-
-        BatchStart := Length(Chunks);
-        while BatchStart < SegCount do
-        begin
-          BatchCount := SegCount - BatchStart;
-          if BatchCount > Length(Chunks) then
-            BatchCount := Length(Chunks);
-
-          Seg := FResponseWriter.Segments;
-          Inc(Seg, BatchStart);
-          for I := 0 to BatchCount - 1 do
-          begin
-            FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-            Chunks[I].DataChunkType := hctFromMemory;
-            Chunks[I].pBuffer := Seg^.Data;
-            Chunks[I].BufferLength := Seg^.Length;
-            Inc(Seg);
-          end;
-
-          if BatchStart + BatchCount < SegCount then
-            BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
-          else
-            BatchFlags := 0;
-
-          Ret := HttpSendResponseEntityBody(
-            FReqQueue,
-            FRequestId,
-            BatchFlags,
-            BatchCount,
-            @Chunks[0],
-            BytesSent,
-            nil,
-            nil,
-            nil,
-            nil
-          );
-          if Ret <> ERROR_SUCCESS then
-            raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
-
-          Inc(BatchStart, BatchCount);
-        end;
-
-        FHeadersSent := True;
       end
       else
       begin
-        if FResponseComplete then
-          Exit;
-        SegCount := FResponseWriter.SegmentCount;
-        if SegCount > 0 then
-        begin
-          BatchStart := 0;
-          while BatchStart < SegCount do
-          begin
-            BatchCount := SegCount - BatchStart;
-            if BatchCount > Length(Chunks) then
-              BatchCount := Length(Chunks);
-
-            Seg := FResponseWriter.Segments;
-            Inc(Seg, BatchStart);
-            for I := 0 to BatchCount - 1 do
-            begin
-              FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-              Chunks[I].DataChunkType := hctFromMemory;
-              Chunks[I].pBuffer := Seg^.Data;
-              Chunks[I].BufferLength := Seg^.Length;
-              Inc(Seg);
-            end;
-
-            if BatchStart + BatchCount < SegCount then
-              BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA
-            else
-              BatchFlags := 0;
-
-            Ret := HttpSendResponseEntityBody(
-              FReqQueue,
-              FRequestId,
-              BatchFlags,
-              BatchCount,
-              @Chunks[0],
-              BytesSent,
-              nil,
-              nil,
-              nil,
-              nil
-            );
-            if Ret <> ERROR_SUCCESS then
-              raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
-
-            Inc(BatchStart, BatchCount);
-          end;
-        end
-        else
-        begin
-          Ret := HttpSendResponseEntityBody(
-            FReqQueue,
-            FRequestId,
-            0,
-            0,
-            nil,
-            BytesSent,
-            nil,
-            nil,
-            nil,
-            nil
-          );
-          if Ret <> ERROR_SUCCESS then
-            raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
-        end;
+        Ret := HttpSendResponseEntityBody(
+          FReqQueue,
+          FRequestId,
+          0,
+          0,
+          nil,
+          BytesSent,
+          nil,
+          nil,
+          @FSendOp.Overlapped,
+          nil
+        );
       end;
-  finally
-    FResponseWriter.Reset;
+
+      if (Ret <> ERROR_SUCCESS) and (Ret <> ERROR_IO_PENDING) then
+        raise EOSError.Create('HttpSendResponseEntityBody failed with error code: ' + IntToStr(Ret));
+    end;
+  except
+    on E: Exception do
+    begin
+      FContext.FResponseIntf := nil;
+      FContext.FRequestIntf := nil;
+      FResponseWriter.Reset;
+      raise;
+    end;
   end;
 end;
 
 procedure TDextHttpSysResponse.Flush;
 var
-  Response: HTTP_RESPONSE;
-  Chunks: array[0..31] of HTTP_DATA_CHUNK;
-  BytesSent: ULONG;
-  Ret: ULONG;
   I: Integer;
-  SegCount: Integer;
   Seg: PDextBufferSegment;
-  BatchStart: Integer;
-  BatchCount: Integer;
-  BatchFlags: ULONG;
+  SegCount: Integer;
+  Ret: ULONG;
+  BytesSent: ULONG;
 begin
+  if FContext.FGeneration <> FSendOp.Generation then Exit;
   if FHeadersSent then Exit;
 
+  // Retain context interface references to keep this response alive during async IOCP
+  FContext.FResponseIntf := Self;
+  FContext.FRequestIntf := FContext.FRequest;
+
   try
-    FillChar(Response, SizeOf(Response), 0);
-    Response.StatusCode := FStatusCode;
-    Response.ReasonLength := FReasonLen;
-    Response.pReason := @FReasonBuffer[0];
-    Response.Version.MajorVersion := 1;
-    Response.Version.MinorVersion := 1;
+    FillChar(FNativeResponse, SizeOf(FNativeResponse), 0);
+    FNativeResponse.StatusCode := FStatusCode;
+    FNativeResponse.ReasonLength := FReasonLen;
+    FNativeResponse.pReason := @FReasonBuffer[0];
+    FNativeResponse.Version.MajorVersion := 1;
+    FNativeResponse.Version.MinorVersion := 1;
 
     for I := 0 to 29 do
     begin
       if FHeaderValues[I].Length > 0 then
       begin
-        Response.Headers.KnownHeaders[I].pRawValue :=
+        FNativeResponse.Headers.KnownHeaders[I].pRawValue :=
           @FHeaderData[FHeaderValues[I].Offset];
-        Response.Headers.KnownHeaders[I].RawValueLength :=
+        FNativeResponse.Headers.KnownHeaders[I].RawValueLength :=
           FHeaderValues[I].Length;
       end;
     end;
 
     if FUnknownHeadersCount > 0 then
     begin
-      Response.Headers.UnknownHeaderCount := FUnknownHeadersCount;
-      Response.Headers.pUnknownHeaders := @FUnknownHeaders[0];
+      FNativeResponse.Headers.UnknownHeaderCount := FUnknownHeadersCount;
+      FNativeResponse.Headers.pUnknownHeaders := @FUnknownHeaders[0];
     end;
 
     SegCount := FResponseWriter.SegmentCount;
     if SegCount > 0 then
     begin
+      SetLength(FChunks, SegCount);
       Seg := FResponseWriter.Segments;
-      BatchCount := SegCount;
-      if BatchCount > Length(Chunks) then
-        BatchCount := Length(Chunks);
-      for I := 0 to BatchCount - 1 do
+      for I := 0 to SegCount - 1 do
       begin
-        FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-        Chunks[I].DataChunkType := hctFromMemory;
-        Chunks[I].pBuffer := Seg^.Data;
-        Chunks[I].BufferLength := Seg^.Length;
+        FillChar(FChunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
+        FChunks[I].DataChunkType := hctFromMemory;
+        FChunks[I].pBuffer := Seg^.Data;
+        FChunks[I].BufferLength := Seg^.Length;
         Inc(Seg);
       end;
 
-      Response.EntityChunkCount := BatchCount;
-      Response.pEntityChunks := @Chunks[0];
+      FNativeResponse.EntityChunkCount := SegCount;
+      FNativeResponse.pEntityChunks := @FChunks[0];
     end;
+
+    FillChar(FSendOp.Overlapped, SizeOf(TOverlapped), 0);
+    FSendOp.Generation := FContext.FGeneration;
 
     Ret := HttpSendHttpResponse(
       FReqQueue,
       FRequestId,
       HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
-      @Response,
+      @FNativeResponse,
       nil,
       BytesSent,
       nil,
       0,
-      nil,
+      @FSendOp.Overlapped,
       nil
     );
 
-    if Ret <> ERROR_SUCCESS then
-      raise EOSError.Create('HttpSendHttpResponse failed with error code: '
-        + IntToStr(Ret));
-
-    BatchStart := Length(Chunks);
-    while BatchStart < SegCount do
-    begin
-      BatchCount := SegCount - BatchStart;
-      if BatchCount > Length(Chunks) then
-        BatchCount := Length(Chunks);
-
-      Seg := FResponseWriter.Segments;
-      Inc(Seg, BatchStart);
-      for I := 0 to BatchCount - 1 do
-      begin
-        FillChar(Chunks[I], SizeOf(HTTP_DATA_CHUNK), 0);
-        Chunks[I].DataChunkType := hctFromMemory;
-        Chunks[I].pBuffer := Seg^.Data;
-        Chunks[I].BufferLength := Seg^.Length;
-        Inc(Seg);
-      end;
-
-      BatchFlags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA;
-      Ret := HttpSendResponseEntityBody(
-        FReqQueue,
-        FRequestId,
-        BatchFlags,
-        BatchCount,
-        @Chunks[0],
-        BytesSent,
-        nil,
-        nil,
-        nil,
-        nil
-      );
-      if Ret <> ERROR_SUCCESS then
-        raise EOSError.Create('HttpSendResponseEntityBody failed with error code: '
-          + IntToStr(Ret));
-
-      Inc(BatchStart, BatchCount);
-    end;
+    if (Ret <> ERROR_SUCCESS) and (Ret <> ERROR_IO_PENDING) then
+      raise EOSError.Create('HttpSendHttpResponse failed with error code: ' + IntToStr(Ret));
 
     FHeadersSent := True;
-  finally
-    FResponseWriter.Reset;
-    FResponseWriter.Init;
+  except
+    on E: Exception do
+    begin
+      FContext.FResponseIntf := nil;
+      FContext.FRequestIntf := nil;
+      FResponseWriter.Reset;
+      raise;
+    end;
   end;
 end;
 procedure TDextHttpSysResponse.SendHeaders;
@@ -1886,16 +1840,28 @@ function TDextHttpSysRequestPool.Acquire(AEngine: TDextHttpSysEngine; ARequest: 
   AContext: TDextHttpSysContext = nil): TDextHttpSysRequest;
 begin
   Result := nil;
-  FLock.Enter;
-  try
-    if FPool.Count > 0 then
-    begin
-      Result := TDextHttpSysRequest(FPool.Last);
-      FPool.Delete(FPool.Count - 1);
+  if FLocalRequestPool = nil then
+    FLocalRequestPool := TList.Create;
+
+  if FLocalRequestPool.Count > 0 then
+  begin
+    Result := TDextHttpSysRequest(FLocalRequestPool.Last);
+    FLocalRequestPool.Delete(FLocalRequestPool.Count - 1);
+  end
+  else
+  begin
+    FLock.Enter;
+    try
+      if FPool.Count > 0 then
+      begin
+        Result := TDextHttpSysRequest(FPool.Last);
+        FPool.Delete(FPool.Count - 1);
+      end;
+    finally
+      FLock.Exit;
     end;
-  finally
-    FLock.Exit;
   end;
+
   if Result = nil then
   begin
     Result := TDextHttpSysRequest.Create(ARequest);
@@ -1910,19 +1876,30 @@ end;
 procedure TDextHttpSysRequestPool.Release(ARequest: TDextHttpSysRequest);
 begin
   if ARequest = nil then Exit;
-  FLock.Enter;
-  try
-    if FPool.Count < FMaxPoolSize then
-    begin
-      FPool.Add(ARequest);
-    end
-    else
-    begin
-      ARequest.FEngine := nil;
-      ARequest.Free;
+
+  if FLocalRequestPool = nil then
+    FLocalRequestPool := TList.Create;
+
+  if FLocalRequestPool.Count < 64 then
+  begin
+    FLocalRequestPool.Add(ARequest);
+  end
+  else
+  begin
+    FLock.Enter;
+    try
+      if FPool.Count < FMaxPoolSize then
+      begin
+        FPool.Add(ARequest);
+      end
+      else
+      begin
+        ARequest.FEngine := nil;
+        ARequest.Free;
+      end;
+    finally
+      FLock.Exit;
     end;
-  finally
-    FLock.Exit;
   end;
 end;
 
@@ -1957,16 +1934,28 @@ function TDextHttpSysResponsePool.Acquire(AEngine: TDextHttpSysEngine; AReqQueue
   ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext = nil): TDextHttpSysResponse;
 begin
   Result := nil;
-  FLock.Enter;
-  try
-    if FPool.Count > 0 then
-    begin
-      Result := TDextHttpSysResponse(FPool.Last);
-      FPool.Delete(FPool.Count - 1);
+  if FLocalResponsePool = nil then
+    FLocalResponsePool := TList.Create;
+
+  if FLocalResponsePool.Count > 0 then
+  begin
+    Result := TDextHttpSysResponse(FLocalResponsePool.Last);
+    FLocalResponsePool.Delete(FLocalResponsePool.Count - 1);
+  end
+  else
+  begin
+    FLock.Enter;
+    try
+      if FPool.Count > 0 then
+      begin
+        Result := TDextHttpSysResponse(FPool.Last);
+        FPool.Delete(FPool.Count - 1);
+      end;
+    finally
+      FLock.Exit;
     end;
-  finally
-    FLock.Exit;
   end;
+
   if Result = nil then
   begin
     Result := TDextHttpSysResponse.Create(AEngine, AReqQueue, ARequestId);
@@ -1982,19 +1971,29 @@ procedure TDextHttpSysResponsePool.Release(AResponse: TDextHttpSysResponse);
 begin
   if AResponse = nil then Exit;
 
-  FLock.Enter;
-  try
-    if FPool.Count < FMaxPoolSize then
-    begin
-      FPool.Add(AResponse);
-    end
-    else
-    begin
-      AResponse.FEngine := nil;
-      AResponse.Free;
+  if FLocalResponsePool = nil then
+    FLocalResponsePool := TList.Create;
+
+  if FLocalResponsePool.Count < 64 then
+  begin
+    FLocalResponsePool.Add(AResponse);
+  end
+  else
+  begin
+    FLock.Enter;
+    try
+      if FPool.Count < FMaxPoolSize then
+      begin
+        FPool.Add(AResponse);
+      end
+      else
+      begin
+        AResponse.FEngine := nil;
+        AResponse.Free;
+      end;
+    finally
+      FLock.Exit;
     end;
-  finally
-    FLock.Exit;
   end;
 end;
 
@@ -2125,7 +2124,8 @@ var
 begin
   ApplyGroupAffinityToThread(GetCurrentThread, FAffinity);
 
-  while not Terminated and FEngine.FRunning do
+  try
+    while not Terminated and FEngine.FRunning do
   begin
     Transferred := 0;
     CompletionKey := 0;
@@ -2150,6 +2150,20 @@ begin
         begin
           if Op^.Generation <> Context.FGeneration then
             Continue;
+          if Ret = ERROR_MORE_DATA then
+          begin
+            if (FEngine.FOptions.MaxRequestHeaderSize > 0) and
+               (Transferred > Cardinal(FEngine.FOptions.MaxRequestHeaderSize)) then
+            begin
+              FEngine.ReleaseContext(Context);
+              Continue;
+            end;
+            Context.FRequestId := PHTTP_REQUEST(@Context.FBuffer[0]).RequestId;
+            Context.FBufferCapacity := Transferred;
+            SetLength(Context.FBuffer, Context.FBufferCapacity);
+            FEngine.PostReceiveRequest(Context);
+            Continue;
+          end;
           if Ret <> ERROR_SUCCESS then
           begin
             FEngine.ReleaseContext(Context);
@@ -2212,8 +2226,26 @@ begin
             FEngine.ReleaseContext(Context);
           end;
         end;
+
+        hokSendHeaders, hokSendBody:
+        begin
+          if Op^.Generation <> Context.FGeneration then
+            Continue;
+          if Context.FResponse <> nil then
+            Context.FResponse.FResponseWriter.Reset;
+          Context.FResponseIntf := nil;
+          Context.FRequestIntf := nil;
+        end;
       end;
     end;
+  end;
+  finally
+    FLocalContextPool.Free;
+    FLocalContextPool := nil;
+    FLocalRequestPool.Free;
+    FLocalRequestPool := nil;
+    FLocalResponsePool.Free;
+    FLocalResponsePool := nil;
   end;
 end;
 
