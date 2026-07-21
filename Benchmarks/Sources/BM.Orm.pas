@@ -10,6 +10,7 @@ procedure BM_Orm_DextHydration_Loop(const state: TState);
 procedure BM_Orm_Micro_Allocations(const state: TState);
 procedure BM_Orm_Micro_ReaderGetValue(const state: TState);
 procedure BM_Orm_Micro_RttiSetValue(const state: TState);
+procedure BM_Orm_ProjectToJson(const state: TState);
 
 implementation
 
@@ -21,6 +22,7 @@ uses
   Dext.Collections,
   Dext.Entity,
   Dext.Entity.Context,
+  Dext.Entity.DbSet,
   Dext.Entity.Attributes,
   Dext.Core.Reflection,
   Dext.Entity.ProxyFactory;
@@ -198,6 +200,28 @@ begin
   end;
 end;
 
+procedure BM_Orm_ProjectToJson(const state: TState);
+var
+  Cmd: IDbCommand;
+  Reader: IDbReader;
+  Stream: TStream;
+begin
+  Stream := TBytesStream.Create(nil);
+  try
+    while state.KeepRunning do
+    begin
+      Cmd := GCtx.Connection.CreateCommand(
+        'SELECT Id, Name, Email, Age FROM BenchmarkUsers');
+      Reader := Cmd.ExecuteQuery;
+      Stream.Position := 0;
+      TDbProjectionHelper.ProjectToJson(Reader, Stream);
+      Reader.Close;
+    end;
+  finally
+    Stream.Free;
+  end;
+end;
+
 initialization
   SetupDatabase;
   Benchmark(BM_Orm_RawDataset_Loop, 'BM_Orm_RawDataset_Loop');
@@ -205,6 +229,7 @@ initialization
   Benchmark(BM_Orm_Micro_Allocations, 'BM_Orm_Micro_Allocations');
   Benchmark(BM_Orm_Micro_ReaderGetValue, 'BM_Orm_Micro_ReaderGetValue');
   Benchmark(BM_Orm_Micro_RttiSetValue, 'BM_Orm_Micro_RttiSetValue');
+  Benchmark(BM_Orm_ProjectToJson, 'BM_Orm_ProjectToJson');
 
 finalization
   CleanupDatabase;

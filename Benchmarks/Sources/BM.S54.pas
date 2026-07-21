@@ -18,6 +18,7 @@ procedure BM_S54_Protobuf_Rtti_Serialize(const state: TState);
 procedure BM_S54_Protobuf_DeserializeBytes(const state: TState);
 procedure BM_S54_Protobuf_DeserializeSpan(const state: TState);
 procedure BM_S54_Json_Roundtrip(const state: TState);
+procedure BM_S54_Json_SerializeUtf8(const state: TState);
 procedure BM_S54_Orm_JsonConverter_Roundtrip(const state: TState);
 procedure BM_S54_Tracing_BeginSpan_Inactive(const state: TState);
 procedure BM_S54_Grpc_SubStopwatch_Always(const state: TState);
@@ -616,6 +617,28 @@ begin
   end;
 end;
 
+procedure BM_S54_Json_SerializeUtf8(const state: TState);
+var
+  Source: TCodecRoot;
+  P: PState;
+begin
+  P := @state;
+  Source := TCodecRoot.Create;
+  try
+    TrackedBenchmark(P, procedure
+    var
+      LBytes: TBytes;
+    begin
+      while P^.KeepRunning do
+      begin
+        LBytes := TDextJson.SerializeUtf8<TCodecRoot>(Source);
+      end;
+    end);
+  finally
+    Source.Free;
+  end;
+end;
+
 procedure BM_S54_Orm_JsonConverter_Roundtrip(const state: TState);
 var
   Source: TCodecRoot;
@@ -793,6 +816,7 @@ initialization
   Benchmark(BM_S54_Protobuf_DeserializeBytes, 'BM_S54_Protobuf_DeserializeBytes').Threads(1);
   Benchmark(BM_S54_Protobuf_DeserializeSpan, 'BM_S54_Protobuf_DeserializeSpan').Threads(1);
   Benchmark(BM_S54_Json_Roundtrip, 'BM_S54_Json_Roundtrip').Threads(1);
+  Benchmark(BM_S54_Json_SerializeUtf8, 'BM_S54_Json_SerializeUtf8').Threads(1);
   Benchmark(BM_S54_Orm_JsonConverter_Roundtrip, 'BM_S54_Orm_JsonConverter_Roundtrip').Threads(1);
   Benchmark(BM_S54_Tracing_BeginSpan_Inactive, 'BM_S54_Tracing_BeginSpan_Inactive').Threads(1);
   Benchmark(BM_S54_Grpc_SubStopwatch_Always, 'BM_S54_Grpc_SubStopwatch_Always').Threads(1);
