@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dext.Configuration.Binder - Dext Framework 1.0</title>
+    <title>Dext.Core.Json.NextGen - Dext Framework 1.0</title>
     
     <!-- Blocking script to avoid theme flicker --> 
     <script>
@@ -383,38 +383,674 @@
         
         <div id="contentArea">
             <!-- Main Documentation Content Injected Here -->
-            <h1>Unit Dext.Configuration.Binder</h1><h2>Classes</h2>
+            <h1>Unit Dext.Core.Json.NextGen</h1><h2>Classes</h2>
 <details class="mermaid-details" open>
 <summary>Class Diagram <span class="collapse-text">(Click to collapse)</span><span class="expand-text">(Click to expand)</span></summary>
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
-class TConfigurationBinder {    +BindInternal()
-    +GetValue()
-    +Bind~T~()
-    +Bind()
-    +Get~T~()
+class EJsonException {}
+Exception <|-- EJsonException
+class IJSONBufferOwner {}
+class TJSONBufferOwner {    +Create()
 }
-TObject <|-- TConfigurationBinder
+TInterfacedObject <|-- TJSONBufferOwner
+IJSONBufferOwner <|.. TJSONBufferOwner
+class IDextJsonNodeGetter {    +GetSelf()
+}
+class TJsonBaseObject {    +QueryInterface()
+    +_AddRef()
+    +_Release()
+    +Create()
+    +GetSelf()
+    +Parse()
+    +ToJson()
+}
+TObject <|-- TJsonBaseObject
+IInterface <|.. TJsonBaseObject
+IDextJsonNodeGetter <|.. TJsonBaseObject
+class TJsonKey {    +ToString()
+    +EqualsString()
+}
+class TNextGenJsonValue {    +Init()
+    +AsString()
+    +AsInteger()
+    +AsInt64()
+    +AsDouble()
+    +AsBoolean()
+    +IsNull()
+    +NodeType
+    +ValueSpan
+    +NodeRef
+}
+class TNextGenJsonPair {}
+class TJsonLookupTable {    +Create()
+}
+class TNextGenJsonParser {    +ScanString()
+    +ParseNumber()
+    +ParseInt64()
+    +ParseValue()
+    +ParseObject()
+    +ParseArray()
+    +ScanStructural_SSE42()
+    +Parse()
+}
+class TJsonObject {    +BuildHash()
+    +FindKey()
+    +AddOrReplacePair()
+    +GetS()
+    +SetS()
+    +GetI()
+    +SetI()
+    +GetL()
+    +SetL()
+    +GetD()
+    +SetD()
+    +GetB()
+    +SetB()
+    +GetO()
+    +SetO()
+    +GetA()
+    +SetA()
+    +GetTypes()
+    +_Release()
+    +Create()
+    +Destroy()
+    +AddPair()
+    +GetNodeType()
+    +AsString()
+    +AsInteger()
+    +AsInt64()
+    +AsDouble()
+    +AsBoolean()
+    +ToJson()
+    +IsNull()
+    +Contains()
+    +GetNode()
+    +GetString()
+    +GetInteger()
+    +GetInt64()
+    +GetDouble()
+    +GetBoolean()
+    +GetObject()
+    +GetArray()
+    +GetCount()
+    +GetName()
+    +SetString()
+    +SetInteger()
+    +SetInt64()
+    +SetDouble()
+    +SetBoolean()
+    +SetObject()
+    +SetArray()
+    +SetNode()
+    +SetNull()
+    +S
+    +I
+    +L
+    +D
+    +F
+    +B
+    +O
+    +A
+    +Types
+    +Count
+}
+TJsonBaseObject <|-- TJsonObject
+IDextJsonNode <|.. TJsonObject
+IDextJsonObject <|.. TJsonObject
+class TJsonArray {    +GetS()
+    +SetS()
+    +GetI()
+    +SetI()
+    +GetL()
+    +SetL()
+    +GetD()
+    +SetD()
+    +GetB()
+    +SetB()
+    +GetO()
+    +GetA()
+    +GetTypes()
+    +_Release()
+    +Create()
+    +Add()
+    +Destroy()
+    +AddValue()
+    +GetNodeType()
+    +AsString()
+    +AsInteger()
+    +AsInt64()
+    +AsDouble()
+    +AsBoolean()
+    +ToJson()
+    +IsNull()
+    +GetCount()
+    +GetNode()
+    +GetString()
+    +GetInteger()
+    +GetInt64()
+    +GetDouble()
+    +GetBoolean()
+    +GetObject()
+    +GetArray()
+    +AddNull()
+    +S
+    +I
+    +L
+    +D
+    +F
+    +B
+    +O
+    +A
+    +Types
+    +Count
+}
+TJsonBaseObject <|-- TJsonArray
+IDextJsonNode <|.. TJsonArray
+IDextJsonArray <|.. TJsonArray
+class TNextGenJsonPrimitive {    +Create()
+    +GetNodeType()
+    +AsString()
+    +AsInteger()
+    +AsInt64()
+    +AsDouble()
+    +AsBoolean()
+    +ToJson()
+    +IsNull()
+}
+TInterfacedObject <|-- TNextGenJsonPrimitive
+IDextJsonNode <|.. TNextGenJsonPrimitive
+class TNextGenJsonPool {    +RentObject()
+    +ReturnObject()
+    +RentArray()
+    +ReturnArray()
+    +ClearPool()
+}
+TObject <|-- TNextGenJsonPool
+class TNextGenJsonWriter {    +EnsureCapacity()
+    +WriteRawByte()
+    +WriteRawBytes()
+    +WriteEscapedString()
+    +WriteCommaIfNeeded()
+    +Init()
+    +Clear()
+    +StartObject()
+    +EndObject()
+    +StartArray()
+    +EndArray()
+    +WritePropertyName()
+    +WriteStringValue()
+    +WriteNumber()
+    +WriteBoolean()
+    +WriteNull()
+    +WriteRawValue()
+    +ToBytes()
+    +ToString()
+    +SaveToFile()
+    +Buffer
+    +Length
+}
+class TNextGenJsonProvider {    +CreateObject()
+    +CreateArray()
+    +Parse()
+}
+TInterfacedObject <|-- TNextGenJsonProvider
+IDextJsonProvider <|.. TNextGenJsonProvider
 </div>
 </div>
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>class TConfigurationBinder</h3><a name="TConfigurationBinder"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Binds configuration sections to object instances or values using RTTI.</div></div>
+<h3>class EJsonException</h3><a name="EJsonException"></a><div class="ancestor">Inherits from: Exception</div></div>
+<hr>
+<div class="class-header">
+<h3>interface IJSONBufferOwner</h3><a name="IJSONBufferOwner"></a></div>
+<hr>
+<div class="class-header">
+<h3>class TJSONBufferOwner</h3><a name="TJSONBufferOwner"></a><div class="ancestor">Inherits from: TInterfacedObject</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Bind&lt;T&gt;(Configuration: IConfiguration): T</div><div class="description">Creates a new instance of T and binds the configuration values to its properties.</div></div>
-<div class="api-item">
-<div class="api-signature">procedure Bind(Configuration: IConfiguration; Instance: TObject)</div><div class="description">Binds the configuration values to the properties of an existing object instance.</div></div>
-<div class="api-item">
-<div class="api-signature">function Get&lt;T&gt;(Configuration: IConfiguration): T</div><div class="description">Retrieves a strongly-typed value or object representation of the configuration.</div></div>
-</div>
-<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
-<div class="api-signature">procedure BindInternal(Configuration: IConfiguration; Instance: TObject; RttiType: TRttiType)</div></div>
-<div class="api-item">
-<div class="api-signature">function GetValue(Configuration: IConfiguration; RttiType: TRttiType; const const: string): TValue</div></div>
+<div class="api-signature">constructor Create(const const: TBytes)</div></div>
 </div>
 <hr>
+<div class="class-header">
+<h3>interface IDextJsonNodeGetter</h3><a name="IDextJsonNodeGetter"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function GetSelf: TObject</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TJsonBaseObject</h3><a name="TJsonBaseObject"></a><div class="ancestor">Inherits from: TObject</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(ARefCounted: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetSelf: TObject</div></div>
+<div class="api-item">
+<div class="api-signature">function Parse(const const: string): TJsonBaseObject</div></div>
+<div class="api-item">
+<div class="api-signature">function ToJson(Indented: Boolean): string</div></div>
+</div>
+<div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
+<div class="api-signature">function QueryInterface(const const: TGUID; out out): HResult</div></div>
+<div class="api-item">
+<div class="api-signature">function _AddRef: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function _Release: Integer</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TJsonKey</h3><a name="TJsonKey"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function ToString: string</div></div>
+<div class="api-item">
+<div class="api-signature">function EqualsString(const const: string): Boolean</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TNextGenJsonValue</h3><a name="TNextGenJsonValue"></a><div class="description">Representação leve e Zero-Allocation de um valor JSON.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure Init(AType: TDextJsonNodeType; const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">function AsString: string</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInteger: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInt64: Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function AsDouble: Double</div></div>
+<div class="api-item">
+<div class="api-signature">function AsBoolean: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function IsNull: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">property NodeType: </div></div>
+<div class="api-item">
+<div class="api-signature">property ValueSpan: </div></div>
+<div class="api-item">
+<div class="api-signature">property NodeRef: </div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TNextGenJsonPair</h3><a name="TNextGenJsonPair"></a></div>
+<hr>
+<div class="class-header">
+<h3>record TJsonLookupTable</h3><a name="TJsonLookupTable"></a><div class="description">Tabela de lookup de 256 bytes para validação léxica rápida.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TNextGenJsonParser</h3><a name="TNextGenJsonParser"></a><div class="description">Parser JSON NextGen focado em Zero-Allocation e Spans.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function ScanStructural_SSE42(Ptr: PByte; Length: Integer): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function Parse(const const: TByteSpan; const const: IInterface): IDextJsonNode</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure ScanString(var var: PByte)</div></div>
+<div class="api-item">
+<div class="api-signature">function ParseNumber(const const: TByteSpan): Double</div></div>
+<div class="api-item">
+<div class="api-signature">function ParseInt64(const const: TByteSpan): Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function ParseValue: TNextGenJsonValue</div></div>
+<div class="api-item">
+<div class="api-signature">function ParseObject: IDextJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">function ParseArray: IDextJsonArray</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TJsonObject</h3><a name="TJsonObject"></a><div class="ancestor">Inherits from: TJsonBaseObject</div><div class="description">Objeto JSON baseado em Spans.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(ARefCounted: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddPair(const const: TByteSpan; const const: TNextGenJsonValue)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddPair(const const: string; const const: TNextGenJsonValue)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetNodeType: TDextJsonNodeType</div></div>
+<div class="api-item">
+<div class="api-signature">function AsString: string</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInteger: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInt64: Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function AsDouble: Double</div></div>
+<div class="api-item">
+<div class="api-signature">function AsBoolean: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function ToJson(Indented: Boolean): string</div></div>
+<div class="api-item">
+<div class="api-signature">function IsNull: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function Contains(const const: string): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function GetNode(const const: string): IDextJsonNode</div></div>
+<div class="api-item">
+<div class="api-signature">function GetString(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetInteger(const const: string): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function GetInt64(const const: string): Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function GetDouble(const const: string): Double</div></div>
+<div class="api-item">
+<div class="api-signature">function GetBoolean(const const: string): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function GetObject(const const: string): IDextJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">function GetArray(const const: string): IDextJsonArray</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCount: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function GetName(Index: Integer): string</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetString(const const: string; const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetInteger(const const: string; Value: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetInt64(const const: string; Value: Int64)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetDouble(const const: string; Value: Double)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetBoolean(const const: string; Value: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetObject(const const: string; Value: IDextJsonObject)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetArray(const const: string; Value: IDextJsonArray)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetNode(const const: string; Value: IDextJsonNode)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetNull(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">property S: </div></div>
+<div class="api-item">
+<div class="api-signature">property I: </div></div>
+<div class="api-item">
+<div class="api-signature">property L: </div></div>
+<div class="api-item">
+<div class="api-signature">property D: </div></div>
+<div class="api-item">
+<div class="api-signature">property F: </div></div>
+<div class="api-item">
+<div class="api-signature">property B: </div></div>
+<div class="api-item">
+<div class="api-signature">property O: </div></div>
+<div class="api-item">
+<div class="api-signature">property A: </div></div>
+<div class="api-item">
+<div class="api-signature">property Types: </div></div>
+<div class="api-item">
+<div class="api-signature">property Count: </div></div>
+</div>
+<div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
+<div class="api-signature">function _Release: Integer</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure BuildHash</div></div>
+<div class="api-item">
+<div class="api-signature">function FindKey(const const: string): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddOrReplacePair(const const: string; const const: TNextGenJsonValue)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetS(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetS(const const: string; const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetI(const const: string): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetI(const const: string; Value: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetL(const const: string): Int64</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetL(const const: string; Value: Int64)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetD(const const: string): Double</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetD(const const: string; Value: Double)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetB(const const: string): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetB(const const: string; Value: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetO(const const: string): TJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetO(const const: string; Value: TJsonObject)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetA(const const: string): TJsonArray</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetA(const const: string; Value: TJsonArray)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetTypes(const const: string): TDextJsonNodeType</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TJsonArray</h3><a name="TJsonArray"></a><div class="ancestor">Inherits from: TJsonBaseObject</div><div class="description">Array JSON baseado em Spans.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(ARefCounted: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: TJsonObject)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: TJsonArray)</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddValue(const const: TNextGenJsonValue)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetNodeType: TDextJsonNodeType</div></div>
+<div class="api-item">
+<div class="api-signature">function AsString: string</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInteger: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInt64: Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function AsDouble: Double</div></div>
+<div class="api-item">
+<div class="api-signature">function AsBoolean: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function ToJson(Indented: Boolean): string</div></div>
+<div class="api-item">
+<div class="api-signature">function IsNull: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function GetCount: NativeInt</div></div>
+<div class="api-item">
+<div class="api-signature">function GetNode(Index: Integer): IDextJsonNode</div></div>
+<div class="api-item">
+<div class="api-signature">function GetString(Index: Integer): string</div></div>
+<div class="api-item">
+<div class="api-signature">function GetInteger(Index: Integer): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function GetInt64(Index: Integer): Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function GetDouble(Index: Integer): Double</div></div>
+<div class="api-item">
+<div class="api-signature">function GetBoolean(Index: Integer): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function GetObject(Index: Integer): IDextJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">function GetArray(Index: Integer): IDextJsonArray</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: Int64)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: Double)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: IDextJsonObject)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Add(Value: IDextJsonArray)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddNull</div></div>
+<div class="api-item">
+<div class="api-signature">property S: </div></div>
+<div class="api-item">
+<div class="api-signature">property I: </div></div>
+<div class="api-item">
+<div class="api-signature">property L: </div></div>
+<div class="api-item">
+<div class="api-signature">property D: </div></div>
+<div class="api-item">
+<div class="api-signature">property F: </div></div>
+<div class="api-item">
+<div class="api-signature">property B: </div></div>
+<div class="api-item">
+<div class="api-signature">property O: </div></div>
+<div class="api-item">
+<div class="api-signature">property A: </div></div>
+<div class="api-item">
+<div class="api-signature">property Types: </div></div>
+<div class="api-item">
+<div class="api-signature">property Count: </div></div>
+</div>
+<div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
+<div class="api-signature">function _Release: Integer</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">function GetS(Index: Integer): string</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetS(Index: Integer; const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetI(Index: Integer): Integer</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetI(Index: Integer; Value: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetL(Index: Integer): Int64</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetL(Index: Integer; Value: Int64)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetD(Index: Integer): Double</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetD(Index: Integer; Value: Double)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetB(Index: Integer): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetB(Index: Integer; Value: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetO(Index: Integer): TJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">function GetA(Index: Integer): TJsonArray</div></div>
+<div class="api-item">
+<div class="api-signature">function GetTypes(Index: Integer): TDextJsonNodeType</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TNextGenJsonPrimitive</h3><a name="TNextGenJsonPrimitive"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Node adaptador para valores primitivos de folha.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: TNextGenJsonValue)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetNodeType: TDextJsonNodeType</div></div>
+<div class="api-item">
+<div class="api-signature">function AsString: string</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInteger: Integer</div></div>
+<div class="api-item">
+<div class="api-signature">function AsInt64: Int64</div></div>
+<div class="api-item">
+<div class="api-signature">function AsDouble: Double</div></div>
+<div class="api-item">
+<div class="api-signature">function AsBoolean: Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function ToJson(Indented: Boolean): string</div></div>
+<div class="api-item">
+<div class="api-signature">function IsNull: Boolean</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TNextGenJsonPool</h3><a name="TNextGenJsonPool"></a><div class="ancestor">Inherits from: TObject</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function RentObject: TJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ReturnObject(AnObj: TJsonObject)</div></div>
+<div class="api-item">
+<div class="api-signature">function RentArray: TJsonArray</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ReturnArray(AnArr: TJsonArray)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ClearPool</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TNextGenJsonWriter</h3><a name="TNextGenJsonWriter"></a><div class="description">Record de escrita direta em UTF-8 para JSON de alta performance.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure Init(InitialCapacity: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Clear</div></div>
+<div class="api-item">
+<div class="api-signature">procedure StartObject</div></div>
+<div class="api-item">
+<div class="api-signature">procedure EndObject</div></div>
+<div class="api-item">
+<div class="api-signature">procedure StartArray</div></div>
+<div class="api-item">
+<div class="api-signature">procedure EndArray</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WritePropertyName(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WritePropertyName(const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteStringValue(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteStringValue(const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteNumber(AValue: Int64)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteNumber(AValue: Double)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteBoolean(AValue: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteNull</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteRawValue(const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">function ToBytes: TBytes</div></div>
+<div class="api-item">
+<div class="api-signature">function ToString: string</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SaveToFile(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">property Buffer: </div></div>
+<div class="api-item">
+<div class="api-signature">property Length: </div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure EnsureCapacity(ANeeded: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteRawByte(AByte: Byte)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteRawBytes(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteRawBytes(APtr: Pointer; ALength: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteEscapedString(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteCommaIfNeeded</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TNextGenJsonProvider</h3><a name="TNextGenJsonProvider"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Provedor padrão de JSON NextGen.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function CreateObject: IDextJsonObject</div></div>
+<div class="api-item">
+<div class="api-signature">function CreateArray: IDextJsonArray</div></div>
+<div class="api-item">
+<div class="api-signature">function Parse(const const: string): IDextJsonNode</div></div>
+</div>
+<hr>
+<h2>Types</h2>
+<div class="visibility-group"><div class="api-item">
+<div class="api-signature">type TJsonObject = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TJsonArray = Type</div></div>
+</div>
 
         </div>
     </div>

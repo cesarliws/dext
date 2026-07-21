@@ -82,6 +82,7 @@
 <a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
 <a href="Dext.Core.DirectAccess.html" class="nav-item">Dext.Core.DirectAccess</a>
 <a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
+<a href="Dext.Core.Json.NextGen.html" class="nav-item">Dext.Core.Json.NextGen</a>
 <a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
 <a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
 <a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
@@ -405,7 +406,7 @@ TObject <|-- TDextCodecRegistry
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>record TDextCodecPair</h3><a name="TDextCodecPair"></a></div>
+<h3>record TDextCodecPair</h3><a name="TDextCodecPair"></a><div class="description">Pair of generated protobuf read and write procedures for one Delphi type.</div></div>
 <hr>
 <div class="class-header">
 <h3>class TDextCodecRegistry</h3><a name="TDextCodecRegistry"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Global registry for protobuf codecs and static gRPC method invokers.</div></div>
@@ -432,11 +433,11 @@ TObject <|-- TDextCodecRegistry
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TDextCodecWriteProc = Type</div></div>
+<div class="api-signature">type TDextCodecWriteProc = Type</div><div class="description">Procedure signature used by generated protobuf writers.</div></div>
 <div class="api-item">
-<div class="api-signature">type TDextCodecReadProc = Type</div></div>
+<div class="api-signature">type TDextCodecReadProc = Type</div><div class="description">Procedure signature used by generated protobuf readers.</div></div>
 <div class="api-item">
-<div class="api-signature">type TDextGrpcMethodInvoker = Type</div></div>
+<div class="api-signature">type TDextGrpcMethodInvoker = Type</div><div class="description">Function signature used by generated gRPC service invokers.</div></div>
 </div>
 
         </div>
