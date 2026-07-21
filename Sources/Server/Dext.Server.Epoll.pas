@@ -68,8 +68,10 @@ type
       const ABuffer: TBytes; 
       ALength: Integer;
       out AMethod: string;
-      out APath: string;
-      out AQuery: string;
+      out APathOffset: Integer;
+      out APathLength: Integer;
+      out AQueryOffset: Integer;
+      out AQueryLength: Integer;
       out AHeaderSegments: THeaderSegments;
       out ABodyOffset: Integer;
       out AContentLength: Int64
@@ -294,9 +296,7 @@ type
     FTotalRequests: Int64;
 
     FWorkers: TList;
-<<<<<<< HEAD
     FExecutor: TDextBoundedExecutor;
-=======
     FProfileEnabled: Boolean;
     FTotalQueueDelayTicks: Int64;
     FTotalHandlerTicks: Int64;
@@ -306,7 +306,6 @@ type
     FSweepCount: Int64;
     FProfiledRequestCount: Int64;
     procedure ReportMetrics(const AContext: TDextEpollContext);
->>>>>>> main
   public
     property Executor: TDextBoundedExecutor read FExecutor;
 
@@ -946,7 +945,7 @@ begin
   FContext := AContext;
   FSocket := AContext.FFd;
   FGeneration := AContext.FGeneration;
-  FResponseWriter := TDextResponseWriter.Create;
+  FResponseWriter.Init;
   FHeadersSent := False;
   FStatusCode := 200;
   FReason := 'OK';
@@ -956,7 +955,6 @@ end;
 destructor TDextEpollResponse.Destroy;
 begin
   FHeaders.Free;
-  FResponseWriter.Free;
   inherited;
 end;
 
@@ -966,6 +964,8 @@ begin
 end;
 
 procedure TDextEpollResponse.Flush;
+label
+  SendFileCheck;
 var
   Iov: array[0..127] of iovec;
   IovCnt: Integer;
@@ -973,34 +973,31 @@ var
   TotalBytes: Integer;
   Event: epoll_event;
   SentFileBytes: NativeInt;
-  SegList: TArray<TDextBufferSegment>;
   SegCount: Integer;
   I: Integer;
   RemainingBytesToSkip: Integer;
   HasPendingWrite: Boolean;
   StartSend: Int64;
 begin
-<<<<<<< HEAD
+  HasPendingWrite := False;
   if FContext.FGeneration <> FGeneration then Exit;
-=======
   StartSend := 0;
   if (FContext <> nil) and (FContext.FEngine <> nil) and
      TDextEpollEngine(FContext.FEngine).FProfileEnabled then
   begin
     StartSend := TStopwatch.GetTimeStamp;
   end;
->>>>>>> main
 
   if not FHeadersSent then
     SendHeaders;
 
-  SegList := FResponseWriter.GetSegments(SegCount);
+  SegCount := FResponseWriter.SegmentCount;
   if SegCount <= 0 then
     goto SendFileCheck;
 
   TotalBytes := 0;
   for I := 0 to SegCount - 1 do
-    TotalBytes := TotalBytes + SegList[I].Length;
+    TotalBytes := TotalBytes + FResponseWriter.Segments[I].Length;
 
   if TotalBytes <= 0 then
     goto SendFileCheck;
@@ -1009,8 +1006,8 @@ begin
   for I := 0 to SegCount - 1 do
   begin
     if IovCnt >= Length(Iov) then Break;
-    Iov[IovCnt].iov_base := SegList[I].Buffer;
-    Iov[IovCnt].iov_len := SegList[I].Length;
+    Iov[IovCnt].iov_base := FResponseWriter.Segments[I].Data;
+    Iov[IovCnt].iov_len := FResponseWriter.Segments[I].Length;
     Inc(IovCnt);
   end;
 
@@ -1029,17 +1026,20 @@ begin
     if Res < TotalBytes then
     begin
       RemainingBytesToSkip := Res;
-      FContext.FWriteSegments := SegList;
+      SetLength(FContext.FWriteSegments, SegCount);
+      for I := 0 to SegCount - 1 do
+        FContext.FWriteSegments[I] := FResponseWriter.Segments[I];
       FContext.FWriteSegmentsCount := SegCount;
       FContext.FWriteSegIndex := 0;
       FContext.FWriteSegOffset := 0;
 
       for I := 0 to SegCount - 1 do
       begin
-        if RemainingBytesToSkip >= SegList[I].Length then
+        if RemainingBytesToSkip >= FResponseWriter.Segments[I].Length then
         begin
-          RemainingBytesToSkip := RemainingBytesToSkip - SegList[I].Length;
-          TDextBufferPool.Release(SegList[I].Owner);
+          RemainingBytesToSkip := RemainingBytesToSkip - FResponseWriter.Segments[I].Length;
+          if Assigned(FResponseWriter.Segments[I].ReleaseProc) then
+            FResponseWriter.Segments[I].ReleaseProc(FResponseWriter.Segments[I].Owner);
           FContext.FWriteSegIndex := I + 1;
         end
         else
@@ -1059,7 +1059,10 @@ begin
     else
     begin
       for I := 0 to SegCount - 1 do
-        TDextBufferPool.Release(SegList[I].Owner);
+      begin
+        if Assigned(FResponseWriter.Segments[I].ReleaseProc) then
+          FResponseWriter.Segments[I].ReleaseProc(FResponseWriter.Segments[I].Owner);
+      end;
     end;
   end;
 
@@ -1129,27 +1132,6 @@ begin
 
   if not FHeaders.ContainsKey('Content-Type') then
     FHeaders.Add('Content-Type', 'text/plain');
-
-<<<<<<< HEAD
-=======
-  if not FHeaders.ContainsKey('Connection') then
-  begin
-    if FContext.FKeepAlive then
-      FHeaders.Add('Connection', 'keep-alive')
-    else
-      FHeaders.Add('Connection', 'close');
-  end;
-
-  if not FHeaders.ContainsKey('Content-Length') then
-  begin
-    if FContext.FSendFileLen > 0 then
-      FHeaders.Add('Content-Length', FContext.FSendFileLen.ToString)
-    else
-      FHeaders.Add('Content-Length', FBodyLen.ToString);
-  end;
-
-  SetLength(FResponseBuffer, 512);
->>>>>>> main
   BufferOffset := 0;
 
   AppendStr('HTTP/1.1 ', TempBuf, BufferOffset);
@@ -1168,7 +1150,7 @@ begin
 
   AppendStr(#13#10, TempBuf, BufferOffset);
 
-  FResponseWriter.Write(@TempBuf[0], BufferOffset);
+  FResponseWriter.Write(TByteSpan.Create(@TempBuf[0], BufferOffset));
   FHeadersSent := True;
 end;
 
@@ -1200,7 +1182,7 @@ begin
   if not FHeadersSent then
     SendHeaders;
 
-  FResponseWriter.Write(@ABuffer[AOffset], ACount);
+  FResponseWriter.Write(TByteSpan.Create(@ABuffer[AOffset], ACount));
 end;
 
 procedure TDextEpollResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
@@ -1576,10 +1558,9 @@ var
   Ctx: TDextEpollContext;
   Iov: array[0..127] of iovec;
   IovCnt: Integer;
-  TotalBytes: Integer;
   RemainingBytesToSkip: Integer;
   SegLen: Integer;
-  I: Integer;
+  k: Integer;
   pthread_setaffinity_np: TFnPthreadSetAffinity;
   LibHandle: NativeUInt;
 begin
@@ -1718,20 +1699,20 @@ begin
             if Context.FWriteSegmentsCount > 0 then
             begin
               IovCnt := 0;
-              for I := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
+              for k := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
               begin
                 if IovCnt >= 128 then Break;
-                if I = Context.FWriteSegIndex then
+                if k = Context.FWriteSegIndex then
                 begin
-                  Iov[IovCnt].iov_base := PByte(Context.FWriteSegments[I].Buffer)
+                  Iov[IovCnt].iov_base := PByte(Context.FWriteSegments[k].Data)
                     + Context.FWriteSegOffset;
-                  Iov[IovCnt].iov_len := Context.FWriteSegments[I].Length
+                  Iov[IovCnt].iov_len := Context.FWriteSegments[k].Length
                     - Context.FWriteSegOffset;
                 end
                 else
                 begin
-                  Iov[IovCnt].iov_base := Context.FWriteSegments[I].Buffer;
-                  Iov[IovCnt].iov_len := Context.FWriteSegments[I].Length;
+                  Iov[IovCnt].iov_base := Context.FWriteSegments[k].Data;
+                  Iov[IovCnt].iov_len := Context.FWriteSegments[k].Length;
                 end;
                 Inc(IovCnt);
               end;
@@ -1740,19 +1721,20 @@ begin
               if SentBytes >= 0 then
               begin
                 RemainingBytesToSkip := SentBytes;
-                for I := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
+                for k := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
                 begin
-                  if I = Context.FWriteSegIndex then
-                    SegLen := Context.FWriteSegments[I].Length
+                  if k = Context.FWriteSegIndex then
+                    SegLen := Context.FWriteSegments[k].Length
                       - Context.FWriteSegOffset
                   else
-                    SegLen := Context.FWriteSegments[I].Length;
+                    SegLen := Context.FWriteSegments[k].Length;
 
                   if RemainingBytesToSkip >= SegLen then
                   begin
                     RemainingBytesToSkip := RemainingBytesToSkip - SegLen;
-                    TDextBufferPool.Release(Context.FWriteSegments[I].Owner);
-                    Context.FWriteSegIndex := I + 1;
+                    if Assigned(Context.FWriteSegments[k].ReleaseProc) then
+                      Context.FWriteSegments[k].ReleaseProc(Context.FWriteSegments[k].Owner);
+                    Context.FWriteSegIndex := k + 1;
                     Context.FWriteSegOffset := 0;
                   end
                   else
