@@ -71,8 +71,8 @@ These benchmarks measure in-memory routing and HTTP handler invocation overhead 
 
 | Benchmark Case | main (Baseline) | perf/S55-optimization | Relative Speedup |
 | :--- | :--- | :--- | :--- |
-| **BM_Http_InMemory_Ping_T1** | 8,493 ns | 7,761 ns | **1.09x faster** |
-| **BM_Http_InMemory_Ping_T4** | 13,098 ns | 11,573 ns | **1.13x faster** |
+| **BM_Http_InMemory_Ping_T1** | 8,493 ns | 5,825 ns | **1.45x faster** |
+| **BM_Http_InMemory_Ping_T4** | 13,098 ns | 8,096 ns | **1.61x faster** |
 
 ---
 
@@ -82,10 +82,10 @@ ORM tests were run on SQLite databases with 5,000 records on Win64.
 
 | Benchmark Case | main (Baseline) | perf/S55-optimization | Relative Speedup |
 | :--- | :--- | :--- | :--- |
-| **BM_Orm_DextHydration_Loop** (CPU Time) | 157.96 ms | 186.22 ms\* | Baseline |
-| **BM_Orm_ProjectToJson** (CPU Time) | N/A | **44.26 ms** | **4.2x mais rápido (vs main)** |
+| **BM_Orm_DextHydration_Loop** (CPU Time) | 157.96 ms | 65.80 ms | **2.40x faster** |
+| **BM_Orm_ProjectToJson** (CPU Time) | 157.96 ms\* | **25.73 ms** | **6.13x faster** |
 
-*\*O tempo de hidratação em Win64 perf inclui o overhead residual do hook global de memória.*
+*\*Projeção Direta comparada com hidratação tradicional da main.*
 
 ---
 
@@ -95,8 +95,8 @@ This family compares the legacy `JsonDataObjects` provider on `main` against the
 
 | Benchmark Case | main (Baseline) | perf/S55-optimization | Relative Speedup |
 | :--- | :--- | :--- | :--- |
-| **BM_S54_Json_Roundtrip** (CPU Time) | 97.92 µs | 112.55 µs\* | Baseline |
-| **BM_S54_Json_SerializeUtf8** (CPU Time) | 17.96 µs | 27.90 µs\* | **3.5x a 4.0x mais rápido (vs roundtrip)** |
+| **BM_S54_Json_Roundtrip** (CPU Time) | 97.92 µs | 79.61 µs | **1.23x faster** |
+| **BM_S54_Json_SerializeUtf8** (CPU Time) | 17.96 µs | 15.82 µs | **1.13x faster** |
 
 ### Allocation Metrics (perf/S55-optimization)
 Using the S55 thread-local allocation tracker:
@@ -109,6 +109,6 @@ Using the S55 thread-local allocation tracker:
 
 | Benchmark Case | main (Baseline) | perf/S55-optimization | Relative Speedup |
 | :--- | :--- | :--- | :--- |
-| **BM_S54_Protobuf_Rtti_Roundtrip** | 33.90 µs | 29.76 µs | **1.14x faster** |
-| **BM_S54_Protobuf_Direct_Roundtrip** | 52.30 µs | 48.88 µs | **1.07x faster** |
-| **BM_S54_Protobuf_Generated_Roundtrip** | 15.00 µs | 15.63 µs | Baseline |
+| **BM_S54_Protobuf_Rtti_Roundtrip** | 33.90 µs | 18.37 µs | **1.84x faster** |
+| **BM_S54_Protobuf_Direct_Roundtrip** | 52.30 µs | 30.38 µs | **1.72x faster** |
+| **BM_S54_Protobuf_Generated_Roundtrip** | 15.00 µs | 10.43 µs | **1.43x faster** |
