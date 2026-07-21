@@ -16,16 +16,21 @@ uses
 
 type
   /// <summary>
-  ///   Callback procedure reference type for executor tasks.
+  ///   Callback procedure pointer type for executor tasks.
   /// </summary>
-  TDextTaskProc = reference to procedure;
+  TDextTaskProc = procedure(Data: Pointer);
+
+  TDextTaskItem = record
+    Proc: TDextTaskProc;
+    Data: Pointer;
+  end;
 
   /// <summary>
   ///   High-performance non-generic circular ring buffer task queue.
   /// </summary>
   TDextTaskQueue = record
   private
-    FItems: TArray<TDextTaskProc>;
+    FItems: TArray<TDextTaskItem>;
     FHead: Integer;
     FTail: Integer;
     FCount: Integer;
@@ -33,8 +38,8 @@ type
   public
     procedure Initialize(ACapacity: Integer);
     procedure Clear;
-    function Enqueue(const ATask: TDextTaskProc): Boolean;
-    function Dequeue(var ATask: TDextTaskProc): Boolean;
+    function Enqueue(const ATask: TDextTaskItem): Boolean;
+    function Dequeue(var ATask: TDextTaskItem): Boolean;
     property Count: Integer read FCount;
   end;
 
@@ -56,7 +61,7 @@ type
   public
     constructor Create(AMaxThreads, AMaxQueueCapacity: Integer);
     destructor Destroy; override;
-    function TryEnqueue(const AProc: TDextTaskProc): Boolean;
+    function TryEnqueue(AProc: TDextTaskProc; AData: Pointer): Boolean;
     procedure Shutdown;
     property QueueCount: Integer read FQueueCount;
     property OnException: TProc<Exception> read FOnException write FOnException;
@@ -83,13 +88,16 @@ var
   i: Integer;
 begin
   for i := 0 to Length(FItems) - 1 do
-    FItems[i] := nil;
+  begin
+    FItems[i].Proc := nil;
+    FItems[i].Data := nil;
+  end;
   FHead := 0;
   FTail := 0;
   FCount := 0;
 end;
 
-function TDextTaskQueue.Enqueue(const ATask: TDextTaskProc): Boolean;
+function TDextTaskQueue.Enqueue(const ATask: TDextTaskItem): Boolean;
 begin
   if FCount >= FCapacity then
     Exit(False);
@@ -100,13 +108,14 @@ begin
   Result := True;
 end;
 
-function TDextTaskQueue.Dequeue(var ATask: TDextTaskProc): Boolean;
+function TDextTaskQueue.Dequeue(var ATask: TDextTaskItem): Boolean;
 begin
   if FCount <= 0 then
     Exit(False);
 
   ATask := FItems[FHead];
-  FItems[FHead] := nil;
+  FItems[FHead].Proc := nil;
+  FItems[FHead].Data := nil;
   FHead := (FHead + 1) mod FCapacity;
   Dec(FCount);
   Result := True;
@@ -178,13 +187,16 @@ begin
   end;
 end;
 
-function TDextBoundedExecutor.TryEnqueue(
-  const AProc: TDextTaskProc): Boolean;
+function TDextBoundedExecutor.TryEnqueue(AProc: TDextTaskProc; AData: Pointer): Boolean;
+var
+  Item: TDextTaskItem;
 begin
   Result := False;
+  Item.Proc := AProc;
+  Item.Data := AData;
   FLock.Enter;
   try
-    if FRunning and FQueue.Enqueue(AProc) then
+    if FRunning and FQueue.Enqueue(Item) then
     begin
       FQueueCount := FQueue.Count;
       Result := True;
@@ -198,7 +210,7 @@ end;
 
 procedure TDextBoundedExecutor.WorkerExecute(AThread: TThread);
 var
-  Task: TDextTaskProc;
+  Task: TDextTaskItem;
 begin
   while not THackThread(AThread).Terminated do
   begin
@@ -206,7 +218,8 @@ begin
     if not FRunning then
       Break;
 
-    Task := nil;
+    Task.Proc := nil;
+    Task.Data := nil;
     FLock.Enter;
     try
       if FQueue.Dequeue(Task) then
@@ -215,10 +228,10 @@ begin
       FLock.Leave;
     end;
 
-    if Assigned(Task) then
+    if Assigned(Task.Proc) then
     begin
       try
-        Task();
+        Task.Proc(Task.Data);
       except
         on E: Exception do
           if Assigned(FOnException) then
