@@ -17,6 +17,8 @@ If you use **TMS Smart Setup**, the installation, compilation, and IDE configura
 >   tms server-enable community
 >   ```
 > * **Via GUI Tool**: Launch the `tmsgui.exe` application. (If this is a new workspace, the initialization wizard will immediately ask you which servers to enable. Otherwise, click on the Settings gear icon in the top right and ensure the **Community Server** option is enabled).
+> 
+>   ![TMS Smart Setup Community](../../Images/smart-setup-community.png)
 
 Once the Community Server is enabled, you can install Dext using either the Graphical User Interface (GUI) or the Command Line Interface (CLI):
 
