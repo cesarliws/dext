@@ -40,3 +40,4 @@ history.json
 *.hpp
 dext-symbols.*
 *.deployproj
+/Benchmarks/Dext.Benchmarks

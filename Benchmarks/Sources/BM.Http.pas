@@ -6,7 +6,7 @@ uses
   Spring.Benchmark;
 
 procedure BM_Http_Indy_Ping(const state: TState);
-procedure BM_Http_HttpSys_Ping(const state: TState);
+procedure BM_Http_Native_Ping(const state: TState);
 procedure BM_Http_InMemory_Ping(const state: TState);
 procedure RunStandaloneServer(const AEngine: string);
 procedure InitializeHttpBenchmarks;
@@ -288,7 +288,7 @@ begin
     end);
     
   GNativeHost := Builder.Build as IWebApplication;
-  GNativeHost.UseNativeServer(TServerEngineOptions.Default.WithBindAddress('localhost'));
+  GNativeHost.UseNativeServer(TServerEngineOptions.Default.WithBindAddress('127.0.0.1'));
 
   PortTry := 8090;
   while PortTry < 8100 do
@@ -376,7 +376,7 @@ begin
   end;
 end;
 
-procedure BM_Http_HttpSys_Ping(const state: TState);
+procedure BM_Http_Native_Ping(const state: TState);
 var
   Client: THTTPClient;
   Url: string;
@@ -421,6 +421,8 @@ var
   Builder: IWebHostBuilder;
   DurationText: string;
   DurationMs: Integer;
+  Port: Integer;
+  ExplicitPort: Boolean;
 begin
   Builder := TDextWebHost.CreateDefaultBuilder;
   Builder.Configure(
@@ -439,25 +441,65 @@ begin
      SameText(AEngine, '-epoll') or SameText(AEngine, 'epoll') or
      SameText(AEngine, '-native') or SameText(AEngine, 'native') then
   begin
-    var Options := TServerEngineOptions.Default;
-    Options.BindAddress := '127.0.0.1';
-    Host.UseNativeServer(Options);
-    {$IFDEF MSWINDOWS}
-    Writeln('Starting http.sys server on http://127.0.0.1:8085/ping');
-    {$ELSE}
-    Writeln('Starting Epoll server on http://127.0.0.1:8085/ping');
-    {$ENDIF}
-    Host.Start(8085);
-  end
-  else if SameText(AEngine, '-indy') or SameText(AEngine, 'indy') then
+    Host.UseNativeServer;
+  end;
+
+  ExplicitPort := False;
+  Port := 8085;
+  if (ParamCount >= 3) and TryStrToInt(ParamStr(3), Port) then
   begin
-    Writeln('Starting Indy server on http://127.0.0.1:8085/ping');
-    Host.Start(8085);
+    ExplicitPort := True;
+  end
+  else if SameText(AEngine, '-httpsys') or SameText(AEngine, 'httpsys') or
+          SameText(AEngine, '-epoll') or SameText(AEngine, 'epoll') or
+          SameText(AEngine, '-native') or SameText(AEngine, 'native') then
+  begin
+    Port := 8086;
+  end;
+
+  if ExplicitPort then
+  begin
+    Host.Start(Port);
   end
   else
   begin
-    Writeln('Unknown engine: ', AEngine);
-    Exit;
+    while Port < 8100 do
+    begin
+      try
+        Host.Start(Port);
+        Break;
+      except
+        on E: EOSError do
+        begin
+          if E.ErrorCode = 5 then
+            raise; // Propaga erro de permissão do http.sys
+          Inc(Port);
+          if Port >= 8100 then
+            raise;
+        end;
+        on E: Exception do
+        begin
+          Inc(Port);
+          if Port >= 8100 then
+            raise;
+        end;
+      end;
+    end;
+  end;
+
+  if SameText(AEngine, '-httpsys') or SameText(AEngine, 'httpsys') or
+     SameText(AEngine, '-epoll') or SameText(AEngine, 'epoll') or
+     SameText(AEngine, '-native') or SameText(AEngine, 'native') then
+  begin
+    {$IFDEF MSWINDOWS}
+    Writeln(Format('Starting http.sys server on http://127.0.0.1:%d/ping', [Port]));
+    {$ELSE}
+    Writeln(Format('Starting Epoll server on http://127.0.0.1:%d/ping', [Port]));
+    {$ENDIF}
+  end
+  else
+  begin
+    Writeln(Format('Starting Indy server on http://127.0.0.1:%d/ping', [Port]));
   end;
 
   DurationText := GetEnvironmentVariable('DEXT_SERVER_DURATION_MS');
@@ -468,8 +510,9 @@ begin
   end
   else
   begin
-    Writeln('Server is running. Press [ENTER] to stop.');
-    Readln;
+    Writeln('Server is running.');
+    while True do
+      TThread.Sleep(1000);
   end;
   Host.Stop;
 end;
@@ -495,8 +538,13 @@ initialization
   Benchmark(BM_Http_Indy_Ping, 'BM_Http_Indy_Ping_T1').Threads(1);
   Benchmark(BM_Http_Indy_Ping, 'BM_Http_Indy_Ping_T4').Threads(4);
   
-  Benchmark(BM_Http_HttpSys_Ping, 'BM_Http_HttpSys_Ping_T1').Threads(1);
-  Benchmark(BM_Http_HttpSys_Ping, 'BM_Http_HttpSys_Ping_T4').Threads(4);
+{$IFDEF MSWINDOWS}
+  Benchmark(BM_Http_Native_Ping, 'BM_Http_HttpSys_Ping_T1').Threads(1);
+  Benchmark(BM_Http_Native_Ping, 'BM_Http_HttpSys_Ping_T4').Threads(4);
+{$ELSE}
+  Benchmark(BM_Http_Native_Ping, 'BM_Http_Epoll_Ping_T1').Threads(1);
+  Benchmark(BM_Http_Native_Ping, 'BM_Http_Epoll_Ping_T4').Threads(4);
+{$ENDIF}
   
   // Run in-memory routing overhead benchmark scaling from 1 to 4 threads
   Benchmark(BM_Http_InMemory_Ping, 'BM_Http_InMemory_Ping_T1').Threads(1);

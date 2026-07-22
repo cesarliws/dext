@@ -1049,6 +1049,8 @@ begin
   Addr.sin_port := htons(FListeningPort);
   if (FAddress = '') or (FAddress = '0.0.0.0') then
     Addr.sin_addr.S_addr := INADDR_ANY
+  else if SameText(FAddress, 'localhost') or (FAddress = '127.0.0.1') then
+    Addr.sin_addr.S_addr := inet_addr('127.0.0.1')
   else
     Addr.sin_addr.S_addr := inet_addr(PAnsiChar(AnsiString(FAddress)));
 

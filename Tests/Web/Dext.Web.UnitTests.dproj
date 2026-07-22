@@ -75,7 +75,7 @@
         <DCC_F>false</DCC_F>
         <DCC_K>false</DCC_K>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>..\..\Sources\Common;..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\Sources\Common;..\..\Sources\Core;..\..\Sources\Core\Base;..\..\Sources\Core\Json;..\..\Sources\Core\Interception;..\..\Sources\Web;..\..\Sources\Net;..\..\Sources\ORM;..\..\Sources\Logging;..\..\Sources\JSON;..\..\Sources\Testing;..\..\Sources\Server;..\..\Sources\Hosting;..\..\Sources\Hosting\CLI;..\..\Sources\Data;..\..\Sources\Events;..\..\Sources\Hubs;..\..\Sources\Hubs\Transports;..\..\Sources\AI;..\..\Sources\AI\MCP;..\..\Sources\UI;..\..\Sources\Performance;..\..\Sources\Debug;..\..\Sources\Design;..\..\Sources\Dashboard;..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <SanitizedProjectName>Dext_Web_UnitTests</SanitizedProjectName>
         <VerInfo_Locale>1046</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>

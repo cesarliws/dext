@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -582,7 +582,8 @@ end;
 
 destructor TControllerScanner.Destroy;
 begin
-  inherited;
+  FCachedMethods := nil;
+  inherited Destroy;
 end;
 
 function TControllerScanner.CreateHandler(const AMethod: TCachedMethod): TRequestDelegate;

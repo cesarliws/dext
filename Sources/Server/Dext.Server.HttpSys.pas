@@ -2322,6 +2322,16 @@ begin
     UrlPrefix := Format('http://%s:%d/', [FAddress, FListeningPort]);
     
   Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
+  if (Ret = 5) and ((FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '')) then
+  begin
+    UrlPrefix := Format('http://127.0.0.1:%d/', [FListeningPort]);
+    Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
+    if Ret = ERROR_SUCCESS then
+    begin
+      var LocalhostPrefix: string := Format('http://localhost:%d/', [FListeningPort]);
+      HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
+    end;
+  end;
   if Ret <> ERROR_SUCCESS then
   begin
     if Ret = 5 then

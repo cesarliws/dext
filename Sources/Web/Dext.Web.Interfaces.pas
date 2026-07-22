@@ -693,12 +693,29 @@ procedure TRouteValueDictionary.Clear;
 var
   i: Integer;
 begin
-  if FCount > 0 then
+  if (FCount > 0) and (FCount <= 16) then
   begin
     for i := 0 to FCount - 1 do
-      FPairs[i] := Default(TRouteParamPair);
-    FCount := 0;
+    begin
+      FPairs[i].Key := '';
+      FPairs[i].Value := '';
+      FPairs[i].Source := '';
+      FPairs[i].Offset := 0;
+      FPairs[i].Length := 0;
+    end;
+  end
+  else
+  begin
+    for i := 0 to 15 do
+    begin
+      FPairs[i].Key := '';
+      FPairs[i].Value := '';
+      FPairs[i].Source := '';
+      FPairs[i].Offset := 0;
+      FPairs[i].Length := 0;
+    end;
   end;
+  FCount := 0;
 end;
 
 function TRouteValueDictionary.GetItem(const AKey: string): string;

@@ -3,17 +3,19 @@ unit Dext.OpenAPI.Generator;
 interface
 
 uses
-  System.SysUtils,
   System.Rtti,
+  System.SysUtils,
   System.TypInfo,
-  Dext,
   Dext.Collections,
   Dext.Collections.Dict,
-  Dext.OpenAPI.Types,
-  Dext.OpenAPI.Attributes,
-  Dext.Web.Interfaces,
+  Dext.Core.Json.NextGen,
   Dext.Core.Reflection,
-  Dext.Json;
+  Dext.Json,
+  Dext.Json.Types,
+  Dext.OpenAPI.Attributes,
+  Dext.OpenAPI.Types,
+  Dext.Web.Interfaces,
+  Dext;
 
 type
   /// <summary>

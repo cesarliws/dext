@@ -6,19 +6,18 @@ program Dext.Benchmarks;
 {$R *.res}
 
 uses
-{$IFDEF WIN64}
-  {$IFDEF USE_RDP}
-  RDPMM64 in 'RDPMM64.pas',
-  RDPSimd64 in 'RDPSimd64.pas',
+  {$IFDEF WIN64}
+    {$IFDEF USE_RDP}
+      RDPMM64 in 'RDPMM64.pas',
+      RDPSimd64 in 'RDPSimd64.pas',
+    {$ENDIF}
   {$ENDIF}
-{$ENDIF}
   {$IFDEF LINUX}
   Dext.LinuxExceptionLogger in 'Sources\Dext.LinuxExceptionLogger.pas',
   {$ENDIF}
   System.SysUtils,
   Spring.Benchmark in '..\External\Spring4D\Spring.Benchmark.pas',
-  Dext.Performance.Allocator in
-    '..\Sources\Performance\Dext.Performance.Allocator.pas',
+  Dext.Performance.Allocator in '..\Sources\Performance\Dext.Performance.Allocator.pas',
   BM.Http in 'Sources\BM.Http.pas',
   BM.Orm in 'Sources\BM.Orm.pas',
   BM.S54 in 'Sources\BM.S54.pas';

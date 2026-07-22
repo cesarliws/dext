@@ -41,23 +41,24 @@ interface
 
 uses
   System.Classes,
-  System.SysUtils,
   System.Rtti,
-  IdCustomHTTPServer,
+  System.SysUtils,
+  System.TypInfo,
   IdContext,
+  IdCustomHTTPServer,
   IdGlobal,
   IdHeaderList,
   IdURI,
+  Dext.Auth.Identity,
   Dext.Collections,
   Dext.Collections.Dict,
-  Dext.Web.Interfaces,
   Dext.DI.Interfaces,
-  Dext, // Para TDextServices
-  Dext.Auth.Identity,
-  Dext.Web.Indy.Types,
-  Dext.Web.Results,
   Dext.Json,
-  Dext.Server.Engine.Interfaces;
+  Dext.Server.Engine.Interfaces,
+  Dext.Web.Indy.Types,
+  Dext.Web.Interfaces,
+  Dext.Web.Results,
+  Dext; // Para TDextServices
 
 type
   TIndyStreamMode = (ismNormal, ismBuffering, ismChunking);

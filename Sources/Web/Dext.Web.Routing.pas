@@ -1009,7 +1009,7 @@ var
   CompiledLeaf: TDextCompiledRouteLeaf;
   PathNode: PDextCompiledRouteNode;
 begin
-  ARouteParams.Clear;
+  FillChar(ARouteParams, SizeOf(ARouteParams), 0);
   Result := False;
   Method := AContext.Request.Method;
   Path := AContext.Request.Path;

@@ -31,16 +31,17 @@ interface
 
 uses
   System.Classes,
-  System.SysUtils,
-  System.SyncObjs,
-  System.Math,
   System.Generics.Defaults,
-  Dext.Server.Engine.Types,
-  Dext.Server.Engine.Interfaces,
-  Dext.Server.Iocp.HttpParser,
+  System.Math,
+  System.SyncObjs,
+  System.SysUtils,
+  System.Types,
   Dext.Collections.Dict,
   Dext.Core.Span,
   Dext.Server.BoundedExecutor,
+  Dext.Server.Engine.Interfaces,
+  Dext.Server.Engine.Types,
+  Dext.Server.Iocp.HttpParser,
   Dext.Web.ResponseWriter;
 
 type
@@ -348,6 +349,7 @@ type
     FTotalSweepTicks: Int64;
     FSweepCount: Int64;
     FProfiledRequestCount: Int64;
+  protected
     procedure ReportMetrics(const AContext: TDextEpollContext);
   public
     property Executor: TDextBoundedExecutor read FExecutor;
@@ -1176,13 +1178,37 @@ var
   TempBuf: array[0..2047] of Byte;
   BufferOffset: Integer;
   Pair: TPair<string, string>;
+  SegCount, TotalBytes, I: Integer;
 begin
   if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then Exit;
 
+  BufferOffset := 0;
+
   if not FHeaders.ContainsKey('Content-Type') then
     FHeaders.Add('Content-Type', 'text/plain');
-  BufferOffset := 0;
+
+  if not FHeaders.ContainsKey('Content-Length') then
+  begin
+    if FContext.FSendFileLen > 0 then
+      FHeaders.Add('Content-Length', IntToStr(FContext.FSendFileLen))
+    else
+    begin
+      SegCount := FResponseWriter.SegmentCount;
+      TotalBytes := 0;
+      for I := 0 to SegCount - 1 do
+        TotalBytes := TotalBytes + FResponseWriter.Segments[I].Length;
+      FHeaders.Add('Content-Length', IntToStr(TotalBytes));
+    end;
+  end;
+
+  if not FHeaders.ContainsKey('Connection') then
+  begin
+    if FContext.FKeepAlive then
+      FHeaders.Add('Connection', 'keep-alive')
+    else
+      FHeaders.Add('Connection', 'close');
+  end;
 
   AppendStr('HTTP/1.1 ', TempBuf, BufferOffset);
   AppendStr(IntToStr(FStatusCode), TempBuf, BufferOffset);
@@ -1544,9 +1570,7 @@ begin
   OptVal := 1;
   setsockopt(FListenSocket, SOL_SOCKET, 15, OptVal, SizeOf(OptVal));
 
-  // Enable TCP_DEFER_ACCEPT
-  OptVal := 10;
-  setsockopt(FListenSocket, IPPROTO_TCP, TCP_DEFER_ACCEPT, OptVal, SizeOf(OptVal));
+  // TCP_DEFER_ACCEPT removed to avoid 10-second epoll_wait connection notification delays
 
   // Enable TCP_FASTOPEN
   OptVal := SOMAXCONN;
@@ -1559,6 +1583,8 @@ begin
   Addr.sin_port := htons(FEngine.FListeningPort);
   if (FEngine.FAddress = '') or (FEngine.FAddress = '0.0.0.0') then
     Addr.sin_addr.s_addr := INADDR_ANY
+  else if SameText(FEngine.FAddress, 'localhost') or (FEngine.FAddress = '127.0.0.1') then
+    Addr.sin_addr.s_addr := inet_addr('127.0.0.1')
   else
     Addr.sin_addr.s_addr := inet_addr(PAnsiChar(AnsiString(FEngine.FAddress)));
 
@@ -1709,17 +1735,19 @@ begin
         begin
           shutdown(LFd, 1);
           FillChar(LTaskEvent, SizeOf(LTaskEvent), 0);
-          LTaskEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+          LTaskEvent.events := EPOLLIN or EPOLLONESHOT;
           LTaskEvent.data.ptr := AContext;
           epoll_ctl(LEpollFd, EPOLL_CTL_MOD, LFd, @LTaskEvent);
         end
         else
         begin
-          AContext.FReadLen := 0;
           FillChar(LTaskEvent, SizeOf(LTaskEvent), 0);
-          LTaskEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+          LTaskEvent.events := EPOLLIN or EPOLLONESHOT;
           LTaskEvent.data.ptr := AContext;
           epoll_ctl(LEpollFd, EPOLL_CTL_MOD, LFd, @LTaskEvent);
+
+          if AContext.FReadLen > 0 then
+            ProcessBuffer(AContext);
         end;
       end;
 
@@ -1795,6 +1823,16 @@ begin
       TInterlocked.Increment(FEngine.FTotalRequests);
       AContext.FConsumedBytes := BodyOffset + ContentLength;
 
+      if (AContext.FConsumedBytes > 0) and (AContext.FConsumedBytes < AContext.FReadLen) then
+      begin
+        var Remaining: Integer := AContext.FReadLen - AContext.FConsumedBytes;
+        Move(AContext.FReadBuffer[AContext.FConsumedBytes], AContext.FReadBuffer[0], Remaining);
+        AContext.FReadLen := Remaining;
+      end
+      else
+        AContext.FReadLen := 0;
+      AContext.FConsumedBytes := 0;
+
       Connection := TDextEpollConnection.Create(AContext.FFd);
       RawRequest := TDextEpollRequest.Create(
         Method,
@@ -1832,49 +1870,38 @@ begin
 
   // Se incompleto, rearma no Epoll para leitura
   FillChar(Event, SizeOf(Event), 0);
-  Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+  Event.events := EPOLLIN or EPOLLONESHOT;
   Event.data.ptr := AContext;
   epoll_ctl(FEpollFd, EPOLL_CTL_MOD, AContext.FFd, @Event);
 end;
 
 procedure TDextEpollWorker.Execute;
 var
-  EventCount: Integer;
-  i: Integer;
-  Events: array[0..63] of epoll_event;
-  Event: epoll_event;
-  Fd: Integer;
-  ClientFd: Integer;
   Addr: sockaddr_in;
   AddrLen: socklen_t;
-  RecvRet: Integer;
-  Method: string;
-  PathOffset: Integer;
-  PathLen: Integer;
-  QueryOffset: Integer;
-  QueryLen: Integer;
-  HeaderSegments: THeaderSegments;
-  BodyOffset: Integer;
-  ContentLength: Int64;
-  Connection: IDextServerConnection;
-  RawRequest: IDextRawRequest;
-  RawResponse: IDextRawResponse;
+  ClientFd: Integer;
   Context: TDextEpollContext;
-  ReadFailedOrClosed: Boolean;
-  SentBytes: Integer;
-  Mask: cpu_set_t;
-  OptVal: Integer;
-  LingerOption: linger;
-  SentFileBytes: NativeInt;
-  NowTicks: Int64;
-  j: Integer;
   Ctx: TDextEpollContext;
+  Event: epoll_event;
+  EventCount: Integer;
+  Events: array[0..63] of epoll_event;
+  Fd: Integer;
+  i: Integer;
   Iov: array[0..127] of iovec;
   IovCnt: Integer;
+  j: Integer;
   k: Integer;
-  pthread_setaffinity_np: TFnPthreadSetAffinity;
   LibHandle: NativeUInt;
+  LingerOption: linger;
+  Mask: cpu_set_t;
+  NowTicks: Int64;
+  OptVal: Integer;
+  pthread_setaffinity_np: TFnPthreadSetAffinity;
   ReadByte: Byte;
+  ReadFailedOrClosed: Boolean;
+  RecvRet: Integer;
+  SentBytes: Integer;
+  SentFileBytes: NativeInt;
 begin
   // CPU Pinning (resolved dynamically to avoid linker errors)
   LibHandle := dlopen(nil, RTLD_LAZY);
@@ -1986,8 +2013,7 @@ begin
               end;
             end;
 
-            // Edge Triggered + One Shot
-            Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+            Event.events := EPOLLIN or EPOLLONESHOT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_ADD, ClientFd, @Event);
 
@@ -2115,7 +2141,7 @@ begin
               begin
                 Context.FReadLen := 0;
                 FillChar(Event, SizeOf(Event), 0);
-                Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+                Event.events := EPOLLIN or EPOLLONESHOT;
                 Event.data.ptr := Context;
                 epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
                 Continue;
@@ -2123,7 +2149,7 @@ begin
             end;
 
             FillChar(Event, SizeOf(Event), 0);
-            Event.events := EPOLLOUT or EPOLLET or EPOLLONESHOT;
+            Event.events := EPOLLOUT or EPOLLONESHOT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
             Continue;
@@ -2178,7 +2204,7 @@ begin
 
             // Se incompleto, rearma no Epoll para leitura
             FillChar(Event, SizeOf(Event), 0);
-            Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+            Event.events := EPOLLIN or EPOLLONESHOT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
             Continue;
@@ -2354,7 +2380,8 @@ begin
   // Drain application work while reactor workers and their connection
   // contexts are still alive. This prevents executor completions from
   // accessing contexts after the owning worker has been destroyed.
-  FExecutor.Shutdown;
+  if Assigned(FExecutor) then
+    FExecutor.Shutdown;
 
   for I := 0 to FWorkers.Count - 1 do
   begin
