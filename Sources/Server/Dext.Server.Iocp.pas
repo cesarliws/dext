@@ -68,6 +68,7 @@ type
     /// <param name="ARemotePort">The client port.</param>
     /// <param name="ALocalPort">The local server listening port.</param>
     constructor Create(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
+    procedure Init(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
     /// <summary>Cleans up connection resources.</summary>
     destructor Destroy; override;
     
@@ -98,6 +99,7 @@ type
   TDextReadOnlyBytesStream = class(TCustomMemoryStream)
   public
     constructor Create(const ABytes: TBytes; AOffset, ALen: Integer);
+    procedure Init(const ABytes: TBytes; AOffset, ALen: Integer);
   end;
 
   /// <summary>
@@ -141,6 +143,13 @@ type
       ABodyOffset, ABodyLen: Integer;
       AContentLength: Int64
     );
+    procedure Init(
+      const AMethod, APath, AQuery: string;
+      const AHeaderSegments: THeaderSegments;
+      ABody: TBytes;
+      ABodyOffset, ABodyLen: Integer;
+      AContentLength: Int64
+    );
     /// <summary>Cleans up request resources.</summary>
     destructor Destroy; override;
   end;
@@ -155,10 +164,13 @@ type
     FStatusCode: Integer;
     FReason: string;
     FHeaders: TDictionary<string, string>;
+    FHeaderBuffer: TBytes;
+    FFileBuffer: TBytes;
   public
     /// <summary>Initializes a new IOCP response wrapper.</summary>
     /// <param name="ASocket">The raw socket descriptor.</param>
     constructor Create(ASocket: TSocket);
+    procedure Init(ASocket: TSocket);
     /// <summary>Cleans up response resources.</summary>
     destructor Destroy; override;
 
@@ -308,6 +320,11 @@ const
 constructor TDextIocpConnection.Create(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
 begin
   inherited Create;
+  Init(ASocket, ARemoteAddress, ARemotePort, ALocalPort);
+end;
+
+procedure TDextIocpConnection.Init(ASocket: TSocket; const ARemoteAddress: string; ARemotePort, ALocalPort: Word);
+begin
   FSocket := ASocket;
   FRemoteAddress := ARemoteAddress;
   FRemotePort := ARemotePort;
@@ -382,6 +399,11 @@ end;
 constructor TDextReadOnlyBytesStream.Create(const ABytes: TBytes; AOffset, ALen: Integer);
 begin
   inherited Create;
+  Init(ABytes, AOffset, ALen);
+end;
+
+procedure TDextReadOnlyBytesStream.Init(const ABytes: TBytes; AOffset, ALen: Integer);
+begin
   if ALen > 0 then
     SetPointer(@ABytes[AOffset], ALen)
   else
@@ -399,20 +421,34 @@ constructor TDextIocpRequest.Create(
 );
 begin
   inherited Create;
+  Init(AMethod, APath, AQuery, AHeaderSegments, ABody, ABodyOffset, ABodyLen, AContentLength);
+end;
+
+procedure TDextIocpRequest.Init(
+  const AMethod, APath, AQuery: string;
+  const AHeaderSegments: THeaderSegments;
+  ABody: TBytes;
+  ABodyOffset, ABodyLen: Integer;
+  AContentLength: Int64
+);
+begin
   FMethod := AMethod;
   FPath := APath;
   FQuery := AQuery;
   FHeaderSegments := AHeaderSegments;
   FContentLength := AContentLength;
   FHeaderCacheCount := 0;
+  FBuffer := ABody;
 
-  // Cópia restrita aos bytes úteis do request para thread-safety
-  FBuffer := Copy(ABody, 0, ABodyOffset + ABodyLen);
+  if FResolvedHeaders = nil then
+    FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0)
+  else
+    FResolvedHeaders.Clear;
 
-  FResolvedHeaders := TDictionary<string, string>.Create(True, False, 0);
-
-  // Stream que lê diretamente do buffer sem cópia adicional
-  FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen);
+  if FBodyStream = nil then
+    FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen)
+  else
+    TDextReadOnlyBytesStream(FBodyStream).Init(FBuffer, ABodyOffset, ABodyLen);
 end;
 
 destructor TDextIocpRequest.Destroy;
@@ -499,15 +535,38 @@ end;
 
 procedure TDextIocpRequest.PopulateHeaders(ADict: TDictionary<string, string>);
 var
-  I: Integer;
+  i: Integer;
   Seg: THeaderSegment;
   Key, Value: string;
+  KeyStart, KeyLen: Integer;
+  ValStart, ValLen: Integer;
 begin
-  for I := 0 to Length(FHeaderSegments) - 1 do
+  for i := 0 to Length(FHeaderSegments) - 1 do
   begin
-    Seg := FHeaderSegments[I];
-    Key := TEncoding.UTF8.GetString(FBuffer, Seg.KeyStart, Seg.KeyLen).Trim.ToLower;
-    Value := ResolveHeader(Key);
+    Seg := FHeaderSegments[i];
+
+    KeyStart := Seg.KeyStart;
+    KeyLen := Seg.KeyLen;
+    while (KeyLen > 0) and ((FBuffer[KeyStart] = 32) or (FBuffer[KeyStart] = 9)) do
+    begin
+      Inc(KeyStart);
+      Dec(KeyLen);
+    end;
+    while (KeyLen > 0) and ((FBuffer[KeyStart + KeyLen - 1] = 32) or (FBuffer[KeyStart + KeyLen - 1] = 9)) do
+      Dec(KeyLen);
+
+    ValStart := Seg.ValueStart;
+    ValLen := Seg.ValueLen;
+    while (ValLen > 0) and ((FBuffer[ValStart] = 32) or (FBuffer[ValStart] = 9)) do
+    begin
+      Inc(ValStart);
+      Dec(ValLen);
+    end;
+    while (ValLen > 0) and ((FBuffer[ValStart + ValLen - 1] = 32) or (FBuffer[ValStart + ValLen - 1] = 9)) do
+      Dec(ValLen);
+
+    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen);
+    Value := TEncoding.UTF8.GetString(FBuffer, ValStart, ValLen);
     ADict.AddOrSetValue(Key, Value);
   end;
 end;
@@ -532,11 +591,19 @@ end;
 constructor TDextIocpResponse.Create(ASocket: TSocket);
 begin
   inherited Create;
+  Init(ASocket);
+end;
+
+procedure TDextIocpResponse.Init(ASocket: TSocket);
+begin
   FSocket := ASocket;
   FHeadersSent := False;
   FStatusCode := 200;
   FReason := 'OK';
-  FHeaders := TDictionary<string, string>.Create;
+  if FHeaders = nil then
+    FHeaders := TDictionary<string, string>.Create
+  else
+    FHeaders.Clear;
 end;
 
 destructor TDextIocpResponse.Destroy;
@@ -557,33 +624,67 @@ begin
 end;
 
 procedure TDextIocpResponse.SendHeaders;
+  procedure EnsureCapacity(ARequired: Integer);
+  var
+    NewCapacity: Integer;
+  begin
+    if ARequired <= Length(FHeaderBuffer) then
+      Exit;
+    NewCapacity := Length(FHeaderBuffer);
+    if NewCapacity < 512 then
+      NewCapacity := 512;
+    while NewCapacity < ARequired do
+      NewCapacity := NewCapacity * 2;
+    SetLength(FHeaderBuffer, NewCapacity);
+  end;
+
+  procedure AppendStr(const AStr: string; var AOffset: Integer);
+  var
+    i: Integer;
+    StrLen: Integer;
+  begin
+    StrLen := Length(AStr);
+    if StrLen = 0 then
+      Exit;
+    EnsureCapacity(AOffset + StrLen);
+    for i := 1 to StrLen do
+    begin
+      FHeaderBuffer[AOffset] := Byte(AStr[i]);
+      Inc(AOffset);
+    end;
+  end;
+
 var
-  SB: TStringBuilder;
   Pair: TPair<string, string>;
   WsaBuf: TWsaBuf;
   BytesSent: DWORD;
-  HeaderBytes: TBytes;
+  BufferOffset: Integer;
 begin
   if FHeadersSent then Exit;
 
-  SB := TStringBuilder.Create;
-  try
-    SB.Append('HTTP/1.1 ').Append(FStatusCode).Append(' ').Append(FReason).Append(#13#10);
-    
-    if not FHeaders.ContainsKey('Content-Type') then
-      FHeaders.Add('Content-Type', 'text/plain');
+  if not FHeaders.ContainsKey('Content-Type') then
+    FHeaders.Add('Content-Type', 'text/plain');
 
-    for Pair in FHeaders do
-      SB.Append(Pair.Key).Append(': ').Append(Pair.Value).Append(#13#10);
+  BufferOffset := 0;
+  EnsureCapacity(512);
+  AppendStr('HTTP/1.1 ', BufferOffset);
+  AppendStr(IntToStr(FStatusCode), BufferOffset);
+  AppendStr(' ', BufferOffset);
+  AppendStr(FReason, BufferOffset);
+  AppendStr(#13#10, BufferOffset);
 
-    SB.Append(#13#10);
-    HeaderBytes := TEncoding.UTF8.GetBytes(SB.ToString);
-  finally
-    SB.Free;
+  for Pair in FHeaders do
+  begin
+    AppendStr(Pair.Key, BufferOffset);
+    AppendStr(': ', BufferOffset);
+    AppendStr(Pair.Value, BufferOffset);
+    AppendStr(#13#10, BufferOffset);
   end;
 
-  WsaBuf.len := Length(HeaderBytes);
-  WsaBuf.buf := @HeaderBytes[0];
+  AppendStr(#13#10, BufferOffset);
+
+  WsaBuf.len := BufferOffset;
+  WsaBuf.buf := @FHeaderBuffer[0];
 
   {$IF CompilerVersion > 35.0}
   WSASend(FSocket, @WsaBuf, 1, @BytesSent, 0, nil, nil);
@@ -635,7 +736,6 @@ end;
 procedure TDextIocpResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
 var
   FileStream: TFileStream;
-  Buffer: TBytes;
   Remaining: Int64;
   Chunk: Integer;
 begin
@@ -649,16 +749,17 @@ begin
     if Remaining <= 0 then
       Remaining := FileStream.Size - AOffset;
 
-    SetLength(Buffer, 32768);
+    if Length(FFileBuffer) < 32768 then
+      SetLength(FFileBuffer, 32768);
     while Remaining > 0 do
     begin
-      if Remaining > Length(Buffer) then
-        Chunk := Length(Buffer)
+      if Remaining > Length(FFileBuffer) then
+        Chunk := Length(FFileBuffer)
       else
         Chunk := Remaining;
 
-      FileStream.ReadBuffer(Buffer[0], Chunk);
-      Write(Buffer, 0, Chunk);
+      FileStream.ReadBuffer(FFileBuffer[0], Chunk);
+      Write(FFileBuffer, 0, Chunk);
       Remaining := Remaining - Chunk;
     end;
   finally
@@ -764,7 +865,8 @@ begin
         
         if Assigned(FEngine.FConnectionHandler) then
         begin
-          Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
+          Connection := TDextIocpConnection.Create(
+            IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
           try
             try
               FEngine.FConnectionHandler.OnConnect(Connection as IDextTransportConnection);
@@ -812,8 +914,11 @@ begin
             begin
               TInterlocked.Increment(FEngine.FTotalRequests);
 
-              Connection := TDextIocpConnection.Create(IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
-              RawRequest := TDextIocpRequest.Create(Method, Path, Query, HeaderSegments, Buffer, BodyOffset, RecvRet - BodyOffset, ContentLength);
+              Connection := TDextIocpConnection.Create(
+                IocpOverlapped.Socket, RemoteAddress, RemotePort, LocalPort);
+              RawRequest := TDextIocpRequest.Create(
+                Method, Path, Query, HeaderSegments, Buffer, BodyOffset,
+                RecvRet - BodyOffset, ContentLength);
               RawResponse := TDextIocpResponse.Create(IocpOverlapped.Socket);
 
               try
@@ -944,6 +1049,8 @@ begin
   Addr.sin_port := htons(FListeningPort);
   if (FAddress = '') or (FAddress = '0.0.0.0') then
     Addr.sin_addr.S_addr := INADDR_ANY
+  else if SameText(FAddress, 'localhost') or (FAddress = '127.0.0.1') then
+    Addr.sin_addr.S_addr := inet_addr('127.0.0.1')
   else
     Addr.sin_addr.S_addr := inet_addr(PAnsiChar(AnsiString(FAddress)));
 
@@ -1063,4 +1170,3 @@ end;
 {$ENDIF}
 
 end.
-

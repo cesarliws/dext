@@ -1,4 +1,4 @@
-program Web.ControllerExample;
+﻿program Web.ControllerExample;
 
 {$APPTYPE CONSOLE}
 
@@ -21,10 +21,10 @@ begin
   SetConsoleCharSet(65001); // Fix console encoding
   try
     WriteLn('🚀 Starting Dext Controller Example...');
-    
+
     // Create appsettings.json if it doesn't exist
     EnsureAppSettingsExists;
-    
+
     App := TDextApplication.Create;
 
     // Add Logging Middleware FIRST
@@ -40,7 +40,7 @@ begin
       .AddSingleton<IGreetingService, TGreetingService>
       .AddControllers
       .AddContentNegotiation;
-    
+
     // 3. Register Health Checks
     App.Services.AddHealthChecks
       .AddCheck<TDatabaseHealthCheck>
@@ -59,7 +59,7 @@ begin
 
     // Static Files
     Builder.UseStaticFiles(Builder.CreateStaticFileOptions);
-    
+
     // Health Checks
     App.UseMiddleware(THealthCheckMiddleware);
 
@@ -68,7 +68,7 @@ begin
     AuthOptions.Issuer := 'dext-issuer';
     AuthOptions.Audience := 'dext-audience';
     Builder.UseJwtAuthentication(AuthOptions);
-       
+
     // 6. Map Controllers
     App.MapControllers;
 

@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.NullableHydration.Tests;
+unit Dext.Entity.NullableHydration.Tests;
 
 interface
 
@@ -68,6 +68,13 @@ begin
   Reader.Setup.Returns(TValue.Empty).When.GetValue(2);
   Reader.Setup.Returns(TValue.Empty).When.GetValue(3);
 
+  Reader.Setup.Returns(False).When.IsNull(0);
+  Reader.Setup.Returns(False).When.IsNull(1);
+  Reader.Setup.Returns(True).When.IsNull(2);
+  Reader.Setup.Returns(True).When.IsNull(3);
+  Reader.Setup.Returns(1).When.GetInt32(0);
+  Reader.Setup.Returns('Alice').When.GetString(1);
+
   Conn.Setup.Returns(Cmd.Instance).When.CreateCommand(Arg.Any<string>);
   Cmd.Setup.Returns(Reader.Instance).When.ExecuteQuery;
 
@@ -111,6 +118,13 @@ begin
   Reader.Setup.Returns(TValue.From<Integer>(42)).When.GetValue(2);
   Reader.Setup.Returns(TValue.From<TDateTime>(ExpectedDate)).When.GetValue(3);
 
+  Reader.Setup.Returns(False).When.IsNull(0);
+  Reader.Setup.Returns(False).When.IsNull(1);
+  Reader.Setup.Returns(False).When.IsNull(2);
+  Reader.Setup.Returns(False).When.IsNull(3);
+  Reader.Setup.Returns(2).When.GetInt32(0);
+  Reader.Setup.Returns('Bob').When.GetString(1);
+
   Conn.Setup.Returns(Cmd.Instance).When.CreateCommand(Arg.Any<string>);
   Cmd.Setup.Returns(Reader.Instance).When.ExecuteQuery;
 
@@ -118,6 +132,8 @@ begin
   try
     Items := Ctx.Entities<TNullableHydrationEntity>.ToList;
     Should(Items.Count).Be(1);
+    Should(Items[0].Id).Be(2);
+    Should(Items[0].Name).Be('Bob');
     Should(Items[0].Age.HasValue).BeTrue;
     Should(Items[0].Age.Value).Be(42);
     Should(Items[0].UpdatedAt.HasValue).BeTrue;

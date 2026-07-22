@@ -25,6 +25,8 @@
 {***************************************************************************}
 unit Dext.Net.Authentication;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -229,7 +231,7 @@ begin
     // Set expiration with 30-second safety margin
     if TokenResponse.expires_in = 0 then
       TokenResponse.expires_in := 3600;
-    FExpiresAt := IncSecond(Now, TokenResponse.expires_in - 30);
+    FExpiresAt := Now + ((TokenResponse.expires_in - 30) / 86400.0);
   finally
     Body.Free;
   end;

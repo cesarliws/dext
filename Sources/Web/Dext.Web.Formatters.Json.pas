@@ -51,6 +51,14 @@ type
 
 implementation
 
+type
+  PUtf8ResponseSink = ^IUtf8ResponseSink;
+
+procedure WriteJsonToResponse(AContext, AData: Pointer; ALength: Integer);
+begin
+  PUtf8ResponseSink(AContext)^.WriteUtf8(AData, ALength);
+end;
+
 { TJsonOutputFormatter }
 
 function TJsonOutputFormatter.GetSupportedMediaTypes: TArray<string>;
@@ -67,11 +75,17 @@ end;
 
 procedure TJsonOutputFormatter.Write(const Context: IOutputFormatterContext);
 var
-  Json: string;
+  JsonBytes: TBytes;
+  Sink: IUtf8ResponseSink;
 begin
   Context.HttpContext.Response.SetContentType('application/json; charset=utf-8');
-  Json := TDextJson.Serialize(Context.&Object);
-  Context.HttpContext.Response.Write(Json);
+  if Supports(Context.HttpContext.Response, IUtf8ResponseSink, Sink) then
+  begin
+    TDextJson.SerializeUtf8To(Context.&Object, @Sink, WriteJsonToResponse);
+    Exit;
+  end;
+  JsonBytes := TDextJson.SerializeUtf8(Context.&Object);
+  Context.HttpContext.Response.Write(JsonBytes);
 end;
 
 end.

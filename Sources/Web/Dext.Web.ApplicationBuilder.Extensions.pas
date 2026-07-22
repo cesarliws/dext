@@ -619,12 +619,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -638,12 +638,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -657,12 +657,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -676,12 +676,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
   UpdateRouteMetadata(App, TypeInfo(T), nil);
@@ -696,12 +696,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
   UpdateRouteMetadata(App, TypeInfo(T1), nil);
@@ -716,12 +716,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -735,12 +735,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
   UpdateRouteMetadata(App, TypeInfo(T), nil);
@@ -755,12 +755,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
   UpdateRouteMetadata(App, TypeInfo(T1), nil);
@@ -775,12 +775,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -794,12 +794,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -813,12 +813,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -832,12 +832,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -947,12 +947,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -966,12 +966,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -985,12 +985,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1004,12 +1004,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
   UpdateRouteMetadata(App, TypeInfo(T), TypeInfo(TResult));
@@ -1024,12 +1024,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1043,12 +1043,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1063,12 +1063,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1082,12 +1082,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1101,12 +1101,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1120,12 +1120,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1139,12 +1139,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1158,12 +1158,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1177,12 +1177,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1196,12 +1196,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1215,12 +1215,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1234,12 +1234,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1253,12 +1253,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1272,12 +1272,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1291,12 +1291,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1334,12 +1334,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1353,12 +1353,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1372,12 +1372,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;
@@ -1391,12 +1391,12 @@ begin
       Invoker: THandlerInvoker;
       Binder: IModelBinder;
     begin
-      Binder := TModelBinder.Create;
-      Invoker := THandlerInvoker.Create(Ctx, Binder);
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Ctx, Binder);
       try
         Invoker.Invoke<T1, T2, T3, TResult>(Handler);
       finally
-        Invoker.Free;
+        Invoker.Release;
       end;
     end);
 end;

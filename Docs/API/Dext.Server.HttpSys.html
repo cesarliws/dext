@@ -65,9 +65,11 @@
 <a href="Dext.Collections.Frozen.html" class="nav-item">Dext.Collections.Frozen</a>
 <a href="Dext.Collections.HashSet.html" class="nav-item">Dext.Collections.HashSet</a>
 <a href="Dext.Collections.Memory.html" class="nav-item">Dext.Collections.Memory</a>
+<a href="Dext.Collections.OrderedDict.html" class="nav-item">Dext.Collections.OrderedDict</a>
 <a href="Dext.Collections.Queue.html" class="nav-item">Dext.Collections.Queue</a>
 <a href="Dext.Collections.Raw.html" class="nav-item">Dext.Collections.Raw</a>
 <a href="Dext.Collections.RawDict.html" class="nav-item">Dext.Collections.RawDict</a>
+<a href="Dext.Collections.RawOrderedDict.html" class="nav-item">Dext.Collections.RawOrderedDict</a>
 <a href="Dext.Collections.Simd.html" class="nav-item">Dext.Collections.Simd</a>
 <a href="Dext.Collections.Stack.html" class="nav-item">Dext.Collections.Stack</a>
 <a href="Dext.Collections.Vector.html" class="nav-item">Dext.Collections.Vector</a>
@@ -234,6 +236,7 @@
 <a href="Dext.OpenAPI.Types.html" class="nav-item">Dext.OpenAPI.Types</a>
 <a href="Dext.Options.html" class="nav-item">Dext.Options</a>
 <a href="Dext.Options.Extensions.html" class="nav-item">Dext.Options.Extensions</a>
+<a href="Dext.Performance.Allocator.html" class="nav-item">Dext.Performance.Allocator</a>
 <a href="Dext.RateLimiting.html" class="nav-item">Dext.RateLimiting</a>
 <a href="Dext.RateLimiting.Core.html" class="nav-item">Dext.RateLimiting.Core</a>
 <a href="Dext.RateLimiting.Limiters.html" class="nav-item">Dext.RateLimiting.Limiters</a>
@@ -241,6 +244,7 @@
 <a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
 <a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
 <a href="Dext.Serialization.Protobuf.html" class="nav-item">Dext.Serialization.Protobuf</a>
+<a href="Dext.Server.BoundedExecutor.html" class="nav-item">Dext.Server.BoundedExecutor</a>
 <a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
 <a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
 <a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
@@ -355,12 +359,14 @@
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
+<a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
 <a href="Dext.Web.Routing.html" class="nav-item">Dext.Web.Routing</a>
 <a href="Dext.Web.Routing.Attributes.html" class="nav-item">Dext.Web.Routing.Attributes</a>
 <a href="Dext.Web.RoutingMiddleware.html" class="nav-item">Dext.Web.RoutingMiddleware</a>
 <a href="Dext.Web.Sessions.Streamable.html" class="nav-item">Dext.Web.Sessions.Streamable</a>
 <a href="Dext.Web.StaticFiles.html" class="nav-item">Dext.Web.StaticFiles</a>
+<a href="Dext.Web.Utf8.html" class="nav-item">Dext.Web.Utf8</a>
 <a href="Dext.Web.Versioning.html" class="nav-item">Dext.Web.Versioning</a>
 <a href="Dext.Web.View.html" class="nav-item">Dext.Web.View</a>
 <a href="Dext.Web.View.Native.html" class="nav-item">Dext.Web.View.Native</a>
@@ -389,6 +395,14 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
+class TDextHttpSysOperation {}
+class TDextHttpSysContext {    +Create()
+    +Destroy()
+    +Reset()
+    +ReleaseRequestReference()
+    +ReleaseResponseReference()
+}
+TObject <|-- TDextHttpSysContext
 class TDextHttpSysBufferPool {    +Create()
     +Destroy()
     +Acquire()
@@ -409,7 +423,8 @@ class TDextHttpSysRequest {    +GetMethod()
 }
 TInterfacedObject <|-- TDextHttpSysRequest
 IDextRawRequest <|.. TDextHttpSysRequest
-class TDextHttpSysResponse {    +SendHeadersInternal()
+class TDextHttpSysResponse {    +ResetUnknownHeaders()
+    +SendHeadersInternal()
     +_Release()
     +SetHeaderInt()
     +Create()
@@ -419,12 +434,14 @@ class TDextHttpSysResponse {    +SendHeadersInternal()
     +SetHeader()
     +SendHeaders()
     +Write()
+    +WriteBytes()
     +WriteFile()
     +Flush()
     +Close()
 }
 TInterfacedObject <|-- TDextHttpSysResponse
 IDextRawResponse <|.. TDextHttpSysResponse
+IDextRawResponseSink <|.. TDextHttpSysResponse
 class TDextHttpSysRequestPool {    +Create()
     +Destroy()
     +Acquire()
@@ -448,6 +465,7 @@ class TDextHttpSysWebSocketConnection {    +Create()
 TInterfacedObject <|-- TDextHttpSysWebSocketConnection
 IDextWebSocketConnection <|.. TDextHttpSysWebSocketConnection
 class TDextHttpSysConnection {    +Create()
+    +Init()
     +GetConnectionId()
     +GetRemoteAddress()
     +GetRemotePort()
@@ -459,8 +477,11 @@ class TDextHttpSysConnection {    +Create()
 }
 TInterfacedObject <|-- TDextHttpSysConnection
 IDextServerConnection <|.. TDextHttpSysConnection
-class TDextHttpSysWorker {    +Execute()
+class TDextHttpSysWorker {    +DispatchRequest()
+    +PostBodyReceive()
+    +Execute()
     +Create()
+    +Destroy()
 }
 TThread <|-- TDextHttpSysWorker
 class TDextHttpSysEngine {    +InitializeHttpSys()
@@ -468,6 +489,9 @@ class TDextHttpSysEngine {    +InitializeHttpSys()
     +ConfigureLimits()
     +RecycleRequest()
     +RecycleResponse()
+    +AcquireContext()
+    +ReleaseContext()
+    +PostReceiveRequest()
     +Create()
     +Destroy()
     +Bind()
@@ -491,6 +515,23 @@ IDextServerEngine <|.. TDextHttpSysEngine
 </details>
 <h2>API Details</h2>
 <div class="class-header">
+<h3>record TDextHttpSysOperation</h3><a name="TDextHttpSysOperation"></a></div>
+<hr>
+<div class="class-header">
+<h3>class TDextHttpSysContext</h3><a name="TDextHttpSysContext"></a><div class="ancestor">Inherits from: TObject</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Reset</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ReleaseRequestReference</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ReleaseResponseReference</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class TDextHttpSysBufferPool</h3><a name="TDextHttpSysBufferPool"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Thread-safe, zero-allocation memory stream pool for http.sys responses.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(AMaxPoolSize: Integer)</div></div>
@@ -509,7 +550,7 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Cleans up the request resources.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST)</div></div>
+<div class="api-signature">procedure Init(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST; AContext: TDextHttpSysContext)</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function GetMethod: string</div></div>
@@ -536,7 +577,7 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Cleans up the response resources.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Init(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID)</div></div>
+<div class="api-signature">procedure Init(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetStatus(ACode: Integer; const const: string)</div><div class="description">Sets the HTTP status code and optional reason phrase.</div></div>
 <div class="api-item">
@@ -546,6 +587,8 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-item">
 <div class="api-signature">procedure Write(const const: TBytes; AOffset: Integer; ACount: Integer)</div><div class="description">Writes raw bytes into the response body stream.</div></div>
 <div class="api-item">
+<div class="api-signature">procedure WriteBytes(AData: Pointer; ALength: Integer)</div><div class="description">Writes a raw byte span into response-owned segments.</div></div>
+<div class="api-item">
 <div class="api-signature">procedure WriteFile(const const: string; AOffset: Int64; ACount: Int64)</div><div class="description">Writes a file directly to the response socket using zero-copy transmission.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Flush</div><div class="description">Flushes any buffered response data to the network.</div></div>
@@ -553,6 +596,8 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-signature">procedure Close</div><div class="description">Closes the response stream and connection.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure ResetUnknownHeaders</div></div>
+<div class="api-item">
 <div class="api-signature">procedure SendHeadersInternal(AMoreData: Boolean)</div></div>
 <div class="api-item">
 <div class="api-signature">function _Release: Integer</div></div>
@@ -567,7 +612,7 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
-<div class="api-signature">function Acquire(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST): TDextHttpSysRequest</div></div>
+<div class="api-signature">function Acquire(AEngine: TDextHttpSysEngine; ARequest: PHTTP_REQUEST; AContext: TDextHttpSysContext): TDextHttpSysRequest</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Release(ARequest: TDextHttpSysRequest)</div></div>
 </div>
@@ -579,7 +624,7 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
-<div class="api-signature">function Acquire(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID): TDextHttpSysResponse</div></div>
+<div class="api-signature">function Acquire(AEngine: TDextHttpSysEngine; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext): TDextHttpSysResponse</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Release(AResponse: TDextHttpSysResponse)</div></div>
 </div>
@@ -607,6 +652,8 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(const const: HTTP_REQUEST; AReqQueue: THandle)</div><div class="description">Initializes a new http.sys connection wrapper.</div></div>
 <div class="api-item">
+<div class="api-signature">procedure Init(const const: HTTP_REQUEST; AReqQueue: THandle)</div></div>
+<div class="api-item">
 <div class="api-signature">function GetConnectionId: UInt64</div><div class="description">Returns the unique connection identifier.</div></div>
 <div class="api-item">
 <div class="api-signature">function GetRemoteAddress: string</div><div class="description">Returns the remote client's IP address.</div></div>
@@ -628,9 +675,16 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <h3>class TDextHttpSysWorker</h3><a name="TDextHttpSysWorker"></a><div class="ancestor">Inherits from: TThread</div><div class="description">Worker thread for processing request queue events.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(AEngine: TDextHttpSysEngine; AReqQueue: THandle; const const: TDextProcessorGroupAffinity)</div><div class="description">Initializes the http.sys worker thread.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">procedure Execute</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure DispatchRequest(AContext: TDextHttpSysContext)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure PostBodyReceive(AContext: TDextHttpSysContext)</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -676,11 +730,29 @@ IDextServerEngine <|.. TDextHttpSysEngine
 <div class="api-signature">procedure RecycleRequest(ARequest: TDextHttpSysRequest)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure RecycleResponse(AResponse: TDextHttpSysResponse)</div></div>
+<div class="api-item">
+<div class="api-signature">function AcquireContext: TDextHttpSysContext</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ReleaseContext(AContext: TDextHttpSysContext)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure PostReceiveRequest(AContext: TDextHttpSysContext)</div></div>
 </div>
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TDextHttpSysEngine = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextHttpSysRequest = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextHttpSysResponse = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextHttpSysConnection = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextHttpSysContext = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextHttpSysOperationKind = enumeration</div><div class="enum-values">Values: hokReceiveRequest, hokReceiveBody, hokSendHeaders, hokSendBody</div></div>
+<div class="api-item">
+<div class="api-signature">type PDextHttpSysOperation = pointer</div></div>
 </div>
 
         </div>

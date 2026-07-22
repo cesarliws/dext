@@ -89,13 +89,13 @@ begin
   Writeln('=== TESTANDO DEXT JSON (API REAL) ===');
 
   try
-    // ✅ Serialização (gera JSON com wrapper)
+    // [PASS] Serialização (gera JSON com wrapper)
     Writeln('Serialize Integer: ', TDextJson.Serialize<Integer>(42));
     Writeln('Serialize String: ', TDextJson.Serialize<string>('Hello'));
     Writeln('Serialize Boolean: ', TDextJson.Serialize<Boolean>(True));
     Writeln('Serialize Float: ', TDextJson.Serialize<Double>(3.14));
 
-    // ✅ Deserialização (precisa do wrapper)
+    // [PASS] Deserialização (precisa do wrapper)
     Writeln('Deserialize Int: ', TDextJson.Deserialize<Integer>('{"value":42}'));
     Writeln('Deserialize Str: ', TDextJson.Deserialize<string>('{"value":"World"}'));
     Writeln('Deserialize Bool: ', TDextJson.Deserialize<Boolean>('{"value":false}'));
@@ -137,7 +137,7 @@ begin
   Writeln('=== TESTANDO RECORDS NO DEXT JSON ===');
 
   try
-    // ✅ TESTE 1: Record simples
+    // [PASS] TESTE 1: Record simples
     User.Id := 1;
     User.Name := 'John Doe';
     User.Email := 'john@example.com';
@@ -149,7 +149,7 @@ begin
     DeserializedUser := TDextJson.Deserialize<TUser>(Json);
     Writeln('Deserialized User - ID: ', DeserializedUser.Id, ', Name: ', DeserializedUser.Name);
 
-    // ✅ TESTE 2: Record com record aninhado
+    // [PASS] TESTE 2: Record com record aninhado
     UserWithAddr.User := User;
     UserWithAddr.Address.Street := '123 Main St';
     UserWithAddr.Address.City := 'New York';
@@ -168,20 +168,20 @@ end;
 
 procedure TestDextJsonAttributes;
 type
-  [JsonName('user')]  // ✅ Customizar nome do record
+  [JsonName('user')]  // [PASS] Customizar nome do record
   TUser = record
-    [JsonName('user_id')]     // ✅ Customizar nome do campo
+    [JsonName('user_id')]     // [PASS] Customizar nome do campo
     Id: Integer;
 
-    [JsonName('full_name')]   // ✅ Customizar nome do campo
+    [JsonName('full_name')]   // [PASS] Customizar nome do campo
     Name: string;
 
-    Email: string;            // ✅ Nome padrão
+    Email: string;            // [PASS] Nome padrão
 
-    [JsonIgnore]              // ✅ Ignorar campo na serialização
+    [JsonIgnore]              // [PASS] Ignorar campo na serialização
     Password: string;
 
-    [JsonName('is_active')]   // ✅ Customizar nome boolean
+    [JsonName('is_active')]   // [PASS] Customizar nome boolean
     Active: Boolean;
   end;
 
@@ -197,7 +197,7 @@ begin
     User.Id := 1;
     User.Name := 'John Doe';
     User.Email := 'john@example.com';
-    User.Password := 'secret123'; // ✅ Deve ser ignorado
+    User.Password := 'secret123'; // [PASS] Deve ser ignorado
     User.Active := True;
 
     // Serializar
@@ -211,7 +211,7 @@ begin
     Writeln('  ID: ', DeserializedUser.Id);
     Writeln('  Name: ', DeserializedUser.Name);
     Writeln('  Email: ', DeserializedUser.Email);
-    Writeln('  Password: ', DeserializedUser.Password); // ✅ Deve estar vazio
+    Writeln('  Password: ', DeserializedUser.Password); // [PASS] Deve estar vazio
     Writeln('  Active: ', DeserializedUser.Active);
 
     Writeln('=== SUCESSO COM ATRIBUTOS! ===');
@@ -246,7 +246,7 @@ begin
     Deserialized := TDextJson.Deserialize<TArray<Integer>>(Json);
     Writeln('Deserialized Count: ', Length(Deserialized));
 
-    // ✅ TESTE 1: TArray<T> (como no ASP.NET Core)
+    // [PASS] TESTE 1: TArray<T> (como no ASP.NET Core)
     SetLength(Users, 2);
     Users[0].Id := 1; Users[0].Name := 'John';
     Users[1].Id := 2; Users[1].Name := 'Jane';
@@ -257,7 +257,7 @@ begin
     DeserializedUsers := TDextJson.Deserialize<TArray<TSimpleUser>>(Json);
     Writeln('Deserialized Users Count: ', Length(DeserializedUsers));
 
-    // ✅ TESTE 2: IList<T> (como List<T> no C#)
+    // [PASS] TESTE 2: IList<T> (como List<T> no C#)
     UserList := TCollections.CreateList<TSimpleUser>;
     try
       User1.Id := 3; User1.Name := 'Bob';
@@ -327,7 +327,7 @@ begin
   User.Role := TUserRole.RegularUser;
 
   try
-    // ✅ Teste 1: CamelCase + IgnoreNullValues
+    // [PASS] Teste 1: CamelCase + IgnoreNullValues
     CamelCaseSettings := TJsonSettings.Indented
       .CamelCase
       .IgnoreNullValues;
@@ -336,7 +336,7 @@ begin
     Writeln('CamelCase + IgnoreNull:');
     Writeln(Json);
 
-    // ✅ Teste 2: SnakeCase
+    // [PASS] Teste 2: SnakeCase
     SnakeCaseSettings := TJsonSettings.Indented
       .SnakeCase;
 
@@ -344,7 +344,7 @@ begin
     Writeln('SnakeCase:');
     Writeln(Json);
 
-    // ✅ Teste 3: Enum como String
+    // [PASS] Teste 3: Enum como String
     EnumStringSettings := TJsonSettings.Indented
       .EnumAsString;
 
@@ -378,7 +378,7 @@ begin
   User.LastLogin := Now;
 
   try
-    // ✅ Teste: CamelCase + EnumAsString + IgnoreNullValues
+    // [PASS] Teste: CamelCase + EnumAsString + IgnoreNullValues
     Settings := TJsonSettings.Indented
       .CamelCase
       .EnumAsString
@@ -388,7 +388,7 @@ begin
     Writeln('Configurações Completas:');
     Writeln(Json);
 
-    // ✅ Teste RoundTrip: Serializar -> Deserializar
+    // [PASS] Teste RoundTrip: Serializar -> Deserializar
     DeserializedUser := TDextJson.Deserialize<TUser>(Json, Settings);
     Writeln('RoundTrip - UserName: ', DeserializedUser.UserName);
     Writeln('RoundTrip - Status: ', Ord(DeserializedUser.Status));
@@ -422,7 +422,7 @@ begin
   User.StatusNumber := TUserStatus.Suspended;
 
   try
-    // ✅ Teste 1: Enum como String
+    // [PASS] Teste 1: Enum como String
     StringSettings := TJsonSettings.Default
       .EnumAsString;
 
@@ -433,7 +433,7 @@ begin
     Writeln('Enum as String - RoundTrip Status: ', Ord(Deserialized1.Status), ' (Expected: 0)');
     Writeln('Enum as String - RoundTrip StatusNumber: ', Ord(Deserialized1.StatusNumber), ' (Expected: 2)');
 
-    // ✅ Teste 2: Enum como Number
+    // [PASS] Teste 2: Enum como Number
     NumberSettings := TJsonSettings.Default
       .EnumAsNumber;
 
@@ -563,25 +563,25 @@ begin
   Event.CreatedAt := Now;
 
   try
-    // ✅ Teste 1: ISO8601 (padrão)
+    // [PASS] Teste 1: ISO8601 (padrão)
     ISOSettings := TJsonSettings.Indented.ISODateFormat;
     Json := TDextJson.Serialize<TEvent>(Event, ISOSettings);
     Writeln('ISO8601 Format:');
     Writeln(Json);
 
-    // ✅ Teste 2: Unix Timestamp
+    // [PASS] Teste 2: Unix Timestamp
     UnixSettings := TJsonSettings.Indented.UnixTimestamp;
     Json := TDextJson.Serialize<TEvent>(Event, UnixSettings);
     Writeln('Unix Timestamp:');
     Writeln(Json);
 
-    // ✅ Teste 3: Formato Customizado
+    // [PASS] Teste 3: Formato Customizado
     CustomSettings := TJsonSettings.Indented.CustomDateFormat('dd/mm/yyyy hh:nn:ss');
     Json := TDextJson.Serialize<TEvent>(Event, CustomSettings);
     Writeln('Custom Format:');
     Writeln(Json);
 
-    // ✅ Teste 4: RoundTrip com Unix Timestamp
+    // [PASS] Teste 4: RoundTrip com Unix Timestamp
     RoundTripSettings := TJsonSettings.Default.UnixTimestamp;
     Json := TDextJson.Serialize<TEvent>(Event, RoundTripSettings);
     DeserializedEvent := TDextJson.Deserialize<TEvent>(Json, RoundTripSettings);
@@ -772,7 +772,7 @@ begin
     Writeln('Com Atributos Avançados:');
     Writeln(Json);
 
-    // ✅ Verificações
+    // [PASS] Verificações
     JsonObj := TJsonObject.Parse(Json) as TJsonObject;
     try
       Writeln('JsonName funciona: ', JsonObj.Contains('product_name'));
@@ -785,7 +785,7 @@ begin
       JsonObj.Free;
     end;
 
-    // ✅ Teste RoundTrip
+    // [PASS] Teste RoundTrip
     DeserializedProduct := TDextJson.Deserialize<TProduct>(Json);
     Writeln('RoundTrip - Name: ', DeserializedProduct.Name);
     Writeln('RoundTrip - Price: ', DeserializedProduct.Price.ToString);
@@ -1253,11 +1253,11 @@ begin
     // 1. Criar Application Builder
     App := TApplicationBuilder.Create(nil);
 
-    // 2. ✅ PADRÃO MODERNO: TApplicationBuilderExtensions com Model Binding automático
+    // 2. [PASS] PADRÃO MODERNO: TApplicationBuilderExtensions com Model Binding automático
     TApplicationBuilderExtensions.MapPost<TCompleteUser>(App, '/users',
       procedure(User: TCompleteUser)
       begin
-        Writeln('✅ User criado via binding automático:');
+        Writeln('[PASS] User criado via binding automático:');
         Writeln('   ID: ', User.Id);
         Writeln('   Name: ', User.Name);
         Writeln('   Email: ', User.Email);
@@ -1267,7 +1267,7 @@ begin
     TApplicationBuilderExtensions.MapPost<TCreateProductRequest>(App, '/products',
       procedure(Product: TCreateProductRequest)
       begin
-        Writeln('✅ Product criado via binding automático:');
+        Writeln('[PASS] Product criado via binding automático:');
         Writeln('   Name: ', Product.Name);
         Writeln('   Price: ', Product.Price);
         Writeln('   Category: ', Product.Category);
@@ -1282,7 +1282,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO Integração: ', E.Message);
+      Writeln('[FAIL] ERRO Integração: ', E.Message);
   end;
 end;
 
@@ -1325,18 +1325,18 @@ begin
       end)
       .Configure(procedure(App: IApplicationBuilder)
       begin
-        // ✅ PADRÃO MODERNO: MapPost com Model Binding automático
+        // [PASS] PADRÃO MODERNO: MapPost com Model Binding automático
         TApplicationBuilderExtensions.MapPost<TUserRequest>(App, '/api/users',
           procedure(Req: TUserRequest)
           begin
-            Writeln('✅ User Request recebido: ', Req.Name, ' - ', Req.Email);
+            Writeln('[PASS] User Request recebido: ', Req.Name, ' - ', Req.Email);
           end
         );
 
         TApplicationBuilderExtensions.MapPost<TUserRequest>(App, '/api/v2/users',
           procedure(Req: TUserRequest)
           begin
-            Writeln('✅ V2 User Request: ', Req.Name);
+            Writeln('[PASS] V2 User Request: ', Req.Name);
           end
         );
       end);
@@ -1351,7 +1351,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO Integração: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO Integração: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -1371,14 +1371,14 @@ begin
     end)
     .Configure(procedure(App: IApplicationBuilder)
     begin
-      // ✅ PADRÃO MODERNO: MapPost<Request, Service> com DI + Model Binding automáticos
+      // [PASS] PADRÃO MODERNO: MapPost<Request, Service> com DI + Model Binding automáticos
       // O Service é injetado automaticamente pelo HandlerInvoker
       TApplicationBuilderExtensions.MapPost<TUserRequest, IUserIntegrationService>(App, '/api/users',
         procedure(Req: TUserRequest; UserService: IUserIntegrationService)
         begin
           // Service é injetado automaticamente - sem capturar App!
           UserService.ProcessUser(Req);
-          Writeln('✅ User processado: ', Req.Name);
+          Writeln('[PASS] User processado: ', Req.Name);
         end
       );
     end)
@@ -1404,7 +1404,7 @@ begin
 
   App := TApplicationBuilder.Create(nil);
   try
-    // ✅ PADRÃO MODERNO: TApplicationBuilderExtensions
+    // [PASS] PADRÃO MODERNO: TApplicationBuilderExtensions
     TApplicationBuilderExtensions.MapPost<TConciseUser>(App, '/crm/users',
       procedure(User: TConciseUser)
       begin
@@ -1425,7 +1425,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -1446,20 +1446,20 @@ begin
   try
     // 1. Testar com JsonDataObjects (Padrão)
     TDextJson.Provider := TJsonDataObjectsProvider.Create;
-    Writeln('🔹 Driver: JsonDataObjects');
+    Writeln('* Driver: JsonDataObjects');
     JsonJDO := TDextJson.Serialize<TUser>(User);
     Writeln(JsonJDO);
 
     // 2. Testar com System.JSON
     TDextJson.Provider := TSystemJsonProvider.Create;
-    Writeln('🔹 Driver: System.JSON');
+    Writeln('* Driver: System.JSON');
     JsonSystem := TDextJson.Serialize<TUser>(User);
     Writeln(JsonSystem);
 
     // 3. Comparar resultados (ignorando espaços em branco se necessário)
     // Nota: A ordem dos campos pode variar entre implementações, então uma comparação exata de string pode falhar.
     // Mas o conteúdo deve ser equivalente.
-    Writeln('✅ Serialização concluída em ambos os drivers');
+    Writeln('[PASS] Serialização concluída em ambos os drivers');
 
     // 4. Testar Deserialização Cruzada
     // Serializado com System.JSON -> Deserializado com JsonDataObjects
@@ -1468,14 +1468,14 @@ begin
     Writeln('🔄 Cross-Deserialization (System -> JDO): ', UserFromSystem.UserName);
 
     if UserFromSystem.UserName = User.UserName then
-      Writeln('✅ Sucesso!')
+      Writeln('[PASS] Sucesso!')
     else
-      Writeln('❌ Falha na validação cruzada');
+      Writeln('[FAIL] Falha na validação cruzada');
 
     Writeln('=== FIM TESTE DRIVERS ===');
   except
     on E: Exception do
-      Writeln('❌ ERRO DRIVERS: ', E.Message);
+      Writeln('[FAIL] ERRO DRIVERS: ', E.Message);
   end;
 end;
 

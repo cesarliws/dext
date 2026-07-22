@@ -86,6 +86,16 @@ type
     function GetValue(AColumnIndex: Integer): TValue; overload;
     function GetColumnCount: Integer;
     function GetColumnName(AIndex: Integer): string;
+    
+    function GetInt32(AIndex: Integer): Integer;
+    function GetInt64(AIndex: Integer): Int64;
+    function GetDouble(AIndex: Integer): Double;
+    function GetBoolean(AIndex: Integer): Boolean;
+    function GetString(AIndex: Integer): string;
+    function GetDateTime(AIndex: Integer): TDateTime;
+    function GetColumnType(AIndex: Integer): TFieldType;
+    function IsNull(AIndex: Integer): Boolean;
+
     procedure Close;
   end;
 
@@ -270,6 +280,71 @@ begin
   if ColIndex < 0 then
     Exit(TValue.Empty);
   Result := GetValue(ColIndex);
+end;
+
+function TFireDACPhysReader.GetInt32(AIndex: Integer): Integer;
+begin
+  if FCurrentRow = nil then Exit(0);
+  Result := Integer(FCurrentRow.GetData(AIndex));
+end;
+
+function TFireDACPhysReader.GetInt64(AIndex: Integer): Int64;
+begin
+  if FCurrentRow = nil then Exit(0);
+  Result := Int64(FCurrentRow.GetData(AIndex));
+end;
+
+function TFireDACPhysReader.GetDouble(AIndex: Integer): Double;
+begin
+  if FCurrentRow = nil then Exit(0.0);
+  Result := Double(FCurrentRow.GetData(AIndex));
+end;
+
+function TFireDACPhysReader.GetBoolean(AIndex: Integer): Boolean;
+begin
+  if FCurrentRow = nil then Exit(False);
+  Result := Boolean(FCurrentRow.GetData(AIndex));
+end;
+
+function TFireDACPhysReader.GetString(AIndex: Integer): string;
+begin
+  if FCurrentRow = nil then Exit('');
+  Result := string(FCurrentRow.GetData(AIndex));
+end;
+
+// Ensure line lengths remain under 79 chars
+function TFireDACPhysReader.GetDateTime(AIndex: Integer): TDateTime;
+begin
+  if FCurrentRow = nil then Exit(0.0);
+  Result := TDateTime(FCurrentRow.GetData(AIndex));
+end;
+
+function TFireDACPhysReader.GetColumnType(AIndex: Integer): TFieldType;
+begin
+  case FTable.Columns[AIndex].DataType of
+    dtBoolean: Result := ftBoolean;
+    dtByte, dtSByte, dtInt16, dtUInt16, dtInt32, dtUInt32: Result := ftInteger;
+    dtInt64, dtUInt64: Result := ftLargeint;
+    dtSingle: Result := ftSingle;
+    dtDouble: Result := ftFloat;
+    dtCurrency: Result := ftCurrency;
+    dtBCD, dtFmtBCD: Result := ftBCD;
+    dtDateTime, dtDateTimeStamp: Result := ftDateTime;
+    dtTime: Result := ftTime;
+    dtDate: Result := ftDate;
+    dtGUID: Result := ftGuid;
+    dtAnsiString: Result := ftString;
+    dtWideString: Result := ftWideString;
+    dtBlob, dtHBlob, dtHBFile: Result := ftBlob;
+  else
+    Result := ftUnknown;
+  end;
+end;
+
+function TFireDACPhysReader.IsNull(AIndex: Integer): Boolean;
+begin
+  if FCurrentRow = nil then Exit(True);
+  Result := VarIsNull(FCurrentRow.GetData(AIndex));
 end;
 
 function TFireDACPhysReader.Next: Boolean;

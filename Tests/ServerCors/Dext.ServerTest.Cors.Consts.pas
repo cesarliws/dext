@@ -1,4 +1,4 @@
-unit Dext.ServerTest.Cors.Consts;
+﻿unit Dext.ServerTest.Cors.Consts;
 
 interface
 
@@ -27,7 +27,7 @@ const
       '</head>' +
       '<body>' +
       '<div class="container">' +
-      '<h1>🔹 Dext Framework - CORS Test Demo</h1>' +
+      '<h1>* Dext Framework - CORS Test Demo</h1>' +
       '<p>Teste completo das funcionalidades CORS do framework Dext</p>' +
       '<div class="test-section">' +
       '<h3>1. Teste CORS Básico</h3>' +
@@ -51,7 +51,7 @@ const
       '<button onclick="testInvalidMethod()">Testar Método Não Permitido</button>' +
       '</div>' +
       '<div id="results">' +
-      '<h3>📊 Resultados dos Testes:</h3>' +
+      '<h3>[BENCH] Resultados dos Testes:</h3>' +
       '<div id="log"></div>' +
       '</div>' +
       '</div>' +
@@ -68,7 +68,7 @@ const
       'logDiv.scrollTop = logDiv.scrollHeight;' +
       '}' +
       'async function testBasicCors() {' +
-      'log("🚀 Iniciando teste CORS básico...", "warning");' +
+      'log("[START] Iniciando teste CORS básico...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "GET",' +
@@ -77,12 +77,12 @@ const
       'if (response.ok) {' +
       'const data = await response.json();' +
       'const corsHeader = response.headers.get("access-control-allow-origin");' +
-      'log("✅ <strong>SUCESSO</strong> - CORS Header: " + corsHeader + " | Response: " + JSON.stringify(data), "success");' +
+      'log("[PASS] <strong>SUCESSO</strong> - CORS Header: " + corsHeader + " | Response: " + JSON.stringify(data), "success");' +
       '} else {' +
       'log("? <strong>ERRO</strong> - Status: " + response.status, "error");' +
       '}' +
       '} catch (error) {' +
-      'log("❌ <strong>EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testPreflight() {' +
@@ -100,16 +100,16 @@ const
       'const allowMethods = response.headers.get("access-control-allow-methods");' +
       'const allowHeaders = response.headers.get("access-control-allow-headers");' +
       'if (response.status === 204) {' +
-      'log("✅ <strong>PREFLIGHT SUCESSO</strong> - Status: " + response.status + " | Headers: Origin=" + allowOrigin + ", Methods=" + allowMethods + ", Headers=" + allowHeaders, "success");' +
+      'log("[PASS] <strong>PREFLIGHT SUCESSO</strong> - Status: " + response.status + " | Headers: Origin=" + allowOrigin + ", Methods=" + allowMethods + ", Headers=" + allowHeaders, "success");' +
       '} else {' +
-      'log("❌ <strong>PREFLIGHT ERRO</strong> - Status: " + response.status, "error");' +
+      'log("[FAIL] <strong>PREFLIGHT ERRO</strong> - Status: " + response.status, "error");' +
       '}' +
       '} catch (error) {' +
-      'log("❌ <strong>PREFLIGHT EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>PREFLIGHT EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testWithCredentials() {' +
-      'log("🔹 Testando com credenciais...", "warning");' +
+      'log("* Testando com credenciais...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "GET",' +
@@ -118,16 +118,16 @@ const
       '});' +
       'const allowCredentials = response.headers.get("access-control-allow-credentials");' +
       'if (response.ok) {' +
-      'log("✅ <strong>CREDENCIAIS SUCESSO</strong> - Allow-Credentials: " + allowCredentials, "success");' +
+      'log("[PASS] <strong>CREDENCIAIS SUCESSO</strong> - Allow-Credentials: " + allowCredentials, "success");' +
       '} else {' +
-      'log("❌ <strong>CREDENCIAIS ERRO</strong> - Status: " + response.status, "error");' +
+      'log("[FAIL] <strong>CREDENCIAIS ERRO</strong> - Status: " + response.status, "error");' +
       '}' +
       '} catch (error) {' +
-      'log("❌ <strong>CREDENCIAIS EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>CREDENCIAIS EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testWithAuthHeader() {' +
-      'log("🔹 Testando com Authorization header...", "warning");' +
+      'log("* Testando com Authorization header...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "GET",' +
@@ -138,53 +138,53 @@ const
       '});' +
       'if (response.ok) {' +
       'const data = await response.json();' +
-      'log("✅ <strong>AUTH HEADER SUCESSO</strong> - Request com Authorization enviado", "success");' +
+      'log("[PASS] <strong>AUTH HEADER SUCESSO</strong> - Request com Authorization enviado", "success");' +
       '} else {' +
-      'log("❌ <strong>AUTH HEADER ERRO</strong> - Status: " + response.status, "error");' +
+      'log("[FAIL] <strong>AUTH HEADER ERRO</strong> - Status: " + response.status, "error");' +
       '}' +
       '} catch (error) {' +
-      'log("❌ <strong>AUTH HEADER EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>AUTH HEADER EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testPost() {' +
-      'log("🔹 Testando POST...", "warning");' +
+      'log("* Testando POST...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "POST",' +
       'headers: { "Content-Type": "application/json" },' +
       'body: JSON.stringify({ test: "post", data: new Date().toISOString() })' +
       '});' +
-      'log("🚀 <strong>POST ENVIADO</strong> - Status: " + response.status, "success");' +
+      'log("[START] <strong>POST ENVIADO</strong> - Status: " + response.status, "success");' +
       '} catch (error) {' +
-      'log("❌ <strong>POST EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>POST EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testPut() {' +
-      'log("🔹 Testando PUT...", "warning");' +
+      'log("* Testando PUT...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "PUT",' +
       'headers: { "Content-Type": "application/json" },' +
       'body: JSON.stringify({ test: "put", data: new Date().toISOString() })' +
       '});' +
-      'log("🚀 <strong>PUT ENVIADO</strong> - Status: " + response.status, "success");' +
+      'log("[START] <strong>PUT ENVIADO</strong> - Status: " + response.status, "success");' +
       '} catch (error) {' +
-      'log("❌ <strong>PUT EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>PUT EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testDelete() {' +
-      'log("🔹 Testando DELETE...", "warning");' +
+      'log("* Testando DELETE...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "DELETE"' +
       '});' +
-      'log("🚀 <strong>DELETE ENVIADO</strong> - Status: " + response.status, "success");' +
+      'log("[START] <strong>DELETE ENVIADO</strong> - Status: " + response.status, "success");' +
       '} catch (error) {' +
-      'log("❌ <strong>DELETE EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>DELETE EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testInvalidOrigin() {' +
-      'log("🔹 Testando origem inválida...", "warning");' +
+      'log("* Testando origem inválida...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "GET",' +
@@ -194,21 +194,21 @@ const
       '}' +
       '});' +
       'const allowOrigin = response.headers.get("access-control-allow-origin");' +
-      'log("⚠️ <strong>ORIGEM INVÁLIDA</strong> - Allow-Origin: " + allowOrigin, "warning");' +
+      'log("[WARN] <strong>ORIGEM INVÁLIDA</strong> - Allow-Origin: " + allowOrigin, "warning");' +
       '} catch (error) {' +
-      'log("❌ <strong>ORIGEM INVÁLIDA EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>ORIGEM INVÁLIDA EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       'async function testInvalidMethod() {' +
-      'log("🔹 Testando método não permitido...", "warning");' +
+      'log("* Testando método não permitido...", "warning");' +
       'try {' +
       'const response = await fetch(BASE_URL + "/cors-test", {' +
       'method: "PATCH",' +
       'headers: { "Content-Type": "application/json" }' +
       '});' +
-      'log("⚠️ <strong>MÉTODO NÃO PERMITIDO</strong> - Status: " + response.status, "warning");' +
+      'log("[WARN] <strong>MÉTODO NÃO PERMITIDO</strong> - Status: " + response.status, "warning");' +
       '} catch (error) {' +
-      'log("❌ <strong>MÉTODO NÃO PERMITIDO EXCEÇÃO</strong> - " + error.message, "error");' +
+      'log("[FAIL] <strong>MÉTODO NÃO PERMITIDO EXCEÇÃO</strong> - " + error.message, "error");' +
       '}' +
       '}' +
       '</script>' +
@@ -219,7 +219,7 @@ const
       '<!DOCTYPE html>' +
       '<html>' +
       '<head>' +
-      '<meta charset="UTF-8">' +  // ⚡️ FORÇAR UTF-8
+      '<meta charset="UTF-8">' +  // [FAST]️ FORÇAR UTF-8
       '<title>CORS Test from Different Origin</title>' +
       '<style>' +
       'body { font-family: Arial, sans-serif; margin: 40px; }' +

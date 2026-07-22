@@ -52,6 +52,8 @@ contains
   Dext.Collections.Factory in '..\..\Sources\Core\Dext.Collections.Factory.pas',
   Dext.Collections.RawDict in '..\..\Sources\Core\Dext.Collections.RawDict.pas',
   Dext.Collections.Dict in '..\..\Sources\Core\Dext.Collections.Dict.pas',
+  Dext.Collections.RawOrderedDict in '..\..\Sources\Core\Dext.Collections.RawOrderedDict.pas',
+  Dext.Collections.OrderedDict in '..\..\Sources\Core\Dext.Collections.OrderedDict.pas',
   Dext.Collections.Concurrent in '..\..\Sources\Core\Dext.Collections.Concurrent.pas',
   Dext.Collections.Channels in '..\..\Sources\Core\Dext.Collections.Channels.pas',
   Dext.Collections.Algorithms in '..\..\Sources\Core\Dext.Collections.Algorithms.pas',

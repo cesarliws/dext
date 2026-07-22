@@ -75,7 +75,6 @@ uses
   Dext.DI.Interfaces,
   Dext.Server.Engine.Types;
 
-
 type
   /// <summary>
   /// MCP transport selection.

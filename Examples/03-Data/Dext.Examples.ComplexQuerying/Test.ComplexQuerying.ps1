@@ -47,7 +47,7 @@ try {
     Write-Host ($SearchResponse | ConvertTo-Json -Depth 3) -ForegroundColor Cyan
 
     Write-Host ""
-    Write-Host "[*] All tests passed successfully! 🚀" -ForegroundColor Green
+    Write-Host "[*] All tests passed successfully! [START]" -ForegroundColor Green
 
 }
 catch {

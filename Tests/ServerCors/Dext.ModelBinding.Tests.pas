@@ -33,7 +33,7 @@ uses
   Dext.Web.Interfaces,
   Dext.Web.Mocks;
 
-// ✅ PROCEDURE AUXILIAR PARA CRIAR MOCK CONTEXT
+// [PASS] PROCEDURE AUXILIAR PARA CRIAR MOCK CONTEXT
 function CreateMockHttpContext(const AQueryString: string): IHttpContext;
 var
   MockRequest: IHttpRequest;
@@ -78,8 +78,8 @@ begin
   try
     Binder := TModelBinder.Create;
 
-    // ✅ TESTE 1: Cenário básico
-    Writeln('✅ TESTE 1: Cenário básico');
+    // [PASS] TESTE 1: Cenário básico
+    Writeln('[PASS] TESTE 1: Cenário básico');
     MockContext := TMockFactory.CreateHttpContext('user_name=John+Doe&age=30&active=true&score=95.5&status=2');
 
     Value := Binder.BindQuery(TypeInfo(TQueryTest), MockContext);
@@ -91,15 +91,15 @@ begin
     Writeln('  Score: ', FormatFloat('0.0', QueryTest.Score), ' (Expected: 95.5)');
     Writeln('  Status: ', QueryTest.Status, ' (Expected: 2)');
 
-    // ✅ TESTE 2: Boolean com diferentes representações
-    Writeln(#10 + '✅ TESTE 2: Boolean com múltiplas representações');
+    // [PASS] TESTE 2: Boolean com diferentes representações
+    Writeln(#10 + '[PASS] TESTE 2: Boolean com múltiplas representações');
 
     BoolTests := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
     for BoolValue in BoolTests do
     begin
       MockContext := TMockFactory.CreateHttpContext('active=' + BoolValue);
 
-      // ✅ DEBUG: Verificar o que o mock está recebendo
+      // [PASS] DEBUG: Verificar o que o mock está recebendo
       Writeln('Query string: ', 'active=' + BoolValue);
 
       Value := Binder.BindQuery(TypeInfo(TQueryTest), MockContext);
@@ -111,7 +111,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO BindQuery: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO BindQuery: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -136,7 +136,7 @@ begin
   try
     Binder := TModelBinder.Create;
 
-    // ✅ TESTE: Valores extremos
+    // [PASS] TESTE: Valores extremos
     MockContext := CreateMockHttpContext('/api/test?smallint=32767&largeint=9223372036854775807&currencyval=123.4567&isenabled=1&userrole=5');
     Test := TModelBinderHelper.BindQuery<TEdgeCaseTest>(Binder, MockContext);
 
@@ -146,7 +146,7 @@ begin
     Writeln('  IsEnabled: ', Test.IsEnabled, ' (Expected: True)');
     Writeln('  UserRole: ', Test.UserRole, ' (Expected: 5)');
 
-    // ✅ TESTE: Valores negativos
+    // [PASS] TESTE: Valores negativos
     MockContext := CreateMockHttpContext('/api/test?smallint=-123&largeint=-999999&currencyval=-45.67&isenabled=0');
     Test := TModelBinderHelper.BindQuery<TEdgeCaseTest>(Binder, MockContext);
 
@@ -159,7 +159,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO Edge Cases: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO Edge Cases: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -190,8 +190,8 @@ begin
   try
     Binder := TModelBinder.Create;
 
-    // ✅ TESTE 1: Cenário completo
-    Writeln('✅ TESTE 1: Cenário completo');
+    // [PASS] TESTE 1: Cenário completo
+    Writeln('[PASS] TESTE 1: Cenário completo');
 
     RouteParams := TCollections.CreateDictionary<string, string>;
     try
@@ -215,15 +215,15 @@ begin
       // RouteParams.Free;
     end;
 
-    // ✅ TESTE 2: Boolean com diferentes representações
-    Writeln(#10 + '✅ TESTE 2: Boolean com múltiplas representações');
+    // [PASS] TESTE 2: Boolean com diferentes representações
+    Writeln(#10 + '[PASS] TESTE 2: Boolean com múltiplas representações');
 
     BoolTests := ['true', '1', 'yes', 'on', 'false', '0', 'no', 'off'];
     for BoolValue in BoolTests do
     begin
       RouteParams := TCollections.CreateDictionary<string, string>;
       try
-        RouteParams.Add('IsActive', BoolValue); // ✅ Já está correto
+        RouteParams.Add('IsActive', BoolValue); // [PASS] Já está correto
         MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
         Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
@@ -234,8 +234,8 @@ begin
       end;
     end;
 
-    // ✅ TESTE 3: GUID com diferentes formatos
-    Writeln(#10 + '✅ TESTE 3: GUID com diferentes formatos');
+    // [PASS] TESTE 3: GUID com diferentes formatos
+    Writeln(#10 + '[PASS] TESTE 3: GUID com diferentes formatos');
 
     GuidTests := [
       '{C87A33C3-116A-4A31-9A15-9D9A8B6D9C41}',
@@ -247,7 +247,7 @@ begin
     begin
       RouteParams := TCollections.CreateDictionary<string, string>;
       try
-        RouteParams.Add('UserGuid', GuidStr); // ✅ Já está correto
+        RouteParams.Add('UserGuid', GuidStr); // [PASS] Já está correto
         MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
         Value := Binder.BindRoute(TypeInfo(TRouteTest), MockContext);
@@ -258,14 +258,14 @@ begin
       end;
     end;
 
-    // ✅ TESTE 4: Campos opcionais (não presentes)
-    Writeln(#10 + '✅ TESTE 4: Campos opcionais/faltantes');
+    // [PASS] TESTE 4: Campos opcionais (não presentes)
+    Writeln(#10 + '[PASS] TESTE 4: Campos opcionais/faltantes');
 
     RouteParams := TCollections.CreateDictionary<string, string>;
     try
       // Apenas alguns parâmetros
       RouteParams.Add('user_id', '456');
-      RouteParams.Add('Category', 'books'); // ✅ Agora com "Category"
+      RouteParams.Add('Category', 'books'); // [PASS] Agora com "Category"
 
       MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
@@ -284,7 +284,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO BindRoute: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO BindRoute: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -310,16 +310,16 @@ begin
   try
     Binder := TModelBinder.Create;
 
-    // ✅ TESTE: Valores extremos
-    Writeln('✅ TESTE: Valores extremos');
+    // [PASS] TESTE: Valores extremos
+    Writeln('[PASS] TESTE: Valores extremos');
 
     RouteParams := TCollections.CreateDictionary<string, string>;
     try
-      RouteParams.Add('Id', '32767');           // ✅ Agora com "Id"
-      RouteParams.Add('BigId', '9223372036854775807'); // ✅ Agora com "BigId"
-      RouteParams.Add('Price', '999.99');       // ✅ Agora com "Price"
-      RouteParams.Add('Enabled', '1');          // ✅ Agora com "Enabled"
-      RouteParams.Add('Status', '2');           // ✅ Agora com "Status"
+      RouteParams.Add('Id', '32767');           // [PASS] Agora com "Id"
+      RouteParams.Add('BigId', '9223372036854775807'); // [PASS] Agora com "BigId"
+      RouteParams.Add('Price', '999.99');       // [PASS] Agora com "Price"
+      RouteParams.Add('Enabled', '1');          // [PASS] Agora com "Enabled"
+      RouteParams.Add('Status', '2');           // [PASS] Agora com "Status"
 
       MockContext := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
 
@@ -335,8 +335,8 @@ begin
       // RouteParams.Free;
     end;
 
-    // ✅ TESTE: Valores negativos
-    Writeln(#10 + '✅ TESTE: Valores negativos');
+    // [PASS] TESTE: Valores negativos
+    Writeln(#10 + '[PASS] TESTE: Valores negativos');
 
     RouteParams := TCollections.CreateDictionary<string, string>;
     try
@@ -362,7 +362,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO Edge Cases BindRoute: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO Edge Cases BindRoute: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -390,7 +390,7 @@ begin
   try
     Binder := TModelBinder.Create;
 
-    // ✅ TESTE: Headers com diferentes formatos
+    // [PASS] TESTE: Headers com diferentes formatos
     Headers := TCollections.CreateDictionary<string, string>;
     try
       // Headers podem vir em qualquer case (serão normalizados para lowercase)
@@ -422,7 +422,7 @@ begin
 
   except
     on E: Exception do
-      Writeln('❌ ERRO BindHeader: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO BindHeader: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -457,11 +457,11 @@ type
   {$M-}
 
   TServiceTest = record
-    [FromServices] UserService: IUserService;    // ✅ Interface registrada
-    [FromServices] Logger: ILogger;              // ✅ Interface registrada
-    [FromServices] Database: TDatabaseService;   // ✅ Classe registrada
-    [FromServices] MissingService: IInterface;   // ❌ Interface não registrada
-    NormalField: Integer;                        // ❌ Sem atributo
+    [FromServices] UserService: IUserService;    // [PASS] Interface registrada
+    [FromServices] Logger: ILogger;              // [PASS] Interface registrada
+    [FromServices] Database: TDatabaseService;   // [PASS] Classe registrada
+    [FromServices] MissingService: IInterface;   // [FAIL] Interface não registrada
+    NormalField: Integer;                        // [FAIL] Sem atributo
   end;
 
 { TUserService }
@@ -517,32 +517,32 @@ begin
     // Verificar injeções
     if Assigned(ServiceTest.UserService) then
     begin
-      Writeln('  ✅ UserService injected');
+      Writeln('  [PASS] UserService injected');
       Writeln('    UserName: ', ServiceTest.UserService.GetUserName);
     end
     else
-      Writeln('  ❌ UserService not injected');
+      Writeln('  [FAIL] UserService not injected');
 
     if Assigned(ServiceTest.Logger) then
     begin
-      Writeln('  ✅ Logger injected');
+      Writeln('  [PASS] Logger injected');
       ServiceTest.Logger.Log('Test message from DI');
     end
     else
-      Writeln('  ❌ Logger not injected');
+      Writeln('  [FAIL] Logger not injected');
 
     if Assigned(ServiceTest.Database) then
     begin
-      Writeln('  ✅ DatabaseService injected');
+      Writeln('  [PASS] DatabaseService injected');
       Writeln('    Connection: ', ServiceTest.Database.GetConnection);
     end
     else
-      Writeln('  ❌ DatabaseService not injected');
+      Writeln('  [FAIL] DatabaseService not injected');
 
     if Assigned(ServiceTest.MissingService) then
-      Writeln('  ❌ MissingService was injected (unexpected)')
+      Writeln('  [FAIL] MissingService was injected (unexpected)')
     else
-      Writeln('  ✅ MissingService correctly not injected');
+      Writeln('  [PASS] MissingService correctly not injected');
 
     Writeln('  NormalField: ', ServiceTest.NormalField, ' (Expected: 0 - no injection)');
 
@@ -558,7 +558,7 @@ begin
     Binder := nil;
   except
     on E: Exception do
-      Writeln('❌ ERRO BindServices: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO BindServices: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -582,7 +582,7 @@ begin
     Binder := TModelBinder.Create;
 
     // ISO Format Test
-    Writeln('✅ TESTE 1: ISO Format');
+    Writeln('[PASS] TESTE 1: ISO Format');
     // Using explicit date strings to avoid locale issues in test construction, but typical ISO is safe
     MockContext := TMockFactory.CreateHttpContext('dateval=2025-12-25&timeval=14:30:00&userdatetime=2025-12-25T14:30:00&invaliddate=not-a-date');
 
@@ -595,10 +595,10 @@ begin
     Writeln('  InvalidDate: ', FloatToStr(Test.InvalidDate), ' (Expected: 0)');
 
     if (Test.InvalidDate <> 0) then
-      Writeln('  ❌ InvalidDate falhou (não é 0)');
+      Writeln('  [FAIL] InvalidDate falhou (não é 0)');
 
     // Common Format Test (slash)
-    Writeln(#10 + '✅ TESTE 2: Common Format (Slash)');
+    Writeln(#10 + '[PASS] TESTE 2: Common Format (Slash)');
     // Note: Depends on local settings slightly if TryParseCommonDate uses settings, but common formats usually hardcoded
     // Assuming TryParseCommonDate handles dd/mm/yyyy
     MockContext := TMockFactory.CreateHttpContext('dateval=25/12/2025&timeval=14:30&userdatetime=25/12/2025 14:30');
@@ -613,7 +613,7 @@ begin
     Writeln('=== SUCESSO BINDQUERY DATETYPES! ===');
   except
     on E: Exception do
-      Writeln('❌ ERRO BindQueryDateTypes: ', E.ClassName, ' - ', E.Message);
+      Writeln('[FAIL] ERRO BindQueryDateTypes: ', E.ClassName, ' - ', E.Message);
   end;
 end;
 
@@ -648,7 +648,7 @@ begin
       BodyStream.WriteBuffer(Bytes[0], Length(Bytes));
       BodyStream.Position := 0;
 
-      Writeln('✅ TESTE 1: Bind Body from Stream (Bytes)');
+      Writeln('[PASS] TESTE 1: Bind Body from Stream (Bytes)');
       
       Value := Binder.BindBody(TypeInfo(TSimpleBody), MockContext);
       Test := Value.AsType<TSimpleBody>;
@@ -661,12 +661,12 @@ begin
       if (Test.Id = 200) and (Test.Name = 'ZeroAlloc Item') and (Test.Active) then
         Writeln('  -> Validated!')
       else
-        Writeln('  ❌ Validation FAILED');
+        Writeln('  [FAIL] Validation FAILED');
 
       Writeln('=== SUCESSO BINDBODY ZERO ALLOC! ===');
     except
       on E: Exception do
-        Writeln('❌ ERRO BindBodyZeroAlloc: ', E.ClassName, ' - ', E.Message);
+        Writeln('[FAIL] ERRO BindBodyZeroAlloc: ', E.ClassName, ' - ', E.Message);
     end;
   finally
     BodyStream.Free;

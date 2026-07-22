@@ -40,7 +40,7 @@ begin
   Handle := TEvent.Create;
   try
     Log('  Testing OnCompleteAsync (No Sync)...');
-    
+
     // Test OnCompleteAsync
     TAsyncTask.Run<Integer>(function: Integer
       begin
@@ -53,16 +53,16 @@ begin
         Handle.SetEvent;
       end)
       .Start;
-      
+
     // Wait for completion
     Handle.WaitFor(5000);
-    
+
     AssertTrue(Executed, 'Callback executed', 'Callback did not execute');
-    AssertTrue(CompleteThreadID <> MainThreadID, 
-      Format('Callback ran on background thread (Main: %d, Bg: %d)', [MainThreadID, CompleteThreadID]), 
+    AssertTrue(CompleteThreadID <> MainThreadID,
+      Format('Callback ran on background thread (Main: %d, Bg: %d)', [MainThreadID, CompleteThreadID]),
       Format('Callback ran on MAIN thread (Main: %d, Bg: %d)', [MainThreadID, CompleteThreadID]));
-      
-      
+
+
     // Test OnExceptionAsync
     Log('  Testing OnExceptionAsync (No Sync)...');
     Handle.ResetEvent;
@@ -79,12 +79,12 @@ begin
         Handle.SetEvent;
       end)
       .Start;
-      
+
     Handle.WaitFor(5000);
-    
+
     AssertTrue(Executed, 'Exception Callback executed', 'Exception Callback did not execute');
-    AssertTrue(ExceptionThreadID <> MainThreadID, 
-      Format('Exception Callback ran on background thread (Main: %d, Bg: %d)', [MainThreadID, ExceptionThreadID]), 
+    AssertTrue(ExceptionThreadID <> MainThreadID,
+      Format('Exception Callback ran on background thread (Main: %d, Bg: %d)', [MainThreadID, ExceptionThreadID]),
       Format('Exception Callback ran on MAIN thread (Main: %d, Bg: %d)', [MainThreadID, ExceptionThreadID]));
 
   finally

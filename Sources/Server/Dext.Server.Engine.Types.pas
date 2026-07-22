@@ -53,6 +53,16 @@ type
     KeepAliveTimeoutSec: Integer;
     /// <summary>The IP address or host to bind the server to (default: '0.0.0.0').</summary>
     BindAddress: string;
+    /// <summary>Max threads for task executor (default: 0 - inline).</summary>
+    MaxExecutorThreads: Integer;
+    /// <summary>Max queue capacity for task executor (default: 1024).</summary>
+    MaxQueueCapacity: Integer;
+    /// <summary>Outstanding Http.Sys receives per I/O worker (default: 2).</summary>
+    OutstandingReceiveDepth: Integer;
+    /// <summary>Maximum accepted native request-header buffer size.</summary>
+    MaxRequestHeaderSize: Integer;
+    /// <summary>Maximum accepted request body size.</summary>
+    MaxRequestBodySize: Int64;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -81,6 +91,16 @@ type
     /// <summary>Configures the server bind address (e.g. '0.0.0.0', '127.0.0.1', or '+').</summary>
     /// <param name="AAddress">The bind address string.</param>
     function WithBindAddress(const AAddress: string): TServerEngineOptions;
+    /// <summary>Configures max threads for request executor pool.</summary>
+    function WithMaxExecutorThreads(ACount: Integer): TServerEngineOptions;
+    /// <summary>Configures max queue capacity for request executor.</summary>
+    function WithMaxQueueCapacity(ACapacity: Integer): TServerEngineOptions;
+    /// <summary>Configures outstanding Http.Sys receives per worker (1..8).</summary>
+    function WithOutstandingReceiveDepth(
+      ADepth: Integer): TServerEngineOptions;
+    /// <summary>Configures native request header and body size limits.</summary>
+    function WithRequestSizeLimits(AHeaderBytes: Integer;
+      ABodyBytes: Int64): TServerEngineOptions;
   end;
 
   /// <summary>
@@ -106,6 +126,11 @@ begin
   Result.KeepAlive := True;
   Result.KeepAliveTimeoutSec := 120;
   Result.BindAddress := '0.0.0.0';
+  Result.MaxExecutorThreads := 0;
+  Result.MaxQueueCapacity := 1024;
+  Result.OutstandingReceiveDepth := 2;
+  Result.MaxRequestHeaderSize := 64 * 1024;
+  Result.MaxRequestBodySize := 16 * 1024 * 1024;
 end;
 
 { TServerEngineOptionsHelper }
@@ -141,9 +166,43 @@ begin
   Result := Self;
 end;
 
-function TServerEngineOptionsHelper.WithBindAddress(const AAddress: string): TServerEngineOptions;
+function TServerEngineOptionsHelper.WithBindAddress(
+  const AAddress: string): TServerEngineOptions;
 begin
   Self.BindAddress := AAddress;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithMaxExecutorThreads(
+  ACount: Integer): TServerEngineOptions;
+begin
+  Self.MaxExecutorThreads := ACount;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithMaxQueueCapacity(
+  ACapacity: Integer): TServerEngineOptions;
+begin
+  Self.MaxQueueCapacity := ACapacity;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithOutstandingReceiveDepth(
+  ADepth: Integer): TServerEngineOptions;
+begin
+  if ADepth < 1 then
+    ADepth := 1
+  else if ADepth > 8 then
+    ADepth := 8;
+  Self.OutstandingReceiveDepth := ADepth;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithRequestSizeLimits(
+  AHeaderBytes: Integer; ABodyBytes: Int64): TServerEngineOptions;
+begin
+  Self.MaxRequestHeaderSize := AHeaderBytes;
+  Self.MaxRequestBodySize := ABodyBytes;
   Result := Self;
 end;
 

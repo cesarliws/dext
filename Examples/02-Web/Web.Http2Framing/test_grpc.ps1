@@ -28,7 +28,7 @@ $content = New-Object System.Net.Http.ByteArrayContent($msg, 0, $msg.Length)
 $content.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse("application/grpc")
 $req.Content = $content
 
-Write-Host "🚀 Sending HTTP/2 gRPC Unary Request to http://localhost:8443/grpc..." -ForegroundColor Cyan
+Write-Host "[START] Sending HTTP/2 gRPC Unary Request to http://localhost:8443/grpc..." -ForegroundColor Cyan
 
 try {
     $res = $client.SendAsync($req).Result
@@ -73,7 +73,7 @@ try {
         }
     }
 } catch {
-    Write-Host "`n❌ Error sending request: $_" -ForegroundColor Red
+    Write-Host "`n[FAIL] Error sending request: $_" -ForegroundColor Red
 } finally {
     $client.Dispose()
 }

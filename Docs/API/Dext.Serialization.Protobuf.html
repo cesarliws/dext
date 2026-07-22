@@ -65,9 +65,11 @@
 <a href="Dext.Collections.Frozen.html" class="nav-item">Dext.Collections.Frozen</a>
 <a href="Dext.Collections.HashSet.html" class="nav-item">Dext.Collections.HashSet</a>
 <a href="Dext.Collections.Memory.html" class="nav-item">Dext.Collections.Memory</a>
+<a href="Dext.Collections.OrderedDict.html" class="nav-item">Dext.Collections.OrderedDict</a>
 <a href="Dext.Collections.Queue.html" class="nav-item">Dext.Collections.Queue</a>
 <a href="Dext.Collections.Raw.html" class="nav-item">Dext.Collections.Raw</a>
 <a href="Dext.Collections.RawDict.html" class="nav-item">Dext.Collections.RawDict</a>
+<a href="Dext.Collections.RawOrderedDict.html" class="nav-item">Dext.Collections.RawOrderedDict</a>
 <a href="Dext.Collections.Simd.html" class="nav-item">Dext.Collections.Simd</a>
 <a href="Dext.Collections.Stack.html" class="nav-item">Dext.Collections.Stack</a>
 <a href="Dext.Collections.Vector.html" class="nav-item">Dext.Collections.Vector</a>
@@ -234,6 +236,7 @@
 <a href="Dext.OpenAPI.Types.html" class="nav-item">Dext.OpenAPI.Types</a>
 <a href="Dext.Options.html" class="nav-item">Dext.Options</a>
 <a href="Dext.Options.Extensions.html" class="nav-item">Dext.Options.Extensions</a>
+<a href="Dext.Performance.Allocator.html" class="nav-item">Dext.Performance.Allocator</a>
 <a href="Dext.RateLimiting.html" class="nav-item">Dext.RateLimiting</a>
 <a href="Dext.RateLimiting.Core.html" class="nav-item">Dext.RateLimiting.Core</a>
 <a href="Dext.RateLimiting.Limiters.html" class="nav-item">Dext.RateLimiting.Limiters</a>
@@ -241,6 +244,7 @@
 <a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
 <a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
 <a href="Dext.Serialization.Protobuf.html" class="nav-item">Dext.Serialization.Protobuf</a>
+<a href="Dext.Server.BoundedExecutor.html" class="nav-item">Dext.Server.BoundedExecutor</a>
 <a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
 <a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
 <a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
@@ -355,12 +359,14 @@
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
+<a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
 <a href="Dext.Web.Routing.html" class="nav-item">Dext.Web.Routing</a>
 <a href="Dext.Web.Routing.Attributes.html" class="nav-item">Dext.Web.Routing.Attributes</a>
 <a href="Dext.Web.RoutingMiddleware.html" class="nav-item">Dext.Web.RoutingMiddleware</a>
 <a href="Dext.Web.Sessions.Streamable.html" class="nav-item">Dext.Web.Sessions.Streamable</a>
 <a href="Dext.Web.StaticFiles.html" class="nav-item">Dext.Web.StaticFiles</a>
+<a href="Dext.Web.Utf8.html" class="nav-item">Dext.Web.Utf8</a>
 <a href="Dext.Web.Versioning.html" class="nav-item">Dext.Web.Versioning</a>
 <a href="Dext.Web.View.html" class="nav-item">Dext.Web.View</a>
 <a href="Dext.Web.View.Native.html" class="nav-item">Dext.Web.View.Native</a>
@@ -417,6 +423,10 @@ class TProtobufReader {    +Create()
     +WireType
 }
 TObject <|-- TProtobufReader
+class TProtobufReadOnlySpanStream {    +Create()
+    +Init()
+}
+TCustomMemoryStream <|-- TProtobufReadOnlySpanStream
 class TProtobufSerializer {    +Create()
     +Destroy()
     +GetTagMap()
@@ -429,14 +439,19 @@ class TProtobufSerializer {    +Create()
     +ReadSingle()
     +SerializeField()
     +DeserializeField()
+    +TryReadSpan()
+    +ReadUtf8String()
     +TrySerializeGenerated()
+    +TrySerializeGeneratedToStream()
     +TryDeserializeGenerated()
     +TrySerializeDirect()
+    +TrySerializeDirectToStream()
     +TryDeserializeDirect()
     +SerializeDirectField()
     +DeserializeDirectField()
     +SkipField()
     +Serialize()
+    +SerializeToStream()
     +Deserialize()
 }
 TObject <|-- TProtobufSerializer
@@ -501,11 +516,23 @@ TObject <|-- TProtobufSerializer
 </div>
 <hr>
 <div class="class-header">
+<h3>class TProtobufReadOnlySpanStream</h3><a name="TProtobufReadOnlySpanStream"></a><div class="ancestor">Inherits from: TCustomMemoryStream</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: TByteSpan)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Init(const const: TByteSpan)</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class TProtobufSerializer</h3><a name="TProtobufSerializer"></a><div class="ancestor">Inherits from: TObject</div><div class="description">High-level protobuf serializer with RTTI, direct-offset, and generated-code paths.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Serialize(Obj: TObject; Mode: TProtobufCodecMode): TBytes</div><div class="description">Serializes an object using the selected codec mode.</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SerializeToStream(Obj: TObject; Stream: TStream; Mode: TProtobufCodecMode)</div></div>
+<div class="api-item">
 <div class="api-signature">procedure Deserialize(const const: TBytes; Obj: TObject; Mode: TProtobufCodecMode)</div><div class="description">Deserializes a protobuf payload into an object using the selected codec mode.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Deserialize(const const: TByteSpan; Obj: TObject; Mode: TProtobufCodecMode)</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">constructor Create</div></div>
@@ -532,13 +559,25 @@ TObject <|-- TProtobufSerializer
 <div class="api-item">
 <div class="api-signature">function DeserializeField(Stream: TStream; WireType: Integer; TypeInfoVal: PTypeInfo): TValue</div></div>
 <div class="api-item">
+<div class="api-signature">function TryReadSpan(Stream: TStream; Len: NativeInt; out out: TByteSpan): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadUtf8String(Stream: TStream; Len: NativeInt): string</div></div>
+<div class="api-item">
 <div class="api-signature">function TrySerializeGenerated(Obj: TObject; out out: TBytes): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function TrySerializeGeneratedToStream(Obj: TObject; Stream: TStream): Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">function TryDeserializeGenerated(const const: TBytes; Obj: TObject): Boolean</div></div>
 <div class="api-item">
+<div class="api-signature">function TryDeserializeGenerated(const const: TByteSpan; Obj: TObject): Boolean</div></div>
+<div class="api-item">
 <div class="api-signature">function TrySerializeDirect(Obj: TObject; out out: TBytes): Boolean</div></div>
 <div class="api-item">
+<div class="api-signature">function TrySerializeDirectToStream(Obj: TObject; Stream: TStream): Boolean</div></div>
+<div class="api-item">
 <div class="api-signature">function TryDeserializeDirect(const const: TBytes; Obj: TObject): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function TryDeserializeDirect(const const: TByteSpan; Obj: TObject): Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SerializeDirectField(Stream: TStream; Obj: TObject; const const: TDextFieldPlan)</div></div>
 <div class="api-item">

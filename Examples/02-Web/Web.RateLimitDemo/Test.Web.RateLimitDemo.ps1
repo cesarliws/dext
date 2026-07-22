@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Continue"
 $baseUrl = "http://localhost:8080"
 
-Write-Host "🚀 Testing Web.RateLimitDemo on $baseUrl" -ForegroundColor Cyan
+Write-Host "[START] Testing Web.RateLimitDemo on $baseUrl" -ForegroundColor Cyan
 Write-Host "Sending 15 requests (Limit is 10/min)..."
 
 $success = 0
@@ -76,7 +76,7 @@ elseif ($success -gt 10) {
     exit 1
 }
 elseif ($success -lt 10) {
-    # Se rodar o teste 2 vezes seguido, pode falhar pq o contador não resetou.
+    # Se rodar o teste 2 vezes seguido, pode falhar pq o contador n o resetou.
     Write-Host "`nWARN: Less success than expected. Did you run the test twice within 60s?" -ForegroundColor Yellow
 }
 else {

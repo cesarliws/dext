@@ -7,6 +7,8 @@
 {***************************************************************************}
 unit Dext.Logging.Sinks.APM;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -199,7 +201,7 @@ begin
         else LvlStr := 'Information';
       end;
 
-      SB.Append('{"@t":"').Append(DateToISO8601(TTimeZone.Local.ToUniversalTime(Entry.TimeStamp), True)).Append('",');
+      SB.Append('{"@t":"').Append(DateToISO8601(Entry.TimeStamp, True)).Append('",');
       SB.Append('"@l":"').Append(LvlStr).Append('",');
       SB.Append('"@m":"').Append(Entry.FormattedMessage.Replace('\', '\\').Replace('"', '\"').Replace(#13, '\r').Replace(#10, '\n')).Append('"');
       if not Entry.TraceId.IsEmpty then
@@ -270,8 +272,8 @@ begin
       Entry := Batch[I];
       if I > 0 then SB.Append(',');
 
-      LUnixTimeNano := DateTimeToUnix(TTimeZone.Local.ToUniversalTime(Entry.TimeStamp), False) * 1000000000 +
-                       MilliSecondOf(Entry.TimeStamp) * 1000000;
+      LUnixTimeNano := Int64(Round((Entry.TimeStamp - 25569.0) * 86400.0)) * 1000000000 +
+                       Int64(MilliSecondOf(Entry.TimeStamp)) * 1000000;
 
       case Entry.Level of
         TLogLevel.Trace: begin SevNum := 1; SevText := 'Trace'; end;

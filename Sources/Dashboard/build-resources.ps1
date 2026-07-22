@@ -53,16 +53,16 @@ Write-Host "Compiling $rcFile..."
 & $brcc32Path $rcFile
 
 if (Test-Path $resFile) {
-    Write-Host "✅ Resource compiled successfully: $resFile"
+    Write-Host "[PASS] Resource compiled successfully: $resFile"
     
     if (![string]::IsNullOrEmpty($OutputPath)) {
         if (-not (Test-Path $OutputPath)) {
             New-Item -ItemType Directory -Force -Path $OutputPath | Out-Null
         }
         Copy-Item -Path $resFile -Destination $OutputPath -Force
-        Write-Host "✅ Copied to: $OutputPath"
+        Write-Host "[PASS] Copied to: $OutputPath"
     }
 }
 else {
-    Write-Error "❌ Failed to create $resFile"
+    Write-Error "[FAIL] Failed to create $resFile"
 }

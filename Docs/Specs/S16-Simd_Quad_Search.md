@@ -99,3 +99,37 @@ bool simd_quad(const uint16_t *carr, int32_t cardinality, uint16_t pos) {
     return false;
 }
 ```
+
+---
+
+## 6. Otimizações Adicionais: Branchless Binary Search e Chunks
+
+Além do algoritmo SIMD Quad, técnicas adicionais de *mechanical sympathy*
+podem ser aplicadas para otimizar buscas em estruturas do Dext:
+
+### 6.1. Busca Binária Branchless (Sem Desvios)
+Em uma busca binária padrão, o desvio condicional (`if`) na comparação de
+valores tem 50% de probabilidade de erro de predição pelo processador (*branch
+misprediction*). Podemos mitigar isso com:
+1. **Iterações Fixas:** Eliminar o `while left < right` usando um loop `for`
+   de tamanho fixo $\lceil \log_2 N \rceil$.
+2. **Seleção Branchless:** No Delphi, usar **Assembly Inline (`asm`)** para
+   aplicar instruções `CMOVxx` (Conditional Move), evitando saltos condicionais.
+
+### 6.2. Processamento em Lotes (Chunking) e SIMD
+Para otimizar o uso do cache de CPU e permitir a auto-vetorização:
+* Reordenar loops para iterar as etapas de busca no laço externo, e processar
+  um bloco contíguo de dados (ex: chunks de 16 elementos) no laço interno.
+* Elidir checagens de limites de array (`{$NOBOUNDS ON}`) nos trechos críticos.
+
+Exemplo conceitual de busca binária branchless em Delphi Assembly:
+```pascal
+// Exemplo de uso de CMOV para busca branchless de chaves
+function BranchlessSearch(const Arr: PInteger; Len, Target: Integer): Integer;
+asm
+  // EAX = Arr, EDX = Len, ECX = Target
+  // Implementação utilizando CMOV para evitar desvios
+  // ...
+end;
+```
+

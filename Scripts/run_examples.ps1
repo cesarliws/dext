@@ -1,4 +1,4 @@
-﻿# Dext Examples Automated Runner
+ # Dext Examples Automated Runner
 # This script robustly discovers, builds, and verifies all example projects.
 
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition

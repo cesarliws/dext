@@ -62,7 +62,9 @@ var
   ShouldFreeBinder: Boolean;
   EffectiveBinder: IModelBinder;
   BinderVal: TValue;
-  Parts: TArray<string>;
+  PartStart: Integer;
+  PartEnd: Integer;
+  PartValue: string;
 begin
   if AMap.Keys.Count = 0 then
     raise Exception.CreateFmt('Entity %s does not have a primary key mapped.', [AMap.EntityType.Name]);
@@ -85,16 +87,23 @@ begin
     else
     begin
       // Case 2: Composite Key (Dext pattern ID1|ID2|ID3)
-      Parts := AIdStr.Split(['|']);
-      if Length(Parts) <> AMap.Keys.Count then
-        raise EConvertError.CreateFmt('Invalid composite ID format. Expected %d parts separated by "|".', [AMap.Keys.Count]);
-
       Result := VarArrayCreate([0, AMap.Keys.Count - 1], varVariant);
+      PartStart := 1;
       for i := 0 to AMap.Keys.Count - 1 do
       begin
+        PartEnd := PartStart;
+        while (PartEnd <= Length(AIdStr)) and (AIdStr[PartEnd] <> '|') do
+          Inc(PartEnd);
+
+        if ((i < AMap.Keys.Count - 1) and (PartEnd > Length(AIdStr))) or
+           ((i = AMap.Keys.Count - 1) and (PartEnd <= Length(AIdStr))) then
+          raise EConvertError.CreateFmt('Invalid composite ID format. Expected %d parts separated by "|".', [AMap.Keys.Count]);
+
+        PartValue := Copy(AIdStr, PartStart, PartEnd - PartStart);
         PKProp := AMap.Properties[AMap.Keys[i]];
-        BinderVal := EffectiveBinder.BindValue(Parts[i], PKProp.Prop.PropertyType.Handle);
+        BinderVal := EffectiveBinder.BindValue(PartValue, PKProp.Prop.PropertyType.Handle);
         Result[i] := ValueToVariant(BinderVal);
+        PartStart := PartEnd + 1;
       end;
     end;
   finally

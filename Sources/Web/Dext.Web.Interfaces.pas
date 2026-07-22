@@ -43,6 +43,13 @@ uses
 
 {$M+}
 type
+  /// <summary>Optional direct UTF-8 response sink for formatters and codecs.</summary>
+  IUtf8ResponseSink = interface
+    ['{45C94DC4-1DA8-453F-8F91-21030FFDA829}']
+    /// <summary>Writes UTF-8 bytes without creating a managed byte array.</summary>
+    procedure WriteUtf8(AData: Pointer; ALength: Integer);
+  end;
+
   IHttpContext = interface;
   IHttpRequest = interface;
   IHttpResponse = interface;
@@ -94,6 +101,9 @@ type
   TRouteParamPair = record
     Key: string;
     Value: string;
+    Source: string;
+    Offset: Integer;
+    Length: Integer;
   end;
 
   /// <summary>
@@ -108,6 +118,8 @@ type
   public
     /// <summary>Adds a key/value pair to the dictionary.</summary>
     procedure Add(const AKey, AValue: string);
+    /// <summary>Adds a value as a lazy slice of a source string.</summary>
+    procedure AddSlice(const AKey, ASource: string; AOffset, ALength: Integer);
     /// <summary>Clears all parameters without deallocating the structure.</summary>
     procedure Clear;
     /// <summary>Attempts to get a value by key. Returns True if found.</summary>
@@ -598,54 +610,161 @@ begin
   Result.SameSite := 'Lax';
 end;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+function HexCharToInt(C: Char): Integer;
+begin
+  case C of
+    '0'..'9': Result := Ord(C) - Ord('0');
+    'A'..'F': Result := Ord(C) - Ord('A') + 10;
+    'a'..'f': Result := Ord(C) - Ord('a') + 10;
+  else
+    Result := -1;
+  end;
+end;
+
+function UrlDecode(const AStr: string): string;
+var
+  i: Integer;
+  Ch: Char;
+  HighNibble, LowNibble: Integer;
+begin
+  Result := '';
+  i := 1;
+  while i <= Length(AStr) do
+  begin
+    Ch := AStr[i];
+    if Ch = '%' then
+    begin
+      if i + 2 <= Length(AStr) then
+      begin
+        HighNibble := HexCharToInt(AStr[i + 1]);
+        LowNibble := HexCharToInt(AStr[i + 2]);
+        if (HighNibble >= 0) and (LowNibble >= 0) then
+        begin
+          Result := Result + Chr((HighNibble shl 4) or LowNibble);
+          Inc(i, 3);
+          Continue;
+        end;
+      end;
+    end
+    else if Ch = '+' then
+    begin
+      Result := Result + ' ';
+      Inc(i);
+      Continue;
+    end;
+    Result := Result + Ch;
+    Inc(i);
+  end;
+end;
+
 { TRouteValueDictionary }
 
 procedure TRouteValueDictionary.Add(const AKey, AValue: string);
 begin
-  if FCount < Length(FPairs) then
-  begin
-    FPairs[FCount].Key := AKey;
-    FPairs[FCount].Value := AValue;
-    Inc(FCount);
-  end;
+  if FCount >= Length(FPairs) then
+    raise EInvalidOp.Create('Maximum route parameter count exceeded');
+  FPairs[FCount].Key := AKey;
+  FPairs[FCount].Value := AValue;
+  FPairs[FCount].Source := '';
+  FPairs[FCount].Offset := 0;
+  FPairs[FCount].Length := 0;
+  Inc(FCount);
+end;
+
+procedure TRouteValueDictionary.AddSlice(const AKey, ASource: string;
+  AOffset, ALength: Integer);
+begin
+  if FCount >= Length(FPairs) then
+    raise EInvalidOp.Create('Maximum route parameter count exceeded');
+  if (AOffset < 1) or (ALength < 0) or
+     (Int64(AOffset) + Int64(ALength) - 1 > Int64(System.Length(ASource))) then
+    raise EArgumentOutOfRangeException.Create('Invalid route parameter slice');
+  FPairs[FCount].Key := AKey;
+  FPairs[FCount].Value := '';
+  FPairs[FCount].Source := ASource;
+  FPairs[FCount].Offset := AOffset;
+  FPairs[FCount].Length := ALength;
+  Inc(FCount);
 end;
 
 procedure TRouteValueDictionary.Clear;
+var
+  i: Integer;
 begin
+  if (FCount > 0) and (FCount <= 16) then
+  begin
+    for i := 0 to FCount - 1 do
+    begin
+      FPairs[i].Key := '';
+      FPairs[i].Value := '';
+      FPairs[i].Source := '';
+      FPairs[i].Offset := 0;
+      FPairs[i].Length := 0;
+    end;
+  end
+  else
+  begin
+    for i := 0 to 15 do
+    begin
+      FPairs[i].Key := '';
+      FPairs[i].Value := '';
+      FPairs[i].Source := '';
+      FPairs[i].Offset := 0;
+      FPairs[i].Length := 0;
+    end;
+  end;
   FCount := 0;
 end;
 
 function TRouteValueDictionary.GetItem(const AKey: string): string;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to FCount - 1 do
-    if SameText(FPairs[I].Key, AKey) then
-      Exit(FPairs[I].Value);
+  if FCount > 0 then
+  begin
+    for i := 0 to FCount - 1 do
+      if SameText(FPairs[i].Key, AKey) then
+      begin
+        if FPairs[i].Source <> '' then
+          Exit(UrlDecode(Copy(FPairs[i].Source, FPairs[i].Offset, FPairs[i].Length)));
+        Exit(UrlDecode(FPairs[i].Value));
+      end;
+  end;
   Result := '';
 end;
 
 function TRouteValueDictionary.TryGetValue(const AKey: string; out AValue: string): Boolean;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to FCount - 1 do
-    if SameText(FPairs[I].Key, AKey) then
-    begin
-      AValue := FPairs[I].Value;
-      Exit(True);
-    end;
+  if FCount > 0 then
+  begin
+    for i := 0 to FCount - 1 do
+      if SameText(FPairs[i].Key, AKey) then
+      begin
+        if FPairs[i].Source <> '' then
+          AValue := UrlDecode(Copy(FPairs[i].Source, FPairs[i].Offset, FPairs[i].Length))
+        else
+          AValue := UrlDecode(FPairs[i].Value);
+        Exit(True);
+      end;
+  end;
   AValue := '';
   Result := False;
 end;
 
 function TRouteValueDictionary.ContainsKey(const AKey: string): Boolean;
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to FCount - 1 do
-    if SameText(FPairs[I].Key, AKey) then
-      Exit(True);
+  if FCount > 0 then
+  begin
+    for i := 0 to FCount - 1 do
+      if SameText(FPairs[i].Key, AKey) then
+        Exit(True);
+  end;
   Result := False;
 end;
 
@@ -660,7 +779,13 @@ end;
 function TRouteValueDictionary.GetValueByIndex(AIndex: Integer): string;
 begin
   if (AIndex >= 0) and (AIndex < FCount) then
-    Result := FPairs[AIndex].Value
+  begin
+    if FPairs[AIndex].Source <> '' then
+      Result := UrlDecode(Copy(FPairs[AIndex].Source, FPairs[AIndex].Offset,
+        FPairs[AIndex].Length))
+    else
+      Result := UrlDecode(FPairs[AIndex].Value);
+  end
   else
     Result := '';
 end;

@@ -1,4 +1,4 @@
-program Dext.Core.UnitTests;
+﻿program Dext.Core.UnitTests;
 
 {$APPTYPE CONSOLE}
 
@@ -18,7 +18,16 @@ uses
   Dext.Configuration.Features.Tests in 'Dext.Configuration.Features.Tests.pas',
   Dext.Configuration.Hashing.Tests in 'Dext.Configuration.Hashing.Tests.pas',
   Dext.Logging.Telemetry.Tests in 'Dext.Logging.Telemetry.Tests.pas',
+  Dext.Performance.Allocator.Tests in 'Dext.Performance.Allocator.Tests.pas',
+  Dext.Performance.Allocator in '..\..\..\Sources\Performance\Dext.Performance.Allocator.pas',
+  Dext.Web.Utf8 in '..\..\..\Sources\Web\Dext.Web.Utf8.pas',
+  Dext.Web.Utf8.Tests in 'Dext.Web.Utf8.Tests.pas',
+  Dext.Web.ResponseWriter in '..\..\..\Sources\Web\Dext.Web.ResponseWriter.pas',
+  Dext.Web.ResponseWriter.Tests in 'Dext.Web.ResponseWriter.Tests.pas',
+  Dext.Server.BoundedExecutor in '..\..\..\Sources\Server\Dext.Server.BoundedExecutor.pas',
+  Dext.Server.BoundedExecutor.Tests in 'Dext.Server.BoundedExecutor.Tests.pas',
   Dext.Json.Utf8.Serializer.Tests in 'Dext.Json.Utf8.Serializer.Tests.pas',
+  Dext.Json.Utf8.Writer.Tests in 'Dext.Json.Utf8.Writer.Tests.pas',
   Dext.Json.Regression.Tests in 'Dext.Json.Regression.Tests.pas',
   Dext.Json.RecordProperties.Tests in 'Dext.Json.RecordProperties.Tests.pas',
   Dext.Resilience.Tests in 'Dext.Resilience.Tests.pas',
@@ -51,7 +60,9 @@ begin
         TJsonNextGenTests,
         TResilienceTests,
         TTelemetryTests,
+        TAllocatorTests,
         TUtf8SerializerCurrencyTests,
+        TUtf8JsonWriterTests,
         TValidationFluentTests,
         TBackgroundJobsTests,
         TSmartTypesCombinatorialTests,
@@ -59,7 +70,10 @@ begin
         TDirectAccessTests,
         TArrayConverterTests,
         TTypeConverterRegistryTests,
-        TCodecsCommandTests
+        TCodecsCommandTests,
+        TWebUtf8Tests,
+        TResponseWriterTests,
+        TBoundedExecutorTests
       ]));
   except
     on E: Exception do

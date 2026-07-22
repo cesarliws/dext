@@ -45,10 +45,10 @@ end;
 procedure TSQLServerDialectTest.AssertEqual(const Expected, Actual, Msg: string);
 begin
   if Expected = Actual then
-    WriteLn('   âœ… ', Msg)
+    WriteLn('   [PASS] ', Msg)
   else
   begin
-    WriteLn('   âŒ ', Msg);
+    WriteLn('   [FAIL] ', Msg);
     WriteLn('      Expected: ', Expected);
     WriteLn('      Actual:   ', Actual);
   end;

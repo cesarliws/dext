@@ -1,4 +1,4 @@
-program Web.ControllerExample.FluentAPI;
+﻿program Web.ControllerExample.FluentAPI;
 
 {$APPTYPE CONSOLE}
 
@@ -18,10 +18,10 @@ begin
   SetConsoleCharSet;
   try
     WriteLn('🚀 Starting Dext Controller Example with Fluent API...');
-    
+
     // Create appsettings.json if it doesn't exist
     EnsureAppSettingsExists;
-    
+
     App := TDextApplication.Create;
 
     // 1. Register Configuration (IOptions)
@@ -63,7 +63,7 @@ begin
         .Issuer('dext-issuer')
         .Audience('dext-audience')
         .ExpirationMinutes(60));
-       
+
     // 6. Map Controllers
     App.MapControllers;
 

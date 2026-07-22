@@ -62,6 +62,12 @@ type
     RequiresAuth: Boolean;
     Roles: string;
     Policy: string;
+
+    // Cached compiled metadata
+    RttiType: TRttiType;
+    RttiMethod: TRttiMethod;
+    Filters: TArray<TCustomAttribute>;
+    ActionDescriptor: TActionDescriptor;
   end;
 
   IControllerScanner = interface
@@ -374,6 +380,31 @@ begin
       CachedMethod.FullPath := FullPath;
       CachedMethod.HttpMethod := ControllerMethod.HttpMethod;
 
+      CachedMethod.RttiType := Controller.RttiType;
+      CachedMethod.RttiMethod := ControllerMethod.Method;
+
+      SetLength(CachedMethod.Filters, 0);
+      for Attr in Controller.RttiType.GetAttributes do
+        if Supports(Attr, IActionFilter) then
+        begin
+          SetLength(CachedMethod.Filters, Length(CachedMethod.Filters) + 1);
+          CachedMethod.Filters[High(CachedMethod.Filters)] := Attr;
+        end;
+      for Attr in ControllerMethod.Method.GetAttributes do
+        if Supports(Attr, IActionFilter) then
+        begin
+          SetLength(CachedMethod.Filters, Length(CachedMethod.Filters) + 1);
+          CachedMethod.Filters[High(CachedMethod.Filters)] := Attr;
+        end;
+
+      CachedMethod.ActionDescriptor.ControllerName :=
+        Controller.RttiType.QualifiedName;
+      CachedMethod.ActionDescriptor.ActionName :=
+        ControllerMethod.Method.Name;
+      CachedMethod.ActionDescriptor.HttpMethod :=
+        ControllerMethod.HttpMethod;
+      CachedMethod.ActionDescriptor.Route := FullPath;
+
       // ? CHECK AUTH ATTRIBUTES (Controller or Method level)
       // RULE: [AllowAnonymous] on method OVERRIDES [Authorize] on controller
       ControllerRequiresAuth := False;
@@ -551,7 +582,8 @@ end;
 
 destructor TControllerScanner.Destroy;
 begin
-  inherited;
+  FCachedMethods := nil;
+  inherited Destroy;
 end;
 
 function TControllerScanner.CreateHandler(const AMethod: TCachedMethod): TRequestDelegate;
@@ -564,19 +596,14 @@ end;
 
 procedure TControllerScanner.ExecuteCachedMethod(Context: IHttpContext; const CachedMethod: TCachedMethod);
 var
-  ControllerType: TRttiType;
-  Method: TRttiMethod;
-  ControllerInstance: TObject;
-  FilterAttr: TCustomAttribute;
-  Filter: IActionFilter;
-  M: TRttiMethod;
-  FilterList: IList<TCustomAttribute>;
-  ActionDescriptor: TActionDescriptor;
-  ExecutingContext: IActionExecutingContext;
   Binder: IModelBinder;
-  Invoker: THandlerInvoker;
+  ControllerInstance: TObject;
   ExecutedContext: IActionExecutedContext;
+  ExecutingContext: IActionExecutingContext;
+  Filter: IActionFilter;
+  FilterAttr: TCustomAttribute;
   I: Integer;
+  Invoker: THandlerInvoker;
 begin
   SafeWriteLn('🚀 ' + Format('Executing: %s -> %s.%s', [CachedMethod.FullPath, CachedMethod.TypeName, CachedMethod.MethodName]));
 
@@ -628,153 +655,108 @@ begin
     end;
   end;
 
-  // Use the global context via TActivator to avoid per-thread pool overhead.
-    // RE-ACQUIRE TYPE AT RUNTIME
-    ControllerType := TActivator.GetRttiContext.FindType(CachedMethod.TypeName);
-    if ControllerType = nil then
+  // Use the pre-compiled action descriptor, filters, and RTTI method
+  ExecutingContext := TActionExecutingContext.Create(Context, CachedMethod.ActionDescriptor);
+  try
+    for FilterAttr in CachedMethod.Filters do
     begin
-      SafeWriteLn('❌ Controller type not found: ' + CachedMethod.TypeName);
-      Context.Response.Status(500).Json(Format('{"error": "Controller type not found: %s"}', [CachedMethod.TypeName]));
-      Exit;
-    end;
-
-    // FIND METHOD AT RUNTIME
-    Method := nil;
-    for M in ControllerType.GetMethods do
-    begin
-      if M.Name = CachedMethod.MethodName then
+      if Supports(FilterAttr, IActionFilter, Filter) then
       begin
-        Method := M;
-        Break;
-      end;
-    end;
+        Filter.OnActionExecuting(ExecutingContext);
 
-    if Method = nil then
-    begin
-      SafeWriteLn('❌ ' + Format('Method not found: %s.%s', [CachedMethod.TypeName, CachedMethod.MethodName]));
-      Context.Response.Status(500).Json(Format('{"error": "Method not found: %s.%s"}', [CachedMethod.TypeName, CachedMethod.MethodName]));
-      Exit;
-    end;
-
-    FilterList := TCollections.CreateList<TCustomAttribute>;
-    // Controller Level
-    for FilterAttr in ControllerType.GetAttributes do
-      if Supports(FilterAttr, IActionFilter) then
-        FilterList.Add(FilterAttr);
-
-    // Method Level
-    for FilterAttr in Method.GetAttributes do
-      if Supports(FilterAttr, IActionFilter) then
-        FilterList.Add(FilterAttr);
-
-    // ? EXECUTE ACTION FILTERS - OnActionExecuting
-    ActionDescriptor.ControllerName := CachedMethod.TypeName;
-    ActionDescriptor.ActionName := CachedMethod.MethodName;
-    ActionDescriptor.HttpMethod := CachedMethod.HttpMethod;
-    ActionDescriptor.Route := CachedMethod.FullPath;
-
-    // ? FIX: Use interface variable to prevent premature destruction (RefCount issue)
-    ExecutingContext := TActionExecutingContext.Create(Context, ActionDescriptor);
-    try
-      for FilterAttr in FilterList do
-      begin
-        if Supports(FilterAttr, IActionFilter, Filter) then
+        // Check for short-circuit
+        if Assigned(ExecutingContext.Result) then
         begin
-          Filter.OnActionExecuting(ExecutingContext);
-
-          // Check for short-circuit
-          if Assigned(ExecutingContext.Result) then
-          begin
-            SafeWriteLn('⚠️ Filter short-circuited execution');
-            ExecutingContext.Result.Execute(Context);
-            Exit;
-          end;
-        end;
-      end;
-    except
-      on E: Exception do
-      begin
-        SafeWriteLn('❌ Error in OnActionExecuting filter: ' + E.Message);
-        raise;
-      end;
-    end;
-
-    // EXECUTE CONTROLLER METHOD
-    try
-      if CachedMethod.IsClass then
-      begin
-        // RESOLVE INSTANCE VIA DI
-        ControllerInstance := Context.GetServices.GetService(
-          TServiceType.FromClass(ControllerType.AsInstance.MetaclassType));
-
-        if ControllerInstance = nil then
-        begin
-          SafeWriteLn('❌ Controller instance not found: ' + CachedMethod.TypeName);
-          Context.Response.Status(500).Json(Format('{"error": "Controller instance not found: %s"}', [CachedMethod.TypeName]));
+          SafeWriteLn('⚠️ Filter short-circuited execution');
+          ExecutingContext.Result.Execute(Context);
           Exit;
         end;
-
-        Binder := TModelBinder.Create;
-        Invoker := THandlerInvoker.Create(Context, Binder);
-        try
-          Invoker.InvokeAction(ControllerInstance, Method);
-        finally
-          Invoker.Free;
-          Binder := nil;
-          // Transient controllers MUST be freed by the invoker
-          if ControllerInstance <> nil then
-          begin
-            ControllerInstance.Free;
-          end;
-        end;
-      end
-      else
-      begin
-        // STATIC RECORDS
-        Binder := TModelBinder.Create;
-        Invoker := THandlerInvoker.Create(Context, Binder);
-        try
-          Invoker.InvokeAction(nil, Method);
-        finally
-          Invoker.Free;
-          Binder := nil;
-        end;
-      end;
-
-      // ? EXECUTE ACTION FILTERS - OnActionExecuted
-      ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, nil);
-      // Execute filters in reverse order
-      for I := FilterList.Count - 1 downto 0 do
-      begin
-        FilterAttr := FilterList[I];
-        if Supports(FilterAttr, IActionFilter, Filter) then
-          Filter.OnActionExecuted(ExecutedContext);
-      end;
-
-    except
-      on E: Exception do
-      begin
-        SafeWriteLn('❌ Error executing method: ' + E.Message);
-
-        // ? EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
-        ExecutedContext := TActionExecutedContext.Create(Context, ActionDescriptor, nil, E);
-        for I := FilterList.Count - 1 downto 0 do
-        begin
-          FilterAttr := FilterList[I];
-          if Supports(FilterAttr, IActionFilter, Filter) then
-          begin
-            Filter.OnActionExecuted(ExecutedContext);
-            if ExecutedContext.ExceptionHandled then
-            begin
-              SafeWriteLn('🛡️ Exception handled by filter');
-              Exit; // Don't re-raise
-            end;
-          end;
-        end;
-
-        Context.Response.Status(500).Json(Format('{"error": "Execution failed: %s"}', [E.Message]));
       end;
     end;
+  except
+    on E: Exception do
+    begin
+      SafeWriteLn('❌ Error in OnActionExecuting filter: ' + E.Message);
+      raise;
+    end;
+  end;
+
+  // EXECUTE CONTROLLER METHOD
+  try
+    if CachedMethod.IsClass then
+    begin
+      // RESOLVE INSTANCE VIA DI
+      ControllerInstance := Context.GetServices.GetService(
+        TServiceType.FromClass(CachedMethod.RttiType.AsInstance.MetaclassType));
+
+      if ControllerInstance = nil then
+      begin
+        SafeWriteLn('❌ Controller instance not found: ' + CachedMethod.TypeName);
+        Context.Response.Status(500).Json(Format('{"error": "Controller instance not found: %s"}', [CachedMethod.TypeName]));
+        Exit;
+      end;
+
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Context, Binder);
+      try
+        Invoker.InvokeAction(ControllerInstance, CachedMethod.RttiMethod);
+      finally
+        Invoker.Release;
+        Binder := nil;
+        // Transient controllers MUST be freed by the invoker
+        if ControllerInstance <> nil then
+        begin
+          ControllerInstance.Free;
+        end;
+      end;
+    end
+    else
+    begin
+      // STATIC RECORDS
+      Binder := TModelBinder.Default;
+      Invoker := THandlerInvoker.Acquire(Context, Binder);
+      try
+        Invoker.InvokeAction(nil, CachedMethod.RttiMethod);
+      finally
+        Invoker.Release;
+        Binder := nil;
+      end;
+    end;
+
+    // ? EXECUTE ACTION FILTERS - OnActionExecuted
+    ExecutedContext := TActionExecutedContext.Create(Context, CachedMethod.ActionDescriptor, nil, nil);
+    // Execute filters in reverse order
+    for I := Length(CachedMethod.Filters) - 1 downto 0 do
+    begin
+      FilterAttr := CachedMethod.Filters[I];
+      if Supports(FilterAttr, IActionFilter, Filter) then
+        Filter.OnActionExecuted(ExecutedContext);
+    end;
+
+  except
+    on E: Exception do
+    begin
+      SafeWriteLn('❌ Error executing method: ' + E.Message);
+
+      // ? EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
+      ExecutedContext := TActionExecutedContext.Create(Context, CachedMethod.ActionDescriptor, nil, E);
+      for I := Length(CachedMethod.Filters) - 1 downto 0 do
+      begin
+        FilterAttr := CachedMethod.Filters[I];
+        if Supports(FilterAttr, IActionFilter, Filter) then
+        begin
+          Filter.OnActionExecuted(ExecutedContext);
+          if ExecutedContext.ExceptionHandled then
+          begin
+            SafeWriteLn('🛡️ Exception handled by filter');
+            Exit; // Don't re-raise
+          end;
+        end;
+      end;
+
+      Context.Response.Status(500).Json(Format('{"error": "Execution failed: %s"}', [E.Message]));
+    end;
+  end;
 end;
 
 end.

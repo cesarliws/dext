@@ -156,15 +156,15 @@ else {
 # ---------------------------------------------------------------------------
 # 6. Verify 404 on unknown route
 # ---------------------------------------------------------------------------
-Write-Host "`n[TEST 6] Unknown route returns 404 (GET /api/tasks)..."
+Write-Host "`n[TEST 6] Unknown route returns 404 (GET /api/nonexistent)..."
 try {
-    $resp = Invoke-WebRequest -Uri "$baseUrl/api/tasks" -Method Get -UseBasicParsing
+    $resp = Invoke-WebRequest -Uri "$baseUrl/api/nonexistent" -Method Get -UseBasicParsing
     Write-Host "  FAIL: Expected 404 but got $($resp.StatusCode)" -ForegroundColor Red
     $failed++
 }
 catch {
     if ($_.Exception.Response.StatusCode.value__ -eq 404) {
-        Write-Host "  PASS: GET /api/tasks correctly returns 404 (no GET handler)" -ForegroundColor Green
+        Write-Host "  PASS: GET /api/nonexistent correctly returns 404 (unknown route)" -ForegroundColor Green
         $passed++
     }
     else {

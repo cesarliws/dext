@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://localhost:8080"
 
-Write-Host "🚀 Testing Web.JwtAuthDemo on $baseUrl" -ForegroundColor Cyan
+Write-Host "[START] Testing Web.JwtAuthDemo on $baseUrl" -ForegroundColor Cyan
 
 function Invoke-DextRequest {
     param (

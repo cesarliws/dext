@@ -137,6 +137,15 @@ type
     function GetColumnCount: Integer;
     function GetColumnName(AIndex: Integer): string;
     
+    function GetInt32(AIndex: Integer): Integer;
+    function GetInt64(AIndex: Integer): Int64;
+    function GetDouble(AIndex: Integer): Double;
+    function GetBoolean(AIndex: Integer): Boolean;
+    function GetString(AIndex: Integer): string;
+    function GetDateTime(AIndex: Integer): TDateTime;
+    function GetColumnType(AIndex: Integer): TFieldType;
+    function IsNull(AIndex: Integer): Boolean;
+
     procedure Close;
   end;
   {$M-}

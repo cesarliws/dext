@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.DefaultValue.Tests;
+unit Dext.Entity.DefaultValue.Tests;
 
 interface
 
@@ -76,6 +76,12 @@ begin
   Reader.Setup.Returns(TValue.Empty).When.GetValue(2);
   Reader.Setup.Returns(TValue.Empty).When.GetValue(3);
 
+  Reader.Setup.Returns(False).When.IsNull(0);
+  Reader.Setup.Returns(True).When.IsNull(1);
+  Reader.Setup.Returns(True).When.IsNull(2);
+  Reader.Setup.Returns(True).When.IsNull(3);
+  Reader.Setup.Returns(1).When.GetInt32(0);
+
   Conn.Setup.Returns(Cmd.Instance).When.CreateCommand(Arg.Any<string>);
   Cmd.Setup.Returns(Reader.Instance).When.ExecuteQuery;
 
@@ -118,6 +124,14 @@ begin
   Reader.Setup.Returns(TValue.From<string>('Inativo')).When.GetValue(1);
   Reader.Setup.Returns(TValue.From<Integer>(25)).When.GetValue(2);
   Reader.Setup.Returns(TValue.From<Double>(50.5)).When.GetValue(3);
+
+  Reader.Setup.Returns(False).When.IsNull(0);
+  Reader.Setup.Returns(False).When.IsNull(1);
+  Reader.Setup.Returns(False).When.IsNull(2);
+  Reader.Setup.Returns(False).When.IsNull(3);
+  Reader.Setup.Returns(2).When.GetInt32(0);
+  Reader.Setup.Returns('Inativo').When.GetString(1);
+  Reader.Setup.Returns(25).When.GetInt32(2);
 
   Conn.Setup.Returns(Cmd.Instance).When.CreateCommand(Arg.Any<string>);
   Cmd.Setup.Returns(Reader.Instance).When.ExecuteQuery;

@@ -86,6 +86,87 @@ type
 
 implementation
 
+function Utf8ByteLenAsciiFast(const AValue: string; out AAscii: Boolean): Integer;
+var
+  i: Integer;
+  C: Cardinal;
+begin
+  Result := 0;
+  AAscii := True;
+  i := 1;
+  while i <= Length(AValue) do
+  begin
+    C := Ord(AValue[i]);
+    if C < $80 then
+      Inc(Result)
+    else
+    begin
+      AAscii := False;
+      if (C >= $D800) and (C <= $DBFF) and (i < Length(AValue)) then
+      begin
+        Inc(Result, 4);
+        Inc(i);
+      end
+      else if C < $800 then
+        Inc(Result, 2)
+      else
+        Inc(Result, 3);
+    end;
+    Inc(i);
+  end;
+end;
+
+procedure WriteWebSocketHeader(var ADest: TBytes; AOpcode: TWebSocketOpcode; APayloadLen: UInt64);
+var
+  P: PByte;
+  HeaderLen: Integer;
+begin
+  HeaderLen := 2;
+  if APayloadLen > 65535 then
+    HeaderLen := 10
+  else if APayloadLen > 125 then
+    HeaderLen := 4;
+
+  SetLength(ADest, HeaderLen + Integer(APayloadLen));
+  P := @ADest[0];
+  P[0] := $80 or (Byte(AOpcode) and $0F);
+  if APayloadLen > 65535 then
+  begin
+    P[1] := 127;
+    Inc(P, 2);
+    TWebSocketFrameCodec.WriteUInt64BE(P, APayloadLen);
+  end
+  else if APayloadLen > 125 then
+  begin
+    P[1] := 126;
+    Inc(P, 2);
+    TWebSocketFrameCodec.WriteWordBE(P, Word(APayloadLen));
+  end
+  else
+    P[1] := Byte(APayloadLen);
+end;
+
+procedure WriteUtf8PayloadAsciiFast(const AValue: string; var ADest: TBytes; AOffset: Integer; AAscii: Boolean);
+var
+  i: Integer;
+  Bytes: TBytes;
+begin
+  if AValue = '' then
+    Exit;
+
+  if AAscii then
+  begin
+    for i := 1 to Length(AValue) do
+      ADest[AOffset + i - 1] := Byte(Ord(AValue[i]));
+  end
+  else
+  begin
+    Bytes := TEncoding.UTF8.GetBytes(AValue);
+    if Length(Bytes) > 0 then
+      Move(Bytes[0], ADest[AOffset], Length(Bytes));
+  end;
+end;
+
 { TWebSocketFrameCodec }
 
 class function TWebSocketFrameCodec.ReadWordBE(const P: PByte): Word;
@@ -200,14 +281,25 @@ end;
 
 class function TWebSocketFrameCodec.EncodeText(const AData: string; AFIN: Boolean): TBytes;
 var
+  PayloadLen: Integer;
+  HeaderLen: Integer;
+  Ascii: Boolean;
   Frame: TWebSocketFrame;
 begin
-  Frame.FIN := AFIN;
-  Frame.Opcode := wsText;
-  Frame.Masked := False;
-  Frame.Payload := TEncoding.UTF8.GetBytes(AData);
-  Frame.PayloadLength := Length(Frame.Payload);
-  Result := Encode(Frame);
+  if not AFIN then
+  begin
+    Frame.FIN := AFIN;
+    Frame.Opcode := wsText;
+    Frame.Masked := False;
+    Frame.Payload := TEncoding.UTF8.GetBytes(AData);
+    Frame.PayloadLength := Length(Frame.Payload);
+    Exit(Encode(Frame));
+  end;
+
+  PayloadLen := Utf8ByteLenAsciiFast(AData, Ascii);
+  WriteWebSocketHeader(Result, wsText, PayloadLen);
+  HeaderLen := Length(Result) - PayloadLen;
+  WriteUtf8PayloadAsciiFast(AData, Result, HeaderLen, Ascii);
 end;
 
 class function TWebSocketFrameCodec.EncodeBinary(const AData: TBytes; AFIN: Boolean): TBytes;
@@ -224,27 +316,16 @@ end;
 
 class function TWebSocketFrameCodec.EncodeClose(ACode: Word; const AReason: string): TBytes;
 var
-  Frame: TWebSocketFrame;
-  ReasonBytes: TBytes;
-  Len: Integer;
+  ReasonLen: Integer;
+  HeaderLen: Integer;
+  Ascii: Boolean;
 begin
-  Frame.FIN := True;
-  Frame.Opcode := wsClose;
-  Frame.Masked := False;
-  
-  ReasonBytes := TEncoding.UTF8.GetBytes(AReason);
-  Len := 2 + Length(ReasonBytes);
-  SetLength(Frame.Payload, Len);
-  
-  // Close code in network byte order
-  Frame.Payload[0] := Byte(ACode shr 8);
-  Frame.Payload[1] := Byte(ACode);
-  
-  if Length(ReasonBytes) > 0 then
-    Move(ReasonBytes[0], Frame.Payload[2], Length(ReasonBytes));
-    
-  Frame.PayloadLength := Len;
-  Result := Encode(Frame);
+  ReasonLen := Utf8ByteLenAsciiFast(AReason, Ascii);
+  WriteWebSocketHeader(Result, wsClose, 2 + ReasonLen);
+  HeaderLen := Length(Result) - 2 - ReasonLen;
+  Result[HeaderLen] := Byte(ACode shr 8);
+  Result[HeaderLen + 1] := Byte(ACode);
+  WriteUtf8PayloadAsciiFast(AReason, Result, HeaderLen + 2, Ascii);
 end;
 
 class function TWebSocketFrameCodec.EncodePing(const AData: TBytes): TBytes;

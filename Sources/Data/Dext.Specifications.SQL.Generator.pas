@@ -1644,7 +1644,6 @@ begin
   SBSet := TStringBuilder.Create;
   SBWhere := TStringBuilder.Create;
   try
-    WriteLn('   [DEBUG GenerateUpdate] AEntity Pointer: ', IntToHex(IntPtr(Pointer(AEntity)), 8));
     FirstSet := True;
     FirstWhere := True;
     
@@ -1781,7 +1780,6 @@ begin
         if IsNullable(Val.TypeInfo) then
         begin
           NullableHelper := TNullableHelper.Create(Val.TypeInfo);
-          WriteLn('   [DEBUG GenerateUpdate] Property: ', Handler.GetName(), ', HasValue: ', NullableHelper.HasValue(Val.GetReferenceToRawData));
           if not NullableHelper.HasValue(Val.GetReferenceToRawData) then
           begin
             if not FirstSet then SBSet.Append(', ');
@@ -1794,12 +1792,6 @@ begin
         end;
 
         TryUnwrapSmartValue(Val);
-        if Val.Kind = tkFloat then
-          WriteLn('   [DEBUG GenerateUpdate] Unwrapped Kind: ', GetEnumName(TypeInfo(TTypeKind), Ord(Val.Kind)),
-                  ', AsExtended: ', Val.AsExtended:0:4)
-        else
-          WriteLn('   [DEBUG GenerateUpdate] Unwrapped Kind: ', GetEnumName(TypeInfo(TTypeKind), Ord(Val.Kind)));
-
         // DateTime Range Guard: out-of-range (< 1900-01-01) -> NULL
         if (Val.Kind = tkFloat) and (Val.AsExtended < 2.0) and
            (((PropMap <> nil) and
@@ -1856,8 +1848,6 @@ begin
     begin
       for PropMap in FMap.Properties.Values do
       begin
-        WriteLn('   [DEBUG GenerateUpdate] Checking Shadow Prop: ', PropMap.PropertyName, 
-                ', IsShadow: ', PropMap.IsShadow, ', IsIgnored: ', PropMap.IsIgnored, ', IsPK: ', PropMap.IsPK);
         if PropMap.IsShadow and not PropMap.IsIgnored and not PropMap.IsPK then
         begin
           if HasModifiedFilter and
@@ -1917,7 +1907,6 @@ begin
 
     Result := Format('UPDATE %s SET %s WHERE %s', 
       [GetTableName, SBSet.ToString, SBWhere.ToString]);
-    WriteLn('   [DEBUG GenerateUpdate] Returned Result SQL: ', Result);
       
   finally
     SBSet.Free;

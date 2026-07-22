@@ -82,10 +82,10 @@ end;
 procedure TMappingTest.AssertEqual(const Expected, Actual, Msg: string);
 begin
   if Expected = Actual then
-    WriteLn('   ✅ ', Msg)
+    WriteLn('   [PASS] ', Msg)
   else
   begin
-    WriteLn('   ❌ ', Msg);
+    WriteLn('   [FAIL] ', Msg);
     WriteLn('      Expected: ', Expected);
     WriteLn('      Actual:   ', Actual);
   end;
@@ -98,7 +98,7 @@ var
   Sql: string;
   TableName: string;
 begin
-  Log('🗺️  Testing Fluent Mapping (External Mapping)');
+  Log('[MAP]  Testing Fluent Mapping (External Mapping)');
   Log('===========================================');
 
   Ctx := TTestContext.Create(nil, TSQLiteDialect.Create);
@@ -119,19 +119,19 @@ begin
     Sql := SetUser.GenerateCreateTableScript;
 
     if Sql.Contains('"fluent_users"') then
-      Log('   ✅ SQL contains correct Table Name')
+      Log('   [PASS] SQL contains correct Table Name')
     else
-      Log('   ❌ SQL missing correct Table Name: ' + Sql);
+      Log('   [FAIL] SQL missing correct Table Name: ' + Sql);
 
     if Sql.Contains('"fluent_name"') then
-      Log('   ✅ SQL contains correct Column Name (fluent_name)')
+      Log('   [PASS] SQL contains correct Column Name (fluent_name)')
     else
-      Log('   ❌ SQL missing correct Column Name: ' + Sql);
+      Log('   [FAIL] SQL missing correct Column Name: ' + Sql);
 
     if not Sql.Contains('attr_name') then
-      Log('   ✅ SQL does NOT contain Attribute Column Name (attr_name)')
+      Log('   [PASS] SQL does NOT contain Attribute Column Name (attr_name)')
     else
-      Log('   ❌ SQL contains Attribute Column Name (should be ignored): ' + Sql);
+      Log('   [FAIL] SQL contains Attribute Column Name (should be ignored): ' + Sql);
   finally
     TObject(Ctx).Free;
   end;

@@ -40,6 +40,8 @@ unit Dext.MM;
 
 interface
 
+{$I Dext.inc}
+
 {.$DEFINE DEXT_USE_FASTMM5}
 {$IFDEF DEXT_USE_FASTMM5}
 uses
@@ -83,6 +85,10 @@ begin
      mmetUnexpectedMemoryLeakSummary];
   // Never show message boxes (would block console / automated runs)
   FastMM5.FastMM_MessageBoxEvents := [];
+  {$IFDEF DEXT_ENABLE_DB_SQLITE}
+  // Register SQLite :memory: memory leak
+  FastMM_RegisterExpectedMemoryLeak(200, 1);
+  {$ENDIF}
   ReportMemoryLeaksOnShutdown := True;
 {$ELSE}
   System.ReportMemoryLeaksOnShutdown := True;

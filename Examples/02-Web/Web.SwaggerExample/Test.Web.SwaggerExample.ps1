@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://localhost:5000" 
 
-Write-Host "🚀 Testing Web.SwaggerExample on $baseUrl" -ForegroundColor Cyan
+Write-Host "[START] Testing Web.SwaggerExample on $baseUrl" -ForegroundColor Cyan
 
 function Invoke-DextRequest {
     param (

@@ -31,14 +31,18 @@ interface
 
 uses
   System.Classes,
-  System.SysUtils,
-  System.SyncObjs,
   System.Generics.Defaults,
-  Dext.Server.Engine.Types,
-  Dext.Server.Engine.Interfaces,
-  Dext.Server.Iocp.HttpParser,
+  System.Math,
+  System.SyncObjs,
+  System.SysUtils,
+  System.Types,
   Dext.Collections.Dict,
-  Dext.Core.Span;
+  Dext.Core.Span,
+  Dext.Server.BoundedExecutor,
+  Dext.Server.Engine.Interfaces,
+  Dext.Server.Engine.Types,
+  Dext.Server.Iocp.HttpParser,
+  Dext.Web.ResponseWriter;
 
 type
   {$IFDEF LINUX}
@@ -59,13 +63,16 @@ type
     class function FindCRLF(const ABuffer: TBytes; AStart, AEnd: Integer): Integer; static; inline;
     class function CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean; static; inline;
     class function GetMethodString(const ABuffer: TBytes; AStart, ALen: Integer): string; static; inline;
+    class function ExtractSliceString(const ABuffer: TBytes; AStart, ALen: Integer): string; static; inline;
   public
     class function TryParseRequest(
       const ABuffer: TBytes; 
       ALength: Integer;
       out AMethod: string;
-      out APath: string;
-      out AQuery: string;
+      out APathOffset: Integer;
+      out APathLength: Integer;
+      out AQueryOffset: Integer;
+      out AQueryLength: Integer;
       out AHeaderSegments: THeaderSegments;
       out ABodyOffset: Integer;
       out AContentLength: Int64
@@ -78,11 +85,13 @@ type
     FEpollFd: Integer;
     FReadBuffer: TBytes;
     FReadLen: Integer;
+    FGeneration: Cardinal;
     
-    // Escrita pendente
-    FWriteBuffer: TBytes;
-    FWriteOffset: Integer;
-    FWriteLen: Integer;
+    // Segmented write cursor
+    FWriteSegments: TArray<TDextBufferSegment>;
+    FWriteSegIndex: Integer;
+    FWriteSegOffset: Integer;
+    FWriteSegmentsCount: Integer;
 
     // Sendfile zero-copy
     FSendFileFd: Integer;
@@ -98,8 +107,20 @@ type
     FQueueStartTime: Int64;
     FHandlerEndTime: Int64;
     FKeepAlive: Boolean;
+    FConsumedBytes: Integer;
     
     constructor Create(AFd: Integer; AEpollFd: Integer);
+  end;
+
+  TDextEpollTask = class
+  public
+    Context: TDextEpollContext;
+    Generation: Cardinal;
+    Connection: IDextServerConnection;
+    Request: IDextRawRequest;
+    Response: IDextRawResponse;
+    OnRequest: TRequestEventHandler;
+    Worker: TObject; // Ref to TDextEpollWorker
   end;
 
   /// <summary>
@@ -152,6 +173,10 @@ type
     FMethod: string;
     FPath: string;
     FQuery: string;
+    FPathOffset: Integer;
+    FPathLength: Integer;
+    FQueryOffset: Integer;
+    FQueryLength: Integer;
     FBodyStream: TCustomMemoryStream;
     FContentLength: Int64;
     FBuffer: TBytes;
@@ -171,11 +196,12 @@ type
   public
     /// <summary>Initializes the raw epoll request wrapper.</summary>
     constructor Create(
-      const AMethod, APath, AQuery: string;
+      const AMethod: string;
       const AHeaderSegments: THeaderSegments;
       ABody: TBytes;
       ABodyOffset, ABodyLen: Integer;
-      AContentLength: Int64
+      AContentLength: Int64;
+      APathOffset, APathLength, AQueryOffset, AQueryLength: Integer
     );
     /// <summary>Cleans up the request resources.</summary>
     destructor Destroy; override;
@@ -184,17 +210,20 @@ type
   /// <summary>
   ///   Raw response implementation wrapper for epoll socket connection.
   /// </summary>
-  TDextEpollResponse = class(TInterfacedObject, IDextRawResponse)
+  TDextEpollResponse = class(TInterfacedObject, IDextRawResponse,
+    IDextRawResponseSink)
   private
     FSocket: Integer;
     FContext: TDextEpollContext;
+    FGeneration: Cardinal;
+    FResponseWriter: TDextResponseWriter;
     FHeadersSent: Boolean;
     FStatusCode: Integer;
     FReason: string;
     FHeaders: TDictionary<string, string>;
-    FResponseBuffer: TBytes;
-    FBodyBuffer: TBytes;
-    FBodyLen: Integer;
+    FSendFileFd: Integer;
+    FSendFileOffset: Int64;
+    FSendFileLen: Int64;
   public
     /// <summary>Initializes a new epoll response wrapper.</summary>
     /// <param name="AContext">The connection context.</param>
@@ -217,6 +246,8 @@ type
     /// <param name="AOffset">The zero-based byte offset in ABuffer from which to begin writing.</param>
     /// <param name="ACount">The number of bytes to write.</param>
     procedure Write(const ABuffer: TBytes; AOffset, ACount: Integer);
+    /// <summary>Writes a raw byte span into response-owned segments.</summary>
+    procedure WriteBytes(AData: Pointer; ALength: Integer);
     /// <summary>Writes a file directly to the response socket using zero-copy transmission.</summary>
     /// <param name="APath">The path to the file to serve.</param>
     /// <param name="AOffset">The byte offset from where to start reading the file.</param>
@@ -226,6 +257,12 @@ type
     procedure Flush;
     /// <summary>Closes the response stream and connection.</summary>
     procedure Close;
+  end;
+
+  TDextEpollCompletion = record
+    Context: TDextEpollContext;
+    Generation: Cardinal;
+    Response: IDextRawResponse;
   end;
  
   /// <summary>
@@ -242,9 +279,28 @@ type
     FContextPool: TList;
     FActiveContexts: TList;
     FLastSweepTick: Int64;
+    FCompletionLock: TObject;
+    FCompletions: TArray<TDextEpollCompletion>;
+    FCompletionHead: Integer;
+    FCompletionTail: Integer;
+    FCompletionCount: Integer;
+    FTaskPool: TList;
+    FWorkerTotalQueueDelayTicks: Int64;
+    FWorkerTotalHandlerTicks: Int64;
+    FWorkerTotalReadParseTicks: Int64;
+    FWorkerTotalSendTicks: Int64;
+    FWorkerTotalSweepTicks: Int64;
+    FWorkerSweepCount: Int64;
+    FWorkerRequestCount: Int64;
+    procedure RecycleTask(ATask: TDextEpollTask);
+    function AcquireTask: TDextEpollTask;
+    procedure ProcessBuffer(AContext: TDextEpollContext);
     procedure CreateLocalReactor;
     procedure CloseLocalReactor;
     procedure ReleaseContext(AContext: TDextEpollContext);
+    procedure EnqueueCompletion(AContext: TDextEpollContext;
+      AGeneration: Cardinal; const AResponse: IDextRawResponse);
+    procedure DrainCompletions;
     procedure ProcessRequestAsync(
       AContext: TDextEpollContext;
       AConnection: IDextServerConnection;
@@ -284,6 +340,7 @@ type
     FTotalRequests: Int64;
 
     FWorkers: TList;
+    FExecutor: TDextBoundedExecutor;
     FProfileEnabled: Boolean;
     FTotalQueueDelayTicks: Int64;
     FTotalHandlerTicks: Int64;
@@ -292,8 +349,11 @@ type
     FTotalSweepTicks: Int64;
     FSweepCount: Int64;
     FProfiledRequestCount: Int64;
+  protected
     procedure ReportMetrics(const AContext: TDextEpollContext);
   public
+    property Executor: TDextBoundedExecutor read FExecutor;
+
     /// <summary>Initializes a new epoll server engine.</summary>
     /// <param name="AOptions">The engine configuration options.</param>
     constructor Create(const AOptions: TServerEngineOptions);
@@ -465,8 +525,11 @@ begin
   FEpollFd := AEpollFd;
   FReadLen := 0;
   SetLength(FReadBuffer, 4096);
-  FWriteOffset := 0;
-  FWriteLen := 0;
+  FGeneration := 1;
+  FWriteSegments := nil;
+  FWriteSegIndex := 0;
+  FWriteSegOffset := 0;
+  FWriteSegmentsCount := 0;
   FSendFileFd := -1;
   FSendFileOffset := 0;
   FSendFileLen := 0;
@@ -516,12 +579,21 @@ begin
   Result := TEncoding.UTF8.GetString(ABuffer, AStart, ALen);
 end;
 
+class function TDextEpollHttpParser.ExtractSliceString(const ABuffer: TBytes; AStart, ALen: Integer): string;
+begin
+  if (AStart < 0) or (ALen <= 0) then
+    Exit('');
+  Result := TEncoding.UTF8.GetString(ABuffer, AStart, ALen);
+end;
+
 class function TDextEpollHttpParser.TryParseRequest(
   const ABuffer: TBytes; 
   ALength: Integer;
   out AMethod: string;
-  out APath: string;
-  out AQuery: string;
+  out APathOffset: Integer;
+  out APathLength: Integer;
+  out AQueryOffset: Integer;
+  out AQueryLength: Integer;
   out AHeaderSegments: THeaderSegments;
   out ABodyOffset: Integer;
   out AContentLength: Int64
@@ -540,8 +612,10 @@ var
   PathStart, PathLen: Integer;
 begin
   AMethod := '';
-  APath := '';
-  AQuery := '';
+  APathOffset := -1;
+  APathLength := 0;
+  AQueryOffset := -1;
+  AQueryLength := 0;
   ABodyOffset := -1;
   AContentLength := 0;
   SetLength(AHeaderSegments, 0);
@@ -579,15 +653,14 @@ begin
     PathLen := Space2 - PathStart;
 
   // Path raiz otimizado
-  if (PathLen = 1) and (ABuffer[PathStart] = 47) then
-    APath := '/'
-  else
-    APath := TEncoding.UTF8.GetString(ABuffer, PathStart, PathLen);
+  APathOffset := PathStart;
+  APathLength := PathLen;
 
   if QueryStart <> -1 then
-    AQuery := TEncoding.UTF8.GetString(ABuffer, QueryStart, Space2 - QueryStart)
-  else
-    AQuery := '';
+  begin
+    AQueryOffset := QueryStart;
+    AQueryLength := Space2 - QueryStart;
+  end;
 
   SegCount := 0;
   SetLength(AHeaderSegments, 16);
@@ -746,27 +819,31 @@ end;
 { TDextEpollRequest }
 
 constructor TDextEpollRequest.Create(
-  const AMethod, APath, AQuery: string;
+  const AMethod: string;
   const AHeaderSegments: THeaderSegments;
   ABody: TBytes;
   ABodyOffset, ABodyLen: Integer;
-  AContentLength: Int64
+  AContentLength: Int64;
+  APathOffset, APathLength, AQueryOffset, AQueryLength: Integer
 );
 begin
   inherited Create;
   FMethod := AMethod;
-  FPath := APath;
-  FQuery := AQuery;
+  FPath := '';
+  FQuery := '';
+  FPathOffset := APathOffset;
+  FPathLength := APathLength;
+  FQueryOffset := AQueryOffset;
+  FQueryLength := AQueryLength;
   FHeaderSegments := AHeaderSegments;
   FContentLength := AContentLength;
   FHeaderCacheCount := 0;
 
-  // Cópia restrita aos bytes úteis do request para thread-safety no reactor desacoplado
-  FBuffer := Copy(ABody, 0, ABodyOffset + ABodyLen);
+  // O buffer permanece válido durante o processamento síncrono do request.
+  // Compartilhamos o TBytes por referência contada para evitar uma cópia inteira do payload.
+  FBuffer := ABody;
 
-  FResolvedHeaders := nil;
-
-  // Stream que lê diretamente do buffer sem cópia adicional
+  // Stream que lê diretamente do buffer compartilhado sem cópia adicional
   FBodyStream := TDextReadOnlyBytesStream.Create(FBuffer, ABodyOffset, ABodyLen);
 end;
 
@@ -859,10 +936,12 @@ var
   Seg: THeaderSegment;
   Key, Value: string;
   KeyStart, KeyLen: Integer;
+  ValStart, ValLen: Integer;
 begin
   for i := 0 to Length(FHeaderSegments) - 1 do
   begin
     Seg := FHeaderSegments[i];
+
     KeyStart := Seg.KeyStart;
     KeyLen := Seg.KeyLen;
     while (KeyLen > 0) and ((FBuffer[KeyStart] = 32) or (FBuffer[KeyStart] = 9)) do
@@ -873,17 +952,35 @@ begin
     while (KeyLen > 0) and ((FBuffer[KeyStart + KeyLen - 1] = 32) or (FBuffer[KeyStart + KeyLen - 1] = 9)) do
       Dec(KeyLen);
 
-    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen).ToLower;
-    Value := ResolveHeader(Key);
+    ValStart := Seg.ValueStart;
+    ValLen := Seg.ValueLen;
+    while (ValLen > 0) and ((FBuffer[ValStart] = 32) or (FBuffer[ValStart] = 9)) do
+    begin
+      Inc(ValStart);
+      Dec(ValLen);
+    end;
+    while (ValLen > 0) and ((FBuffer[ValStart + ValLen - 1] = 32) or (FBuffer[ValStart + ValLen - 1] = 9)) do
+      Dec(ValLen);
+
+    Key := TEncoding.UTF8.GetString(FBuffer, KeyStart, KeyLen);
+    Value := TEncoding.UTF8.GetString(FBuffer, ValStart, ValLen);
     ADict.AddOrSetValue(Key, Value);
   end;
 end;
 
-
-// Interface redirects
 function TDextEpollRequest.GetMethod: string; begin Result := FMethod; end;
-function TDextEpollRequest.GetPath: string; begin Result := FPath; end;
-function TDextEpollRequest.GetQueryString: string; begin Result := FQuery; end;
+function TDextEpollRequest.GetPath: string;
+begin
+  if FPath = '' then
+    FPath := TDextEpollHttpParser.ExtractSliceString(FBuffer, FPathOffset, FPathLength);
+  Result := FPath;
+end;
+function TDextEpollRequest.GetQueryString: string;
+begin
+  if FQuery = '' then
+    FQuery := TDextEpollHttpParser.ExtractSliceString(FBuffer, FQueryOffset, FQueryLength);
+  Result := FQuery;
+end;
 
 { TDextEpollResponse }
 
@@ -892,14 +989,22 @@ begin
   inherited Create;
   FContext := AContext;
   FSocket := AContext.FFd;
+  FGeneration := AContext.FGeneration;
+  FResponseWriter.Init;
   FHeadersSent := False;
   FStatusCode := 200;
   FReason := 'OK';
   FHeaders := TDictionary<string, string>.Create;
+  FSendFileFd := -1;
+  FSendFileOffset := 0;
+  FSendFileLen := 0;
 end;
 
 destructor TDextEpollResponse.Destroy;
 begin
+  if FSendFileFd >= 0 then
+    __close(FSendFileFd);
+  FResponseWriter.Clear;
   FHeaders.Free;
   inherited;
 end;
@@ -910,21 +1015,31 @@ begin
 end;
 
 procedure TDextEpollResponse.Flush;
+label
+  SendFileCheck;
 var
-  Iov: array[0..1] of iovec;
+  Iov: array[0..127] of iovec;
   IovCnt: Integer;
   Res: Integer;
   TotalBytes: Integer;
-  RemainderLen: Integer;
-  DestPos: Integer;
-  HeaderRem: Integer;
-  BodySent: Integer;
-  BodyRem: Integer;
   Event: epoll_event;
   SentFileBytes: NativeInt;
+  SegCount: Integer;
+  I: Integer;
   HasPendingWrite: Boolean;
   StartSend: Int64;
 begin
+  HasPendingWrite := False;
+  if FContext.FGeneration <> FGeneration then Exit;
+  if FSendFileFd >= 0 then
+  begin
+    FContext.FSendFileFd := FSendFileFd;
+    FContext.FSendFileOffset := FSendFileOffset;
+    FContext.FSendFileLen := FSendFileLen;
+    FSendFileFd := -1;
+    FSendFileOffset := 0;
+    FSendFileLen := 0;
+  end;
   StartSend := 0;
   if (FContext <> nil) and (FContext.FEngine <> nil) and
      TDextEpollEngine(FContext.FEngine).FProfileEnabled then
@@ -935,77 +1050,82 @@ begin
   if not FHeadersSent then
     SendHeaders;
 
-  IovCnt := 0;
-  TotalBytes := 0;
-  if Length(FResponseBuffer) > 0 then
-  begin
-    Iov[IovCnt].iov_base := @FResponseBuffer[0];
-    Iov[IovCnt].iov_len := Length(FResponseBuffer);
-    TotalBytes := TotalBytes + Length(FResponseBuffer);
-    Inc(IovCnt);
-  end;
+  SegCount := FResponseWriter.SegmentCount;
+  if SegCount <= 0 then
+    goto SendFileCheck;
 
-  if FBodyLen > 0 then
+  TotalBytes := 0;
+  for I := 0 to SegCount - 1 do
+    TotalBytes := TotalBytes + FResponseWriter.Segments[I].Length;
+
+  if TotalBytes <= 0 then
+    goto SendFileCheck;
+
+  IovCnt := 0;
+  for I := 0 to SegCount - 1 do
   begin
-    Iov[IovCnt].iov_base := @FBodyBuffer[0];
-    Iov[IovCnt].iov_len := FBodyLen;
-    TotalBytes := TotalBytes + FBodyLen;
+    if IovCnt >= Length(Iov) then Break;
+    Iov[IovCnt].iov_base := FResponseWriter.Segments[I].Data;
+    Iov[IovCnt].iov_len := FResponseWriter.Segments[I].Length;
     Inc(IovCnt);
   end;
 
   HasPendingWrite := False;
-
-  if IovCnt > 0 then
+  Res := writev(FSocket, @Iov[0], IovCnt);
+  if Res < 0 then
   begin
-    Res := writev(FSocket, @Iov[0], IovCnt);
-    if Res < 0 then
+    if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
+      Res := 0
+    else
+      Res := -1;
+  end;
+
+  if Res >= 0 then
+  begin
+    if Res < TotalBytes then
     begin
-      if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
-        Res := 0
-      else
-        Res := -1;
-    end;
+      SetLength(FContext.FWriteSegments, SegCount);
+      for I := 0 to SegCount - 1 do
+        FContext.FWriteSegments[I] := FResponseWriter.Segments[I];
+      FContext.FWriteSegmentsCount := SegCount;
+      FContext.FWriteSegIndex := 0;
+      FContext.FWriteSegOffset := 0;
 
-    if (Res >= 0) and (Res < TotalBytes) then
-    begin
-      RemainderLen := TotalBytes - Res;
-      SetLength(FContext.FWriteBuffer, RemainderLen);
-      DestPos := 0;
+      TDextBufferCursor.Advance(@FContext.FWriteSegments[0], SegCount, Res,
+        FContext.FWriteSegIndex, FContext.FWriteSegOffset);
 
-      if Res < Length(FResponseBuffer) then
-      begin
-        HeaderRem := Length(FResponseBuffer) - Res;
-        Move(FResponseBuffer[Res], FContext.FWriteBuffer[DestPos], HeaderRem);
-        Inc(DestPos, HeaderRem);
-        if FBodyLen > 0 then
-          Move(FBodyBuffer[0], FContext.FWriteBuffer[DestPos], FBodyLen);
-      end
-      else
-      begin
-        BodySent := Res - Length(FResponseBuffer);
-        BodyRem := FBodyLen - BodySent;
-        if BodyRem > 0 then
-          Move(FBodyBuffer[BodySent], FContext.FWriteBuffer[DestPos], BodyRem);
-      end;
+      // Ownership of every segment is now represented by FWriteSegments.
+      // Completed prefixes were released above; pending segments are released
+      // by the EPOLLOUT cursor or context cleanup.
+      for I := 0 to SegCount - 1 do
+        FResponseWriter.DetachSegment(I);
 
-      FContext.FWriteOffset := 0;
-      FContext.FWriteLen := RemainderLen;
       HasPendingWrite := True;
 
       FillChar(Event, SizeOf(Event), 0);
       Event.events := EPOLLOUT or EPOLLET or EPOLLONESHOT;
       Event.data.ptr := FContext;
       epoll_ctl(FContext.FEpollFd, EPOLL_CTL_MOD, FSocket, @Event);
+    end
+    else
+    begin
+      for I := 0 to SegCount - 1 do
+      begin
+        if Assigned(FResponseWriter.Segments[I].ReleaseProc) then
+          FResponseWriter.Segments[I].ReleaseProc(FResponseWriter.Segments[I].Owner);
+        FResponseWriter.DetachSegment(I);
+      end;
     end;
-
-    SetLength(FResponseBuffer, 0);
-    FBodyLen := 0;
-    SetLength(FBodyBuffer, 0);
   end;
 
-  if (not HasPendingWrite) and (FContext.FSendFileLen > 0) and (FContext.FSendFileFd >= 0) then
+  FResponseWriter.Reset;
+
+SendFileCheck:
+  if (not HasPendingWrite) and (FContext.FSendFileLen > 0)
+    and (FContext.FSendFileFd >= 0) then
   begin
-    SentFileBytes := sendfile(FSocket, FContext.FSendFileFd, @FContext.FSendFileOffset, FContext.FSendFileLen);
+    SentFileBytes := sendfile(FSocket, FContext.FSendFileFd,
+      @FContext.FSendFileOffset, FContext.FSendFileLen);
     if SentFileBytes >= 0 then
     begin
       FContext.FSendFileLen := FContext.FSendFileLen - SentFileBytes;
@@ -1041,28 +1161,46 @@ begin
 end;
 
 procedure TDextEpollResponse.SendHeaders;
-  procedure AppendStr(const AStr: string; var AOffset: Integer);
+  procedure AppendStr(const AStr: string; var ABuffer: array of Byte;
+    var AOffset: Integer);
   var
-    i, StrLen: Integer;
+    I, StrLen: Integer;
   begin
     StrLen := Length(AStr);
     if StrLen = 0 then Exit;
-    if AOffset + StrLen > Length(FResponseBuffer) then
-      SetLength(FResponseBuffer, (AOffset + StrLen) * 2);
-    for i := 1 to StrLen do
+    for I := 1 to StrLen do
     begin
-      FResponseBuffer[AOffset] := Byte(AStr[i]);
+      ABuffer[AOffset] := Byte(AStr[I]);
       Inc(AOffset);
     end;
   end;
 var
+  TempBuf: array[0..2047] of Byte;
   BufferOffset: Integer;
   Pair: TPair<string, string>;
+  SegCount, TotalBytes, I: Integer;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then Exit;
+
+  BufferOffset := 0;
 
   if not FHeaders.ContainsKey('Content-Type') then
     FHeaders.Add('Content-Type', 'text/plain');
+
+  if not FHeaders.ContainsKey('Content-Length') then
+  begin
+    if FContext.FSendFileLen > 0 then
+      FHeaders.Add('Content-Length', IntToStr(FContext.FSendFileLen))
+    else
+    begin
+      SegCount := FResponseWriter.SegmentCount;
+      TotalBytes := 0;
+      for I := 0 to SegCount - 1 do
+        TotalBytes := TotalBytes + FResponseWriter.Segments[I].Length;
+      FHeaders.Add('Content-Length', IntToStr(TotalBytes));
+    end;
+  end;
 
   if not FHeaders.ContainsKey('Connection') then
   begin
@@ -1072,39 +1210,29 @@ begin
       FHeaders.Add('Connection', 'close');
   end;
 
-  if not FHeaders.ContainsKey('Content-Length') then
-  begin
-    if FContext.FSendFileLen > 0 then
-      FHeaders.Add('Content-Length', FContext.FSendFileLen.ToString)
-    else
-      FHeaders.Add('Content-Length', FBodyLen.ToString);
-  end;
-
-  SetLength(FResponseBuffer, 512);
-  BufferOffset := 0;
-
-  AppendStr('HTTP/1.1 ', BufferOffset);
-  AppendStr(IntToStr(FStatusCode), BufferOffset);
-  AppendStr(' ', BufferOffset);
-  AppendStr(FReason, BufferOffset);
-  AppendStr(#13#10, BufferOffset);
+  AppendStr('HTTP/1.1 ', TempBuf, BufferOffset);
+  AppendStr(IntToStr(FStatusCode), TempBuf, BufferOffset);
+  AppendStr(' ', TempBuf, BufferOffset);
+  AppendStr(FReason, TempBuf, BufferOffset);
+  AppendStr(#13#10, TempBuf, BufferOffset);
 
   for Pair in FHeaders do
   begin
-    AppendStr(Pair.Key, BufferOffset);
-    AppendStr(': ', BufferOffset);
-    AppendStr(Pair.Value, BufferOffset);
-    AppendStr(#13#10, BufferOffset);
+    AppendStr(Pair.Key, TempBuf, BufferOffset);
+    AppendStr(': ', TempBuf, BufferOffset);
+    AppendStr(Pair.Value, TempBuf, BufferOffset);
+    AppendStr(#13#10, TempBuf, BufferOffset);
   end;
 
-  AppendStr(#13#10, BufferOffset);
+  AppendStr(#13#10, TempBuf, BufferOffset);
 
-  SetLength(FResponseBuffer, BufferOffset);
+  FResponseWriter.Write(TByteSpan.Create(@TempBuf[0], BufferOffset));
   FHeadersSent := True;
 end;
 
 procedure TDextEpollResponse.SetHeader(const AName, AValue: string);
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
   FHeaders.AddOrSetValue(AName, AValue);
@@ -1112,6 +1240,7 @@ end;
 
 procedure TDextEpollResponse.SetStatus(ACode: Integer; const AReason: string);
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
   FStatusCode := ACode;
@@ -1122,17 +1251,14 @@ begin
 end;
 
 procedure TDextEpollResponse.Write(const ABuffer: TBytes; AOffset, ACount: Integer);
-var
-  NewLen: Integer;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if ACount <= 0 then Exit;
 
-  NewLen := FBodyLen + ACount;
-  if Length(FBodyBuffer) < NewLen then
-    SetLength(FBodyBuffer, NewLen);
+  if not FHeadersSent then
+    SendHeaders;
 
-  Move(ABuffer[AOffset], FBodyBuffer[FBodyLen], ACount);
-  FBodyLen := NewLen;
+  FResponseWriter.Write(TByteSpan.Create(@ABuffer[AOffset], ACount));
 end;
 
 procedure TDextEpollResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
@@ -1140,6 +1266,7 @@ var
   Fd: Integer;
   StatBuf: _stat;
 begin
+  if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
 
@@ -1147,17 +1274,28 @@ begin
   if Fd < 0 then
     raise EOSError.Create('Failed to open file: ' + APath);
 
-  FContext.FSendFileFd := Fd;
-  FContext.FSendFileOffset := AOffset;
+  if FSendFileFd >= 0 then
+    __close(FSendFileFd);
+  FSendFileFd := Fd;
+  FSendFileOffset := AOffset;
   if ACount <= 0 then
   begin
     if fstat(Fd, StatBuf) = 0 then
-      FContext.FSendFileLen := StatBuf.st_size - AOffset
+      FSendFileLen := StatBuf.st_size - AOffset
     else
-      FContext.FSendFileLen := 0;
+      FSendFileLen := 0;
   end
   else
-    FContext.FSendFileLen := ACount;
+    FSendFileLen := ACount;
+end;
+
+procedure TDextEpollResponse.WriteBytes(AData: Pointer; ALength: Integer);
+begin
+  if ALength <= 0 then
+    Exit;
+  if not FHeadersSent then
+    SendHeaders;
+  FResponseWriter.Write(TByteSpan.Create(AData, ALength));
 end;
 
 { TDextEpollWorker }
@@ -1175,28 +1313,218 @@ begin
   SetLength(FReadBuffer, 8192);
   FContextPool := TList.Create;
   FActiveContexts := TList.Create;
+  FTaskPool := TList.Create;
+  FCompletionLock := TObject.Create;
+  SetLength(FCompletions, AEngine.FOptions.MaxQueueCapacity +
+    AEngine.FOptions.MaxExecutorThreads + 16);
+  if Length(FCompletions) < 64 then
+    SetLength(FCompletions, 64);
+  FCompletionHead := 0;
+  FCompletionTail := 0;
+  FCompletionCount := 0;
   FLastSweepTick := GetTickCount64;
+
+  FWorkerTotalQueueDelayTicks := 0;
+  FWorkerTotalHandlerTicks := 0;
+  FWorkerTotalReadParseTicks := 0;
+  FWorkerTotalSendTicks := 0;
+  FWorkerTotalSweepTicks := 0;
+  FWorkerSweepCount := 0;
+  FWorkerRequestCount := 0;
 end;
 
 destructor TDextEpollWorker.Destroy;
 var
   I: Integer;
+  Context: TDextEpollContext;
 begin
   CloseLocalReactor;
+  while FActiveContexts.Count > 0 do
+  begin
+    Context := TDextEpollContext(FActiveContexts.Last);
+    FActiveContexts.Delete(FActiveContexts.Count - 1);
+    if Context.FFd >= 0 then
+    begin
+      __close(Context.FFd);
+      Context.FFd := -1;
+      TInterlocked.Decrement(FEngine.FActiveConnections);
+    end;
+    ReleaseContext(Context);
+  end;
   for I := 0 to FContextPool.Count - 1 do
     TDextEpollContext(FContextPool[I]).Free;
   FContextPool.Free;
   FActiveContexts.Free;
+
+  for I := 0 to FTaskPool.Count - 1 do
+    TDextEpollTask(FTaskPool[I]).Free;
+  FTaskPool.Free;
+
+  FCompletions := nil;
+  FCompletionLock.Free;
   inherited;
 end;
 
-procedure TDextEpollWorker.ReleaseContext(AContext: TDextEpollContext);
+procedure TDextEpollWorker.RecycleTask(ATask: TDextEpollTask);
 begin
+  if ATask <> nil then
+  begin
+    ATask.Context := nil;
+    ATask.Connection := nil;
+    ATask.Request := nil;
+    ATask.Response := nil;
+    ATask.OnRequest := nil;
+    ATask.Worker := nil;
+    if FTaskPool.Count < 256 then
+      FTaskPool.Add(ATask)
+    else
+      ATask.Free;
+  end;
+end;
+
+function TDextEpollWorker.AcquireTask: TDextEpollTask;
+begin
+  if FTaskPool.Count > 0 then
+  begin
+    Result := TDextEpollTask(FTaskPool.Last);
+    FTaskPool.Delete(FTaskPool.Count - 1);
+  end
+  else
+    Result := TDextEpollTask.Create;
+end;
+
+procedure TDextEpollWorker.EnqueueCompletion(AContext: TDextEpollContext;
+  AGeneration: Cardinal; const AResponse: IDextRawResponse);
+var
+  B: Byte;
+begin
+  TMonitor.Enter(FCompletionLock);
+  try
+    if FCompletionCount >= Length(FCompletions) then
+      raise EInvalidOp.Create('Epoll completion queue capacity exceeded');
+    FCompletions[FCompletionTail].Context := AContext;
+    FCompletions[FCompletionTail].Generation := AGeneration;
+    FCompletions[FCompletionTail].Response := AResponse;
+    Inc(FCompletionTail);
+    if FCompletionTail = Length(FCompletions) then
+      FCompletionTail := 0;
+    Inc(FCompletionCount);
+  finally
+    TMonitor.Exit(FCompletionLock);
+  end;
+
+  if FPipeFds[1] >= 0 then
+  begin
+    B := 2;
+    __write(FPipeFds[1], @B, 1);
+  end;
+end;
+
+procedure TDextEpollWorker.DrainCompletions;
+var
+  Completion: TDextEpollCompletion;
+  Context: TDextEpollContext;
+  Event: epoll_event;
+begin
+  while True do
+  begin
+    Completion.Context := nil;
+    Completion.Generation := 0;
+    Completion.Response := nil;
+    TMonitor.Enter(FCompletionLock);
+    try
+      if FCompletionCount = 0 then
+        Exit;
+      Completion := FCompletions[FCompletionHead];
+      FCompletions[FCompletionHead].Context := nil;
+      FCompletions[FCompletionHead].Generation := 0;
+      FCompletions[FCompletionHead].Response := nil;
+      Inc(FCompletionHead);
+      if FCompletionHead = Length(FCompletions) then
+        FCompletionHead := 0;
+      Dec(FCompletionCount);
+    finally
+      TMonitor.Exit(FCompletionLock);
+    end;
+
+    Context := Completion.Context;
+    if (Context = nil) or (Context.FGeneration <> Completion.Generation) then
+      Continue;
+
+    try
+      Completion.Response.Close;
+    except
+      Context.FKeepAlive := False;
+    end;
+
+    if Context.FGeneration <> Completion.Generation then
+      Continue;
+    if Context.FWriteSegmentsCount > 0 then
+      Continue;
+
+    if Context.FKeepAlive then
+    begin
+      var Remaining: Integer;
+      if (Context.FConsumedBytes > 0) and (Context.FConsumedBytes < Context.FReadLen) then
+      begin
+        Remaining := Context.FReadLen - Context.FConsumedBytes;
+        Move(Context.FReadBuffer[Context.FConsumedBytes], Context.FReadBuffer[0], Remaining);
+        Context.FReadLen := Remaining;
+      end
+      else
+        Context.FReadLen := 0;
+      Context.FConsumedBytes := 0;
+
+      if FEngine.FProfileEnabled then
+      begin
+        Context.FHandlerEndTime := TStopwatch.GetTimeStamp;
+        FWorkerTotalHandlerTicks := FWorkerTotalHandlerTicks +
+          (Context.FHandlerEndTime - Context.FQueueStartTime);
+      end;
+
+      ProcessBuffer(Context);
+    end
+    else
+    begin
+      FillChar(Event, SizeOf(Event), 0);
+      Event.data.ptr := Context;
+      shutdown(Context.FFd, 1);
+      Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+      epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
+
+      if FEngine.FProfileEnabled then
+      begin
+        Context.FHandlerEndTime := TStopwatch.GetTimeStamp;
+        FWorkerTotalHandlerTicks := FWorkerTotalHandlerTicks +
+          (Context.FHandlerEndTime - Context.FQueueStartTime);
+      end;
+    end;
+  end;
+end;
+
+procedure TDextEpollWorker.ReleaseContext(AContext: TDextEpollContext);
+var
+  I: Integer;
+begin
+  Inc(AContext.FGeneration);
+  if AContext.FGeneration = 0 then
+    AContext.FGeneration := 1;
   if AContext.FSendFileFd >= 0 then
   begin
     __close(AContext.FSendFileFd);
     AContext.FSendFileFd := -1;
   end;
+
+  if AContext.FWriteSegmentsCount > 0 then
+  begin
+    for I := AContext.FWriteSegIndex to AContext.FWriteSegmentsCount - 1 do
+      if Assigned(AContext.FWriteSegments[I].ReleaseProc) then
+        AContext.FWriteSegments[I].ReleaseProc(
+          AContext.FWriteSegments[I].Owner);
+    AContext.FWriteSegments := nil;
+    AContext.FWriteSegmentsCount := 0;
+  end;
+
   if FContextPool.Count < 1024 then
     FContextPool.Add(AContext)
   else
@@ -1242,9 +1570,7 @@ begin
   OptVal := 1;
   setsockopt(FListenSocket, SOL_SOCKET, 15, OptVal, SizeOf(OptVal));
 
-  // Enable TCP_DEFER_ACCEPT
-  OptVal := 10;
-  setsockopt(FListenSocket, IPPROTO_TCP, TCP_DEFER_ACCEPT, OptVal, SizeOf(OptVal));
+  // TCP_DEFER_ACCEPT removed to avoid 10-second epoll_wait connection notification delays
 
   // Enable TCP_FASTOPEN
   OptVal := SOMAXCONN;
@@ -1257,6 +1583,8 @@ begin
   Addr.sin_port := htons(FEngine.FListeningPort);
   if (FEngine.FAddress = '') or (FEngine.FAddress = '0.0.0.0') then
     Addr.sin_addr.s_addr := INADDR_ANY
+  else if SameText(FEngine.FAddress, 'localhost') or (FEngine.FAddress = '127.0.0.1') then
+    Addr.sin_addr.s_addr := inet_addr('127.0.0.1')
   else
     Addr.sin_addr.s_addr := inet_addr(PAnsiChar(AnsiString(FEngine.FAddress)));
 
@@ -1304,6 +1632,25 @@ begin
   end;
 end;
 
+procedure ExecuteTask(Data: Pointer);
+var
+  LTask: TDextEpollTask;
+begin
+  LTask := TDextEpollTask(Data);
+  try
+    if (LTask.Context.FGeneration = LTask.Generation) and
+       Assigned(LTask.OnRequest) then
+      LTask.OnRequest(LTask.Connection, LTask.Request, LTask.Response);
+  finally
+    TDextEpollWorker(LTask.Worker).EnqueueCompletion(LTask.Context, LTask.Generation, LTask.Response);
+    LTask.Connection := nil;
+    LTask.Request := nil;
+    LTask.Response := nil;
+    LTask.OnRequest := nil;
+    TDextEpollWorker(LTask.Worker).RecycleTask(LTask);
+  end;
+end;
+
 procedure TDextEpollWorker.ProcessRequestAsync(
   AContext: TDextEpollContext;
   AConnection: IDextServerConnection;
@@ -1311,127 +1658,250 @@ procedure TDextEpollWorker.ProcessRequestAsync(
   AResponse: IDextRawResponse
 );
 var
-  LLocalEpollFd: Integer;
-  LProc: TProc;
+  LFd: Integer;
+  LEpollFd: Integer;
+  LOnRequest: TRequestEventHandler;
+  HasPendingWrite: Boolean;
+  IsKeepAlive: Boolean;
+  LTaskEvent: epoll_event;
+  LTask: TDextEpollTask;
 begin
-  LLocalEpollFd := FEpollFd;
-  LProc := procedure
-    var
-      LConnection: IDextServerConnection;
-      LRequest: IDextRawRequest;
-      LResponse: IDextRawResponse;
-      LContext: TDextEpollContext;
-      LFd: Integer;
-      HasPendingWrite: Boolean;
-      LLocalEvent: epoll_event;
-      IsKeepAlive: Boolean;
+  LFd := AContext.FFd;
+  LEpollFd := FEpollFd;
+  LOnRequest := FEngine.FOnRequest;
+
+  IsKeepAlive := not SameText(ARequest.GetHeader('Connection'), 'close');
+  if AContext <> nil then
+    AContext.FKeepAlive := IsKeepAlive;
+
+  if (AContext <> nil) and (AContext.FEngine <> nil) and
+     TDextEpollEngine(AContext.FEngine).FProfileEnabled then
+  begin
+    AContext.FQueueStartTime := TStopwatch.GetTimeStamp;
+    FWorkerTotalQueueDelayTicks := FWorkerTotalQueueDelayTicks +
+      (AContext.FQueueStartTime - AContext.FWakeupTime);
+  end;
+
+  if Assigned(FEngine.Executor) then
+  begin
+    LTask := AcquireTask;
+    LTask.Context := AContext;
+    LTask.Generation := AContext.FGeneration;
+    LTask.Connection := AConnection;
+    LTask.Request := ARequest;
+    LTask.Response := AResponse;
+    LTask.OnRequest := LOnRequest;
+    LTask.Worker := Self;
+
+    if not FEngine.Executor.TryEnqueue(ExecuteTask, LTask) then
     begin
-      LConnection := AConnection;
-      LRequest := ARequest;
-      LResponse := AResponse;
-      LContext := AContext;
-      LFd := LContext.FFd;
-
-      IsKeepAlive := not SameText(LRequest.GetHeader('Connection'), 'close');
-      if LContext <> nil then
-        LContext.FKeepAlive := IsKeepAlive;
-
-      if (LContext <> nil) and (LContext.FEngine <> nil) and
-         TDextEpollEngine(LContext.FEngine).FProfileEnabled then
-      begin
-        LContext.FQueueStartTime := TStopwatch.GetTimeStamp;
-        TInterlocked.Add(
-          TDextEpollEngine(LContext.FEngine).FTotalQueueDelayTicks,
-          LContext.FQueueStartTime - LContext.FWakeupTime);
-      end;
-
+      // Queue is saturated: return 503 and close immediately
       try
-        try
-          if Assigned(FEngine.FOnRequest) then
-            FEngine.FOnRequest(LConnection, LRequest, LResponse);
-        finally
-          LResponse.Close;
-        end;
+        AResponse.SetStatus(503, 'Service Unavailable');
+        AResponse.SetHeader('Content-Type', 'text/plain; charset=utf-8');
+        AResponse.Write(
+          TEncoding.UTF8.GetBytes('Service Unavailable (Queue Full)'),
+          0, 32);
       finally
-        HasPendingWrite := False;
-        if LContext <> nil then
+        AResponse.Close;
+        shutdown(LFd, 1);
+        if AContext <> nil then
         begin
-          if LContext.FWriteLen > 0 then
-            HasPendingWrite := True;
+          AContext.FKeepAlive := False;
+          FillChar(LTaskEvent, SizeOf(LTaskEvent), 0);
+          LTaskEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+          LTaskEvent.data.ptr := AContext;
+          epoll_ctl(LEpollFd, EPOLL_CTL_MOD, LFd, @LTaskEvent);
         end;
-
-        if not HasPendingWrite then
-        begin
-          if not IsKeepAlive then
-          begin
-            shutdown(LFd, 1);
-            if LContext <> nil then
-            begin
-              FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
-              LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
-              LLocalEvent.data.ptr := LContext;
-              epoll_ctl(LLocalEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
-            end;
-          end
-          else
-          begin
-            if LContext <> nil then
-            begin
-              LContext.FReadLen := 0;
-              FillChar(LLocalEvent, SizeOf(LLocalEvent), 0);
-              LLocalEvent.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
-              LLocalEvent.data.ptr := LContext;
-              epoll_ctl(LLocalEpollFd, EPOLL_CTL_MOD, LFd, @LLocalEvent);
-            end;
-          end;
-        end;
-        if (LContext <> nil) and (LContext.FEngine <> nil) and
-           TDextEpollEngine(LContext.FEngine).FProfileEnabled then
-        begin
-          LContext.FHandlerEndTime := TStopwatch.GetTimeStamp;
-          TInterlocked.Add(
-            TDextEpollEngine(LContext.FEngine).FTotalHandlerTicks,
-            LContext.FHandlerEndTime - LContext.FQueueStartTime);
-          TDextEpollEngine(LContext.FEngine).ReportMetrics(LContext);
-        end;
-        LResponse := nil;
-        LRequest := nil;
-        LConnection := nil;
+        RecycleTask(LTask);
       end;
     end;
-  TTask.Run(LProc);
+  end
+  else
+  begin
+    // Inline execution
+    try
+      try
+        if Assigned(LOnRequest) then
+          LOnRequest(AConnection, ARequest, AResponse);
+      finally
+        AResponse.Close;
+      end;
+    finally
+      HasPendingWrite := AContext.FWriteSegmentsCount > 0;
+      if not HasPendingWrite then
+      begin
+        if not IsKeepAlive then
+        begin
+          shutdown(LFd, 1);
+          FillChar(LTaskEvent, SizeOf(LTaskEvent), 0);
+          LTaskEvent.events := EPOLLIN or EPOLLONESHOT;
+          LTaskEvent.data.ptr := AContext;
+          epoll_ctl(LEpollFd, EPOLL_CTL_MOD, LFd, @LTaskEvent);
+        end
+        else
+        begin
+          FillChar(LTaskEvent, SizeOf(LTaskEvent), 0);
+          LTaskEvent.events := EPOLLIN or EPOLLONESHOT;
+          LTaskEvent.data.ptr := AContext;
+          epoll_ctl(LEpollFd, EPOLL_CTL_MOD, LFd, @LTaskEvent);
+
+          if AContext.FReadLen > 0 then
+            ProcessBuffer(AContext);
+        end;
+      end;
+
+      if (AContext <> nil) and (AContext.FEngine <> nil) and
+         TDextEpollEngine(AContext.FEngine).FProfileEnabled then
+      begin
+        AContext.FHandlerEndTime := TStopwatch.GetTimeStamp;
+        FWorkerTotalHandlerTicks := FWorkerTotalHandlerTicks +
+          (AContext.FHandlerEndTime - AContext.FQueueStartTime);
+        FWorkerRequestCount := FWorkerRequestCount + 1;
+        if FWorkerRequestCount mod 1000 = 0 then
+        begin
+          var Freq: Double := TStopwatch.Frequency;
+          var AvgQueue: Double := (FWorkerTotalQueueDelayTicks / FWorkerRequestCount) / Freq * 1000.0;
+          var AvgHandler: Double := (FWorkerTotalHandlerTicks / FWorkerRequestCount) / Freq * 1000.0;
+          var AvgRead: Double := (FWorkerTotalReadParseTicks / FWorkerRequestCount) / Freq * 1000.0;
+          var AvgSend: Double := (FWorkerTotalSendTicks / FWorkerRequestCount) / Freq * 1000.0;
+          var AvgSweep: Double := 0.0;
+          if FWorkerSweepCount > 0 then
+            AvgSweep := (FWorkerTotalSweepTicks / FWorkerSweepCount) / Freq * 1000.0;
+          Writeln(Format(
+            '[Profile] Worker Core %d | Req: %d | QDelay: %.3fms | Hdlr: %.3fms | ' +
+            'RP: %.3fms | Send: %.3fms | Sweep: %.3fms (%d)',
+            [FCoreId, FWorkerRequestCount, AvgQueue, AvgHandler, AvgRead, AvgSend, AvgSweep,
+             FWorkerSweepCount]));
+        end;
+      end;
+    end;
+  end;
 end;
 
-procedure TDextEpollWorker.Execute;
+procedure TDextEpollWorker.ProcessBuffer(AContext: TDextEpollContext);
 var
-  EventCount: Integer;
-  i: Integer;
-  Events: array[0..63] of epoll_event;
-  Event: epoll_event;
-  Fd: Integer;
-  ClientFd: Integer;
-  Addr: sockaddr_in;
-  AddrLen: socklen_t;
-  RecvRet: Integer;
-  Method, Path, Query: string;
+  Method: string;
+  PathOffset: Integer;
+  PathLen: Integer;
+  QueryOffset: Integer;
+  QueryLen: Integer;
   HeaderSegments: THeaderSegments;
   BodyOffset: Integer;
   ContentLength: Int64;
   Connection: IDextServerConnection;
   RawRequest: IDextRawRequest;
   RawResponse: IDextRawResponse;
+  Event: epoll_event;
+  Parsed: Boolean;
+  StartParse: Int64;
+begin
+  if AContext.FReadLen > 0 then
+  begin
+    StartParse := 0;
+    if FEngine.FOptions.MaxRequestHeaderSize <= 0 then
+      FEngine.FOptions.MaxRequestHeaderSize := 8192;
+
+    if FEngine.FProfileEnabled then
+      StartParse := TStopwatch.GetTimeStamp;
+
+    Parsed := TDextEpollHttpParser.TryParseRequest(
+      AContext.FReadBuffer,
+      AContext.FReadLen,
+      Method,
+      PathOffset,
+      PathLen,
+      QueryOffset,
+      QueryLen,
+      HeaderSegments,
+      BodyOffset,
+      ContentLength
+    );
+
+    if Parsed then
+    begin
+      TInterlocked.Increment(FEngine.FTotalRequests);
+      AContext.FConsumedBytes := BodyOffset + ContentLength;
+
+      if (AContext.FConsumedBytes > 0) and (AContext.FConsumedBytes < AContext.FReadLen) then
+      begin
+        var Remaining: Integer := AContext.FReadLen - AContext.FConsumedBytes;
+        Move(AContext.FReadBuffer[AContext.FConsumedBytes], AContext.FReadBuffer[0], Remaining);
+        AContext.FReadLen := Remaining;
+      end
+      else
+        AContext.FReadLen := 0;
+      AContext.FConsumedBytes := 0;
+
+      Connection := TDextEpollConnection.Create(AContext.FFd);
+      RawRequest := TDextEpollRequest.Create(
+        Method,
+        HeaderSegments,
+        AContext.FReadBuffer,
+        BodyOffset,
+        AContext.FReadLen - BodyOffset,
+        ContentLength,
+        PathOffset,
+        PathLen,
+        QueryOffset,
+        QueryLen
+      );
+      RawResponse := TDextEpollResponse.Create(AContext);
+
+      if FEngine.FProfileEnabled then
+        FWorkerTotalReadParseTicks := FWorkerTotalReadParseTicks +
+          (TStopwatch.GetTimeStamp - StartParse);
+
+      ProcessRequestAsync(AContext, Connection, RawRequest, RawResponse);
+      Exit;
+    end;
+
+    // Proteção contra tamanho excessivo de cabeçalho
+    if AContext.FReadLen >= FEngine.FOptions.MaxRequestHeaderSize then
+    begin
+      __close(AContext.FFd);
+      AContext.FFd := -1;
+      FActiveContexts.Remove(AContext);
+      ReleaseContext(AContext);
+      TInterlocked.Decrement(FEngine.FActiveConnections);
+      Exit;
+    end;
+  end;
+
+  // Se incompleto, rearma no Epoll para leitura
+  FillChar(Event, SizeOf(Event), 0);
+  Event.events := EPOLLIN or EPOLLONESHOT;
+  Event.data.ptr := AContext;
+  epoll_ctl(FEpollFd, EPOLL_CTL_MOD, AContext.FFd, @Event);
+end;
+
+procedure TDextEpollWorker.Execute;
+var
+  Addr: sockaddr_in;
+  AddrLen: socklen_t;
+  ClientFd: Integer;
   Context: TDextEpollContext;
-  ReadFailedOrClosed: Boolean;
-  SentBytes: Integer;
-  Mask: cpu_set_t;
-  OptVal: Integer;
-  LingerOption: linger;
-  SentFileBytes: NativeInt;
-  NowTicks: Int64;
-  j: Integer;
   Ctx: TDextEpollContext;
-  pthread_setaffinity_np: TFnPthreadSetAffinity;
+  Event: epoll_event;
+  EventCount: Integer;
+  Events: array[0..63] of epoll_event;
+  Fd: Integer;
+  i: Integer;
+  Iov: array[0..127] of iovec;
+  IovCnt: Integer;
+  j: Integer;
+  k: Integer;
   LibHandle: NativeUInt;
+  LingerOption: linger;
+  Mask: cpu_set_t;
+  NowTicks: Int64;
+  OptVal: Integer;
+  pthread_setaffinity_np: TFnPthreadSetAffinity;
+  ReadByte: Byte;
+  ReadFailedOrClosed: Boolean;
+  RecvRet: Integer;
+  SentBytes: Integer;
+  SentFileBytes: NativeInt;
 begin
   // CPU Pinning (resolved dynamically to avoid linker errors)
   LibHandle := dlopen(nil, RTLD_LAZY);
@@ -1514,8 +1984,11 @@ begin
               Context.FFd := ClientFd;
               Context.FEngine := FEngine;
               Context.FReadLen := 0;
-              Context.FWriteOffset := 0;
-              Context.FWriteLen := 0;
+              Inc(Context.FGeneration);
+              Context.FWriteSegments := nil;
+              Context.FWriteSegIndex := 0;
+              Context.FWriteSegOffset := 0;
+              Context.FWriteSegmentsCount := 0;
               Context.FSendFileFd := -1;
               Context.FSendFileOffset := 0;
               Context.FSendFileLen := 0;
@@ -1540,8 +2013,7 @@ begin
               end;
             end;
 
-            // Edge Triggered + One Shot
-            Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+            Event.events := EPOLLIN or EPOLLONESHOT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_ADD, ClientFd, @Event);
 
@@ -1550,8 +2022,13 @@ begin
         end
         else if Fd = FPipeFds[0] then
         begin
-          // Exit signal
-          Exit;
+          while __read(FPipeFds[0], @ReadByte, 1) > 0 do
+          begin
+          end;
+          DrainCompletions;
+          if Terminated then
+            Exit;
+          Continue;
         end
         else
         begin
@@ -1562,62 +2039,99 @@ begin
 
           if (Event.events and EPOLLOUT) <> 0 then
           begin
-            // Pronto para escrita! Terminar de enviar dados parciais.
-            if Context.FWriteLen > 0 then
+            var WriteWouldBlock: Boolean := False;
+            while (not WriteWouldBlock) and ((Context.FWriteSegmentsCount > 0) or (Context.FSendFileLen > 0)) do
             begin
-              SentBytes := send(Context.FFd, Context.FWriteBuffer[Context.FWriteOffset], Context.FWriteLen, 0);
-              if SentBytes > 0 then
+              if Context.FWriteSegmentsCount > 0 then
               begin
-                Context.FWriteOffset := Context.FWriteOffset + SentBytes;
-                Context.FWriteLen := Context.FWriteLen - SentBytes;
-              end
-              else if (SentBytes < 0) and ((errno = EAGAIN) or (errno = EWOULDBLOCK)) then
+                IovCnt := 0;
+                for k := Context.FWriteSegIndex to Context.FWriteSegmentsCount - 1 do
+                begin
+                  if IovCnt >= 128 then Break;
+                  if k = Context.FWriteSegIndex then
+                  begin
+                    Iov[IovCnt].iov_base := PByte(Context.FWriteSegments[k].Data)
+                      + Context.FWriteSegOffset;
+                    Iov[IovCnt].iov_len := Context.FWriteSegments[k].Length
+                      - Context.FWriteSegOffset;
+                  end
+                  else
+                  begin
+                    Iov[IovCnt].iov_base := Context.FWriteSegments[k].Data;
+                    Iov[IovCnt].iov_len := Context.FWriteSegments[k].Length;
+                  end;
+                  Inc(IovCnt);
+                end;
+
+                SentBytes := writev(Context.FFd, @Iov[0], IovCnt);
+                if SentBytes >= 0 then
+                begin
+                  TDextBufferCursor.Advance(@Context.FWriteSegments[0],
+                    Context.FWriteSegmentsCount, SentBytes,
+                    Context.FWriteSegIndex, Context.FWriteSegOffset);
+
+                  if Context.FWriteSegIndex >= Context.FWriteSegmentsCount then
+                  begin
+                    Context.FWriteSegments := nil;
+                    Context.FWriteSegmentsCount := 0;
+                  end;
+                end
+                else if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
+                begin
+                  WriteWouldBlock := True;
+                end
+                else
+                begin
+                  if Context.FSendFileFd >= 0 then
+                  begin
+                    __close(Context.FSendFileFd);
+                    Context.FSendFileFd := -1;
+                  end;
+                  __close(Context.FFd);
+                  Context.FFd := -1;
+                  FActiveContexts.Remove(Context);
+                  ReleaseContext(Context);
+                  TInterlocked.Decrement(FEngine.FActiveConnections);
+                  Break;
+                end;
+              end;
+
+              if (not WriteWouldBlock) and (Context.FWriteSegmentsCount = 0) and
+                 (Context.FSendFileLen > 0) and (Context.FSendFileFd >= 0) then
               begin
-                // Bloqueado novamente.
-              end
-              else
-              begin
-                // Erro ou desconexão.
-                if Context.FSendFileFd >= 0 then
+                SentFileBytes := sendfile(Context.FFd, Context.FSendFileFd,
+                  @Context.FSendFileOffset, Context.FSendFileLen);
+                if SentFileBytes >= 0 then
+                begin
+                  Context.FSendFileLen := Context.FSendFileLen - SentFileBytes;
+                  if Context.FSendFileLen = 0 then
+                  begin
+                    __close(Context.FSendFileFd);
+                    Context.FSendFileFd := -1;
+                  end;
+                end
+                else if (errno = EAGAIN) or (errno = EWOULDBLOCK) then
+                begin
+                  WriteWouldBlock := True;
+                end
+                else
                 begin
                   __close(Context.FSendFileFd);
                   Context.FSendFileFd := -1;
+                  Context.FSendFileLen := 0;
                 end;
-                __close(Context.FFd);
-                FActiveContexts.Remove(Context);
-                ReleaseContext(Context);
-                TInterlocked.Decrement(FEngine.FActiveConnections);
-                Continue;
               end;
             end;
 
-            // Sendfile next if write buffer is fully sent
-            if (Context.FWriteLen = 0) and (Context.FSendFileLen > 0) and (Context.FSendFileFd >= 0) then
-            begin
-              SentFileBytes := sendfile(Context.FFd, Context.FSendFileFd, @Context.FSendFileOffset, Context.FSendFileLen);
-              if SentFileBytes >= 0 then
-              begin
-                Context.FSendFileLen := Context.FSendFileLen - SentFileBytes;
-                if Context.FSendFileLen = 0 then
-                begin
-                  __close(Context.FSendFileFd);
-                  Context.FSendFileFd := -1;
-                end;
-              end
-              else if (errno <> EAGAIN) and (errno <> EWOULDBLOCK) then
-              begin
-                __close(Context.FSendFileFd);
-                Context.FSendFileFd := -1;
-                Context.FSendFileLen := 0;
-              end;
-            end;
+            if Context.FFd < 0 then
+              Continue;
 
-            if (Context.FWriteLen = 0) and (Context.FSendFileLen = 0) then
+            if (Context.FWriteSegmentsCount = 0) and (Context.FSendFileLen = 0) then
             begin
               if not Context.FKeepAlive then
               begin
-                // Escrita concluída com sucesso! Agora podemos fechar.
                 __close(Context.FFd);
+                Context.FFd := -1;
                 FActiveContexts.Remove(Context);
                 ReleaseContext(Context);
                 TInterlocked.Decrement(FEngine.FActiveConnections);
@@ -1625,19 +2139,17 @@ begin
               end
               else
               begin
-                // Keep-Alive: reset read index and re-arm for reading!
                 Context.FReadLen := 0;
                 FillChar(Event, SizeOf(Event), 0);
-                Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+                Event.events := EPOLLIN or EPOLLONESHOT;
                 Event.data.ptr := Context;
                 epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
                 Continue;
               end;
             end;
 
-            // Se ainda tem dados a enviar, rearmamos em modo EPOLLOUT
             FillChar(Event, SizeOf(Event), 0);
-            Event.events := EPOLLOUT or EPOLLET or EPOLLONESHOT;
+            Event.events := EPOLLOUT or EPOLLONESHOT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
             Continue;
@@ -1683,6 +2195,7 @@ begin
                 end;
               end;
               __close(Context.FFd);
+              Context.FFd := -1;
               FActiveContexts.Remove(Context);
               ReleaseContext(Context);
               TInterlocked.Decrement(FEngine.FActiveConnections);
@@ -1691,7 +2204,7 @@ begin
 
             // Se incompleto, rearma no Epoll para leitura
             FillChar(Event, SizeOf(Event), 0);
-            Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
+            Event.events := EPOLLIN or EPOLLONESHOT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
             Continue;
@@ -1725,59 +2238,14 @@ begin
           if ReadFailedOrClosed then
           begin
             __close(Context.FFd);
+            Context.FFd := -1;
             FActiveContexts.Remove(Context);
             ReleaseContext(Context);
             TInterlocked.Decrement(FEngine.FActiveConnections);
             Continue;
           end;
 
-          if Context.FReadLen > 0 then
-          begin
-            if TDextEpollHttpParser.TryParseRequest(
-              Context.FReadBuffer,
-              Context.FReadLen,
-              Method,
-              Path,
-              Query,
-              HeaderSegments,
-              BodyOffset,
-              ContentLength
-            ) then
-            begin
-              TInterlocked.Increment(FEngine.FTotalRequests);
-
-              Connection := TDextEpollConnection.Create(Context.FFd);
-              RawRequest := TDextEpollRequest.Create(Method, Path, Query, HeaderSegments, Context.FReadBuffer, BodyOffset, Context.FReadLen - BodyOffset, ContentLength);
-              RawResponse := TDextEpollResponse.Create(Context);
-
-              if FEngine.FProfileEnabled then
-                TInterlocked.Add(FEngine.FTotalReadParseTicks,
-                  TStopwatch.GetTimeStamp - Context.FWakeupTime);
-
-              ProcessRequestAsync(Context, Connection, RawRequest, RawResponse);
-
-              Connection := nil;
-              RawRequest := nil;
-              RawResponse := nil;
-              Continue;
-            end;
-
-            // Proteção contra tamanho excessivo de cabeçalho
-            if Context.FReadLen >= 8192 then
-            begin
-              __close(Context.FFd);
-              FActiveContexts.Remove(Context);
-              ReleaseContext(Context);
-              TInterlocked.Decrement(FEngine.FActiveConnections);
-              Continue;
-            end;
-          end;
-
-          // Se incompleto, rearma no Epoll para leitura
-          FillChar(Event, SizeOf(Event), 0);
-          Event.events := EPOLLIN or EPOLLET or EPOLLONESHOT;
-          Event.data.ptr := Context;
-          epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
+          ProcessBuffer(Context);
         end;
       end;
 
@@ -1804,9 +2272,9 @@ begin
 
         if FEngine.FProfileEnabled then
         begin
-          TInterlocked.Add(FEngine.FTotalSweepTicks,
-            TStopwatch.GetTimeStamp - StartSweep);
-          TInterlocked.Increment(FEngine.FSweepCount);
+          FWorkerTotalSweepTicks := FWorkerTotalSweepTicks +
+            (TStopwatch.GetTimeStamp - StartSweep);
+          FWorkerSweepCount := FWorkerSweepCount + 1;
         end;
       end;
     end;
@@ -1831,12 +2299,16 @@ begin
   FWorkers := TList.Create;
   FProfileEnabled := SameText(
     GetEnvironmentVariable('DEXT_PROFILE_EPOLL'), 'true');
+  if FOptions.MaxExecutorThreads > 0 then
+    FExecutor := TDextBoundedExecutor.Create(
+      FOptions.MaxExecutorThreads, FOptions.MaxQueueCapacity);
 end;
 
 destructor TDextEpollEngine.Destroy;
 begin
   Stop;
   FWorkers.Free;
+  FExecutor.Free;
   inherited;
 end;
 
@@ -1904,6 +2376,12 @@ begin
   if not FRunning then Exit;
 
   FRunning := False;
+
+  // Drain application work while reactor workers and their connection
+  // contexts are still alive. This prevents executor completions from
+  // accessing contexts after the owning worker has been destroyed.
+  if Assigned(FExecutor) then
+    FExecutor.Shutdown;
 
   for I := 0 to FWorkers.Count - 1 do
   begin

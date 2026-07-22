@@ -85,7 +85,7 @@ begin
   NumStrProp := '123';
   Should(Integer(NumStrProp)).Be(123); // Intelligent cast String -> Integer
   
-  WriteLn('✅');
+  WriteLn('[PASS]');
 end;
 
 procedure TSmartTypesTest.TestAsMethods;
@@ -104,7 +104,7 @@ begin
   Should(Price.AsDouble).Be(1500.50);
   Should(Price.AsString).StartWith('1500');
   
-  WriteLn('✅');
+  WriteLn('[PASS]');
 end;
 
 procedure TSmartTypesTest.TestAssertions;
@@ -122,7 +122,7 @@ begin
   Should(I).BeGreaterThan(50);
   Should(I).Be(100);
   
-  WriteLn('✅');
+  WriteLn('[PASS]');
 end;
 
 procedure TSmartTypesTest.TestThenIncludePath;
@@ -148,7 +148,7 @@ begin
   // Correct path should be "Order.Items"
   Should(Spec.GetIncludes[0]).Be('Order.Items');
   
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   // Cleanup
   Query := Default(TFluentQuery<TTestUser>);
@@ -170,7 +170,7 @@ begin
   StrProp := TargetVal.AsType<Prop<string>>;
   
   Should(string(StrProp)).Be('');
-  WriteLn('✅');
+  WriteLn('[PASS]');
 end;
 
 end.

@@ -129,11 +129,13 @@ type
   /// <summary>
   ///   Dext native implementation of IHttpResponse.
   /// </summary>
-  TDextNativeHttpResponse = class(TInterfacedObject, IHttpResponse)
+  TDextNativeHttpResponse = class(TInterfacedObject, IHttpResponse,
+    IUtf8ResponseSink)
   private
     FRawResponse: IDextRawResponse;
     FHtmx: IHtmxResponse;
     FHeaders: IStringDictionary;
+    FStreamBuffer: TBytes;
     FStatusCode: Integer;
   public
     /// <summary>Initializes a new instance of the native HTTP response adapter.</summary>
@@ -161,6 +163,8 @@ type
     procedure Write(const ABuffer: TBytes); overload;
     /// <summary>Writes a stream contents directly to the response body.</summary>
     procedure Write(const AStream: TStream); overload;
+    /// <summary>Writes UTF-8 bytes directly to a native response sink.</summary>
+    procedure WriteUtf8(AData: Pointer; ALength: Integer);
     /// <summary>Sends a JSON string directly as response.</summary>
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue to JSON and sends it.</summary>
@@ -499,25 +503,77 @@ end;
 function TDextNativeHttpRequest.GetCookies: IStringDictionary;
 var
   CookieHeader: string;
-  Pairs: TArray<string>;
-  Pair: string;
-  Parts: TArray<string>;
+  Len: Integer;
+  PosIdx: Integer;
+  StartIdx: Integer;
+  EndIdx: Integer;
+  EqIdx: Integer;
+  KeyStart: Integer;
+  KeyEnd: Integer;
+  ValStart: Integer;
+  ValEnd: Integer;
+  Key: string;
+  Value: string;
 begin
   if FCookies = nil then
   begin
     FCookies := TCollections.CreateStringDictionary(True);
     CookieHeader := GetHeader('Cookie');
-    if CookieHeader <> '' then
+    Len := Length(CookieHeader);
+    PosIdx := 1;
+
+    while PosIdx <= Len do
     begin
-      Pairs := CookieHeader.Split([';']);
-      for Pair in Pairs do
+      while (PosIdx <= Len) and ((CookieHeader[PosIdx] = ';') or
+        (CookieHeader[PosIdx] = ' ') or (CookieHeader[PosIdx] = #9)) do
+        Inc(PosIdx);
+      if PosIdx > Len then
+        Break;
+
+      StartIdx := PosIdx;
+      while (PosIdx <= Len) and (CookieHeader[PosIdx] <> ';') do
+        Inc(PosIdx);
+      EndIdx := PosIdx - 1;
+
+      EqIdx := StartIdx;
+      while (EqIdx <= EndIdx) and (CookieHeader[EqIdx] <> '=') do
+        Inc(EqIdx);
+
+      KeyStart := StartIdx;
+      KeyEnd := EqIdx - 1;
+      while (KeyStart <= KeyEnd) and ((CookieHeader[KeyStart] = ' ') or
+        (CookieHeader[KeyStart] = #9)) do
+        Inc(KeyStart);
+      while (KeyEnd >= KeyStart) and ((CookieHeader[KeyEnd] = ' ') or
+        (CookieHeader[KeyEnd] = #9)) do
+        Dec(KeyEnd);
+
+      if KeyStart <= KeyEnd then
       begin
-        Parts := Pair.Trim.Split(['='], 2);
-        if Length(Parts) = 2 then
-          FCookies.SetItem(Parts[0].Trim, UrlDecode(Parts[1].Trim))
-        else if (Length(Parts) = 1) and (Parts[0] <> '') then
-          FCookies.SetItem(Parts[0].Trim, '');
+        Key := Copy(CookieHeader, KeyStart, KeyEnd - KeyStart + 1);
+        if EqIdx <= EndIdx then
+        begin
+          ValStart := EqIdx + 1;
+          ValEnd := EndIdx;
+          while (ValStart <= ValEnd) and ((CookieHeader[ValStart] = ' ') or
+            (CookieHeader[ValStart] = #9)) do
+            Inc(ValStart);
+          while (ValEnd >= ValStart) and ((CookieHeader[ValEnd] = ' ') or
+            (CookieHeader[ValEnd] = #9)) do
+            Dec(ValEnd);
+          if ValStart <= ValEnd then
+          begin
+            Value := Copy(CookieHeader, ValStart, ValEnd - ValStart + 1);
+            FCookies.SetItem(Key, UrlDecode(Value));
+          end
+          else
+            FCookies.SetItem(Key, '');
+        end
+        else
+          FCookies.SetItem(Key, '');
       end;
+
+      Inc(PosIdx);
     end;
   end;
   Result := FCookies;
@@ -541,6 +597,7 @@ destructor TDextNativeHttpResponse.Destroy;
 begin
   FHeaders := nil;
   FHtmx := nil;
+  FStreamBuffer := nil;
   FRawResponse := nil;
   inherited;
 end;
@@ -670,9 +727,25 @@ begin
   FRawResponse.Write(ABuffer, 0, Length(ABuffer));
 end;
 
+procedure TDextNativeHttpResponse.WriteUtf8(AData: Pointer; ALength: Integer);
+var
+  Sink: IDextRawResponseSink;
+  Buffer: TBytes;
+begin
+  if ALength <= 0 then
+    Exit;
+  if Supports(FRawResponse, IDextRawResponseSink, Sink) then
+  begin
+    Sink.WriteBytes(AData, ALength);
+    Exit;
+  end;
+  SetLength(Buffer, ALength);
+  Move(AData^, Buffer[0], ALength);
+  FRawResponse.Write(Buffer, 0, ALength);
+end;
+
 procedure TDextNativeHttpResponse.Write(const AStream: TStream);
 var
-  Buffer: TBytes;
   ReadBytes: Integer;
   FileStream: TFileStream;
 begin
@@ -683,13 +756,14 @@ begin
     Exit;
   end;
 
-  SetLength(Buffer, 32768);
+  if Length(FStreamBuffer) < 32768 then
+    SetLength(FStreamBuffer, 32768);
   AStream.Position := 0;
   while True do
   begin
-    ReadBytes := AStream.Read(Buffer[0], Length(Buffer));
+    ReadBytes := AStream.Read(FStreamBuffer[0], Length(FStreamBuffer));
     if ReadBytes <= 0 then Break;
-    FRawResponse.Write(Buffer, 0, ReadBytes);
+    FRawResponse.Write(FStreamBuffer, 0, ReadBytes);
   end;
 end;
 
@@ -807,6 +881,8 @@ end;
 destructor TDextNativeWebServer.Destroy;
 begin
   Stop;
+  if FEngine <> nil then
+    FEngine.SetOnRequest(nil);
   FEngine := nil;
   FPipeline := nil;
   inherited;
@@ -861,9 +937,18 @@ end;
 
 procedure TDextNativeWebServer.Stop;
 begin
-  if not FRunning then Exit;
-  FRunning := False;
-  FEngine.Stop;
+  try
+    if not FRunning then Exit;
+    FRunning := False;
+    if FEngine <> nil then
+    begin
+      FEngine.Stop;
+      FEngine.SetOnRequest(nil);
+    end;
+  except
+    on E: Exception do
+      SafeWriteLn(E.ClassName + ': ' + E.Message);
+  end;
 end;
 
 end.

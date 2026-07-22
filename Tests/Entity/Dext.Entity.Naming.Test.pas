@@ -54,10 +54,10 @@ end;
 procedure TNamingStrategyTest.AssertEqual(const Expected, Actual, Msg: string);
 begin
   if Expected = Actual then
-    WriteLn('   ✅ ', Msg)
+    WriteLn('   [PASS] ', Msg)
   else
   begin
-    WriteLn('   ❌ ', Msg);
+    WriteLn('   [FAIL] ', Msg);
     WriteLn('      Expected: ', Expected);
     WriteLn('      Actual:   ', Actual);
   end;
@@ -92,7 +92,7 @@ var
   Typ: TRttiType;
   P_UserName, P_EmailAddress, P_IsActive: TRttiProperty;
 begin
-  Log('🏷️ Testing Naming Strategies');
+  Log('[TAG] Testing Naming Strategies');
   Log('===========================');
 
   Typ := FCtx.GetType(TDummyEntity);
@@ -101,14 +101,14 @@ begin
   P_IsActive := Typ.GetProperty('IsActive');
 
   // 1. Default Strategy
-  Log('🔹 Default Strategy');
+  Log('* Default Strategy');
   Strategy := TDefaultNamingStrategy.Create;
   AssertEqual('User', Strategy.GetTableName(TUser), 'TUser -> User');
   AssertEqual('UserAccount', Strategy.GetTableName(TUserAccount), 'TUserAccount -> UserAccount');
   AssertEqual('UserName', Strategy.GetColumnName(P_UserName), 'UserName -> UserName');
   
   // 2. Snake Case Strategy
-  Log('🔹 Snake Case Strategy');
+  Log('* Snake Case Strategy');
   Strategy := TSnakeCaseNamingStrategy.Create;
   AssertEqual('user', Strategy.GetTableName(TUser), 'TUser -> user');
   AssertEqual('user_account', Strategy.GetTableName(TUserAccount), 'TUserAccount -> user_account');
@@ -119,14 +119,14 @@ begin
   AssertEqual('is_active', Strategy.GetColumnName(P_IsActive), 'IsActive -> is_active');
 
   // 3. Lower Case Strategy
-  Log('🔹 Lower Case Strategy');
+  Log('* Lower Case Strategy');
   Strategy := TLowerCaseNamingStrategy.Create;
   AssertEqual('user', Strategy.GetTableName(TUser), 'TUser -> user');
   AssertEqual('useraccount', Strategy.GetTableName(TUserAccount), 'TUserAccount -> useraccount');
   AssertEqual('username', Strategy.GetColumnName(P_UserName), 'UserName -> username');
 
   // 4. Upper Case Strategy
-  Log('🔹 Upper Case Strategy');
+  Log('* Upper Case Strategy');
   Strategy := TUppercaseNamingStrategy.Create;
   AssertEqual('USER', Strategy.GetTableName(TUser), 'TUser -> USER');
   AssertEqual('USERACCOUNT', Strategy.GetTableName(TUserAccount), 'TUserAccount -> USERACCOUNT');

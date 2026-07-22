@@ -125,7 +125,7 @@ begin
     Sleep(10);
       
     if not Handler.StartedCalled then
-      WriteLn('   [Mock] ❌ StartedCalled is still FALSE!');
+      WriteLn('   [Mock] [FAIL] StartedCalled is still FALSE!');
         
     Should(Handler.StartedCalled).BeTrue;
       
@@ -133,7 +133,7 @@ begin
     Manager.StopAsync;
       
     if not Handler.StoppingCalled then
-      WriteLn('   [Mock] ❌ StoppingCalled is still FALSE!');
+      WriteLn('   [Mock] [FAIL] StoppingCalled is still FALSE!');
 
     Should(Handler.StoppingCalled).BeTrue;
     // Note: TApplicationStoppedEvent depends on manager destruction or explicit fire

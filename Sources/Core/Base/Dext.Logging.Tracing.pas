@@ -258,6 +258,9 @@ class function TTracer.BeginSpan(const AName, ACategory: string): TSpan;
 var
   NewTraceId, NewSpanId, ParentId: string;
 begin
+  if not TDiagnosticSource.Instance.IsActive then
+    Exit(TSpan.Create(nil));
+
   if TraceContext.CurrentTraceId.IsEmpty then
     NewTraceId := TUUID.NewV7.ToString
   else

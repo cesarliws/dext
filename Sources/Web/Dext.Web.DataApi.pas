@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -194,6 +194,28 @@ uses
   System.JSON,
   Dext.Logging.Telemetry;
 
+function ReadRequestBodyUtf8(const AStream: TStream): string;
+var
+  BodyLen: Integer;
+  Bytes: TBytes;
+begin
+  if (AStream = nil) or (AStream.Size = 0) then
+    Exit('');
+
+  BodyLen := Integer(AStream.Size);
+  if AStream is TBytesStream then
+    Bytes := TBytesStream(AStream).Bytes
+  else
+  begin
+    AStream.Position := 0;
+    SetLength(Bytes, BodyLen);
+    if BodyLen > 0 then
+      AStream.ReadBuffer(Bytes[0], BodyLen);
+  end;
+
+  Result := TEncoding.UTF8.GetString(Bytes, 0, BodyLen);
+end;
+
 { TDataApiOptions }
 
 constructor TDataApiOptions.Create;
@@ -369,8 +391,11 @@ end;
 function TDataApiHandler.CheckAuthorization(const Context: IHttpContext; AIsWrite: Boolean): IResult;
 var
   RequiredRoles: string;
-  Roles: TArray<string>;
   HasRole: Boolean;
+  Len: Integer;
+  PosIdx: Integer;
+  StartIdx: Integer;
+  EndIdx: Integer;
   Role: string;
 begin
   Result := nil;
@@ -382,14 +407,36 @@ begin
   RequiredRoles := IfThen(AIsWrite, FOptions.RolesForWrite, FOptions.RolesForRead);
   if RequiredRoles <> '' then
   begin
-    Roles := RequiredRoles.Split([',']);
     HasRole := False;
-    for Role in Roles do
-      if Context.User.IsInRole(Role.Trim) then
-      begin
-        HasRole := True;
+    Len := Length(RequiredRoles);
+    PosIdx := 1;
+    while PosIdx <= Len do
+    begin
+      while (PosIdx <= Len) and ((RequiredRoles[PosIdx] = ',') or
+        (RequiredRoles[PosIdx] = ' ') or (RequiredRoles[PosIdx] = #9)) do
+        Inc(PosIdx);
+      if PosIdx > Len then
         Break;
+
+      StartIdx := PosIdx;
+      while (PosIdx <= Len) and (RequiredRoles[PosIdx] <> ',') do
+        Inc(PosIdx);
+      EndIdx := PosIdx - 1;
+      while (EndIdx >= StartIdx) and ((RequiredRoles[EndIdx] = ' ') or
+        (RequiredRoles[EndIdx] = #9)) do
+        Dec(EndIdx);
+
+      if StartIdx <= EndIdx then
+      begin
+        Role := Copy(RequiredRoles, StartIdx, EndIdx - StartIdx + 1);
+        if Context.User.IsInRole(Role) then
+        begin
+          HasRole := True;
+          Break;
+        end;
       end;
+      Inc(PosIdx);
+    end;
       
     if not HasRole then
       Result := Results.StatusCode(403, '{"error":"Forbidden"}');
@@ -578,14 +625,15 @@ var
   DbCtx: TDbContext;
   Entity: TObject;
   Stream: TStream;
-  StringStream: TStringStream;
   JsonString: string;
   Auth: IResult;
   TelemetryPayload: TJSONObject;
   DeserializedValue: TValue;
   TelemetryComplete: TJSONObject;
+  TelemetryActive: Boolean;
 begin
   Log.Debug('DataApi: Creating {0}', [FEntityClass.ClassName]);
+  TelemetryActive := TDiagnosticSource.Instance.IsActive;
   try
     Auth := CheckAuthorization(Context, True);
     if Auth <> nil then begin Result := Auth; Exit; end;
@@ -596,29 +644,28 @@ begin
     if (Stream = nil) or (Stream.Size = 0) then
       raise Exception.Create('Request body is empty');
 
-    StringStream := TStringStream.Create('', TEncoding.UTF8);
-    try
-      Stream.Position := 0;
-      StringStream.CopyFrom(Stream, Stream.Size);
-      JsonString := StringStream.DataString;
-    finally
-      StringStream.Free;
-    end;
+    JsonString := ReadRequestBodyUtf8(Stream);
 
-    TelemetryPayload := TJSONObject.Create;
-    TelemetryPayload.AddPair('Entity', FEntityClass.ClassName);
-    TelemetryPayload.AddPair('Action', 'Deserialization');
-    TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Start', TelemetryPayload, 'API');
+    if TelemetryActive then
+    begin
+      TelemetryPayload := TJSONObject.Create;
+      TelemetryPayload.AddPair('Entity', FEntityClass.ClassName);
+      TelemetryPayload.AddPair('Action', 'Deserialization');
+      TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Start', TelemetryPayload, 'API');
+    end;
 
     DeserializedValue := TDextJson.Deserialize(FEntityClass.ClassInfo, JsonString, GetJsonSettings);
     Entity := DeserializedValue.AsObject;
     if Entity = nil then
       raise Exception.Create('Could not deserialize request body.');
 
-    TelemetryComplete := TJSONObject.Create;
-    TelemetryComplete.AddPair('Entity', FEntityClass.ClassName);
-    TelemetryComplete.AddPair('Action', 'Tracking');
-    TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Complete', TelemetryComplete, 'API');
+    if TelemetryActive then
+    begin
+      TelemetryComplete := TJSONObject.Create;
+      TelemetryComplete.AddPair('Entity', FEntityClass.ClassName);
+      TelemetryComplete.AddPair('Action', 'Tracking');
+      TDiagnosticSource.Instance.Write('DataApi.ModelBinding.Complete', TelemetryComplete, 'API');
+    end;
 
     DbCtx.DataSet(FEntityClass.ClassInfo).Add(Entity);
     DbCtx.SaveChanges;
@@ -639,7 +686,6 @@ var
   IdStr: string;
   Entity: TObject;
   Stream: TStream;
-  StringStream: TStringStream;
   JsonString: string;
   Auth: IResult;
 begin
@@ -660,14 +706,7 @@ begin
     if (Stream = nil) or (Stream.Size = 0) then
       raise Exception.Create('Request body is empty');
 
-    StringStream := TStringStream.Create('', TEncoding.UTF8);
-    try
-      Stream.Position := 0;
-      StringStream.CopyFrom(Stream, Stream.Size);
-      JsonString := StringStream.DataString;
-    finally
-      StringStream.Free;
-    end;
+    JsonString := ReadRequestBodyUtf8(Stream);
 
     Entity := TDextJson.Deserialize(FEntityClass.ClassInfo, JsonString, GetJsonSettings).AsObject;
     if Entity = nil then

@@ -133,6 +133,13 @@ type
     procedure Close;
   end;
 
+  /// <summary>Optional zero-copy byte sink exposed by native responses.</summary>
+  IDextRawResponseSink = interface
+    ['{D51C8A85-96D7-4EA3-A637-471077510B55}']
+    /// <summary>Copies a byte span directly into transport-owned segments.</summary>
+    procedure WriteBytes(AData: Pointer; ALength: Integer);
+  end;
+
   /// <summary>
   ///   Represents a raw WebSocket connection upgraded from a standard server connection.
   /// </summary>
