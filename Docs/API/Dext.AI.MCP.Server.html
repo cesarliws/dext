@@ -82,6 +82,7 @@
 <a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
 <a href="Dext.Core.DirectAccess.html" class="nav-item">Dext.Core.DirectAccess</a>
 <a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
+<a href="Dext.Core.Json.NextGen.html" class="nav-item">Dext.Core.Json.NextGen</a>
 <a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
 <a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
 <a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
@@ -412,6 +413,10 @@ class TMCPServer {    +Dispatch()
     +RegisterProvider()
     +Resource()
     +Prompt()
+    +UseIndy()
+    +UseHttpSys()
+    +ConfigureHost()
+    +ConfigureApp()
     +Run()
     +Stop()
     +Name
@@ -421,6 +426,20 @@ class TMCPServer {    +Dispatch()
     +Prompts
 }
 TObject <|-- TMCPServer
+class TMCPServerBuilder {    +Create()
+    +Destroy()
+    +Name()
+    +Version()
+    +Url()
+    +Transport()
+    +UseIndy()
+    +UseHttpSys()
+    +ConfigureHost()
+    +ConfigureApp()
+    +RegisterProvider()
+    +Build()
+}
+TObject <|-- TMCPServerBuilder
 </div>
 </div>
 </details>
@@ -440,7 +459,19 @@ TObject <|-- TMCPServer
 <div class="api-item">
 <div class="api-signature">function Prompt(const const: string; const const: string): IMCPPromptBuilder</div><div class="description">Fluent builder for a new prompt template.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Run(ATransport: TMCPTransport; const const: string)</div><div class="description">Starts the server. mtStreamable - non-blocking HTTP (recommended, MCP 2025-03-26) mtSSE        - non-blocking HTTP (legacy) mtStdio      - blocking stdin loop</div></div>
+<div class="api-signature">function UseIndy: TMCPServer</div><div class="description">Configures the server to use Indy (default).</div></div>
+<div class="api-item">
+<div class="api-signature">function UseHttpSys: TMCPServer</div><div class="description">Configures the server to use native Windows http.sys.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseHttpSys(const const: TServerEngineOptions): TMCPServer</div><div class="description">Configures the server to use native Windows http.sys with options.</div></div>
+<div class="api-item">
+<div class="api-signature">function ConfigureHost(AProc: TProc): TMCPServer</div><div class="description">Configures custom web host options.</div></div>
+<div class="api-item">
+<div class="api-signature">function ConfigureApp(AProc: TProc): TMCPServer</div><div class="description">Configures custom application pipeline options.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Run</div><div class="description">Starts the server. mtStreamable - non-blocking HTTP (recommended, MCP 2025-03-26) mtSSE        - non-blocking HTTP (legacy) mtStdio      - blocking stdin loop</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Run(ATransport: TMCPTransport; const const: string)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Stop</div><div class="description">Stops the HTTP server. No-op for stdio.</div></div>
 <div class="api-item">
@@ -490,6 +521,36 @@ TObject <|-- TMCPServer
 <div class="api-signature">procedure AddCORSHeaders(const const: IHttpResponse)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure LogDebug(const const: string)</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TMCPServerBuilder</h3><a name="TMCPServerBuilder"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Fluent builder for creating and configuring a TMCPServer.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div><div class="description">Creates a new TMCPServerBuilder with default values.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div><div class="description">Destroys the builder and frees any registered providers if Build wasn't called.</div></div>
+<div class="api-item">
+<div class="api-signature">function Name(const const: string): TMCPServerBuilder</div><div class="description">Sets the name of the MCP server.</div></div>
+<div class="api-item">
+<div class="api-signature">function Version(const const: string): TMCPServerBuilder</div><div class="description">Sets the version of the MCP server.</div></div>
+<div class="api-item">
+<div class="api-signature">function Url(const const: string): TMCPServerBuilder</div><div class="description">Sets the default listening URL.</div></div>
+<div class="api-item">
+<div class="api-signature">function Transport(AValue: TMCPTransport): TMCPServerBuilder</div><div class="description">Sets the default transport mode.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseIndy: TMCPServerBuilder</div><div class="description">Forces the built server to use Indy.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseHttpSys: TMCPServerBuilder</div><div class="description">Forces the built server to use HTTP.sys.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseHttpSys(const const: TServerEngineOptions): TMCPServerBuilder</div><div class="description">Forces the built server to use HTTP.sys with custom options.</div></div>
+<div class="api-item">
+<div class="api-signature">function ConfigureHost(AProc: TProc): TMCPServerBuilder</div><div class="description">Allows custom configuration of the WebHostBuilder.</div></div>
+<div class="api-item">
+<div class="api-signature">function ConfigureApp(AProc: TProc): TMCPServerBuilder</div><div class="description">Allows custom configuration of the pipeline.</div></div>
+<div class="api-item">
+<div class="api-signature">function RegisterProvider(AProvider: TMCPToolProvider): TMCPServerBuilder</div><div class="description">Registers an MCP provider class.</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TMCPServer</div><div class="description">Builds and returns the configured TMCPServer instance.</div></div>
 </div>
 <hr>
 <h2>Types</h2>

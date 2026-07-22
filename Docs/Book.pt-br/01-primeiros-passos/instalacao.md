@@ -17,6 +17,8 @@ Se você utiliza o **TMS Smart Setup**, a instalação, compilação e configura
 >   tms server-enable community
 >   ```
 > * **Via Interface Gráfica (GUI)**: Abra o aplicativo `tmsgui.exe`. (Se for um novo workspace, o assistente de inicialização perguntará imediatamente quais servidores ativar. Caso contrário, clique no ícone de engrenagem de configurações no canto superior direito e certifique-se de habilitar a opção **Community Server**).
+> 
+>   ![TMS Smart Setup Community](../../Images/smart-setup-community.png)
 
 Uma vez habilitado o Community Server, você pode instalar o Dext tanto pela interface gráfica (GUI) quanto pela linha de comando (CLI):
 

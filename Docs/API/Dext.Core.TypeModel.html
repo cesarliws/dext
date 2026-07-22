@@ -82,6 +82,7 @@
 <a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
 <a href="Dext.Core.DirectAccess.html" class="nav-item">Dext.Core.DirectAccess</a>
 <a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
+<a href="Dext.Core.Json.NextGen.html" class="nav-item">Dext.Core.Json.NextGen</a>
 <a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
 <a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
 <a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
@@ -401,6 +402,7 @@ class TDextTypeModel {    +Create()
     +NativeKindOf()
     +ProtobufWireType()
     +IsDirectKind()
+    +IsDirectReferenceKind()
     +ClearCache()
 }
 TObject <|-- TDextTypeModel
@@ -436,6 +438,8 @@ TObject <|-- TDextTypeModel
 <div class="api-item">
 <div class="api-signature">function IsDirectKind(AKind: TDextNativeKind): Boolean</div><div class="description">Indicates whether a native kind can be accessed directly by offset.</div></div>
 <div class="api-item">
+<div class="api-signature">function IsDirectReferenceKind(AKind: TDextNativeKind): Boolean</div><div class="description">Indicates whether a native kind is a direct reference container.</div></div>
+<div class="api-item">
 <div class="api-signature">procedure ClearCache</div><div class="description">Clears the cached codec plans.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
@@ -446,7 +450,7 @@ TObject <|-- TDextTypeModel
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type TDextNativeKind = enumeration</div><div class="enum-values">Values: nkUnknown, nkInt32, nkInt64, nkUInt32, nkUInt64, nkBoolean, nkSingle, nkDouble, nkDateTime, nkString, nkBytes, nkGuid, nkUuid, nkEnum, nkObject, nkList</div></div>
+<div class="api-signature">type TDextNativeKind = enumeration</div><div class="enum-values">Values: nkUnknown, nkInt32, nkInt64, nkUInt32, nkUInt64, nkBoolean, nkSingle, nkDouble, nkCurrency, nkDateTime, nkString, nkBytes, nkGuid, nkUuid, nkEnum, nkObject, nkList</div><div class="description">Normalized native type classification used by direct codecs, JSON, protobuf, and ORM hydration.</div></div>
 <div class="api-item">
 <div class="api-signature">type TDextAccessMode = enumeration</div><div class="enum-values">Values: amRtti, amDirectField, amGenerated</div><div class="description">Access strategy used by a field plan.</div></div>
 </div>

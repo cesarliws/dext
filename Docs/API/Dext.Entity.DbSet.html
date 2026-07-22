@@ -82,6 +82,7 @@
 <a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
 <a href="Dext.Core.DirectAccess.html" class="nav-item">Dext.Core.DirectAccess</a>
 <a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
+<a href="Dext.Core.Json.NextGen.html" class="nav-item">Dext.Core.Json.NextGen</a>
 <a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
 <a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
 <a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
@@ -572,7 +573,7 @@ TQueryIterator <|-- TStreamingViewIterator~T~
 <div class="api-item">
 <div class="api-signature">procedure RemoveRange(const const: IEnumerable)</div></div>
 <div class="api-item">
-<div class="api-signature">function ToList: IList</div><div class="description">Executes the query and returns a list of entities.</div></div>
+<div class="api-signature">function ToList: IList</div><div class="description">Executes the query and returns a list of entities. Tracked entities (default) are owned by the DbContext IdentityMap and are freed when the DbContext is disposed. Use AsNoTracking.ToList to obtain an untracked list owned by the caller.</div></div>
 <div class="api-item">
 <div class="api-signature">function ToList(const const: ISpecification): IList</div></div>
 <div class="api-item">

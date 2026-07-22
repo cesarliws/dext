@@ -82,6 +82,7 @@
 <a href="Dext.Core.Debug.html" class="nav-item">Dext.Core.Debug</a>
 <a href="Dext.Core.DirectAccess.html" class="nav-item">Dext.Core.DirectAccess</a>
 <a href="Dext.Core.Enums.html" class="nav-item">Dext.Core.Enums</a>
+<a href="Dext.Core.Json.NextGen.html" class="nav-item">Dext.Core.Json.NextGen</a>
 <a href="Dext.Core.Memory.html" class="nav-item">Dext.Core.Memory</a>
 <a href="Dext.Core.Reflection.html" class="nav-item">Dext.Core.Reflection</a>
 <a href="Dext.Core.SmartTypes.html" class="nav-item">Dext.Core.SmartTypes</a>
@@ -399,17 +400,25 @@ class TDextDirectAccess {    +Ptr()
     +WriteSingle()
     +ReadDouble()
     +WriteDouble()
+    +ReadCurrency()
+    +WriteCurrency()
     +ReadString()
     +WriteString()
     +ReadObject()
     +WriteObject()
+    +ReadInterface()
+    +WriteInterface()
+    +ReadGUID()
+    +WriteGUID()
+    +ReadUUID()
+    +WriteUUID()
 }
 </div>
 </div>
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>record TDextDirectAccess</h3><a name="TDextDirectAccess"></a></div>
+<h3>record TDextDirectAccess</h3><a name="TDextDirectAccess"></a><div class="description">Low-level typed helpers for reading and writing validated object fields by physical offset.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Ptr(Instance: TObject; Offset: NativeInt): Pointer</div><div class="description">Calculates the raw pointer to the field at the given offset.</div></div>
 <div class="api-item">
@@ -433,6 +442,10 @@ class TDextDirectAccess {    +Ptr()
 <div class="api-item">
 <div class="api-signature">procedure WriteDouble(Instance: TObject; Offset: NativeInt; Value: Double)</div><div class="description">Writes a Double value directly to the field offset.</div></div>
 <div class="api-item">
+<div class="api-signature">function ReadCurrency(Instance: TObject; Offset: NativeInt): Currency</div><div class="description">Reads a Currency value directly from the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteCurrency(Instance: TObject; Offset: NativeInt; Value: Currency)</div><div class="description">Writes a Currency value directly to the field offset.</div></div>
+<div class="api-item">
 <div class="api-signature">function ReadString(Instance: TObject; Offset: NativeInt): string</div><div class="description">Reads a managed string directly from the field offset.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure WriteString(Instance: TObject; Offset: NativeInt; const const: string)</div><div class="description">Writes a managed string directly to the field offset.</div></div>
@@ -440,11 +453,25 @@ class TDextDirectAccess {    +Ptr()
 <div class="api-signature">function ReadObject(Instance: TObject; Offset: NativeInt): TObject</div><div class="description">Reads an object reference directly from the field offset.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure WriteObject(Instance: TObject; Offset: NativeInt; Value: TObject)</div><div class="description">Writes an object reference directly to the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadInterface(Instance: TObject; Offset: NativeInt): IInterface</div><div class="description">Reads an interface reference directly from the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteInterface(Instance: TObject; Offset: NativeInt; const const: IInterface)</div><div class="description">Writes an interface reference directly to the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadGUID(Instance: TObject; Offset: NativeInt): TGUID</div><div class="description">Reads a GUID value directly from the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteGUID(Instance: TObject; Offset: NativeInt; const const: TGUID)</div><div class="description">Writes a GUID value directly to the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReadUUID(Instance: TObject; Offset: NativeInt): TUUID</div><div class="description">Reads a UUID value directly from the field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteUUID(Instance: TObject; Offset: NativeInt; const const: TUUID)</div><div class="description">Writes a UUID value directly to the field offset.</div></div>
 </div>
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
-<div class="api-signature">type PObject = pointer</div></div>
+<div class="api-signature">type PObject = pointer</div><div class="description">Pointer alias used to read and write object references by field offset.</div></div>
+<div class="api-item">
+<div class="api-signature">type PIInterface = pointer</div><div class="description">Pointer alias used to read and write interface references by field offset.</div></div>
 </div>
 
         </div>
