@@ -65,9 +65,11 @@
 <a href="Dext.Collections.Frozen.html" class="nav-item">Dext.Collections.Frozen</a>
 <a href="Dext.Collections.HashSet.html" class="nav-item">Dext.Collections.HashSet</a>
 <a href="Dext.Collections.Memory.html" class="nav-item">Dext.Collections.Memory</a>
+<a href="Dext.Collections.OrderedDict.html" class="nav-item">Dext.Collections.OrderedDict</a>
 <a href="Dext.Collections.Queue.html" class="nav-item">Dext.Collections.Queue</a>
 <a href="Dext.Collections.Raw.html" class="nav-item">Dext.Collections.Raw</a>
 <a href="Dext.Collections.RawDict.html" class="nav-item">Dext.Collections.RawDict</a>
+<a href="Dext.Collections.RawOrderedDict.html" class="nav-item">Dext.Collections.RawOrderedDict</a>
 <a href="Dext.Collections.Simd.html" class="nav-item">Dext.Collections.Simd</a>
 <a href="Dext.Collections.Stack.html" class="nav-item">Dext.Collections.Stack</a>
 <a href="Dext.Collections.Vector.html" class="nav-item">Dext.Collections.Vector</a>
@@ -234,6 +236,7 @@
 <a href="Dext.OpenAPI.Types.html" class="nav-item">Dext.OpenAPI.Types</a>
 <a href="Dext.Options.html" class="nav-item">Dext.Options</a>
 <a href="Dext.Options.Extensions.html" class="nav-item">Dext.Options.Extensions</a>
+<a href="Dext.Performance.Allocator.html" class="nav-item">Dext.Performance.Allocator</a>
 <a href="Dext.RateLimiting.html" class="nav-item">Dext.RateLimiting</a>
 <a href="Dext.RateLimiting.Core.html" class="nav-item">Dext.RateLimiting.Core</a>
 <a href="Dext.RateLimiting.Limiters.html" class="nav-item">Dext.RateLimiting.Limiters</a>
@@ -241,6 +244,7 @@
 <a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
 <a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
 <a href="Dext.Serialization.Protobuf.html" class="nav-item">Dext.Serialization.Protobuf</a>
+<a href="Dext.Server.BoundedExecutor.html" class="nav-item">Dext.Server.BoundedExecutor</a>
 <a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
 <a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
 <a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
@@ -355,12 +359,14 @@
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
+<a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
 <a href="Dext.Web.Routing.html" class="nav-item">Dext.Web.Routing</a>
 <a href="Dext.Web.Routing.Attributes.html" class="nav-item">Dext.Web.Routing.Attributes</a>
 <a href="Dext.Web.RoutingMiddleware.html" class="nav-item">Dext.Web.RoutingMiddleware</a>
 <a href="Dext.Web.Sessions.Streamable.html" class="nav-item">Dext.Web.Sessions.Streamable</a>
 <a href="Dext.Web.StaticFiles.html" class="nav-item">Dext.Web.StaticFiles</a>
+<a href="Dext.Web.Utf8.html" class="nav-item">Dext.Web.Utf8</a>
 <a href="Dext.Web.Versioning.html" class="nav-item">Dext.Web.Versioning</a>
 <a href="Dext.Web.View.html" class="nav-item">Dext.Web.View</a>
 <a href="Dext.Web.View.Native.html" class="nav-item">Dext.Web.View.Native</a>
@@ -389,10 +395,17 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
+class TDextBinderFactory~T~ {    +Create()
+    +Bind()
+}
+TObject <|-- TDextBinderFactory~T~
 class THandlerInvoker {    +Validate()
-    +ResolveArgument~T~()
     +CleanupBoundObjects()
     +Create()
+    +Destroy()
+    +Acquire()
+    +Release()
+    +Track()
     +Invoke()
     +Invoke~T~()
     +Invoke~T1,T2~()
@@ -402,6 +415,8 @@ class THandlerInvoker {    +Validate()
     +Invoke~T1,T2,TResult~()
     +Invoke~T1,T2,T3,TResult~()
     +InvokeAction()
+    +Context
+    +ModelBinder
 }
 TObject <|-- THandlerInvoker
 </div>
@@ -409,9 +424,28 @@ TObject <|-- THandlerInvoker
 </details>
 <h2>API Details</h2>
 <div class="class-header">
+<h3>class TDextBinderFactory&lt;T&gt;</h3><a name="TDextBinderFactory_lt_T_gt_"></a><div class="ancestor">Inherits from: TObject</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Bind(Invoker: THandlerInvoker): TValue</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class THandlerInvoker</h3><a name="THandlerInvoker"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Engine responsible for orchestrating handler invocation (Minimal API and Controllers). Manages argument resolution via Model Binding, validation execution, and the lifecycle of objects created during the request.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
 <div class="api-signature">constructor Create(AContext: IHttpContext; AModelBinder: IModelBinder)</div></div>
+<div class="api-item">
+<div class="api-signature">function Acquire(AContext: IHttpContext; AModelBinder: IModelBinder): THandlerInvoker</div><div class="description">Acquires a worker-local invoker initialized for one request.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Release</div><div class="description">Clears request state and returns this invoker to its worker-local pool.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Track(const const: TValue; AIsEntity: Boolean)</div></div>
 <div class="api-item">
 <div class="api-signature">function Invoke(AHandler: TStaticHandler): Boolean</div><div class="description">Invokes a simple static handler.</div></div>
 <div class="api-item">
@@ -430,17 +464,21 @@ TObject <|-- THandlerInvoker
 <div class="api-signature">function Invoke&lt;T1,T2,T3,TResult&gt;(AHandler: THandlerResultFunc): Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">function InvokeAction(AInstance: TObject; AMethod: TRttiMethod): Boolean</div><div class="description">Dynamically invokes a controller action method using RTTI. Supports parameter injection, auto-validation, and automatic result serialization.</div></div>
+<div class="api-item">
+<div class="api-signature">property Context: </div></div>
+<div class="api-item">
+<div class="api-signature">property ModelBinder: </div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function Validate(const const: TValue): Boolean</div></div>
-<div class="api-item">
-<div class="api-signature">function ResolveArgument&lt;T&gt;: T</div><div class="description">Resolves and binds an individual argument based on its type.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure CleanupBoundObjects</div><div class="description">Frees all objects instantiated by binding that are not managed elsewhere.</div></div>
 </div>
 <hr>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
+<div class="api-signature">type THandlerInvoker = Type</div></div>
+<div class="api-item">
 <div class="api-signature">type THandlerProc<T> = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type THandlerProc<T1, T2> = Type</div></div>
@@ -468,6 +506,8 @@ TObject <|-- THandlerInvoker
 <div class="api-signature">type THandlerProcWithContext<T1, T2> = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type THandlerFuncWithContext<T, TResult> = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextArgBinder = Type</div></div>
 </div>
 
         </div>

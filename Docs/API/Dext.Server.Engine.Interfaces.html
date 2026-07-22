@@ -65,9 +65,11 @@
 <a href="Dext.Collections.Frozen.html" class="nav-item">Dext.Collections.Frozen</a>
 <a href="Dext.Collections.HashSet.html" class="nav-item">Dext.Collections.HashSet</a>
 <a href="Dext.Collections.Memory.html" class="nav-item">Dext.Collections.Memory</a>
+<a href="Dext.Collections.OrderedDict.html" class="nav-item">Dext.Collections.OrderedDict</a>
 <a href="Dext.Collections.Queue.html" class="nav-item">Dext.Collections.Queue</a>
 <a href="Dext.Collections.Raw.html" class="nav-item">Dext.Collections.Raw</a>
 <a href="Dext.Collections.RawDict.html" class="nav-item">Dext.Collections.RawDict</a>
+<a href="Dext.Collections.RawOrderedDict.html" class="nav-item">Dext.Collections.RawOrderedDict</a>
 <a href="Dext.Collections.Simd.html" class="nav-item">Dext.Collections.Simd</a>
 <a href="Dext.Collections.Stack.html" class="nav-item">Dext.Collections.Stack</a>
 <a href="Dext.Collections.Vector.html" class="nav-item">Dext.Collections.Vector</a>
@@ -234,6 +236,7 @@
 <a href="Dext.OpenAPI.Types.html" class="nav-item">Dext.OpenAPI.Types</a>
 <a href="Dext.Options.html" class="nav-item">Dext.Options</a>
 <a href="Dext.Options.Extensions.html" class="nav-item">Dext.Options.Extensions</a>
+<a href="Dext.Performance.Allocator.html" class="nav-item">Dext.Performance.Allocator</a>
 <a href="Dext.RateLimiting.html" class="nav-item">Dext.RateLimiting</a>
 <a href="Dext.RateLimiting.Core.html" class="nav-item">Dext.RateLimiting.Core</a>
 <a href="Dext.RateLimiting.Limiters.html" class="nav-item">Dext.RateLimiting.Limiters</a>
@@ -241,6 +244,7 @@
 <a href="Dext.Resilience.html" class="nav-item">Dext.Resilience</a>
 <a href="Dext.Scaffolding.Models.html" class="nav-item">Dext.Scaffolding.Models</a>
 <a href="Dext.Serialization.Protobuf.html" class="nav-item">Dext.Serialization.Protobuf</a>
+<a href="Dext.Server.BoundedExecutor.html" class="nav-item">Dext.Server.BoundedExecutor</a>
 <a href="Dext.Server.Engine.Interfaces.html" class="nav-item">Dext.Server.Engine.Interfaces</a>
 <a href="Dext.Server.Engine.Types.html" class="nav-item">Dext.Server.Engine.Types</a>
 <a href="Dext.Server.Epoll.html" class="nav-item">Dext.Server.Epoll</a>
@@ -355,12 +359,14 @@
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
+<a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
 <a href="Dext.Web.Routing.html" class="nav-item">Dext.Web.Routing</a>
 <a href="Dext.Web.Routing.Attributes.html" class="nav-item">Dext.Web.Routing.Attributes</a>
 <a href="Dext.Web.RoutingMiddleware.html" class="nav-item">Dext.Web.RoutingMiddleware</a>
 <a href="Dext.Web.Sessions.Streamable.html" class="nav-item">Dext.Web.Sessions.Streamable</a>
 <a href="Dext.Web.StaticFiles.html" class="nav-item">Dext.Web.StaticFiles</a>
+<a href="Dext.Web.Utf8.html" class="nav-item">Dext.Web.Utf8</a>
 <a href="Dext.Web.Versioning.html" class="nav-item">Dext.Web.Versioning</a>
 <a href="Dext.Web.View.html" class="nav-item">Dext.Web.View</a>
 <a href="Dext.Web.View.Native.html" class="nav-item">Dext.Web.View.Native</a>
@@ -423,6 +429,8 @@ class IDextRawResponse {    +SetStatus()
     +WriteFile()
     +Flush()
     +Close()
+}
+class IDextRawResponseSink {    +WriteBytes()
 }
 class IDextWebSocketConnection {    +GetConnectionId()
     +SendText()
@@ -541,6 +549,12 @@ class IDextServerEngine {    +Bind()
 <div class="api-signature">procedure Flush</div><div class="description">Flushes any buffered response data to the underlying transport.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Close</div><div class="description">Closes the HTTP response, finishing the request lifecycle.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>interface IDextRawResponseSink</h3><a name="IDextRawResponseSink"></a><div class="description">Optional zero-copy byte sink exposed by native responses.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure WriteBytes(AData: Pointer; ALength: Integer)</div><div class="description">Copies a byte span directly into transport-owned segments.</div></div>
 </div>
 <hr>
 <div class="class-header">
