@@ -32,7 +32,7 @@ var
   FDConn: TFDConnection;
   Pair: TPair<string, string>;
 begin
-  WriteLn('🧪 Running Setup & ConnectionString Tests...');
+  WriteLn('[TEST] Running Setup & ConnectionString Tests...');
 
   // Test 1: FireDAC connection string propagation (non-pooled)
   try
@@ -48,33 +48,33 @@ begin
 
         // Check if connection string or params are set correctly
         if (FDConn.ConnectionString <> '') and (FDConn.Params.Database = 'postgres') then
-          WriteLn('   ✅ ConnectionString/Params propagated correctly.')
+          WriteLn('   [PASS] ConnectionString/Params propagated correctly.')
         else
         begin
-          WriteLn('   ❌ ConnectionString NOT propagated correctly.');
+          WriteLn('   [FAIL] ConnectionString NOT propagated correctly.');
           WriteLn('      Expected DB: postgres, Got: ' + FDConn.Params.Database);
           WriteLn('      FDConn.ConnectionString: ' + FDConn.ConnectionString);
         end;
 
         // Check if FireDAC parsed the password (even if not connected)
         if FDConn.Params.Password = '123456' then
-          WriteLn('   ✅ Password correctly parsed by FireDAC.')
+          WriteLn('   [PASS] Password correctly parsed by FireDAC.')
         else
-          WriteLn('   ❌ Password NOT parsed: ' + FDConn.Params.Password);
+          WriteLn('   [FAIL] Password NOT parsed: ' + FDConn.Params.Password);
 
         if FDConn.Params.UserName = 'postgres' then
-          WriteLn('   ✅ UserName correctly parsed.')
+          WriteLn('   [PASS] UserName correctly parsed.')
         else
-          WriteLn('   ❌ UserName NOT parsed: ' + FDConn.Params.UserName);
+          WriteLn('   [FAIL] UserName NOT parsed: ' + FDConn.Params.UserName);
       end
       else
-        WriteLn('   ❌ Connection is not a TFireDACConnection.');
+        WriteLn('   [FAIL] Connection is not a TFireDACConnection.');
     finally
       Options.Free;
     end;
   except
     on E: Exception do
-      WriteLn('   ❌ Test 1 failed with ' + E.ClassName + ': ' + E.Message);
+      WriteLn('   [FAIL] Test 1 failed with ' + E.ClassName + ': ' + E.Message);
   end;
 
   // Test 2: Fluent Firebird UseFirebird with pooling
@@ -92,19 +92,19 @@ begin
 
       // Check if parameters are correctly parsed into FParams
       if Options.Params.ContainsKey('Database') then
-        WriteLn('   ✅ UseFirebird Database key exists.')
+        WriteLn('   [PASS] UseFirebird Database key exists.')
       else
-        WriteLn('   ❌ UseFirebird Database key DOES NOT exist.');
+        WriteLn('   [FAIL] UseFirebird Database key DOES NOT exist.');
 
       if Options.Params['Database'] = 'c:\temp\db.fdb' then
-        WriteLn('   ✅ UseFirebird Database parsed correctly.')
+        WriteLn('   [PASS] UseFirebird Database parsed correctly.')
       else
-        WriteLn('   ❌ UseFirebird Database NOT parsed.');
+        WriteLn('   [FAIL] UseFirebird Database NOT parsed.');
 
       if Options.Params['User_Name'] = 'SYSDBA' then
-        WriteLn('   ✅ UseFirebird User_Name parsed correctly.')
+        WriteLn('   [PASS] UseFirebird User_Name parsed correctly.')
       else
-        WriteLn('   ❌ UseFirebird User_Name NOT parsed.');
+        WriteLn('   [FAIL] UseFirebird User_Name NOT parsed.');
 
       Conn := Options.BuildConnection;
       try
@@ -113,12 +113,12 @@ begin
           FDConn := TFireDACConnection(Conn).Connection;
           // Since pooling is enabled, it should use a ConnectionDefName starting with 'DextPool_'
           if FDConn.ConnectionDefName.StartsWith('DextPool_') then
-            WriteLn('   ✅ UseFirebird with pooling registered ConnectionDefName: ' + FDConn.ConnectionDefName)
+            WriteLn('   [PASS] UseFirebird with pooling registered ConnectionDefName: ' + FDConn.ConnectionDefName)
           else
-            WriteLn('   ❌ UseFirebird with pooling DID NOT register ConnectionDefName.');
+            WriteLn('   [FAIL] UseFirebird with pooling DID NOT register ConnectionDefName.');
         end
         else
-          WriteLn('   ❌ UseFirebird with pooling: Connection is not a TFireDACConnection.');
+          WriteLn('   [FAIL] UseFirebird with pooling: Connection is not a TFireDACConnection.');
       finally
         Conn := nil;
       end;
@@ -127,7 +127,7 @@ begin
     end;
   except
     on E: Exception do
-      WriteLn('   ❌ Test 2 failed with ' + E.ClassName + ': ' + E.Message);
+      WriteLn('   [FAIL] Test 2 failed with ' + E.ClassName + ': ' + E.Message);
   end;
 
   // Test 3: UseConnectionDef with dialect detection
@@ -149,9 +149,9 @@ begin
       Conn := Options.BuildConnection;
       try
         if Conn.Dialect = ddFirebird then
-          WriteLn('   ✅ UseConnectionDef dialect detected correctly: ddFirebird')
+          WriteLn('   [PASS] UseConnectionDef dialect detected correctly: ddFirebird')
         else
-          WriteLn('   ❌ UseConnectionDef dialect NOT detected correctly: ' + IntToStr(Ord(Conn.Dialect)));
+          WriteLn('   [FAIL] UseConnectionDef dialect NOT detected correctly: ' + IntToStr(Ord(Conn.Dialect)));
       finally
         Conn := nil;
       end;
@@ -160,7 +160,7 @@ begin
     end;
   except
     on E: Exception do
-      WriteLn('   ❌ Test 3 failed with ' + E.ClassName + ': ' + E.Message);
+      WriteLn('   [FAIL] Test 3 failed with ' + E.ClassName + ': ' + E.Message);
   end;
 
   WriteLn('');

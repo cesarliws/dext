@@ -45,10 +45,10 @@ end;
 procedure TPostgreSQLDialectTest.AssertEqual(const Expected, Actual, Msg: string);
 begin
   if Expected = Actual then
-    WriteLn('   ✅ ', Msg)
+    WriteLn('   [PASS] ', Msg)
   else
   begin
-    WriteLn('   ❌ ', Msg);
+    WriteLn('   [FAIL] ', Msg);
     WriteLn('      Expected: ', Expected);
     WriteLn('      Actual:   ', Actual);
   end;

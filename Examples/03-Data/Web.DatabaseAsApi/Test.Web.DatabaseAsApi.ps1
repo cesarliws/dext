@@ -35,9 +35,9 @@ function Invoke-DextRequest {
 }
 
 try {
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 1: List all customers (seeded data)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "1. GET /api/customers" -ForegroundColor Yellow
     Write-Host "   Listing seeded customers..."
     $customers = Invoke-DextRequest "$baseUrl/api/customers"
@@ -46,9 +46,9 @@ try {
     Write-Host "   First: $($customers[0].name)"
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 2: Get customer by ID
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "2. GET /api/customers/1" -ForegroundColor Yellow
     $customer = Invoke-DextRequest "$baseUrl/api/customers/1"
     if (-not $customer.name) { throw "Customer not found" }
@@ -56,17 +56,17 @@ try {
     Write-Host "   Email: $($customer.email)"
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 3: Verify snake_case JSON output
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "3. Verifying snake_case JSON" -ForegroundColor Yellow
     if ($null -eq $customer.created_at) { throw "Expected snake_case 'created_at' field" }
     Write-Host "   [OK] Field 'created_at' present: $($customer.created_at)" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 4: Verify [NotMapped] exclusion
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "4. Verifying [NotMapped] exclusion" -ForegroundColor Yellow
     if ($null -ne $customer.internal_code -and $customer.internal_code -ne "") { 
         throw "Expected 'internal_code' to be excluded from response" 
@@ -74,9 +74,9 @@ try {
     Write-Host "   [OK] Field 'internal_code' correctly excluded" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 5: Create new customer
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "5. POST /api/customers" -ForegroundColor Yellow
     Write-Host "   Creating new customer..."
     $newCustomer = @{
@@ -90,9 +90,9 @@ try {
     Write-Host "   [OK] Created with ID: $newId" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 6: Update customer
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "6. PUT /api/customers/$newId" -ForegroundColor Yellow
     Write-Host "   Updating customer..."
     $updateData = @{
@@ -106,27 +106,27 @@ try {
     Write-Host "   [OK] Updated: $($updated.name)" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 7: Delete customer
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "7. DELETE /api/customers/$newId" -ForegroundColor Yellow
     Write-Host "   Deleting customer..."
     Invoke-DextRequest "$baseUrl/api/customers/$newId" "DELETE" | Out-Null
     Write-Host "   [OK] Deleted" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 8: Verify deletion
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "8. GET /api/customers/$newId (expect 404)" -ForegroundColor Yellow
     $deleted = Invoke-DextRequest "$baseUrl/api/customers/$newId"
     if ($deleted.statusCode -ne 404) { throw "Expected 404 after deletion" }
     Write-Host "   [OK] Correctly returns 404" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 9: Swagger endpoint
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "9. GET /swagger.json" -ForegroundColor Yellow
     Write-Host "   Checking OpenAPI spec..."
     $swagger = Invoke-DextRequest "$baseUrl/swagger.json"
@@ -135,9 +135,9 @@ try {
     Write-Host "   Title: $($swagger.info.title)"
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 10: List all logs (TUUID PK)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "10. GET /api/logs (TUUID PK)" -ForegroundColor Yellow
     Write-Host "    Listing seeded system logs..."
     $logs = @(Invoke-DextRequest "$baseUrl/api/logs")
@@ -148,9 +148,9 @@ try {
     Write-Host "    First UUID: $firstLogId"
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 11: Get log by UUID (Validates ID Resolver)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "11. GET /api/logs/$firstLogId" -ForegroundColor Yellow
     Write-Host "    Testing TEntityIdResolver for TUUID..."
     $log = Invoke-DextRequest "$baseUrl/api/logs/$firstLogId"
@@ -159,9 +159,9 @@ try {
     Write-Host "    [OK] Resolved and Found: $msg" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 12: POST new log (TUUID PK)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "12. POST /api/logs" -ForegroundColor Yellow
     $logId = [guid]::NewGuid().ToString()
     Write-Host "    Creating new log with explicit UUID: $($logId)..."
@@ -174,9 +174,9 @@ try {
     Write-Host "    [OK] Log created with UUID: $($createdLog.id)" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 13: PUT log (TUUID PK)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "13. PUT /api/logs/$logId" -ForegroundColor Yellow
     Write-Host "    Updating log message via UUID route..."
     $updateLog = @{
@@ -188,9 +188,9 @@ try {
     Write-Host "    [OK] Log updated successfully" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 14: DELETE log (TUUID PK)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "14. DELETE /api/logs/$logId" -ForegroundColor Yellow
     Write-Host "    Deleting log entry via UUID route..."
     Invoke-DextRequest "$baseUrl/api/logs/$logId" "DELETE" | Out-Null
@@ -201,7 +201,7 @@ try {
     Write-Host "    [OK] Log deleted and verified 404" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "==========================================" -ForegroundColor Green
     Write-Host "SUCCESS: ALL DATABASE AS API TESTS PASSED!" -ForegroundColor Green
     Write-Host "==========================================" -ForegroundColor Green

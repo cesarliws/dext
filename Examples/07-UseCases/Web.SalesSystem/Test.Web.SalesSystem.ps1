@@ -9,9 +9,9 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $baseUrl = "http://localhost:8080"
 $token = $null
 
-Write-Host "🚀 Iniciando Atividades de Teste no Sales System..." -ForegroundColor Cyan
+Write-Host "[START] Iniciando Atividades de Teste no Sales System..." -ForegroundColor Cyan
 
-# 1. Health Check (Acesso Público)
+# 1. Health Check (Acesso P blico)
 Write-Host "`n[TEST] Health Check (/health)..."
 try {
     $health = Invoke-RestMethod -Uri "$baseUrl/health" -Method Get
@@ -23,11 +23,11 @@ try {
     }
 }
 catch {
-    Write-Host "FAIL: Não foi possível acessar /health. O servidor está rodando? Erro: $_" -ForegroundColor Red
+    Write-Host "FAIL: N o foi poss vel acessar /health. O servidor est  rodando? Erro: $_" -ForegroundColor Red
 }
 
 # 2. Login (Obter JWT)
-Write-Host "`n[TEST] Autenticação (/auth/login)..."
+Write-Host "`n[TEST] Autentica  o (/auth/login)..."
 try {
     $loginBody = @{
         username = "admin"
@@ -41,11 +41,11 @@ try {
         Write-Host "PASS: Login bem-sucedido. Token JWT gerado." -ForegroundColor Green
     }
     else {
-        Write-Host "FAIL: Token não recebido na resposta." -ForegroundColor Red
+        Write-Host "FAIL: Token n o recebido na resposta." -ForegroundColor Red
     }
 }
 catch {
-    Write-Host "FAIL: Erro na requisição de login: $_" -ForegroundColor Red
+    Write-Host "FAIL: Erro na requisi  o de login: $_" -ForegroundColor Red
 }
 
 # Se temos o token, prosseguimos com os testes protegidos
@@ -104,7 +104,7 @@ if ($token) {
             }
         }
         catch {
-            Write-Host "FAIL: Erro ao processar falha de criação: $_" -ForegroundColor Red
+            Write-Host "FAIL: Erro ao processar falha de cria  o: $_" -ForegroundColor Red
         }
     }
 
@@ -124,7 +124,7 @@ if ($token) {
 
 }
 else {
-    Write-Host "`n[SKIP] Pulando testes protegidos pois não houve autenticação." -ForegroundColor Yellow
+    Write-Host "`n[SKIP] Pulando testes protegidos pois n o houve autentica  o." -ForegroundColor Yellow
 }
 
-Write-Host "`n🏁 Atividades de Teste Concluídas." -ForegroundColor Cyan
+Write-Host "`n  Atividades de Teste Conclu das." -ForegroundColor Cyan

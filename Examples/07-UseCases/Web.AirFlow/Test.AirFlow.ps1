@@ -1,12 +1,12 @@
 ### Tests for Dext Air Flow API
 $HostUrl = "http://localhost:9000"
 
-Write-Host "`n🧪 Testing Dext Air Flow API..." -ForegroundColor Cyan
+Write-Host "`n[TEST] Testing Dext Air Flow API..." -ForegroundColor Cyan
 Write-Host "================================`n"
 
 # Helper function to print response
 function Show-Response($Name, $Response) {
-    Write-Host "   ✅ $Name" -ForegroundColor Green
+    Write-Host "   [PASS] $Name" -ForegroundColor Green
     $Response | ConvertTo-Json -Depth 10 | Write-Host
     Write-Host "--------------------------------"
 }
@@ -17,7 +17,7 @@ try {
     Show-Response "Health Check" $Response
 }
 catch {
-    Write-Host "   ❌ Health Check Failed: $_" -ForegroundColor Red
+    Write-Host "   [FAIL] Health Check Failed: $_" -ForegroundColor Red
 }
 
 # 2. Trigger Alert
@@ -26,7 +26,7 @@ try {
     Show-Response "Trigger Alert" $Response
 }
 catch {
-    Write-Host "   ❌ Trigger Alert Failed: $_" -ForegroundColor Red
+    Write-Host "   [FAIL] Trigger Alert Failed: $_" -ForegroundColor Red
 }
 
-Write-Host "`n✨ All tests completed." -ForegroundColor Green
+Write-Host "`n* All tests completed." -ForegroundColor Green

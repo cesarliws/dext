@@ -55,7 +55,7 @@ try {
     # 4. Clean up
     Remove-Item $TestFile
     Remove-Item $DownloadedFile
-    Write-Host "[*] All tests passed successfully! 🚀" -ForegroundColor Green
+    Write-Host "[*] All tests passed successfully! [START]" -ForegroundColor Green
 
 } catch {
     Write-Host "`n[ERROR] $($_.Exception.Message)" -ForegroundColor Red

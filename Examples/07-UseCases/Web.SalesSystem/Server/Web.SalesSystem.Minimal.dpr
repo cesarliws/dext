@@ -1,4 +1,4 @@
-program Web.SalesSystem.Minimal;
+﻿program Web.SalesSystem.Minimal;
 
 {$APPTYPE CONSOLE}
 
@@ -27,7 +27,7 @@ begin
     WriteLn('========================================');
 
     App := WebApplication;
-    
+
     // Register Startup Configuration
     App.UseStartup(TStartup.Create);
 

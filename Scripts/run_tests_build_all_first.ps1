@@ -4,7 +4,7 @@
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $DextRoot = Split-Path -Parent $PSScriptRoot
 
-# Forçar o console a usar UTF-8 (Code Page 65001) para exibir caracteres especiais e emojis corretamente
+# For ar o console a usar UTF-8 (Code Page 65001) para exibir caracteres especiais e emojis corretamente
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 if (Get-Command chcp.com -ErrorAction SilentlyContinue) { chcp.com 65001 | Out-Null }

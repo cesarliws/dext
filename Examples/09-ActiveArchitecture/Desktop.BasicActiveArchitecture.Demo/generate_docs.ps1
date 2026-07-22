@@ -52,8 +52,8 @@ try {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host ""
-        Write-Host "✨ Success! Live documentation generated successfully!" -ForegroundColor Green
-        Write-Host "🚀 Launching responsive HTML portal in browser..." -ForegroundColor Green
+        Write-Host "* Success! Live documentation generated successfully!" -ForegroundColor Green
+        Write-Host "[START] Launching responsive HTML portal in browser..." -ForegroundColor Green
         
         $IndexHtml = Join-Path $OutputPath "index.html"
         if (Test-Path $IndexHtml) {

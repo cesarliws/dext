@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://localhost:8080"
 
-Write-Host "🚀 Testing Web.TaskFlowAPI on $baseUrl" -ForegroundColor Cyan
+Write-Host "[START] Testing Web.TaskFlowAPI on $baseUrl" -ForegroundColor Cyan
 
 function Invoke-DextRequest {
     param (

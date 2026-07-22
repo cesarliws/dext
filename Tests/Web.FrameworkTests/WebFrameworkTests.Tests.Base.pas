@@ -72,7 +72,7 @@ var
   Success: Boolean;
   Resp: System.Net.HttpClient.IHTTPResponse;
 begin
-  WriteLn('🔧 Setting up test...');
+  WriteLn('[CONFIG] Setting up test...');
   Builder := TDextWebHost.CreateDefaultBuilder
     .UseUrls('http://127.0.0.1:' + FPort.ToString);
 
@@ -199,12 +199,12 @@ end;
 
 procedure TBaseTest.LogSuccess(const Msg: string);
 begin
-  WriteLn('   ✅ ' + Msg);
+  WriteLn('   [PASS] ' + Msg);
 end;
 
 procedure TBaseTest.LogError(const Msg: string);
 begin
-  WriteLn('   ❌ ' + Msg);
+  WriteLn('   [FAIL] ' + Msg);
 end;
 
 procedure TBaseTest.AssertTrue(Condition: Boolean; const SuccessMsg, FailMsg: string);

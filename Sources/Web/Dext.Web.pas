@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -718,8 +718,8 @@ type
     /// </summary>
     function CreateStaticFileOptions: TStaticFileOptions;
     
-    // 🔌 Extensions
-    
+    // Extensions
+
     /// <summary>
     ///   Adds CORS middleware to the pipeline using the provided options.
     /// </summary>
@@ -962,7 +962,7 @@ type
     function MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
-    // 🔍 Routing - QUERY
+    // Routing - QUERY
     // -------------------------------------------------------------------------
     function MapQuery<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
     function MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;

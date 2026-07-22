@@ -54,9 +54,9 @@ function Invoke-DextRequest {
 }
 
 try {
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 1: List products (Smart Property filter: Price > 100)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "1. GET /products" -ForegroundColor Yellow
     Write-Host "   Testing Smart Property query: Price > 100..."
     $products = Invoke-DextRequest "$baseUrl/products"
@@ -70,18 +70,18 @@ try {
     }
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 2: Verify Smart Property filter excludes low-price items
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "2. Verifying filter logic" -ForegroundColor Yellow
     $hasLowPrice = $products | Where-Object { $_.Price -le 100 }
     if ($hasLowPrice) { throw "Filter failed: found product with Price <= 100" }
     Write-Host "   [OK] No products with Price <= 100 in results" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 3: Create new product via Model Binding
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "3. POST /products" -ForegroundColor Yellow
     Write-Host "   Testing Model Binding: JSON body -> TProduct entity..."
     $newProduct = @{
@@ -95,9 +95,9 @@ try {
     Write-Host "   Name: $($created.Name), Price: $($created.Price)"
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 4: Verify new product appears in list (Price > 100)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "4. GET /products (verify new product)" -ForegroundColor Yellow
     $updatedList = Invoke-DextRequest "$baseUrl/products"
     $found = $updatedList | Where-Object { $_.Name -eq "Smart Watch" }
@@ -105,9 +105,9 @@ try {
     Write-Host "   [OK] 'Smart Watch' found in filtered results" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 5: Create low-price product (should NOT appear in filtered list)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "5. POST /products (low price)" -ForegroundColor Yellow
     Write-Host "   Creating product with Price < 100 (should be filtered out)..."
     $lowPriceProduct = @{
@@ -119,9 +119,9 @@ try {
     Write-Host "   [OK] Created 'USB Cable' with ID: $($lowCreated.Id)" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 6: Verify low-price product is filtered out
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "6. GET /products (verify filter excludes low price)" -ForegroundColor Yellow
     $finalList = Invoke-DextRequest "$baseUrl/products"
     $foundLow = $finalList | Where-Object { $_.Name -eq "USB Cable" }
@@ -129,7 +129,7 @@ try {
     Write-Host "   [OK] 'USB Cable' correctly excluded from results" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "==========================================" -ForegroundColor Green
     Write-Host "SUCCESS: ALL SMART PROPERTIES TESTS PASSED!" -ForegroundColor Green
     Write-Host "==========================================" -ForegroundColor Green

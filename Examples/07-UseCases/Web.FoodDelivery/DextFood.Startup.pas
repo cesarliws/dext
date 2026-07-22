@@ -1,4 +1,4 @@
-unit DextFood.Startup;
+﻿unit DextFood.Startup;
 
 interface
 
@@ -59,7 +59,7 @@ procedure TStartup.ConfigureServices(const Services: TDextServices; const Config
 begin
   // 1. Motor de Persistência via Contexto Tipado
   Services.AddDbContext<TAppDbContext>(ConfigureDatabase);
-  
+
   // 2. Registro de Serviços de Negócio
   Services.AddSingleton<IOrderService, TOrderService>;
 

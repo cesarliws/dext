@@ -37,9 +37,9 @@ function Invoke-DextRequest {
 }
 
 try {
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 1: Basic connectivity (HTTPS)
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "1. GET / (HTTPS mode)" -ForegroundColor Yellow
     Write-Host "   Checking server connectivity..."
     $resp = Invoke-DextRequest "$baseUrl/"
@@ -47,15 +47,15 @@ try {
     Write-Host "   [OK] Server responding on HTTPS" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     # TEST 2: Verify HTML response
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "2. Verifying HTML response" -ForegroundColor Yellow
     if ($resp.Content -notmatch "Dext SSL Demo") { throw "Expected 'Dext SSL Demo' in response" }
     Write-Host "   [OK] Response contains 'Dext SSL Demo'" -ForegroundColor Green
     Write-Host ""
 
-    # ═══════════════════════════════════════════════════════════════════════════
+    #                                                                            
     Write-Host "==========================================" -ForegroundColor Green
     Write-Host "SUCCESS: SSL DEMO TESTS PASSED (HTTPS)" -ForegroundColor Green
     Write-Host "==========================================" -ForegroundColor Green

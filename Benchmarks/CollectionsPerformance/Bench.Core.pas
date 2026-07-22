@@ -1,4 +1,4 @@
-unit Bench.Core;
+﻿unit Bench.Core;
 
 interface
 
@@ -26,10 +26,10 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    
+
     procedure StartScenario(const ACategory, AScenario, ADataType: string; ASize: Integer);
     procedure AddResult(const ALibrary: string; AMilliseconds: Double);
-    
+
     procedure SaveToMarkdown(const AFilename: string);
     procedure PrintResults;
   end;
@@ -53,7 +53,7 @@ procedure TBenchmark.StartScenario(const ACategory, AScenario, ADataType: string
 begin
   FCurrentCategory := ACategory;
   FCurrentScenario := AScenario;
-  
+
   if (Pos('<', ADataType) = 0) then
   begin
     if ACategory = 'List' then
@@ -65,7 +65,7 @@ begin
   end
   else
     FCurrentDataType := ADataType;
-    
+
   FCurrentSize := ASize;
 end;
 
@@ -78,8 +78,8 @@ begin
   Found := False;
   for I := 0 to FResults.Count - 1 do
   begin
-    if (FResults[I].Scenario = FCurrentScenario) and 
-       (FResults[I].DataType = FCurrentDataType) and 
+    if (FResults[I].Scenario = FCurrentScenario) and
+       (FResults[I].DataType = FCurrentDataType) and
        (FResults[I].Size = FCurrentSize) then
     begin
       Result := FResults[I];
@@ -109,18 +109,18 @@ var
   Res: TBenchResult;
   Diff: Double;
 begin
-  Writeln(Format('%-20s | %-10s | %-10s | %-10s | %-10s | %-10s', 
+  Writeln(Format('%-20s | %-10s | %-10s | %-10s | %-10s | %-10s',
     ['Scenario', 'Type', 'Size', 'RTL (ms)', 'Dext (ms)', 'Diff']));
   Writeln(StringOfChar('-', 85));
-  
+
   for Res in FResults do
   begin
     if Res.RTL_ms > 0 then
       Diff := (Res.Dext_ms / Res.RTL_ms) * 100
     else
       Diff := 0;
-      
-    Writeln(Format('%-20s | %-10s | %d | %10.4f | %10.4f | %8.1f%%', 
+
+    Writeln(Format('%-20s | %-10s | %d | %10.4f | %10.4f | %8.1f%%',
       [Res.Scenario, Res.DataType, Res.Size, Res.RTL_ms, Res.Dext_ms, Diff]));
   end;
 end;

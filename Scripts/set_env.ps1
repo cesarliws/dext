@@ -1,4 +1,4 @@
-﻿# set_env.ps1 - Common environment setup for Dext Framework Build Scripts
+ # set_env.ps1 - Common environment setup for Dext Framework Build Scripts
 # Replaces set_env.bat with a native PowerShell implementation.
 #
 # USAGE:

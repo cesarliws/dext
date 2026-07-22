@@ -3,7 +3,7 @@
         <ProjectGuid>{B01765BD-5E91-4D1E-9773-A8C9E8E5E6CE}</ProjectGuid>
         <MainSource>Dext.Benchmarks.dpr</MainSource>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <TargetedPlatforms>32899</TargetedPlatforms>
         <AppType>Console</AppType>
         <FrameworkType>None</FrameworkType>
