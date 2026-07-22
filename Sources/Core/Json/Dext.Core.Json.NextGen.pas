@@ -141,6 +141,16 @@ type
     function ParseObject: IDextJsonObject;
     function ParseArray: IDextJsonArray;
   public
+    // SIMD (SSE2) scan of a JSON string BODY: returns the (0-based) offset
+    // of the first byte that is '"' (0x22), '\' (0x5C) or a control character
+    // (< 0x20); returns Len if none of these appear in the first Len bytes.
+    // This is the CORRECT stop set for ScanString (structural characters
+    // { } [ ] , : are legal inside a string and MUST NOT stop it).
+    class function ScanStringBody_SSE2(
+      Ptr: PByte;
+      Len: Integer
+    ): Integer; static;
+
     class function ScanStructural_SSE42(
       Ptr: PByte;
       Length: Integer
@@ -613,12 +623,19 @@ var
   B: Byte;
   HexIdx: Integer;
   HexByte: Byte;
+  Rem: NativeInt;
 begin
   while APtr < FEnd do
   begin
-    while (APtr < FEnd) and (APtr^ >= 32) and
-          (APtr^ <> Ord('"')) and (APtr^ <> Ord('\')) do
-      Inc(APtr);
+    // String body scan: for long chunks (>= 16 bytes) use SIMD (SSE2),
+    // otherwise use the scalar loop for short remainders (typical DTOs).
+    Rem := FEnd - APtr;
+    if Rem >= 16 then
+      Inc(APtr, ScanStringBody_SSE2(APtr, Integer(Rem)))
+    else
+      while (APtr < FEnd) and (APtr^ >= 32) and
+            (APtr^ <> Ord('"')) and (APtr^ <> Ord('\')) do
+        Inc(APtr);
 
     if APtr >= FEnd then
       Break;
@@ -770,6 +787,95 @@ begin
   end;
   Result := Val * Sign;
 end;
+
+class function TNextGenJsonParser.ScanStringBody_SSE2(
+  Ptr: PByte;
+  Len: Integer
+): Integer;
+{$IF defined(CPUX64) and defined(MSWINDOWS)}
+asm
+  // Win64: RCX = Ptr, EDX = Len. Return in EAX = offset of the first stop byte
+  // ('"' / '\' / <0x20), or Len if none appears. Pure SSE2 (baseline on x64):
+  // no pcmpistri (implicit NUL termination makes control char handling subtle).
+  // No over-read: 16-byte blocks start only when >= 16 bytes remain, the rest is scalar.
+  mov     r8, rcx              // r8 = base ptr
+  movsxd  r9, edx              // r9 = Len
+  xor     r10, r10             // r10 = i = 0
+
+  // Broadcast constants to all 16 lanes: 0x22 ('"'), 0x5C ('\'), 0x1F.
+  mov     eax, $22222222
+  movd    xmm1, eax
+  pshufd  xmm1, xmm1, 0
+  mov     eax, $5C5C5C5C
+  movd    xmm2, eax
+  pshufd  xmm2, xmm2, 0
+  mov     eax, $1F1F1F1F
+  movd    xmm3, eax
+  pshufd  xmm3, xmm3, 0
+
+@Loop16:
+  mov     rax, r9
+  sub     rax, r10
+  cmp     rax, 16
+  jl      @Tail
+  movdqu  xmm0, [r8 + r10]     // 16 bytes
+  movdqa  xmm4, xmm0
+  pcmpeqb xmm4, xmm1           // == '"'
+  movdqa  xmm5, xmm0
+  pcmpeqb xmm5, xmm2           // == '\'
+  por     xmm4, xmm5
+  movdqa  xmm5, xmm0
+  pminub  xmm5, xmm3           // min(v, 0x1F)
+  pcmpeqb xmm5, xmm0           // == v  -> byte <= 0x1F (control)
+  por     xmm4, xmm5
+  pmovmskb eax, xmm4
+  test    eax, eax
+  jnz     @FoundVec
+  add     r10, 16
+  jmp     @Loop16
+
+@FoundVec:
+  bsf     eax, eax             // index of first set bit -> 0..15
+  add     r10, rax
+  mov     rax, r10
+  ret
+
+@Tail:
+  cmp     r10, r9
+  jge     @NotFound
+  movzx   eax, byte ptr [r8 + r10]
+  cmp     al, $22
+  je      @FoundScalar
+  cmp     al, $5C
+  je      @FoundScalar
+  cmp     al, $20
+  jb      @FoundScalar         // < 0x20 (unsigned)
+  inc     r10
+  jmp     @Tail
+
+@FoundScalar:
+  mov     rax, r10
+  ret
+
+@NotFound:
+  mov     rax, r9              // = Len (no stop char in first Len bytes)
+end;
+{$ELSE}
+var
+  I: Integer;
+  B: Byte;
+begin
+  I := 0;
+  while I < Len do
+  begin
+    B := Ptr[I];
+    if (B = Ord('"')) or (B = Ord('\')) or (B < 32) then
+      Exit(I);
+    Inc(I);
+  end;
+  Result := Len;
+end;
+{$ENDIF}
 
 class function TNextGenJsonParser.ScanStructural_SSE42(
   Ptr: PByte;
@@ -1051,11 +1157,17 @@ begin
     raise EJsonException.Create('Expected value');
 
   ValSpan := TByteSpan.Create(StartPos, FPtr - StartPos);
-  if ValSpan.EqualsString('true') then
+  // Dispatch on the FIRST byte: only 't'/'f'/'n' can be true/false/null.
+  // For numbers (first byte digit or '-'), skip literal comparisons entirely
+  // -- EqualsString re-scans each literal for the ASCII check and was called
+  // up to 3 times for EVERY value. Semantics unchanged: a non-numeric bareword
+  // that is not exactly true/false/null still falls through to the number branch
+  // (where validation fails), exactly as before.
+  if (StartPos^ = Ord('t')) and ValSpan.EqualsString('true') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
-  else if ValSpan.EqualsString('false') then
+  else if (StartPos^ = Ord('f')) and ValSpan.EqualsString('false') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
-  else if ValSpan.EqualsString('null') then
+  else if (StartPos^ = Ord('n')) and ValSpan.EqualsString('null') then
     Val.Init(TDextJsonNodeType.jntNull, ValSpan)
   else
   begin

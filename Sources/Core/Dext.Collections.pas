@@ -34,6 +34,7 @@ uses
   Dext.Collections.Base,
   Dext.Collections.Comparers,
   Dext.Collections.Dict,
+  Dext.Collections.OrderedDict,
   Dext.Collections.Memory,
   Dext.Collections.Raw,
   Dext.Specifications.Evaluator,
@@ -310,6 +311,12 @@ type
     class function CreateDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer = 0): IDictionary<K, V>; overload; static;
     /// <summary>Creates a case-insensitive string dictionary.</summary>
     class function CreateDictionaryIgnoreCase<K, V>(AOwnsValues: Boolean = False; ACapacity: Integer = 0): IDictionary<K, V>; static;
+
+    /// <summary>Creates an insertion-ordered dictionary (IOrderedDictionary).</summary>
+    class function CreateOrderedDictionary<K, V>(ACapacity: Integer = 0): IOrderedDictionary<K, V>; overload; static;
+    class function CreateOrderedDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer = 0): IOrderedDictionary<K, V>; overload; static;
+    /// <summary>Creates a case-insensitive insertion-ordered string dictionary.</summary>
+    class function CreateOrderedDictionaryIgnoreCase<K, V>(AOwnsValues: Boolean = False; ACapacity: Integer = 0): IOrderedDictionary<K, V>; static;
 
     /// <summary>Creates a LIFO (Last-In, First-Out) stack.</summary>
     class function CreateStack<T>: IStack<T>; static;
@@ -951,6 +958,21 @@ end;
 class function TCollections.CreateDictionaryIgnoreCase<K, V>(AOwnsValues: Boolean; ACapacity: Integer): IDictionary<K, V>;
 begin
   Result := TDictionary<K, V>.Create(True, AOwnsValues, ACapacity);
+end;
+
+class function TCollections.CreateOrderedDictionary<K, V>(ACapacity: Integer): IOrderedDictionary<K, V>;
+begin
+  Result := TOrderedDictionary<K, V>.Create(ACapacity);
+end;
+
+class function TCollections.CreateOrderedDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer): IOrderedDictionary<K, V>;
+begin
+  Result := TOrderedDictionary<K, V>.Create(AOwnsValues, ACapacity);
+end;
+
+class function TCollections.CreateOrderedDictionaryIgnoreCase<K, V>(AOwnsValues: Boolean; ACapacity: Integer): IOrderedDictionary<K, V>;
+begin
+  Result := TOrderedDictionary<K, V>.Create(True, AOwnsValues, ACapacity);
 end;
 
 class function TCollections.CreateStack<T>: IStack<T>;

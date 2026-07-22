@@ -238,6 +238,8 @@
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Factory.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.RawDict.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Dict.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Collections.RawOrderedDict.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Collections.OrderedDict.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Concurrent.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Channels.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Algorithms.pas"/>
