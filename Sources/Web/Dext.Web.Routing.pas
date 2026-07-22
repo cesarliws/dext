@@ -25,6 +25,8 @@
 {***************************************************************************}
 unit Dext.Web.Routing;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -154,7 +156,7 @@ type
 
   TDextCompiledRouteLeaf = record
     Method: string;
-    MethodMask: Word;
+    MethodMask: Cardinal;
     MethodHash: Cardinal;
     Handler: TRequestDelegate;
     Metadata: TEndpointMetadata;
@@ -167,9 +169,9 @@ type
     IsParameter: Boolean;
     ParameterName: string;
     Children: TArray<TDextCompiledRouteNode>;
-    ParameterChild: Pointer;
+    ParameterChildIndex: Integer;
     Leaves: TArray<TDextCompiledRouteLeaf>;
-    AllowedMethodsMask: Word;
+    AllowedMethodsMask: Cardinal;
     HasCustomMethods: Boolean;
     OptionsHandler: TRequestDelegate;
     MethodNotAllowedHandler: TRequestDelegate;
@@ -249,7 +251,7 @@ begin
   Result := True;
 end;
 
-function GetMethodMask(const AMethod: string): Word;
+function GetMethodMask(const AMethod: string): Cardinal;
 begin
   if SameText(AMethod, 'GET') then Exit(1);
   if SameText(AMethod, 'POST') then Exit(2);
@@ -261,19 +263,23 @@ begin
   Result := 128;
 end;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
 function GetMethodHash(const AMethod: string): Cardinal;
 var
   Character: Char;
   i: Integer;
+  H: Cardinal;
 begin
-  Result := 2166136261;
+  H := 2166136261;
   for i := 1 to Length(AMethod) do
   begin
     Character := AMethod[i];
     if (Character >= 'a') and (Character <= 'z') then
       Character := Chr(Ord(Character) - 32);
-    Result := (Result xor Ord(Character)) * 16777619;
+    H := (H xor Cardinal(Ord(Character))) * Cardinal(16777619);
   end;
+  Result := H;
 end;
 
 function IsVersionMatchHelper(
@@ -323,7 +329,7 @@ end;
 function CompileRouteNode(Source: TRouteNode): TDextCompiledRouteNode;
 var
   i: Integer;
-  LeafMask: Word;
+  LeafMask: Cardinal;
   AllowMethods: string;
   AcceptQuery: string;
   QueryTypeIndex: Integer;
@@ -335,7 +341,7 @@ begin
   Result.HasCustomMethods := False;
   Result.OptionsHandler := nil;
   Result.MethodNotAllowedHandler := nil;
-  FillChar(Result.OptionsMetadata, SizeOf(Result.OptionsMetadata), 0);
+  Result.OptionsMetadata := Default(TEndpointMetadata);
 
   // Compile Children
   SetLength(Result.Children, Source.Children.Count);
@@ -349,19 +355,18 @@ begin
   end;
 
   // Compile ParameterChild
+  Result.ParameterChildIndex := -1;
   if Source.ParameterChild <> nil then
   begin
-    for i := 0 to Length(Result.Children) - 1 do
+    for i := 0 to High(Result.Children) do
     begin
       if Result.Children[i].Segment = Source.ParameterChild.Segment then
       begin
-        Result.ParameterChild := @Result.Children[i];
+        Result.ParameterChildIndex := i;
         Break;
       end;
     end;
-  end
-  else
-    Result.ParameterChild := nil;
+  end;
 
   // Compile Leaves
   SetLength(Result.Leaves, Source.Leaves.Count);
@@ -384,19 +389,22 @@ begin
   begin
     AllowMethods := 'OPTIONS';
     AcceptQuery := '';
-    for i := 0 to Length(Result.Leaves) - 1 do
+    for i := 0 to High(Result.Leaves) do
     begin
       if not AllowMethods.Contains(Result.Leaves[i].Method) then
         AllowMethods := AllowMethods + ', ' + Result.Leaves[i].Method;
       if SameText(Result.Leaves[i].Method, 'QUERY') then
       begin
-        for QueryTypeIndex := 0 to High(
-          Result.Leaves[i].Metadata.AcceptQueryTypes) do
+        if Length(Result.Leaves[i].Metadata.AcceptQueryTypes) > 0 then
         begin
-          if AcceptQuery <> '' then
-            AcceptQuery := AcceptQuery + ', ';
-          AcceptQuery := AcceptQuery +
-            Result.Leaves[i].Metadata.AcceptQueryTypes[QueryTypeIndex];
+          for QueryTypeIndex := 0 to High(
+            Result.Leaves[i].Metadata.AcceptQueryTypes) do
+          begin
+            if AcceptQuery <> '' then
+              AcceptQuery := AcceptQuery + ', ';
+            AcceptQuery := AcceptQuery +
+              Result.Leaves[i].Metadata.AcceptQueryTypes[QueryTypeIndex];
+          end;
         end;
         if AcceptQuery = '' then
           AcceptQuery := 'application/json';
@@ -409,6 +417,8 @@ begin
   end;
 end;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
 function FindCompiledPathNode(Node: PDextCompiledRouteNode;
   const APath: string; AStartPos, AEndPos: Integer): PDextCompiledRouteNode;
 var
@@ -425,29 +435,34 @@ begin
     Inc(SlashPos);
   SegmentLength := SlashPos - AStartPos;
   NextPosition := SlashPos + 1;
-  for i := 0 to Length(Node^.Children) - 1 do
+  if Length(Node^.Children) > 0 then
   begin
-    Child := @Node^.Children[i];
-    if (not Child^.IsParameter) and SamePathSegmentText(APath, AStartPos,
-      SegmentLength, Child^.Segment) then
+    for i := 0 to High(Node^.Children) do
     begin
-      Result := FindCompiledPathNode(Child, APath, NextPosition, AEndPos);
-      if Result <> nil then
-        Exit;
+      Child := @Node^.Children[i];
+      if (not Child^.IsParameter) and SamePathSegmentText(APath, AStartPos,
+        SegmentLength, Child^.Segment) then
+      begin
+        Result := FindCompiledPathNode(Child, APath, NextPosition, AEndPos);
+        if Result <> nil then
+          Exit;
+      end;
     end;
   end;
-  if Node^.ParameterChild <> nil then
-    Exit(FindCompiledPathNode(Node^.ParameterChild, APath, NextPosition,
+  if Node^.ParameterChildIndex >= 0 then
+    Exit(FindCompiledPathNode(@Node^.Children[Node^.ParameterChildIndex], APath, NextPosition,
       AEndPos));
   Result := nil;
 end;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
 function MatchCompiledNodePath(
   Node: PDextCompiledRouteNode;
   const APath: string;
   AStartPos, AEndPos: Integer;
   const AMethod, AVersion: string;
-  out ALeaf: TDextCompiledRouteLeaf;
+  var ALeaf: TDextCompiledRouteLeaf;
   var AParams: TRouteValueDictionary
 ): Boolean;
 var
@@ -456,9 +471,14 @@ var
   SegmentLen: Integer;
   SlashPos: Integer;
   NextPos: Integer;
-  MethodMask: Word;
+  MethodMask: Cardinal;
   MethodHash: Cardinal;
+  CatchAllLen: Integer;
+  ParamName: string;
 begin
+  if Node = nil then
+    Exit(False);
+
   MethodMask := GetMethodMask(AMethod);
   MethodHash := GetMethodHash(AMethod);
 
@@ -470,28 +490,31 @@ begin
 
   if AStartPos > AEndPos then
   begin
-    for i := 0 to Length(Node^.Leaves) - 1 do
+    if Length(Node^.Leaves) > 0 then
     begin
-      if (Node^.Leaves[i].MethodMask = MethodMask) and
-         (Node^.Leaves[i].MethodHash = MethodHash) and
-         SameText(Node^.Leaves[i].Method, AMethod) and
-         IsVersionMatchHelper(AVersion, Node^.Leaves[i].Metadata.ApiVersions) then
+      for i := 0 to High(Node^.Leaves) do
       begin
-        ALeaf := Node^.Leaves[i];
-        Exit(True);
+        if (Node^.Leaves[i].MethodMask = MethodMask) and
+           (Node^.Leaves[i].MethodHash = MethodHash) and
+           SameText(Node^.Leaves[i].Method, AMethod) and
+           IsVersionMatchHelper(AVersion, Node^.Leaves[i].Metadata.ApiVersions) then
+        begin
+          ALeaf := Node^.Leaves[i];
+          Exit(True);
+        end;
       end;
-    end;
 
-    for i := 0 to Length(Node^.Leaves) - 1 do
-    begin
-      if (Node^.Leaves[i].MethodMask = MethodMask) and
-         (Node^.Leaves[i].MethodHash = MethodHash) and
-         SameText(Node^.Leaves[i].Method, AMethod) and
-         (AVersion = '') and
-         (Length(Node^.Leaves[i].Metadata.ApiVersions) = 0) then
+      for i := 0 to High(Node^.Leaves) do
       begin
-        ALeaf := Node^.Leaves[i];
-        Exit(True);
+        if (Node^.Leaves[i].MethodMask = MethodMask) and
+           (Node^.Leaves[i].MethodHash = MethodHash) and
+           SameText(Node^.Leaves[i].Method, AMethod) and
+           (AVersion = '') and
+           (Length(Node^.Leaves[i].Metadata.ApiVersions) = 0) then
+        begin
+          ALeaf := Node^.Leaves[i];
+          Exit(True);
+        end;
       end;
     end;
     Exit(False);
@@ -504,28 +527,47 @@ begin
   SegmentLen := SlashPos - AStartPos;
   NextPos := SlashPos + 1;
 
-  for i := 0 to Length(Node^.Children) - 1 do
+  if Length(Node^.Children) > 0 then
   begin
-    Child := @Node^.Children[i];
-    if (not Child^.IsParameter) and
-       SamePathSegmentText(APath, AStartPos, SegmentLen, Child^.Segment) then
+    for i := 0 to High(Node^.Children) do
+    begin
+      Child := @Node^.Children[i];
+      if (not Child^.IsParameter) and
+         SamePathSegmentText(APath, AStartPos, SegmentLen, Child^.Segment) then
+      begin
+        if MatchCompiledNodePath(
+          Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+        ) then
+          Exit(True);
+      end;
+    end;
+  end;
+
+  if Node^.ParameterChildIndex >= 0 then
+  begin
+    Child := @Node^.Children[Node^.ParameterChildIndex];
+    if (Length(Child^.ParameterName) > 0) and (Child^.ParameterName[1] = '*') then
+    begin
+      // Catch-all parameter: matches everything remaining!
+      CatchAllLen := AEndPos - AStartPos + 1;
+      if MatchCompiledNodePath(
+        Child, APath, AEndPos + 1, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        ParamName := Copy(Child^.ParameterName, 2, Length(Child^.ParameterName) - 1);
+        AParams.AddSlice(ParamName, APath, AStartPos, CatchAllLen);
+        Exit(True);
+      end;
+    end
+    else
     begin
       if MatchCompiledNodePath(
         Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
       ) then
+      begin
+        AParams.AddSlice(Child^.ParameterName, APath, AStartPos, SegmentLen);
         Exit(True);
-    end;
-  end;
-
-  if Node^.ParameterChild <> nil then
-  begin
-    Child := Node^.ParameterChild;
-    if MatchCompiledNodePath(
-      Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
-    ) then
-    begin
-      AParams.AddSlice(Child^.ParameterName, APath, AStartPos, SegmentLen);
-      Exit(True);
+      end;
     end;
   end;
 
@@ -918,12 +960,28 @@ begin
   Child := Node.ParameterChild;
   if Child <> nil then
   begin
-    if MatchNodePath(
-      Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
-    ) then
+    if (Length(Child.ParameterName) > 0) and (Child.ParameterName[1] = '*') then
     begin
-      AParams.AddSlice(Child.ParameterName, APath, AStartPos, SegmentLen);
-      Exit(True);
+      // Catch-all parameter: matches everything remaining!
+      var CatchAllLen: Integer := AEndPos - AStartPos + 1;
+      if MatchNodePath(
+        Child, APath, AEndPos + 1, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        var ParamName: string := Copy(Child.ParameterName, 2, Length(Child.ParameterName) - 1);
+        AParams.AddSlice(ParamName, APath, AStartPos, CatchAllLen);
+        Exit(True);
+      end;
+    end
+    else
+    begin
+      if MatchNodePath(
+        Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        AParams.AddSlice(Child.ParameterName, APath, AStartPos, SegmentLen);
+        Exit(True);
+      end;
     end;
   end;
 
@@ -1075,7 +1133,7 @@ begin
           Ctx.Response.Write('');
         end;
 
-      FillChar(AMetadata, SizeOf(AMetadata), 0);
+      AMetadata := Default(TEndpointMetadata);
       AMetadata.Method := 'OPTIONS';
       AMetadata.Path := Path;
 

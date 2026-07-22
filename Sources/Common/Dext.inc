@@ -9,6 +9,9 @@
 {$IFNDEF DEXT_INC}
 {$DEFINE DEXT_INC}
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
 //---------------------------------------------------------------------------
 // Delphi Version Detection (Industry Standard Pattern)
 //---------------------------------------------------------------------------

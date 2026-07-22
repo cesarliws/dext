@@ -1226,8 +1226,6 @@ begin
   ApplyTenantConfig(False);
   Result := 0;
   if not FChangeTracker.HasChanges then Exit;
-  for Pair in FChangeTracker.GetTrackedEntities do
-    WriteLn('   [DEBUG SaveChanges] Entity Class: ', Pair.Key.ClassName, ', State Ord: ', Ord(Pair.Value));
  
   OwnsTransaction := not InTransaction;
   if OwnsTransaction then BeginTransaction;

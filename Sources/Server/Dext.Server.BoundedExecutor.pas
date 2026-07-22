@@ -61,7 +61,8 @@ type
   public
     constructor Create(AMaxThreads, AMaxQueueCapacity: Integer);
     destructor Destroy; override;
-    function TryEnqueue(AProc: TDextTaskProc; AData: Pointer): Boolean;
+    function TryEnqueue(AProc: TDextTaskProc; AData: Pointer): Boolean; overload;
+    function TryEnqueue(const AProc: TProc): Boolean; overload;
     procedure Shutdown;
     property QueueCount: Integer read FQueueCount;
     property OnException: TProc<Exception> read FOnException write FOnException;
@@ -187,6 +188,16 @@ begin
   end;
 end;
 
+procedure AnonymousTaskExecutor(Data: Pointer);
+var
+  Proc: TProc;
+  P: Pointer absolute Proc;
+begin
+  P := Data;
+  if Assigned(Proc) then
+    Proc();
+end;
+
 function TDextBoundedExecutor.TryEnqueue(AProc: TDextTaskProc; AData: Pointer): Boolean;
 var
   Item: TDextTaskItem;
@@ -206,6 +217,24 @@ begin
   end;
   if Result then
     FSemaphore.Release;
+end;
+
+function TDextBoundedExecutor.TryEnqueue(const AProc: TProc): Boolean;
+var
+  LProc: TProc;
+  P: Pointer absolute LProc;
+  Intf: IInterface absolute LProc;
+begin
+  LProc := AProc;
+  if Assigned(LProc) then
+    Intf._AddRef;
+  if not TryEnqueue(AnonymousTaskExecutor, P) then
+  begin
+    if Assigned(LProc) then
+      Intf._Release;
+    Exit(False);
+  end;
+  Result := True;
 end;
 
 procedure TDextBoundedExecutor.WorkerExecute(AThread: TThread);

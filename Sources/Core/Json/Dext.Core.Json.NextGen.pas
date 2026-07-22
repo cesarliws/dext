@@ -1176,7 +1176,7 @@ end;
 
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-function GetKeyHash(const K: TJsonKey): Cardinal; inline;
+function GetKeyHash(const K: TJsonKey): Cardinal;
 var
   I: Integer;
 begin
@@ -1193,7 +1193,7 @@ begin
   end;
 end;
 
-function GetStringHash(const S: string): Cardinal; inline;
+function GetStringHash(const S: string): Cardinal;
 var
   I: Integer;
 begin

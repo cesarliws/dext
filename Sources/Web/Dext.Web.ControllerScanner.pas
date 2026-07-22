@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -62,7 +62,7 @@ type
     RequiresAuth: Boolean;
     Roles: string;
     Policy: string;
-    
+
     // Cached compiled metadata
     RttiType: TRttiType;
     RttiMethod: TRttiMethod;

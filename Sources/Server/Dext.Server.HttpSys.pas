@@ -1840,66 +1840,39 @@ function TDextHttpSysRequestPool.Acquire(AEngine: TDextHttpSysEngine; ARequest: 
   AContext: TDextHttpSysContext = nil): TDextHttpSysRequest;
 begin
   Result := nil;
-  if FLocalRequestPool = nil then
-    FLocalRequestPool := TList.Create;
-
-  if FLocalRequestPool.Count > 0 then
-  begin
-    Result := TDextHttpSysRequest(FLocalRequestPool.Last);
-    FLocalRequestPool.Delete(FLocalRequestPool.Count - 1);
-  end
-  else
-  begin
-    FLock.Enter;
-    try
-      if FPool.Count > 0 then
-      begin
-        Result := TDextHttpSysRequest(FPool.Last);
-        FPool.Delete(FPool.Count - 1);
-      end;
-    finally
-      FLock.Exit;
+  FLock.Enter;
+  try
+    if FPool.Count > 0 then
+    begin
+      Result := TDextHttpSysRequest(FPool.Last);
+      FPool.Delete(FPool.Count - 1);
     end;
+  finally
+    FLock.Exit;
   end;
 
   if Result = nil then
-  begin
     Result := TDextHttpSysRequest.Create(ARequest);
-    Result.Init(AEngine, ARequest, AContext);
-  end
-  else
-  begin
-    Result.Init(AEngine, ARequest, AContext);
-  end;
+  Result.Init(AEngine, ARequest, AContext);
 end;
 
 procedure TDextHttpSysRequestPool.Release(ARequest: TDextHttpSysRequest);
 begin
   if ARequest = nil then Exit;
 
-  if FLocalRequestPool = nil then
-    FLocalRequestPool := TList.Create;
-
-  if FLocalRequestPool.Count < 64 then
-  begin
-    FLocalRequestPool.Add(ARequest);
-  end
-  else
-  begin
-    FLock.Enter;
-    try
-      if FPool.Count < FMaxPoolSize then
-      begin
-        FPool.Add(ARequest);
-      end
-      else
-      begin
-        ARequest.FEngine := nil;
-        ARequest.Free;
-      end;
-    finally
-      FLock.Exit;
+  FLock.Enter;
+  try
+    if FPool.Count < FMaxPoolSize then
+    begin
+      FPool.Add(ARequest);
+    end
+    else
+    begin
+      ARequest.FEngine := nil;
+      ARequest.Free;
     end;
+  finally
+    FLock.Exit;
   end;
 end;
 
@@ -1934,66 +1907,39 @@ function TDextHttpSysResponsePool.Acquire(AEngine: TDextHttpSysEngine; AReqQueue
   ARequestId: HTTP_REQUEST_ID; AContext: TDextHttpSysContext = nil): TDextHttpSysResponse;
 begin
   Result := nil;
-  if FLocalResponsePool = nil then
-    FLocalResponsePool := TList.Create;
-
-  if FLocalResponsePool.Count > 0 then
-  begin
-    Result := TDextHttpSysResponse(FLocalResponsePool.Last);
-    FLocalResponsePool.Delete(FLocalResponsePool.Count - 1);
-  end
-  else
-  begin
-    FLock.Enter;
-    try
-      if FPool.Count > 0 then
-      begin
-        Result := TDextHttpSysResponse(FPool.Last);
-        FPool.Delete(FPool.Count - 1);
-      end;
-    finally
-      FLock.Exit;
+  FLock.Enter;
+  try
+    if FPool.Count > 0 then
+    begin
+      Result := TDextHttpSysResponse(FPool.Last);
+      FPool.Delete(FPool.Count - 1);
     end;
+  finally
+    FLock.Exit;
   end;
 
   if Result = nil then
-  begin
     Result := TDextHttpSysResponse.Create(AEngine, AReqQueue, ARequestId);
-    Result.Init(AEngine, AReqQueue, ARequestId, AContext);
-  end
-  else
-  begin
-    Result.Init(AEngine, AReqQueue, ARequestId, AContext);
-  end;
+  Result.Init(AEngine, AReqQueue, ARequestId, AContext);
 end;
 
 procedure TDextHttpSysResponsePool.Release(AResponse: TDextHttpSysResponse);
 begin
   if AResponse = nil then Exit;
 
-  if FLocalResponsePool = nil then
-    FLocalResponsePool := TList.Create;
-
-  if FLocalResponsePool.Count < 64 then
-  begin
-    FLocalResponsePool.Add(AResponse);
-  end
-  else
-  begin
-    FLock.Enter;
-    try
-      if FPool.Count < FMaxPoolSize then
-      begin
-        FPool.Add(AResponse);
-      end
-      else
-      begin
-        AResponse.FEngine := nil;
-        AResponse.Free;
-      end;
-    finally
-      FLock.Exit;
+  FLock.Enter;
+  try
+    if FPool.Count < FMaxPoolSize then
+    begin
+      FPool.Add(AResponse);
+    end
+    else
+    begin
+      AResponse.FEngine := nil;
+      AResponse.Free;
     end;
+  finally
+    FLock.Exit;
   end;
 end;
 
