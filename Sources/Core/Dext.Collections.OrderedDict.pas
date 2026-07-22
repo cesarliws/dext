@@ -38,11 +38,12 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Collections.Base,
-  Dext.Collections.Memory,
   Dext.Collections.Comparers,
+  Dext.Collections.Dict,
+  Dext.Collections.Memory,
+  Dext.Collections.Raw,
   Dext.Collections.RawDict,
-  Dext.Collections.RawOrderedDict,
-  Dext.Collections.Dict;
+  Dext.Collections.RawOrderedDict;
 
 {$M+}
 type

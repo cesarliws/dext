@@ -141,11 +141,11 @@ type
     function ParseObject: IDextJsonObject;
     function ParseArray: IDextJsonArray;
   public
-    // Scansione SIMD (SSE2) del CORPO di una stringa JSON: ritorna l'offset
-    // (0-based) del primo byte che e' '"' (0x22), '\' (0x5C) o un carattere di
-    // controllo (< 0x20); ritorna Len se nessuno di questi appare nei primi Len
-    // byte. E' il set di stop CORRETTO per ScanString (i caratteri strutturali
-    // { } [ ] , : sono legali dentro una stringa e NON devono fermarla).
+    // SIMD (SSE2) scan of a JSON string BODY: returns the (0-based) offset
+    // of the first byte that is '"' (0x22), '\' (0x5C) or a control character
+    // (< 0x20); returns Len if none of these appear in the first Len bytes.
+    // This is the CORRECT stop set for ScanString (structural characters
+    // { } [ ] , : are legal inside a string and MUST NOT stop it).
     class function ScanStringBody_SSE2(
       Ptr: PByte;
       Len: Integer
@@ -627,8 +627,8 @@ var
 begin
   while APtr < FEnd do
   begin
-    // Scansione del corpo stringa: sui tratti lunghi (>= 16 byte) usa la SIMD
-    // (SSE2), altrimenti il loop scalare per i residui corti (tipici DTO).
+    // String body scan: for long chunks (>= 16 bytes) use SIMD (SSE2),
+    // otherwise use the scalar loop for short remainders (typical DTOs).
     Rem := FEnd - APtr;
     if Rem >= 16 then
       Inc(APtr, ScanStringBody_SSE2(APtr, Integer(Rem)))
@@ -794,16 +794,15 @@ class function TNextGenJsonParser.ScanStringBody_SSE2(
 ): Integer;
 {$IF defined(CPUX64) and defined(MSWINDOWS)}
 asm
-  // Win64: RCX = Ptr, EDX = Len. Ritorno in EAX = offset del primo byte di
-  // stop ('"' / '\' / <0x20), oppure Len se nessuno appare. Puro SSE2
-  // (baseline su x64): niente pcmpistri (la terminazione implicita su NUL
-  // rende insidiosa la gestione dei control char). Nessun over-read: i blocchi
-  // da 16 byte partono solo quando restano >= 16 byte, il resto e' scalare.
+  // Win64: RCX = Ptr, EDX = Len. Return in EAX = offset of the first stop byte
+  // ('"' / '\' / <0x20), or Len if none appears. Pure SSE2 (baseline on x64):
+  // no pcmpistri (implicit NUL termination makes control char handling subtle).
+  // No over-read: 16-byte blocks start only when >= 16 bytes remain, the rest is scalar.
   mov     r8, rcx              // r8 = base ptr
   movsxd  r9, edx              // r9 = Len
   xor     r10, r10             // r10 = i = 0
 
-  // Costanti broadcast su tutti i 16 lane: 0x22 ('"'), 0x5C ('\'), 0x1F.
+  // Broadcast constants to all 16 lanes: 0x22 ('"'), 0x5C ('\'), 0x1F.
   mov     eax, $22222222
   movd    xmm1, eax
   pshufd  xmm1, xmm1, 0
@@ -819,7 +818,7 @@ asm
   sub     rax, r10
   cmp     rax, 16
   jl      @Tail
-  movdqu  xmm0, [r8 + r10]     // 16 byte
+  movdqu  xmm0, [r8 + r10]     // 16 bytes
   movdqa  xmm4, xmm0
   pcmpeqb xmm4, xmm1           // == '"'
   movdqa  xmm5, xmm0
@@ -836,7 +835,7 @@ asm
   jmp     @Loop16
 
 @FoundVec:
-  bsf     eax, eax             // indice del primo bit -> 0..15
+  bsf     eax, eax             // index of first set bit -> 0..15
   add     r10, rax
   mov     rax, r10
   ret
@@ -859,7 +858,7 @@ asm
   ret
 
 @NotFound:
-  mov     rax, r9              // = Len (nessuno stop nei primi Len byte)
+  mov     rax, r9              // = Len (no stop char in first Len bytes)
 end;
 {$ELSE}
 var
@@ -1158,12 +1157,12 @@ begin
     raise EJsonException.Create('Expected value');
 
   ValSpan := TByteSpan.Create(StartPos, FPtr - StartPos);
-  // Dispatch sul PRIMO byte: solo 't'/'f'/'n' possono essere true/false/null.
-  // Per i numeri (primo byte cifra o '-') si saltano del tutto i confronti coi
-  // letterali -- EqualsString ri-scandisce ogni letterale per l'ASCII-check ed
-  // era chiamato fino a 3 volte per OGNI valore. Semantica invariata: un bareword
-  // non-numerico che non sia esattamente true/false/null cade comunque nel ramo
-  // numero (dove fallisce la validazione), esattamente come prima.
+  // Dispatch on the FIRST byte: only 't'/'f'/'n' can be true/false/null.
+  // For numbers (first byte digit or '-'), skip literal comparisons entirely
+  // -- EqualsString re-scans each literal for the ASCII check and was called
+  // up to 3 times for EVERY value. Semantics unchanged: a non-numeric bareword
+  // that is not exactly true/false/null still falls through to the number branch
+  // (where validation fails), exactly as before.
   if (StartPos^ = Ord('t')) and ValSpan.EqualsString('true') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
   else if (StartPos^ = Ord('f')) and ValSpan.EqualsString('false') then

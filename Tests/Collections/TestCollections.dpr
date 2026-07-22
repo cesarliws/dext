@@ -38,6 +38,8 @@ uses
   Dext.Testing,
   Dext.Collections,
   Dext.Collections.Dict,
+  Dext.Collections.RawOrderedDict in '..\..\Sources\Core\Dext.Collections.RawOrderedDict.pas',
+  Dext.Collections.OrderedDict in '..\..\Sources\Core\Dext.Collections.OrderedDict.pas',
   TestCollections.RawList in 'TestCollections.RawList.pas',
   TestCollections.Lists in 'TestCollections.Lists.pas',
   TestCollections.Dictionaries in 'TestCollections.Dictionaries.pas',

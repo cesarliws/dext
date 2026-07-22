@@ -8,7 +8,7 @@
         <AppType>Package</AppType>
         <FrameworkType>VCL</FrameworkType>
         <ProjectVersion>20.4</ProjectVersion>
-        <Platform Condition="'$(Platform)'==''">Win32</Platform>
+        <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <ProjectName Condition="'$(ProjectName)'==''">Dext.Testing.Core</ProjectName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
@@ -128,8 +128,6 @@
         <DCCReference Include="IndyProtocols.dcp"/>
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
-        <DCCReference Include="Dext.EF.Core.dcp"/>
-        <DCCReference Include="Dext.Web.Core.dcp"/>
         <DCCReference Include="..\..\Sources\Testing\Dext.Assertions.pas"/>
         <DCCReference Include="..\..\Sources\Testing\Dext.Mocks.Auto.pas"/>
         <DCCReference Include="..\..\Sources\Testing\Dext.Mocks.Interceptor.pas"/>
