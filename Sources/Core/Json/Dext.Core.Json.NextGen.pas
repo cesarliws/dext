@@ -141,6 +141,16 @@ type
     function ParseObject: IDextJsonObject;
     function ParseArray: IDextJsonArray;
   public
+    // Scansione SIMD (SSE2) del CORPO di una stringa JSON: ritorna l'offset
+    // (0-based) del primo byte che e' '"' (0x22), '\' (0x5C) o un carattere di
+    // controllo (< 0x20); ritorna Len se nessuno di questi appare nei primi Len
+    // byte. E' il set di stop CORRETTO per ScanString (i caratteri strutturali
+    // { } [ ] , : sono legali dentro una stringa e NON devono fermarla).
+    class function ScanStringBody_SSE2(
+      Ptr: PByte;
+      Len: Integer
+    ): Integer; static;
+
     class function ScanStructural_SSE42(
       Ptr: PByte;
       Length: Integer
@@ -613,12 +623,19 @@ var
   B: Byte;
   HexIdx: Integer;
   HexByte: Byte;
+  Rem: NativeInt;
 begin
   while APtr < FEnd do
   begin
-    while (APtr < FEnd) and (APtr^ >= 32) and
-          (APtr^ <> Ord('"')) and (APtr^ <> Ord('\')) do
-      Inc(APtr);
+    // Scansione del corpo stringa: sui tratti lunghi (>= 16 byte) usa la SIMD
+    // (SSE2), altrimenti il loop scalare per i residui corti (tipici DTO).
+    Rem := FEnd - APtr;
+    if Rem >= 16 then
+      Inc(APtr, ScanStringBody_SSE2(APtr, Integer(Rem)))
+    else
+      while (APtr < FEnd) and (APtr^ >= 32) and
+            (APtr^ <> Ord('"')) and (APtr^ <> Ord('\')) do
+        Inc(APtr);
 
     if APtr >= FEnd then
       Break;
@@ -770,6 +787,96 @@ begin
   end;
   Result := Val * Sign;
 end;
+
+class function TNextGenJsonParser.ScanStringBody_SSE2(
+  Ptr: PByte;
+  Len: Integer
+): Integer;
+{$IF defined(CPUX64) and defined(MSWINDOWS)}
+asm
+  // Win64: RCX = Ptr, EDX = Len. Ritorno in EAX = offset del primo byte di
+  // stop ('"' / '\' / <0x20), oppure Len se nessuno appare. Puro SSE2
+  // (baseline su x64): niente pcmpistri (la terminazione implicita su NUL
+  // rende insidiosa la gestione dei control char). Nessun over-read: i blocchi
+  // da 16 byte partono solo quando restano >= 16 byte, il resto e' scalare.
+  mov     r8, rcx              // r8 = base ptr
+  movsxd  r9, edx              // r9 = Len
+  xor     r10, r10             // r10 = i = 0
+
+  // Costanti broadcast su tutti i 16 lane: 0x22 ('"'), 0x5C ('\'), 0x1F.
+  mov     eax, $22222222
+  movd    xmm1, eax
+  pshufd  xmm1, xmm1, 0
+  mov     eax, $5C5C5C5C
+  movd    xmm2, eax
+  pshufd  xmm2, xmm2, 0
+  mov     eax, $1F1F1F1F
+  movd    xmm3, eax
+  pshufd  xmm3, xmm3, 0
+
+@Loop16:
+  mov     rax, r9
+  sub     rax, r10
+  cmp     rax, 16
+  jl      @Tail
+  movdqu  xmm0, [r8 + r10]     // 16 byte
+  movdqa  xmm4, xmm0
+  pcmpeqb xmm4, xmm1           // == '"'
+  movdqa  xmm5, xmm0
+  pcmpeqb xmm5, xmm2           // == '\'
+  por     xmm4, xmm5
+  movdqa  xmm5, xmm0
+  pminub  xmm5, xmm3           // min(v, 0x1F)
+  pcmpeqb xmm5, xmm0           // == v  -> byte <= 0x1F (control)
+  por     xmm4, xmm5
+  pmovmskb eax, xmm4
+  test    eax, eax
+  jnz     @FoundVec
+  add     r10, 16
+  jmp     @Loop16
+
+@FoundVec:
+  bsf     eax, eax             // indice del primo bit -> 0..15
+  add     r10, rax
+  mov     rax, r10
+  ret
+
+@Tail:
+  cmp     r10, r9
+  jge     @NotFound
+  movzx   eax, byte ptr [r8 + r10]
+  cmp     al, $22
+  je      @FoundScalar
+  cmp     al, $5C
+  je      @FoundScalar
+  cmp     al, $20
+  jb      @FoundScalar         // < 0x20 (unsigned)
+  inc     r10
+  jmp     @Tail
+
+@FoundScalar:
+  mov     rax, r10
+  ret
+
+@NotFound:
+  mov     rax, r9              // = Len (nessuno stop nei primi Len byte)
+end;
+{$ELSE}
+var
+  I: Integer;
+  B: Byte;
+begin
+  I := 0;
+  while I < Len do
+  begin
+    B := Ptr[I];
+    if (B = Ord('"')) or (B = Ord('\')) or (B < 32) then
+      Exit(I);
+    Inc(I);
+  end;
+  Result := Len;
+end;
+{$ENDIF}
 
 class function TNextGenJsonParser.ScanStructural_SSE42(
   Ptr: PByte;
