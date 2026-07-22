@@ -151,9 +151,18 @@ begin
   end;
 end;
 
+procedure AnonymousTaskExecutor(Data: Pointer); forward;
+
 destructor TDextBoundedExecutor.Destroy;
+var
+  Task: TDextTaskItem;
 begin
   Shutdown;
+  while FQueue.Dequeue(Task) do
+  begin
+    if (@Task.Proc = @AnonymousTaskExecutor) and (Task.Data <> nil) then
+      IInterface(Task.Data)._Release;
+  end;
   FQueue.Clear;
   FLock.Free;
   FSemaphore.Free;
@@ -192,10 +201,16 @@ procedure AnonymousTaskExecutor(Data: Pointer);
 var
   Proc: TProc;
   P: Pointer absolute Proc;
+  Intf: IInterface absolute Proc;
 begin
   P := Data;
-  if Assigned(Proc) then
-    Proc();
+  try
+    if Assigned(Proc) then
+      Proc();
+  finally
+    if Assigned(Proc) then
+      Intf._Release;
+  end;
 end;
 
 function TDextBoundedExecutor.TryEnqueue(AProc: TDextTaskProc; AData: Pointer): Boolean;
@@ -222,16 +237,16 @@ end;
 function TDextBoundedExecutor.TryEnqueue(const AProc: TProc): Boolean;
 var
   LProc: TProc;
-  P: Pointer absolute LProc;
   Intf: IInterface absolute LProc;
+  P: Pointer absolute LProc;
 begin
+  if not Assigned(AProc) then
+    Exit(False);
   LProc := AProc;
-  if Assigned(LProc) then
-    Intf._AddRef;
+  Intf._AddRef;
   if not TryEnqueue(AnonymousTaskExecutor, P) then
   begin
-    if Assigned(LProc) then
-      Intf._Release;
+    Intf._Release;
     Exit(False);
   end;
   Result := True;
