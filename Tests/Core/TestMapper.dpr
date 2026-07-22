@@ -1,4 +1,4 @@
-program TestMapper;
+﻿program TestMapper;
 
 {$APPTYPE CONSOLE}
 
@@ -61,7 +61,7 @@ var
   DTO: TUserDTO;
 begin
   WriteLn('=== Test 1: Basic Mapping ===');
-  
+
   User := TUser.Create;
   try
     User.Id := 1;
@@ -69,7 +69,7 @@ begin
     User.LastName := 'Doe';
     User.Email := 'john@example.com';
     User.Age := 30;
-    
+
     DTO := TMapper.Map<TUser, TUserDTO>(User);
     try
       WriteLn('ID: ', DTO.Id);
@@ -92,15 +92,15 @@ var
   DTO: TUserDTO;
 begin
   WriteLn('=== Test 2: Custom Mapping ===');
-  
+
   // Configure custom mapping
   TMapper.CreateMap<TUser, TUserDTO>
-    .ForMember('FullName', 
+    .ForMember('FullName',
       function(const Src: TUser): TValue
       begin
         Result := Src.FirstName + ' ' + Src.LastName;
       end);
-  
+
   User := TUser.Create;
   try
     User.Id := 2;
@@ -108,7 +108,7 @@ begin
     User.LastName := 'Smith';
     User.Email := 'jane@example.com';
     User.Age := 25;
-    
+
     DTO := TMapper.Map<TUser, TUserDTO>(User);
     try
       WriteLn('ID: ', DTO.Id);
@@ -134,7 +134,7 @@ var
   I: Integer;
 begin
   WriteLn('=== Test 3: List Mapping ===');
-  
+
   Users := TCollections.CreateList<TUser>;
   try
     // Create 3 users
@@ -148,7 +148,7 @@ begin
       User.Age := 20 + I;
       Users.Add(User);
     end;
-    
+
     DTOs := TMapper.MapList<TUser, TUserDTO>(Users, False);
     try
       WriteLn('Mapped ', DTOs.Count, ' users:');
@@ -380,7 +380,7 @@ begin
     WriteLn('Dext AutoMapper Tests');
     WriteLn('=====================');
     WriteLn;
-    
+
     TestBasicMapping;
     TestCustomMapping;
     TestListMapping;
@@ -390,7 +390,7 @@ begin
     TestModelToRecordFullUpdate;
     TestListRecordToModelMapping;
     TestListModelToRecordMapping;
-    
+
     WriteLn('=====================');
     WriteLn('All tests passed!');
   except
@@ -400,7 +400,7 @@ begin
       ExitCode := 1;
     end;
   end;
-  
+
   WriteLn;
   WriteLn('Press ENTER to exit...');
   ConsolePause;

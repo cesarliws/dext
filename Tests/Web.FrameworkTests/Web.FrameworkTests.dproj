@@ -52,7 +52,7 @@
         <Base>true</Base>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
-        <DCC_UnitSearchPath>..\Common;..\..\Sources\Common;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\Common;..\..\Sources\Common;..\..\Sources\Core;..\..\Sources\Core\Base;..\..\Sources\Core\Json;..\..\Sources\Core\Interception;..\..\Sources\Web;..\..\Sources\Net;..\..\Sources\ORM;..\..\Sources\Logging;..\..\Sources\JSON;..\..\Sources\Testing;..\..\Sources\Server;..\..\Sources\Hosting;..\..\Sources\Hosting\CLI;..\..\Sources\Data;..\..\Sources\Events;..\..\Sources\Hubs;..\..\Sources\Hubs\Transports;..\..\Sources\AI;..\..\Sources\AI\MCP;..\..\Sources\UI;..\..\Sources\Performance;..\..\Sources\Debug;..\..\Sources\Design;..\..\Sources\Dashboard;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_ExeOutput>..\Output\</DCC_ExeOutput>
         <DCC_DcuOutput>..\Output\$(ProductVersion)\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_E>false</DCC_E>
@@ -124,13 +124,14 @@
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
         <DCC_Optimize>false</DCC_Optimize>
         <DCC_GenerateStackFrames>true</DCC_GenerateStackFrames>
-        <DCC_RangeChecking>true</DCC_RangeChecking>
-        <DCC_IntegerOverflowCheck>true</DCC_IntegerOverflowCheck>
+        <DCC_RangeChecking>false</DCC_RangeChecking>
+        <DCC_IntegerOverflowCheck>false</DCC_IntegerOverflowCheck>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Android64)'!=''">
         <BT_BuildType>Debug</BT_BuildType>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+        <DCC_MapFile>3</DCC_MapFile>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <Manifest_File>(None)</Manifest_File>

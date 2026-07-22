@@ -1,5 +1,8 @@
 ﻿program Dext.RouteParamsTest;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
 {$APPTYPE CONSOLE}
 
 uses
@@ -30,6 +33,7 @@ begin
     WriteLn;
 
     Host := TDextWebHost.CreateDefaultBuilder
+      .UseUrls('http://127.0.0.1:0')
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
         // Nenhum serviço necessário para este teste
@@ -112,12 +116,18 @@ begin
     WriteLn('Press Enter to stop...');
     WriteLn;
 
-    Host.Run;
-    ConsolePause;
+    Host.Start;
+    try
+      WriteLn('Server started successfully.');
+    finally
+      Host.Stop;
+    end;
   except
     on E: Exception do
     begin
-      WriteLn('❌ Error: ', E.ClassName, ': ', E.Message);
+      Writeln('ERROR: ', E.ClassName, ': ', E.Message);
+      Writeln('ExceptAddr RVA: ', Format('%p', [Pointer(NativeUInt(ExceptAddr) - HInstance)]));
+      Writeln('StackTrace: ', E.StackTrace);
       ExitCode := 1;
     end;
   end;
