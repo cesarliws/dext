@@ -1158,11 +1158,17 @@ begin
     raise EJsonException.Create('Expected value');
 
   ValSpan := TByteSpan.Create(StartPos, FPtr - StartPos);
-  if ValSpan.EqualsString('true') then
+  // Dispatch sul PRIMO byte: solo 't'/'f'/'n' possono essere true/false/null.
+  // Per i numeri (primo byte cifra o '-') si saltano del tutto i confronti coi
+  // letterali -- EqualsString ri-scandisce ogni letterale per l'ASCII-check ed
+  // era chiamato fino a 3 volte per OGNI valore. Semantica invariata: un bareword
+  // non-numerico che non sia esattamente true/false/null cade comunque nel ramo
+  // numero (dove fallisce la validazione), esattamente come prima.
+  if (StartPos^ = Ord('t')) and ValSpan.EqualsString('true') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
-  else if ValSpan.EqualsString('false') then
+  else if (StartPos^ = Ord('f')) and ValSpan.EqualsString('false') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
-  else if ValSpan.EqualsString('null') then
+  else if (StartPos^ = Ord('n')) and ValSpan.EqualsString('null') then
     Val.Init(TDextJsonNodeType.jntNull, ValSpan)
   else
   begin
