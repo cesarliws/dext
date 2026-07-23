@@ -9,7 +9,6 @@ uses
   {$IFDEF WIN64}
     {$IFDEF USE_RDP}
       RDPMM64 in 'RDPMM64.pas',
-      RDPSimd64 in 'RDPSimd64.pas',
     {$ENDIF}
   {$ENDIF}
   {$IFDEF LINUX}
