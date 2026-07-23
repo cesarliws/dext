@@ -264,12 +264,17 @@ var
   ColName: string;
   DataType: TFieldType;
   Tx: IDbTransaction;
+  OwnsTx: Boolean;
 begin
   TotalCount := Length(AEntities);
   EffectiveBatchSize := ABatchSize;
   if EffectiveBatchSize <= 0 then EffectiveBatchSize := 100;
 
-  Tx := AContext.Connection.BeginTransaction;
+  OwnsTx := not AContext.InTransaction;
+  if OwnsTx then
+    Tx := AContext.Connection.BeginTransaction
+  else
+    Tx := nil;
   try
     ChunkStart := 0;
     while ChunkStart < TotalCount do
@@ -367,9 +372,11 @@ begin
       Cmd.ExecuteNonQuery;
       ChunkStart := ChunkStart + ChunkCount;
     end;
-    Tx.Commit;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Commit;
   except
-    Tx.Rollback;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Rollback;
     raise;
   end;
 end;
@@ -388,12 +395,17 @@ var
   Val: TValue;
   DataType: TFieldType;
   Tx: IDbTransaction;
+  OwnsTx: Boolean;
 begin
   TotalCount := Length(AEntities);
   EffectiveBatchSize := ABatchSize;
   if EffectiveBatchSize <= 0 then EffectiveBatchSize := 100;
 
-  Tx := AContext.Connection.BeginTransaction;
+  OwnsTx := not AContext.InTransaction;
+  if OwnsTx then
+    Tx := AContext.Connection.BeginTransaction
+  else
+    Tx := nil;
   try
     ChunkStart := 0;
     while ChunkStart < TotalCount do
@@ -462,12 +474,17 @@ var
   Val: TValue;
   DataType: TFieldType;
   Tx: IDbTransaction;
+  OwnsTx: Boolean;
 begin
   TotalCount := Length(AEntities);
   EffectiveBatchSize := ABatchSize;
   if EffectiveBatchSize <= 0 then EffectiveBatchSize := 100;
 
-  Tx := AContext.Connection.BeginTransaction;
+  OwnsTx := not AContext.InTransaction;
+  if OwnsTx then
+    Tx := AContext.Connection.BeginTransaction
+  else
+    Tx := nil;
   try
     ChunkStart := 0;
     while ChunkStart < TotalCount do
@@ -543,9 +560,11 @@ begin
       Cmd.ExecuteNonQuery;
       ChunkStart := ChunkStart + ChunkCount;
     end;
-    Tx.Commit;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Commit;
   except
-    Tx.Rollback;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Rollback;
     raise;
   end;
 end;
@@ -572,13 +591,18 @@ var
   ParamValues: TArray<TValue>;
   SB: TStringBuilder;
   Tx: IDbTransaction;
+  OwnsTx: Boolean;
   Val: TValue;
 begin
   TotalCount := Length(AEntities);
   EffectiveBatchSize := ABatchSize;
   if EffectiveBatchSize <= 0 then EffectiveBatchSize := 100;
 
-  Tx := AContext.Connection.BeginTransaction;
+  OwnsTx := not AContext.InTransaction;
+  if OwnsTx then
+    Tx := AContext.Connection.BeginTransaction
+  else
+    Tx := nil;
   try
     ChunkStart := 0;
     while ChunkStart < TotalCount do
@@ -590,7 +614,7 @@ begin
 
       SB := TStringBuilder.Create;
       try
-        SB.Append('UPDATE ').Append(AContext.Dialect.QuoteIdentifier(ATableName)).Append(' SET ');
+        SB.Append('UPDATE ').Append(ATableName).Append(' SET ');
         for i := 0 to SetProps.Count - 1 do
         begin
           if i > 0 then SB.Append(', ');
@@ -621,7 +645,6 @@ begin
         begin
           Val := TDEXTBatchHelper.ExtractPropValue(AEntities[ChunkStart + j], Prop, nil, AContext.Dialect.GetDialect);
           ParamValues[j] := Val;
-          if j = 0 then WriteLn('     [ArrayDML] Param ', ParamName, ' sample = ', Val.ToString);
         end;
         Cmd.SetParamArray(ParamName, ParamValues);
       end;
@@ -635,7 +658,6 @@ begin
         begin
           Val := TDEXTBatchHelper.ExtractPropValue(AEntities[ChunkStart + j], Prop, nil, AContext.Dialect.GetDialect);
           ParamValues[j] := Val;
-          if j = 0 then WriteLn('     [ArrayDML] Param ', ParamName, ' sample = ', Val.ToString);
         end;
         Cmd.SetParamArray(ParamName, ParamValues);
       end;
@@ -643,9 +665,11 @@ begin
       Cmd.ExecuteBatch(ChunkCount);
       ChunkStart := ChunkStart + ChunkCount;
     end;
-    Tx.Commit;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Commit;
   except
-    Tx.Rollback;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Rollback;
     raise;
   end;
 end;
@@ -662,12 +686,17 @@ var
   ParamValues: TArray<TValue>;
   SB: TStringBuilder;
   Tx: IDbTransaction;
+  OwnsTx: Boolean;
 begin
   TotalCount := Length(AEntities);
   EffectiveBatchSize := ABatchSize;
   if EffectiveBatchSize <= 0 then EffectiveBatchSize := 100;
 
-  Tx := AContext.Connection.BeginTransaction;
+  OwnsTx := not AContext.InTransaction;
+  if OwnsTx then
+    Tx := AContext.Connection.BeginTransaction
+  else
+    Tx := nil;
   try
     ChunkStart := 0;
     while ChunkStart < TotalCount do
@@ -679,7 +708,7 @@ begin
 
       SB := TStringBuilder.Create;
       try
-        SB.Append('DELETE FROM ').Append(AContext.Dialect.QuoteIdentifier(ATableName)).Append(' WHERE ');
+        SB.Append('DELETE FROM ').Append(ATableName).Append(' WHERE ');
         for i := 0 to WhereProps.Count - 1 do
         begin
           if i > 0 then SB.Append(' AND ');
@@ -707,9 +736,11 @@ begin
       Cmd.ExecuteBatch(ChunkCount);
       ChunkStart := ChunkStart + ChunkCount;
     end;
-    Tx.Commit;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Commit;
   except
-    Tx.Rollback;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Rollback;
     raise;
   end;
 end;
