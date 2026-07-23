@@ -168,10 +168,16 @@ end;
 procedure TBatchStrategyTest.TestPostgresBatch;
 var
   Options: TDbContextOptions;
+  ConnStr: string;
 begin
   Options := TDbContextOptions.Create;
   try
-    Options.UsePostgreSQL('Server=localhost;Port=5432;Database=postgres;User_Name=postgres;Password=root');
+    ConnStr := 'Server=localhost;Port=5432;Database=postgres;User_Name=postgres;Password=root';
+    {$IFDEF WIN64}
+    if FileExists('C:\Program Files\PostgreSQL\17\bin\libpq.dll') then
+      ConnStr := ConnStr + ';VendorLib=C:\Program Files\PostgreSQL\17\bin\libpq.dll';
+    {$ENDIF}
+    Options.UsePostgreSQL(ConnStr);
     TestDatabaseBatch('PostgreSQL', Options, 1000);
   finally
     Options.Free;
@@ -207,10 +213,16 @@ end;
 procedure TBatchStrategyTest.TestMySqlBatch;
 var
   Options: TDbContextOptions;
+  ConnStr: string;
 begin
   Options := TDbContextOptions.Create;
   try
-    Options.UseMySQL('Server=localhost;Port=3306;Database=dext_test;User_Name=root;Password=root');
+    ConnStr := 'Server=localhost;Port=3306;Database=dext_test;User_Name=root;Password=root';
+    {$IFDEF WIN64}
+    if FileExists('C:\Program Files\MariaDB 12.1\lib\libmariadb.dll') then
+      ConnStr := ConnStr + ';VendorLib=C:\Program Files\MariaDB 12.1\lib\libmariadb.dll';
+    {$ENDIF}
+    Options.UseMySQL(ConnStr);
     TestDatabaseBatch('MySQL / MariaDB', Options, 1000);
   finally
     Options.Free;
