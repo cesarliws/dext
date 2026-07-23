@@ -1,4 +1,4 @@
-unit DextStore.Controllers;
+﻿unit DextStore.Controllers;
 
 interface
 
@@ -12,7 +12,7 @@ uses
 
 type
   // ===========================================================================
-  // 🔐 Auth Controller
+  // Auth Controller
   // ===========================================================================
   [ApiController('/api/auth')]
   TAuthController = class
@@ -20,7 +20,7 @@ type
     FTokenHandler: IJwtTokenHandler;
   public
     constructor Create(TokenHandler: IJwtTokenHandler);
-    
+
     [HttpPost('/login')]
     [AllowAnonymous]
     procedure Login(Ctx: IHttpContext; const Request: TLoginRequest; [FromServices] const
@@ -36,13 +36,13 @@ type
     FService: IProductService;
   public
     constructor Create(Service: IProductService);
-    
+
     [HttpGet('')]
     procedure GetAll(Ctx: IHttpContext);
-    
+
     [HttpGet('/{id}')]
     procedure GetById(Ctx: IHttpContext; [FromRoute] Id: Integer);
-    
+
     [HttpPost('')]
     [Authorize('Bearer')]
     [ValidateModel] // Validates [Required], [StringLength] etc.
@@ -59,13 +59,13 @@ type
     FService: ICartService;
   public
     constructor Create(Service: ICartService);
-    
+
     [HttpGet('')]
     procedure GetCart(Ctx: IHttpContext);
-    
+
     [HttpPost('/items')]
     procedure AddItem(Ctx: IHttpContext; const Request: TAddToCartRequest);
-    
+
     [HttpDelete('')]
     procedure ClearCart(Ctx: IHttpContext);
   end;
@@ -80,10 +80,10 @@ type
     FService: IOrderService;
   public
     constructor Create(Service: IOrderService);
-    
+
     [HttpPost('/checkout')]
     procedure Checkout(Ctx: IHttpContext);
-    
+
     [HttpGet('')]
     procedure GetMyOrders(Ctx: IHttpContext);
   end;
@@ -112,7 +112,7 @@ begin
         .WithRole('customer')
         .Build
     );
-    
+
     Ctx.Response.Json(Format('{"token": "%s", "expires_in": 7200}', [Token]));
   end
   else
@@ -170,11 +170,11 @@ begin
   UserId := Ctx.User.Identity.Name;
   Items := FService.GetCart(UserId);
   Total := FService.CalculateTotal(UserId);
-  
+
   Response.Items := Items;
   Response.TotalAmount := Total;
   Response.UserId := UserId;
-  
+
   Ctx.Response.Json(TDextJson.Serialize(Response));
 end;
 
@@ -217,12 +217,12 @@ begin
   try
     UserId := Ctx.User.Identity.Name;
     Order := FService.Checkout(UserId);
-    
+
     Response.OrderId := Order.Id;
     Response.Total := Order.TotalAmount;
     Response.Status := Order.Status;
     Response.Message := 'Order placed successfully';
-    
+
     Ctx.Response.Status(201).Json(TDextJson.Serialize(Response));
   except
     on E: Exception do

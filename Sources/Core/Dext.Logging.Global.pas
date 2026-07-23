@@ -4,6 +4,9 @@
 {***************************************************************************}
 unit Dext.Logging.Global;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
 interface
 
 uses

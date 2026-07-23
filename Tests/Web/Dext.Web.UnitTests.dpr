@@ -1,5 +1,8 @@
 ﻿program Dext.Web.UnitTests;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
 {$APPTYPE CONSOLE}
 
 {$R *.res}

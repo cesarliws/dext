@@ -124,6 +124,7 @@ begin
   end;
 end;
 
+
 { TCompressionMiddleware }
 
 procedure TCompressionMiddleware.Invoke(

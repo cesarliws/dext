@@ -43,7 +43,7 @@ try {
     }
 
     Write-Host ""
-    Write-Host "[*] All tests passed successfully! 🚀" -ForegroundColor Green
+    Write-Host "[*] All tests passed successfully! [START]" -ForegroundColor Green
 
 
 }

@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 $baseUrl = "http://localhost:5000"
 
-Write-Host "🚀 Testing Web.MinimalAPI on $baseUrl" -ForegroundColor Cyan
+Write-Host "[START] Testing Web.MinimalAPI on $baseUrl" -ForegroundColor Cyan
 
 try {
     # 1. Hello (Service Check)

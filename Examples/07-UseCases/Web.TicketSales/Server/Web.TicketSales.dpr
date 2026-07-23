@@ -1,4 +1,4 @@
-program Web.TicketSales;
+﻿program Web.TicketSales;
 
 {$APPTYPE CONSOLE}
 

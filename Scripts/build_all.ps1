@@ -69,7 +69,7 @@ $MSBuildArgs = @(
     "/p:DCC_DcuOutput=$env:OUTPUT_PATH",
     "/p:DCC_BplOutput=$env:COMMON_BPL_OUTPUT",
     "/p:DCC_DcpOutput=$env:COMMON_DCP_OUTPUT",
-    "/p:DCC_UnitSearchPath=$env:SEARCH_PATH",
+    "/p:DCC_UnitSearchPath=$($env:SEARCH_PATH -replace ';', '%3b')",
     '/v:minimal',
     '/nologo'
 )

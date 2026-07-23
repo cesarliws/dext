@@ -41,6 +41,13 @@ uses
   Dext.Http2.Framing,
   Dext.Http2.Stream;
 
+const
+  HTTP2_CLIENT_PREFACE_BYTES: array[0..23] of Byte = (
+    Ord('P'), Ord('R'), Ord('I'), Ord(' '), Ord('*'), Ord(' '), Ord('H'), Ord('T'),
+    Ord('T'), Ord('P'), Ord('/'), Ord('2'), Ord('.'), Ord('0'), $0D, $0A,
+    $0D, $0A, Ord('S'), Ord('M'), $0D, $0A, $0D, $0A
+  );
+
 type
   /// <summary>Lifecycle phases of an HTTP/2 connection.</summary>
   THttp2ConnectionState = (
@@ -317,13 +324,10 @@ end;
 function TDextHttp2Connection.ValidatePreface: Boolean;
 const
   PREFACE_LEN = 24;
-var
-  prefaceBytes: TBytes;
 begin
   Result := False;
   if FRecvLen < PREFACE_LEN then Exit;
-  prefaceBytes := TEncoding.ASCII.GetBytes(HTTP2_CLIENT_PREFACE);
-  Result := CompareMem(@FRecvBuffer[0], @prefaceBytes[0], PREFACE_LEN);
+  Result := CompareMem(@FRecvBuffer[0], @HTTP2_CLIENT_PREFACE_BYTES[0], PREFACE_LEN);
 end;
 
 procedure TDextHttp2Connection.SendInitialSettings;
@@ -346,12 +350,22 @@ var
   consumed: Integer;
   ptr: PByte;
   avail: Integer;
+  required: Integer;
+  newCapacity: Integer;
 begin
   if FState = THttp2ConnectionState.csClosed then Exit;
 
   // Append to internal receive buffer
-  if FRecvLen + ALen > Length(FRecvBuffer) then
-    SetLength(FRecvBuffer, FRecvLen + ALen + 4096);
+  required := FRecvLen + ALen;
+  if required > Length(FRecvBuffer) then
+  begin
+    newCapacity := Length(FRecvBuffer);
+    if newCapacity < 65536 then
+      newCapacity := 65536;
+    while newCapacity < required do
+      newCapacity := newCapacity * 2;
+    SetLength(FRecvBuffer, newCapacity);
+  end;
   Move(AData^, FRecvBuffer[FRecvLen], ALen);
   Inc(FRecvLen, ALen);
 

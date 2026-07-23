@@ -21,6 +21,7 @@ uses
   Dext.Collections.Dict,
   Dext.Core.Activator,
   Dext.Core.DirectAccess,
+  Dext.Core.Span,
   Dext.Core.Reflection,
   Dext.Core.TypeModel,
   Dext.Types.UUID,
@@ -39,9 +40,9 @@ type
     /// <summary>Creates a reader over the provided stream.</summary>
     constructor Create(AStream: TStream);
     /// <summary>Writes a protobuf varint to the underlying stream.</summary>
-    procedure WriteVarint(Value: UInt64);
+    procedure WriteVarint(Value: UInt64); inline;
     /// <summary>Writes a protobuf field tag and wire type.</summary>
-    procedure WriteTag(Tag: Integer; WireType: Integer);
+    procedure WriteTag(Tag: Integer; WireType: Integer); inline;
     /// <summary>Writes a 64-bit floating-point value.</summary>
     procedure WriteDouble(Value: Double);
     /// <summary>Writes a 32-bit floating-point value.</summary>
@@ -94,6 +95,12 @@ type
     property WireType: Integer read FWireType;
   end;
 
+  TProtobufReadOnlySpanStream = class(TCustomMemoryStream)
+  public
+    constructor Create(const ABytes: TByteSpan);
+    procedure Init(const ABytes: TByteSpan);
+  end;
+
   /// <summary>High-level protobuf serializer with RTTI, direct-offset, and generated-code paths.</summary>
   TProtobufSerializer = class
   private
@@ -115,10 +122,17 @@ type
       const Value: TValue); static;
     class function DeserializeField(Stream: TStream; WireType: Integer;
       TypeInfoVal: PTypeInfo): TValue; static;
+    class function TryReadSpan(Stream: TStream; Len: NativeInt;
+      out Span: TByteSpan): Boolean; static;
+    class function ReadUtf8String(Stream: TStream; Len: NativeInt): string; static;
     class function TrySerializeGenerated(Obj: TObject; out Bytes: TBytes): Boolean; static;
-    class function TryDeserializeGenerated(const Bytes: TBytes; Obj: TObject): Boolean; static;
+    class function TrySerializeGeneratedToStream(Obj: TObject; Stream: TStream): Boolean; static;
+    class function TryDeserializeGenerated(const Bytes: TBytes; Obj: TObject): Boolean; overload; static;
+    class function TryDeserializeGenerated(const Bytes: TByteSpan; Obj: TObject): Boolean; overload; static;
     class function TrySerializeDirect(Obj: TObject; out Bytes: TBytes): Boolean; static;
-    class function TryDeserializeDirect(const Bytes: TBytes; Obj: TObject): Boolean; static;
+    class function TrySerializeDirectToStream(Obj: TObject; Stream: TStream): Boolean; static;
+    class function TryDeserializeDirect(const Bytes: TBytes; Obj: TObject): Boolean; overload; static;
+    class function TryDeserializeDirect(const Bytes: TByteSpan; Obj: TObject): Boolean; overload; static;
     class procedure SerializeDirectField(Stream: TStream; Obj: TObject;
       const Field: TDextFieldPlan); static;
     class function DeserializeDirectField(Stream: TStream; Obj: TObject;
@@ -128,9 +142,13 @@ type
     /// <summary>Serializes an object using the selected codec mode.</summary>
     class function Serialize(Obj: TObject;
       Mode: TProtobufCodecMode = pcmAuto): TBytes; static;
+    class procedure SerializeToStream(Obj: TObject; Stream: TStream;
+      Mode: TProtobufCodecMode = pcmRtti); static;
     /// <summary>Deserializes a protobuf payload into an object using the selected codec mode.</summary>
     class procedure Deserialize(const Bytes: TBytes; Obj: TObject;
-      Mode: TProtobufCodecMode = pcmAuto); static;
+      Mode: TProtobufCodecMode = pcmAuto); overload; static;
+    class procedure Deserialize(const Bytes: TByteSpan; Obj: TObject;
+      Mode: TProtobufCodecMode = pcmAuto); overload; static;
   end;
 
 implementation
@@ -220,6 +238,21 @@ constructor TProtobufReader.Create(AStream: TStream);
 begin
   inherited Create;
   FStream := AStream;
+end;
+
+constructor TProtobufReadOnlySpanStream.Create(const ABytes: TByteSpan);
+begin
+  inherited Create;
+  Init(ABytes);
+end;
+
+procedure TProtobufReadOnlySpanStream.Init(const ABytes: TByteSpan);
+begin
+  if (ABytes.Data <> nil) and (ABytes.Length > 0) then
+    SetPointer(ABytes.Data, ABytes.Length)
+  else
+    SetPointer(nil, 0);
+  Position := 0;
 end;
 
 function TProtobufReader.ReadBool: Boolean;
@@ -547,6 +580,42 @@ begin
   end;
 end;
 
+class function TProtobufSerializer.TryReadSpan(Stream: TStream; Len: NativeInt;
+  out Span: TByteSpan): Boolean;
+var
+  MemStream: TCustomMemoryStream;
+  P: PByte;
+begin
+  Result := False;
+  Span := TByteSpan.Create(nil, 0);
+  if Len < 0 then
+    Exit;
+
+  if not (Stream is TCustomMemoryStream) then
+    Exit;
+
+  MemStream := TCustomMemoryStream(Stream);
+  if (MemStream.Position + Len) > MemStream.Size then
+    Exit;
+
+  P := PByte(MemStream.Memory) + MemStream.Position;
+  Span := TByteSpan.Create(P, Len);
+  MemStream.Position := MemStream.Position + Len;
+  Result := True;
+end;
+
+class function TProtobufSerializer.ReadUtf8String(Stream: TStream; Len: NativeInt): string;
+var
+  Bytes: TBytes;
+begin
+  if Len <= 0 then
+    Exit('');
+
+  SetLength(Bytes, Len);
+  Stream.Read(Bytes[0], Len);
+  Result := TEncoding.UTF8.GetString(Bytes);
+end;
+
 class function TProtobufSerializer.DeserializeField(Stream: TStream;
   WireType: Integer; TypeInfoVal: PTypeInfo): TValue;
 var
@@ -556,6 +625,7 @@ var
   Len: UInt64;
   Bytes: TBytes;
   NestedObj: TObject;
+  Span: TByteSpan;
 begin
   Result := TValue.Empty;
   case TypeInfoVal.Kind of
@@ -596,14 +666,7 @@ begin
     tkUString, tkString, tkWString, tkChar, tkWChar:
     begin
       Len := ReadVarint(Stream);
-      if Len > 0 then
-      begin
-        SetLength(Bytes, Len);
-        Stream.Read(Bytes[0], Len);
-        Result := TValue.From<string>(TEncoding.UTF8.GetString(Bytes));
-      end
-      else
-        Result := TValue.From<string>('');
+      Result := TValue.From<string>(ReadUtf8String(Stream, Len));
     end;
     tkClass:
     begin
@@ -613,9 +676,14 @@ begin
         NestedObj := TypeInfoVal.TypeData.ClassType.Create;
         if Len > 0 then
         begin
-          SetLength(Bytes, Len);
-          Stream.Read(Bytes[0], Len);
-          Deserialize(Bytes, NestedObj);
+          if TryReadSpan(Stream, Len, Span) then
+            Deserialize(Span, NestedObj)
+          else
+          begin
+            SetLength(Bytes, Len);
+            Stream.Read(Bytes[0], Len);
+            Deserialize(Bytes, NestedObj);
+          end;
         end;
         Result := NestedObj;
       end;
@@ -623,15 +691,12 @@ begin
     tkRecord:
     begin
       Len := ReadVarint(Stream);
-      if Len > 0 then
-      begin
-        SetLength(Bytes, Len);
-        Stream.Read(Bytes[0], Len);
-      end;
       if TypeInfoVal = TypeInfo(TGUID) then
-        Result := TValue.From<TGUID>(StringToGUID(TEncoding.UTF8.GetString(Bytes)))
+        Result := TValue.From<TGUID>(StringToGUID(ReadUtf8String(Stream, Len)))
       else if TypeInfoVal = TypeInfo(TUUID) then
-        Result := TValue.From<TUUID>(TUUID.FromString(TEncoding.UTF8.GetString(Bytes)));
+        Result := TValue.From<TUUID>(TUUID.FromString(ReadUtf8String(Stream, Len)))
+      else if Len > 0 then
+        Stream.Position := Stream.Position + Int64(Len);
     end;
     tkDynArray:
     begin
@@ -661,6 +726,24 @@ begin
   else
     raise Exception.CreateFmt('Invalid wire type %d', [WireType]);
   end;
+end;
+
+class function TProtobufSerializer.TrySerializeGeneratedToStream(Obj: TObject; Stream: TStream): Boolean;
+var
+  Writer: TProtobufWriter;
+  WriteProc: TDextCodecWriteProc;
+  ReadProc: TDextCodecReadProc;
+begin
+  Result := False;
+  if (not Assigned(Obj)) or (not Assigned(Stream)) then Exit;
+  if not TDextCodecRegistry.TryGetProtobuf(Obj.ClassInfo, WriteProc, ReadProc) or not Assigned(WriteProc) then Exit;
+  Writer := TProtobufWriter.Create(Stream);
+  try
+    WriteProc(Writer, Obj);
+  finally
+    Writer.Free;
+  end;
+  Result := True;
 end;
 
 class function TProtobufSerializer.TrySerializeGenerated(Obj: TObject;
@@ -700,21 +783,30 @@ end;
 
 class function TProtobufSerializer.TryDeserializeGenerated(const Bytes: TBytes;
   Obj: TObject): Boolean;
+begin
+  if Length(Bytes) > 0 then
+    Result := TryDeserializeGenerated(TByteSpan.Create(@Bytes[0], Length(Bytes)), Obj)
+  else
+    Result := False;
+end;
+
+class function TProtobufSerializer.TryDeserializeGenerated(const Bytes: TByteSpan;
+  Obj: TObject): Boolean;
 var
-  Stream: TBytesStream;
+  Stream: TProtobufReadOnlySpanStream;
   Reader: TProtobufReader;
   WriteProc: TDextCodecWriteProc;
   ReadProc: TDextCodecReadProc;
 begin
   Result := False;
-  if (Length(Bytes) = 0) or not Assigned(Obj) then
+  if (Bytes.Length = 0) or not Assigned(Obj) then
     Exit;
 
   if not TDextCodecRegistry.TryGetProtobuf(Obj.ClassInfo, WriteProc, ReadProc) or
      not Assigned(ReadProc) then
     Exit;
 
-  Stream := TBytesStream.Create(Bytes);
+  Stream := TProtobufReadOnlySpanStream.Create(Bytes);
   try
     Reader := TProtobufReader.Create(Stream);
     try
@@ -831,6 +923,7 @@ var
   S: string;
   D: Double;
   F: Single;
+  Span: TByteSpan;
 begin
   Result := False;
   if (Field.AccessMode <> amDirectField) or (Field.Offset < 0) then
@@ -876,53 +969,27 @@ begin
     nkString:
       begin
         Len := ReadVarint(Stream);
-        if Len > 0 then
-        begin
-          SetLength(Bytes, Len);
-          Stream.Read(Bytes[0], Len);
-          S := TEncoding.UTF8.GetString(Bytes);
-        end
-        else
-          S := '';
+        S := ReadUtf8String(Stream, Len);
         TDextDirectAccess.WriteString(Obj, Field.Offset, S);
         Result := True;
       end;
     nkGuid:
       begin
         Len := ReadVarint(Stream);
-        if Len > 0 then
-        begin
-          SetLength(Bytes, Len);
-          Stream.Read(Bytes[0], Len);
-          S := TEncoding.UTF8.GetString(Bytes);
-        end
-        else
-          S := '';
+        S := ReadUtf8String(Stream, Len);
         TDextDirectAccess.WriteGUID(Obj, Field.Offset, StringToGUID(S));
         Result := True;
       end;
     nkUuid:
       begin
         Len := ReadVarint(Stream);
-        if Len > 0 then
-        begin
-          SetLength(Bytes, Len);
-          Stream.Read(Bytes[0], Len);
-          S := TEncoding.UTF8.GetString(Bytes);
-        end
-        else
-          S := '';
+        S := ReadUtf8String(Stream, Len);
         TDextDirectAccess.WriteUUID(Obj, Field.Offset, TUUID.FromString(S));
         Result := True;
       end;
     nkObject:
       begin
         Len := ReadVarint(Stream);
-        if Len > 0 then
-        begin
-          SetLength(Bytes, Len);
-          Stream.Read(Bytes[0], Len);
-        end;
         NestedObj := TDextDirectAccess.ReadObject(Obj, Field.Offset);
         if NestedObj = nil then
         begin
@@ -930,13 +997,23 @@ begin
           TDextDirectAccess.WriteObject(Obj, Field.Offset, NestedObj);
         end;
         if (NestedObj <> nil) and (Len > 0) then
-          Deserialize(Bytes, NestedObj);
+        begin
+          if TryReadSpan(Stream, Len, Span) then
+            Deserialize(Span, NestedObj)
+          else
+          begin
+            SetLength(Bytes, Len);
+            Stream.Read(Bytes[0], Len);
+            Deserialize(Bytes, NestedObj);
+          end;
+        end;
         Result := True;
       end;
     nkList:
       begin
         Len := ReadVarint(Stream);
-        if Len > 0 then
+        Span := TByteSpan.Create(nil, 0);
+        if (Len > 0) and not TryReadSpan(Stream, Len, Span) then
         begin
           SetLength(Bytes, Len);
           Stream.Read(Bytes[0], Len);
@@ -976,12 +1053,31 @@ begin
         begin
           ItemObj := TActivator.CreateInstance(nil, Field.ElementType).AsObject;
           if Len > 0 then
-            Deserialize(Bytes, ItemObj);
+          begin
+            if Span.Length > 0 then
+              Deserialize(Span, ItemObj)
+            else
+              Deserialize(Bytes, ItemObj);
+          end;
           ObjList.Add(ItemObj);
         end;
         Result := True;
       end;
   end;
+end;
+
+class function TProtobufSerializer.TrySerializeDirectToStream(Obj: TObject; Stream: TStream): Boolean;
+var
+  Plan: IDextTypeCodecPlan;
+  Field: TDextFieldPlan;
+begin
+  Result := False;
+  if (not Assigned(Obj)) or (not Assigned(Stream)) then Exit;
+  Plan := TDextTypeModel.GetPlan(Obj.ClassInfo);
+  if (Plan = nil) or not Plan.HasDirectAccess then Exit;
+  for Field in Plan.GetFields do
+    SerializeDirectField(Stream, Obj, Field);
+  Result := True;
 end;
 
 class function TProtobufSerializer.TrySerializeDirect(Obj: TObject;
@@ -1016,8 +1112,17 @@ end;
 
 class function TProtobufSerializer.TryDeserializeDirect(const Bytes: TBytes;
   Obj: TObject): Boolean;
+begin
+  if Length(Bytes) > 0 then
+    Result := TryDeserializeDirect(TByteSpan.Create(@Bytes[0], Length(Bytes)), Obj)
+  else
+    Result := False;
+end;
+
+class function TProtobufSerializer.TryDeserializeDirect(const Bytes: TByteSpan;
+  Obj: TObject): Boolean;
 var
-  Stream: TBytesStream;
+  Stream: TProtobufReadOnlySpanStream;
   Plan: IDextTypeCodecPlan;
   Field: TDextFieldPlan;
   Header: UInt64;
@@ -1026,14 +1131,14 @@ var
   Decoded: TValue;
 begin
   Result := False;
-  if (Length(Bytes) = 0) or not Assigned(Obj) then
+  if (Bytes.Length = 0) or not Assigned(Obj) then
     Exit;
 
   Plan := TDextTypeModel.GetPlan(Obj.ClassInfo);
   if (Plan = nil) or not Plan.HasDirectAccess then
     Exit;
 
-  Stream := TBytesStream.Create(Bytes);
+  Stream := TProtobufReadOnlySpanStream.Create(Bytes);
   try
     while Stream.Position < Stream.Size do
     begin
@@ -1058,6 +1163,30 @@ begin
   end;
   Result := True;
 end;
+class procedure TProtobufSerializer.SerializeToStream(Obj: TObject; Stream: TStream; Mode: TProtobufCodecMode);
+var
+  TagMap: IDictionary<Integer, IPropertyHandler>;
+  Key: Integer;
+  Handler: IPropertyHandler;
+  Val: TValue;
+begin
+  if (not Assigned(Obj)) or (not Assigned(Stream)) then
+    Exit;
+  if Mode in [pcmAuto, pcmGenerated] then
+    if TrySerializeGeneratedToStream(Obj, Stream) then
+      Exit;
+  if Mode in [pcmAuto, pcmDirect] then
+    if TrySerializeDirectToStream(Obj, Stream) then
+      Exit;
+  TagMap := GetTagMap(Obj.ClassType);
+  for Key in TagMap.Keys do
+  begin
+    Handler := TagMap[Key];
+    Val := Handler.GetValue(Obj);
+    SerializeField(Stream, Key, Val);
+  end;
+end;
+
 class function TProtobufSerializer.Serialize(Obj: TObject;
   Mode: TProtobufCodecMode): TBytes;
 var
@@ -1096,6 +1225,123 @@ begin
   end;
   SetLength(Result, Len);
 end;
+class procedure TProtobufSerializer.Deserialize(const Bytes: TByteSpan;
+  Obj: TObject; Mode: TProtobufCodecMode);
+var
+  Stream: TProtobufReadOnlySpanStream;
+  TagMap: IDictionary<Integer, IPropertyHandler>;
+  Tag: Integer;
+  WireType: Integer;
+  Header: UInt64;
+  Decoded: TValue;
+  ListObj: TObject;
+  ObjList: IObjectList;
+  ListIntf: IInterface;
+  Handler: IPropertyHandler;
+  Prop: TRttiProperty;
+  PropMeta: TTypeMetadata;
+begin
+  if (Bytes.Length = 0) or not Assigned(Obj) then
+    Exit;
+
+  if Mode in [pcmAuto, pcmGenerated] then
+    if TryDeserializeGenerated(Bytes, Obj) then
+      Exit;
+
+  if Mode in [pcmAuto, pcmDirect] then
+    if TryDeserializeDirect(Bytes, Obj) then
+      Exit;
+
+  Stream := TProtobufReadOnlySpanStream.Create(Bytes);
+  try
+    TagMap := GetTagMap(Obj.ClassType);
+
+    while Stream.Position < Stream.Size do
+    begin
+      Header := ReadVarint(Stream);
+      Tag := Header shr 3;
+      WireType := Header and 7;
+
+      if TagMap.TryGetValue(Tag, Handler) then
+      begin
+        Prop := TRttiProperty(Handler.Member);
+        if (Prop.PropertyType.TypeKind = tkClass) or
+           (Prop.PropertyType.TypeKind = tkInterface) then
+        begin
+          ObjList := nil;
+          if Prop.PropertyType.TypeKind = tkInterface then
+          begin
+            ListIntf := Handler.GetValue(Obj).AsInterface;
+            if Assigned(ListIntf) then
+              Supports(ListIntf, IObjectList, ObjList);
+          end
+          else
+          begin
+            ListObj := Handler.GetValue(Obj).AsObject;
+            if not Assigned(ListObj) then
+            begin
+              ListObj := TRttiInstanceType(Prop.PropertyType)
+                .MetaclassType.Create;
+              Handler.SetValue(Obj, ListObj);
+            end;
+            Supports(ListObj, IObjectList, ObjList);
+          end;
+
+          if Assigned(ObjList) then
+          begin
+            PropMeta := TReflection.GetMetadata(Prop.PropertyType.Handle);
+            if PropMeta.IsList and Assigned(PropMeta.ElementType) then
+            begin
+              Decoded := DeserializeField(Stream, WireType,
+                PropMeta.ElementType);
+              if not Decoded.IsEmpty then
+                ObjList.Add(Decoded.AsObject);
+            end
+            else
+            begin
+              case WireType of
+                0: ReadVarint(Stream);
+                1: Stream.Position := Stream.Position + 8;
+                2: Stream.Position := Stream.Position +
+                     Int64(ReadVarint(Stream));
+                5: Stream.Position := Stream.Position + 4;
+              end;
+            end;
+          end
+          else if Prop.PropertyType.TypeKind = tkClass then
+          begin
+            Decoded := DeserializeField(Stream, WireType,
+              Prop.PropertyType.Handle);
+            if not Decoded.IsEmpty then
+              Handler.SetValue(Obj, Decoded);
+          end;
+        end
+        else
+        begin
+          Decoded := DeserializeField(Stream, WireType,
+            Prop.PropertyType.Handle);
+          if not Decoded.IsEmpty then
+            Handler.SetValue(Obj, Decoded);
+        end;
+      end
+      else
+      begin
+        case WireType of
+          0: ReadVarint(Stream);
+          1: Stream.Position := Stream.Position + 8;
+          2: Stream.Position := Stream.Position + Int64(ReadVarint(Stream));
+          5: Stream.Position := Stream.Position + 4;
+        else
+          raise Exception.CreateFmt('Invalid wire type %d at tag %d',
+            [WireType, Tag]);
+        end;
+      end;
+    end;
+  finally
+    Stream.Free;
+  end;
+end;
+
 class procedure TProtobufSerializer.Deserialize(const Bytes: TBytes;
   Obj: TObject; Mode: TProtobufCodecMode);
 var

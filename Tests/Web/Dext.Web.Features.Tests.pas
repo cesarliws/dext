@@ -1,5 +1,7 @@
 unit Dext.Web.Features.Tests;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -51,7 +53,7 @@ type
   end;
 
   [ApiController, Route('/gzip-controller')]
-  TGzipTestController = class(TInterfacedObject)
+  TGzipTestController = class
   public
     [HttpGet]
     function GetLargeHtml: IResult;
@@ -86,7 +88,6 @@ end;
 
 procedure TGzipTestController.GetDirect(const Ctx: IHttpContext);
 begin
-  WriteLn('DEBUG: Ctx.Response ClassName = ' + TObject(Ctx.Response).ClassName);
   Ctx.Response.SetContentType('text/html');
   Ctx.Response.Write(StringOfChar('A', 40000) + '<h1>Hello World from Direct Controller!</h1>' + StringOfChar('B', 7000));
 end;
@@ -202,7 +203,7 @@ var
 begin
   // 1. Create and configure a local ephemeral HTTP server
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:0'); // Dynamic port selection
+    .UseUrls('http://127.0.0.1:0'); // Dynamic port selection
 
   Builder.Configure(procedure(App: IApplicationBuilder)
     begin
@@ -225,10 +226,16 @@ begin
       'test-client-secret'
     );
     try
-      HeaderVal := Provider.GetHeaderValue;
-
-      // 3. Assert
-      Should(HeaderVal).Be('Bearer mock-token-abc-123');
+      try
+        HeaderVal := Provider.GetHeaderValue;
+        Should(HeaderVal).Be('Bearer mock-token-abc-123');
+      except
+        on E: Exception do
+        begin
+          WriteLn('OAuth2 EXCEPTION: ' + E.ClassName + ': ' + E.Message);
+          raise;
+        end;
+      end;
     finally
       Provider.Free;
     end;
@@ -304,7 +311,7 @@ var
   Resp: IRestResponse;
 begin
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:0');
+    .UseUrls('http://127.0.0.1:0');
 
   Builder.Configure(procedure(App: IApplicationBuilder)
     begin
@@ -360,7 +367,7 @@ begin
     BinaryData[I] := I mod 256;
 
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:0');
+    .UseUrls('http://127.0.0.1:0');
 
   Builder.Configure(procedure(App: IApplicationBuilder)
     begin
@@ -412,7 +419,7 @@ begin
   TGzipTestController.Create.Free; // Force linker to keep TGzipTestController
 
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:58374');
+    .UseUrls('http://127.0.0.1:60455');
   (Builder as TWebHostBuilder).ConfigureServicesExtended(procedure(Services: TDextServices)
     begin
       Services.AddControllers;

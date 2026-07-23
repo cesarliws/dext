@@ -1,12 +1,12 @@
 ### Tests for DextFood API (PowerShell Version)
 $HostUrl = "http://localhost:9000"
 
-Write-Host "`n🧪 Testing DextFood API..." -ForegroundColor Cyan
+Write-Host "`n[TEST] Testing DextFood API..." -ForegroundColor Cyan
 Write-Host "================================`n"
 
 # Helper function to print response
 function Show-Response($Name, $Response) {
-    Write-Host "   ✅ $Name" -ForegroundColor Green
+    Write-Host "   [PASS] $Name" -ForegroundColor Green
     $Response | ConvertTo-Json -Depth 10 | Write-Host
     Write-Host "--------------------------------"
 }
@@ -17,7 +17,7 @@ try {
     Show-Response "Health Check" $Response
 }
 catch {
-    Write-Host "   ❌ Health Check Failed: $_" -ForegroundColor Red
+    Write-Host "   [FAIL] Health Check Failed: $_" -ForegroundColor Red
 }
 
 # 2. Create Order
@@ -27,10 +27,10 @@ try {
 }
 catch {
     if ($_.Exception.Response.StatusCode -eq 404) {
-        Write-Host "   ⚠️ Create Order (Post): Endpoint not found (404)" -ForegroundColor Yellow
+        Write-Host "   [WARN] Create Order (Post): Endpoint not found (404)" -ForegroundColor Yellow
     }
     else {
-        Write-Host "   ❌ Create Order Failed: $_" -ForegroundColor Red
+        Write-Host "   [FAIL] Create Order Failed: $_" -ForegroundColor Red
     }
 }
 
@@ -40,17 +40,17 @@ try {
     Show-Response "High Value Orders" $Orders
 }
 catch {
-    Write-Host "   ❌ Get High Value Orders Failed: $_" -ForegroundColor Red
+    Write-Host "   [FAIL] Get High Value Orders Failed: $_" -ForegroundColor Red
 }
 
 # 4. Get Super Orders (The one with the issue)
-Write-Host "🧪 Testing Super Orders (Debugging Serializer)..." -ForegroundColor Cyan
+Write-Host "[TEST] Testing Super Orders (Debugging Serializer)..." -ForegroundColor Cyan
 try {
     $SuperOrders = Invoke-RestMethod -Uri "$HostUrl/api/super-orders" -Method Get
     Show-Response "Super Orders Body" $SuperOrders
 }
 catch {
-    Write-Host "   ❌ Get Super Orders Failed: $_" -ForegroundColor Red
+    Write-Host "   [FAIL] Get Super Orders Failed: $_" -ForegroundColor Red
 }
 
-Write-Host "`n✨ All tests completed." -ForegroundColor Green
+Write-Host "`n* All tests completed." -ForegroundColor Green

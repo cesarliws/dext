@@ -350,14 +350,14 @@ begin
     var
       Ctx: TDbContext;
       List: IList<T>;
-      JsonStr: string;
+      JsonBytes: TBytes;
     begin
       Ctx := TDbContext(ADbContextClass.Create);
       try
         List := Ctx.Entities<T>.ToList;
-        JsonStr := TDextJson.Serialize(List);
+        JsonBytes := TDextJson.SerializeUtf8(List);
         Context.Response.SetContentType('application/json');
-        Context.Response.Write(JsonStr);
+        Context.Response.Write(JsonBytes);
       finally
         Ctx.Free;
       end;
@@ -371,7 +371,7 @@ begin
       JO: IDextJsonObject;
       ChangesArray: IDextJsonArray;
       ApplyResults: IList<TApplyItemResult>;
-      ResJson: string;
+      ResJson: TBytes;
       Reader: TStreamReader;
     begin
       Reader := TStreamReader.Create(Context.Request.Body, TEncoding.UTF8);
@@ -388,7 +388,7 @@ begin
         Ctx := TDbContext(ADbContextClass.Create);
         try
           ApplyResults := Store.ApplyChanges(T, ChangesArray, Ctx);
-          ResJson := TDextJson.Serialize(ApplyResults);
+          ResJson := TDextJson.SerializeUtf8(ApplyResults);
           Context.Response.SetContentType('application/json');
           Context.Response.Write(ResJson);
         finally

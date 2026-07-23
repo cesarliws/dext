@@ -1,5 +1,7 @@
 unit Dext.Logging.Sinks.APM.Tests;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -130,7 +132,7 @@ begin
   ReceivedPayload := '';
 
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:0');
+    .UseUrls('http://127.0.0.1:0');
 
   Builder.Configure(procedure(App: IApplicationBuilder)
     begin
@@ -215,7 +217,7 @@ begin
   ReceivedPayload := '';
 
   Builder := TWebHost.CreateDefaultBuilder
-    .UseUrls('http://localhost:0');
+    .UseUrls('http://127.0.0.1:0');
 
   Builder.Configure(procedure(App: IApplicationBuilder)
     begin

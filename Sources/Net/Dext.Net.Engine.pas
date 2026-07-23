@@ -20,6 +20,8 @@
 {***************************************************************************}
 unit Dext.Net.Engine;
 
+{$I Dext.inc}
+
 interface
 
 {$IF defined(DEXT_FORCE_INDY) or (CompilerVersion < 29.0)}

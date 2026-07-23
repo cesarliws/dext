@@ -89,19 +89,18 @@ type
   private
     FType: TDextJsonNodeType;
     FValueSpan: TByteSpan;
-    FStrValue: string;
+    FStrValue: PString;
     FStringDecoded: Boolean;
-    FNodeRef: IDextJsonNode;
+    FNodeRef: Pointer;
+    function GetNodeRef: IDextJsonNode; inline;
+    procedure SetNodeRef(const AValue: IDextJsonNode); inline;
   public
     procedure Init(AType: TDextJsonNodeType; const ASpan: TByteSpan);
     property NodeType: TDextJsonNodeType read FType;
     property ValueSpan: TByteSpan read FValueSpan;
-    property NodeRef: IDextJsonNode read FNodeRef;
+    property NodeRef: IDextJsonNode read GetNodeRef write SetNodeRef;
 
-    // We make NodeRef directly accessible by other classes inside the unit
-    // to bypass the read-only property restriction.
-    // However, FNodeRef is already in the private section of the record,
-    // but inside the same unit Delphi allows direct field access!
+    procedure SetStrValue(const S: string);
     function AsString: string;
     function AsInteger: Integer;
     function AsInt64: Int64;
@@ -141,6 +140,16 @@ type
     function ParseObject: IDextJsonObject;
     function ParseArray: IDextJsonArray;
   public
+    // SIMD (SSE2) scan of a JSON string BODY: returns the (0-based) offset
+    // of the first byte that is '"' (0x22), '\' (0x5C) or a control character
+    // (< 0x20); returns Len if none of these appear in the first Len bytes.
+    // This is the CORRECT stop set for ScanString (structural characters
+    // { } [ ] , : are legal inside a string and MUST NOT stop it).
+    class function ScanStringBody_SSE2(
+      Ptr: PByte;
+      Len: Integer
+    ): Integer; static;
+
     class function ScanStructural_SSE42(
       Ptr: PByte;
       Length: Integer
@@ -473,6 +482,35 @@ end;
 
 { TNextGenJsonValue }
 
+function TNextGenJsonValue.GetNodeRef: IDextJsonNode;
+begin
+  Result := IDextJsonNode(FNodeRef);
+end;
+
+procedure TNextGenJsonValue.SetNodeRef(const AValue: IDextJsonNode);
+begin
+  if FNodeRef <> nil then
+  begin
+    IDextJsonNode(FNodeRef)._Release;
+    FNodeRef := nil;
+  end;
+  if AValue <> nil then
+  begin
+    FNodeRef := Pointer(AValue);
+    AValue._AddRef;
+  end;
+end;
+
+procedure TNextGenJsonValue.SetStrValue(const S: string);
+begin
+  if S <> '' then
+  begin
+    if FStrValue = nil then New(FStrValue);
+    FStrValue^ := S;
+    FStringDecoded := True;
+  end;
+end;
+
 procedure TNextGenJsonValue.Init(
   AType: TDextJsonNodeType;
   const ASpan: TByteSpan
@@ -480,7 +518,7 @@ procedure TNextGenJsonValue.Init(
 begin
   FType := AType;
   FValueSpan := ASpan;
-  FStrValue := '';
+  FStrValue := nil;
   FStringDecoded := False;
   FNodeRef := nil;
 end;
@@ -496,14 +534,9 @@ var
   C: Char;
 begin
   if FType = TDextJsonNodeType.jntNull then Exit('');
-  if FStringDecoded then Exit(FStrValue);
+  if FStrValue <> nil then Exit(FStrValue^);
   Raw := FValueSpan.ToString;
-  if Pos('\', Raw) = 0 then
-  begin
-    FStrValue := Raw;
-    FStringDecoded := True;
-    Exit(FStrValue);
-  end;
+  if Pos('\', Raw) = 0 then Exit(Raw);
   Builder := TStringBuilder.Create(Length(Raw));
   try
     I := 1; Start := 1;
@@ -538,30 +571,30 @@ begin
       Inc(I); Start := I;
     end;
     if Start <= Length(Raw) then Builder.Append(Copy(Raw, Start, Length(Raw) - Start + 1));
-    FStrValue := Builder.ToString; FStringDecoded := True; Result := FStrValue;
+    Result := Builder.ToString;
   finally Builder.Free; end;
 end;
 
 function TNextGenJsonValue.AsInteger: Integer;
 begin
-  if FStrValue <> '' then
-    Result := StrToIntDef(FStrValue, 0)
+  if (FStrValue <> nil) and (FStrValue^ <> '') then
+    Result := StrToIntDef(FStrValue^, 0)
   else
     Result := Integer(AsInt64);
 end;
 
 function TNextGenJsonValue.AsInt64: Int64;
 begin
-  if FStrValue <> '' then
-    Result := StrToInt64Def(FStrValue, 0)
+  if (FStrValue <> nil) and (FStrValue^ <> '') then
+    Result := StrToInt64Def(FStrValue^, 0)
   else
     Result := TNextGenJsonParser.ParseInt64(FValueSpan);
 end;
 
 function TNextGenJsonValue.AsDouble: Double;
 begin
-  if FStrValue <> '' then
-    Result := StrToFloatDef(FStrValue, 0.0, TFormatSettings.Invariant)
+  if (FStrValue <> nil) and (FStrValue^ <> '') then
+    Result := StrToFloatDef(FStrValue^, 0.0, TFormatSettings.Invariant)
   else
     Result := TNextGenJsonParser.ParseNumber(FValueSpan);
 end;
@@ -570,8 +603,8 @@ function TNextGenJsonValue.AsBoolean: Boolean;
 begin
   if FType = TDextJsonNodeType.jntBoolean then
   begin
-    if FStrValue <> '' then
-      Result := FStrValue.ToLower = 'true'
+    if (FStrValue <> nil) and (FStrValue^ <> '') then
+      Result := FStrValue^.ToLower = 'true'
     else
       Result := FValueSpan.EqualsString('true');
   end
@@ -613,12 +646,19 @@ var
   B: Byte;
   HexIdx: Integer;
   HexByte: Byte;
+  Rem: NativeInt;
 begin
   while APtr < FEnd do
   begin
-    while (APtr < FEnd) and (APtr^ >= 32) and
-          (APtr^ <> Ord('"')) and (APtr^ <> Ord('\')) do
-      Inc(APtr);
+    // String body scan: for long chunks (>= 16 bytes) use SIMD (SSE2),
+    // otherwise use the scalar loop for short remainders (typical DTOs).
+    Rem := FEnd - APtr;
+    if Rem >= 16 then
+      Inc(APtr, ScanStringBody_SSE2(APtr, Integer(Rem)))
+    else
+      while (APtr < FEnd) and (APtr^ >= 32) and
+            (APtr^ <> Ord('"')) and (APtr^ <> Ord('\')) do
+        Inc(APtr);
 
     if APtr >= FEnd then
       Break;
@@ -770,6 +810,95 @@ begin
   end;
   Result := Val * Sign;
 end;
+
+class function TNextGenJsonParser.ScanStringBody_SSE2(
+  Ptr: PByte;
+  Len: Integer
+): Integer;
+{$IF defined(CPUX64) and defined(MSWINDOWS)}
+asm
+  // Win64: RCX = Ptr, EDX = Len. Return in EAX = offset of the first stop byte
+  // ('"' / '\' / <0x20), or Len if none appears. Pure SSE2 (baseline on x64):
+  // no pcmpistri (implicit NUL termination makes control char handling subtle).
+  // No over-read: 16-byte blocks start only when >= 16 bytes remain, the rest is scalar.
+  mov     r8, rcx              // r8 = base ptr
+  movsxd  r9, edx              // r9 = Len
+  xor     r10, r10             // r10 = i = 0
+
+  // Broadcast constants to all 16 lanes: 0x22 ('"'), 0x5C ('\'), 0x1F.
+  mov     eax, $22222222
+  movd    xmm1, eax
+  pshufd  xmm1, xmm1, 0
+  mov     eax, $5C5C5C5C
+  movd    xmm2, eax
+  pshufd  xmm2, xmm2, 0
+  mov     eax, $1F1F1F1F
+  movd    xmm3, eax
+  pshufd  xmm3, xmm3, 0
+
+@Loop16:
+  mov     rax, r9
+  sub     rax, r10
+  cmp     rax, 16
+  jl      @Tail
+  movdqu  xmm0, [r8 + r10]     // 16 bytes
+  movdqa  xmm4, xmm0
+  pcmpeqb xmm4, xmm1           // == '"'
+  movdqa  xmm5, xmm0
+  pcmpeqb xmm5, xmm2           // == '\'
+  por     xmm4, xmm5
+  movdqa  xmm5, xmm0
+  pminub  xmm5, xmm3           // min(v, 0x1F)
+  pcmpeqb xmm5, xmm0           // == v  -> byte <= 0x1F (control)
+  por     xmm4, xmm5
+  pmovmskb eax, xmm4
+  test    eax, eax
+  jnz     @FoundVec
+  add     r10, 16
+  jmp     @Loop16
+
+@FoundVec:
+  bsf     eax, eax             // index of first set bit -> 0..15
+  add     r10, rax
+  mov     rax, r10
+  ret
+
+@Tail:
+  cmp     r10, r9
+  jge     @NotFound
+  movzx   eax, byte ptr [r8 + r10]
+  cmp     al, $22
+  je      @FoundScalar
+  cmp     al, $5C
+  je      @FoundScalar
+  cmp     al, $20
+  jb      @FoundScalar         // < 0x20 (unsigned)
+  inc     r10
+  jmp     @Tail
+
+@FoundScalar:
+  mov     rax, r10
+  ret
+
+@NotFound:
+  mov     rax, r9              // = Len (no stop char in first Len bytes)
+end;
+{$ELSE}
+var
+  I: Integer;
+  B: Byte;
+begin
+  I := 0;
+  while I < Len do
+  begin
+    B := Ptr[I];
+    if (B = Ord('"')) or (B = Ord('\')) or (B < 32) then
+      Exit(I);
+    Inc(I);
+  end;
+  Result := Len;
+end;
+{$ENDIF}
 
 class function TNextGenJsonParser.ScanStructural_SSE42(
   Ptr: PByte;
@@ -1011,7 +1140,7 @@ begin
       TDextJsonNodeType.jntObject,
       TByteSpan.Create(FPtr, 0)
     );
-    Val.FNodeRef := ParseObject;
+    Val.NodeRef := ParseObject;
     Exit(Val);
   end;
 
@@ -1021,7 +1150,7 @@ begin
       TDextJsonNodeType.jntArray,
       TByteSpan.Create(FPtr, 0)
     );
-    Val.FNodeRef := ParseArray;
+    Val.NodeRef := ParseArray;
     Exit(Val);
   end;
 
@@ -1051,11 +1180,17 @@ begin
     raise EJsonException.Create('Expected value');
 
   ValSpan := TByteSpan.Create(StartPos, FPtr - StartPos);
-  if ValSpan.EqualsString('true') then
+  // Dispatch on the FIRST byte: only 't'/'f'/'n' can be true/false/null.
+  // For numbers (first byte digit or '-'), skip literal comparisons entirely
+  // -- EqualsString re-scans each literal for the ASCII check and was called
+  // up to 3 times for EVERY value. Semantics unchanged: a non-numeric bareword
+  // that is not exactly true/false/null still falls through to the number branch
+  // (where validation fails), exactly as before.
+  if (StartPos^ = Ord('t')) and ValSpan.EqualsString('true') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
-  else if ValSpan.EqualsString('false') then
+  else if (StartPos^ = Ord('f')) and ValSpan.EqualsString('false') then
     Val.Init(TDextJsonNodeType.jntBoolean, ValSpan)
-  else if ValSpan.EqualsString('null') then
+  else if (StartPos^ = Ord('n')) and ValSpan.EqualsString('null') then
     Val.Init(TDextJsonNodeType.jntNull, ValSpan)
   else
   begin
@@ -1176,7 +1311,7 @@ end;
 
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
-function GetKeyHash(const K: TJsonKey): Cardinal; inline;
+function GetKeyHash(const K: TJsonKey): Cardinal;
 var
   I: Integer;
 begin
@@ -1193,7 +1328,7 @@ begin
   end;
 end;
 
-function GetStringHash(const S: string): Cardinal; inline;
+function GetStringHash(const S: string): Cardinal;
 var
   I: Integer;
 begin
@@ -1227,7 +1362,16 @@ begin
 end;
 
 destructor TJsonObject.Destroy;
+var
+  I: Integer;
 begin
+  for I := 0 to FCount - 1 do
+  begin
+    if FPairs[I].Value.FStrValue <> nil then
+      Dispose(FPairs[I].Value.FStrValue);
+    if FPairs[I].Value.FNodeRef <> nil then
+      IDextJsonNode(FPairs[I].Value.FNodeRef)._Release;
+  end;
   inherited Destroy;
 end;
 
@@ -1405,6 +1549,10 @@ begin
   Idx := FindKey(AKey);
   if Idx >= 0 then
   begin
+    if FPairs[Idx].Value.FStrValue <> nil then
+      Dispose(FPairs[Idx].Value.FStrValue);
+    if FPairs[Idx].Value.FNodeRef <> nil then
+      IDextJsonNode(FPairs[Idx].Value.FNodeRef)._Release;
     FPairs[Idx].Value := AValue;
   end
   else
@@ -1477,22 +1625,22 @@ begin
       Val := Obj.FPairs[I].Value;
       case Val.FType of
         TDextJsonNodeType.jntObject, TDextJsonNodeType.jntArray:
-          NodeToWriter(Val.FNodeRef, AWriter);
+          NodeToWriter(Val.NodeRef, AWriter);
         TDextJsonNodeType.jntString:
-          if Val.FStrValue <> '' then
-            AWriter.WriteStringValue(Val.FStrValue)
+          if (Val.FStrValue <> nil) and (Val.FStrValue^ <> '') then
+            AWriter.WriteStringValue(Val.FStrValue^)
           else
             AWriter.WriteStringValue(Val.FValueSpan);
         TDextJsonNodeType.jntNull:
           AWriter.WriteNull;
         TDextJsonNodeType.jntNumber, TDextJsonNodeType.jntBoolean:
-          if Val.FStrValue <> '' then
+          if (Val.FStrValue <> nil) and (Val.FStrValue^ <> '') then
           begin
             if Val.FType = TDextJsonNodeType.jntBoolean then
-              AWriter.WriteBoolean(Val.FStrValue = 'true')
+              AWriter.WriteBoolean(Val.FStrValue^ = 'true')
             else
             begin
-              U8 := TEncoding.UTF8.GetBytes(Val.FStrValue);
+              U8 := TEncoding.UTF8.GetBytes(Val.FStrValue^);
               AWriter.WriteRawValue(TByteSpan.FromBytes(U8));
             end;
           end
@@ -1511,22 +1659,22 @@ begin
       Val := Arr.FValues[I];
       case Val.FType of
         TDextJsonNodeType.jntObject, TDextJsonNodeType.jntArray:
-          NodeToWriter(Val.FNodeRef, AWriter);
+          NodeToWriter(Val.NodeRef, AWriter);
         TDextJsonNodeType.jntString:
-          if Val.FStrValue <> '' then
-            AWriter.WriteStringValue(Val.FStrValue)
+          if (Val.FStrValue <> nil) and (Val.FStrValue^ <> '') then
+            AWriter.WriteStringValue(Val.FStrValue^)
           else
             AWriter.WriteStringValue(Val.FValueSpan);
         TDextJsonNodeType.jntNull:
           AWriter.WriteNull;
         TDextJsonNodeType.jntNumber, TDextJsonNodeType.jntBoolean:
-          if Val.FStrValue <> '' then
+          if (Val.FStrValue <> nil) and (Val.FStrValue^ <> '') then
           begin
             if Val.FType = TDextJsonNodeType.jntBoolean then
-              AWriter.WriteBoolean(Val.FStrValue = 'true')
+              AWriter.WriteBoolean(Val.FStrValue^ = 'true')
             else
             begin
-              U8 := TEncoding.UTF8.GetBytes(Val.FStrValue);
+              U8 := TEncoding.UTF8.GetBytes(Val.FStrValue^);
               AWriter.WriteRawValue(TByteSpan.FromBytes(U8));
             end;
           end
@@ -1684,7 +1832,7 @@ begin
   begin
     if (FPairs[Idx].Value.NodeType = TDextJsonNodeType.jntObject) or
        (FPairs[Idx].Value.NodeType = TDextJsonNodeType.jntArray) then
-      Result := FPairs[Idx].Value.FNodeRef
+      Result := FPairs[Idx].Value.NodeRef
     else
       Result := TNextGenJsonPrimitive.Create(FPairs[Idx].Value);
   end
@@ -1774,10 +1922,8 @@ procedure TJsonObject.SetString(const Name, Value: string);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntString;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := Value;
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntString, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(Value);
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1785,10 +1931,8 @@ procedure TJsonObject.SetInteger(const Name: string; Value: Integer);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNumber;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := IntToStr(Value);
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNumber, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(IntToStr(Value));
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1796,10 +1940,8 @@ procedure TJsonObject.SetInt64(const Name: string; Value: Int64);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNumber;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := IntToStr(Value);
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNumber, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(IntToStr(Value));
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1807,10 +1949,8 @@ procedure TJsonObject.SetDouble(const Name: string; Value: Double);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNumber;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := FloatToStr(Value, TFormatSettings.Invariant);
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNumber, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(FloatToStr(Value, TFormatSettings.Invariant));
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1818,10 +1958,8 @@ procedure TJsonObject.SetBoolean(const Name: string; Value: Boolean);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntBoolean;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  if Value then Val.FStrValue := 'true' else Val.FStrValue := 'false';
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntBoolean, TByteSpan.Create(nil, 0));
+  if Value then Val.SetStrValue('true') else Val.SetStrValue('false');
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1832,10 +1970,8 @@ procedure TJsonObject.SetObject(
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntObject;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := Value;
+  Val.Init(TDextJsonNodeType.jntObject, TByteSpan.Create(nil, 0));
+  Val.NodeRef := Value;
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1846,10 +1982,8 @@ procedure TJsonObject.SetArray(
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntArray;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := Value;
+  Val.Init(TDextJsonNodeType.jntArray, TByteSpan.Create(nil, 0));
+  Val.NodeRef := Value;
   AddOrReplacePair(Name, Val);
 end;
 
@@ -1863,19 +1997,16 @@ begin
     Exit;
   end;
 
-  Val.FType := Value.GetNodeType;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := nil;
+  Val.Init(Value.GetNodeType, TByteSpan.Create(nil, 0));
 
   case Val.FType of
-    TDextJsonNodeType.jntString: Val.FStrValue := Value.AsString;
-    TDextJsonNodeType.jntNumber: Val.FStrValue :=
-      FloatToStr(Value.AsDouble, TFormatSettings.Invariant);
+    TDextJsonNodeType.jntString: Val.SetStrValue(Value.AsString);
+    TDextJsonNodeType.jntNumber: Val.SetStrValue(
+      FloatToStr(Value.AsDouble, TFormatSettings.Invariant));
     TDextJsonNodeType.jntBoolean:
-      if Value.AsBoolean then Val.FStrValue := 'true' else Val.FStrValue := 'false';
+      if Value.AsBoolean then Val.SetStrValue('true') else Val.SetStrValue('false');
     TDextJsonNodeType.jntObject, TDextJsonNodeType.jntArray:
-      Val.FNodeRef := Value;
+      Val.NodeRef := Value;
   end;
 
   AddOrReplacePair(Name, Val);
@@ -1885,10 +2016,7 @@ procedure TJsonObject.SetNull(const Name: string);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNull;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNull, TByteSpan.Create(nil, 0));
   AddOrReplacePair(Name, Val);
 end;
 
@@ -2009,7 +2137,16 @@ begin
 end;
 
 destructor TJsonArray.Destroy;
+var
+  I: Integer;
 begin
+  for I := 0 to FCount - 1 do
+  begin
+    if FValues[I].FStrValue <> nil then
+      Dispose(FValues[I].FStrValue);
+    if FValues[I].FNodeRef <> nil then
+      IDextJsonNode(FValues[I].FNodeRef)._Release;
+  end;
   inherited Destroy;
 end;
 
@@ -2089,7 +2226,7 @@ begin
   begin
     if (FValues[Index].NodeType = TDextJsonNodeType.jntObject) or
        (FValues[Index].NodeType = TDextJsonNodeType.jntArray) then
-      Result := FValues[Index].FNodeRef
+      Result := FValues[Index].NodeRef
     else
       Result := TNextGenJsonPrimitive.Create(FValues[Index]);
   end
@@ -2151,10 +2288,8 @@ procedure TJsonArray.Add(const Value: string);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntString;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := Value;
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntString, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(Value);
   AddValue(Val);
 end;
 
@@ -2162,10 +2297,8 @@ procedure TJsonArray.Add(Value: Integer);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNumber;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := IntToStr(Value);
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNumber, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(IntToStr(Value));
   AddValue(Val);
 end;
 
@@ -2173,10 +2306,8 @@ procedure TJsonArray.Add(Value: Int64);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNumber;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := IntToStr(Value);
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNumber, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(IntToStr(Value));
   AddValue(Val);
 end;
 
@@ -2184,10 +2315,8 @@ procedure TJsonArray.Add(Value: Double);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNumber;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := FloatToStr(Value, TFormatSettings.Invariant);
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNumber, TByteSpan.Create(nil, 0));
+  Val.SetStrValue(FloatToStr(Value, TFormatSettings.Invariant));
   AddValue(Val);
 end;
 
@@ -2195,10 +2324,8 @@ procedure TJsonArray.Add(Value: Boolean);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntBoolean;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  if Value then Val.FStrValue := 'true' else Val.FStrValue := 'false';
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntBoolean, TByteSpan.Create(nil, 0));
+  if Value then Val.SetStrValue('true') else Val.SetStrValue('false');
   AddValue(Val);
 end;
 
@@ -2206,10 +2333,8 @@ procedure TJsonArray.Add(Value: IDextJsonObject);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntObject;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := Value;
+  Val.Init(TDextJsonNodeType.jntObject, TByteSpan.Create(nil, 0));
+  Val.NodeRef := Value;
   AddValue(Val);
 end;
 
@@ -2217,10 +2342,8 @@ procedure TJsonArray.Add(Value: IDextJsonArray);
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntArray;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := Value;
+  Val.Init(TDextJsonNodeType.jntArray, TByteSpan.Create(nil, 0));
+  Val.NodeRef := Value;
   AddValue(Val);
 end;
 
@@ -2228,10 +2351,7 @@ procedure TJsonArray.AddNull;
 var
   Val: TNextGenJsonValue;
 begin
-  Val.FType := TDextJsonNodeType.jntNull;
-  Val.FValueSpan := TByteSpan.Create(nil, 0);
-  Val.FStrValue := '';
-  Val.FNodeRef := nil;
+  Val.Init(TDextJsonNodeType.jntNull, TByteSpan.Create(nil, 0));
   AddValue(Val);
 end;
 
@@ -2486,7 +2606,18 @@ var
   I: Integer;
 begin
   for I := 0 to AnObj.FCount - 1 do
-    AnObj.FPairs[I].Value.FNodeRef := nil;
+  begin
+    if AnObj.FPairs[I].Value.FStrValue <> nil then
+    begin
+      Dispose(AnObj.FPairs[I].Value.FStrValue);
+      AnObj.FPairs[I].Value.FStrValue := nil;
+    end;
+    if AnObj.FPairs[I].Value.FNodeRef <> nil then
+    begin
+      IDextJsonNode(AnObj.FPairs[I].Value.FNodeRef)._Release;
+      AnObj.FPairs[I].Value.FNodeRef := nil;
+    end;
+  end;
   AnObj.FCount := 0;
   AnObj.FKeepAlive := nil;
 
@@ -2517,7 +2648,18 @@ var
   I: Integer;
 begin
   for I := 0 to AnArr.FCount - 1 do
-    AnArr.FValues[I].FNodeRef := nil;
+  begin
+    if AnArr.FValues[I].FStrValue <> nil then
+    begin
+      Dispose(AnArr.FValues[I].FStrValue);
+      AnArr.FValues[I].FStrValue := nil;
+    end;
+    if AnArr.FValues[I].FNodeRef <> nil then
+    begin
+      IDextJsonNode(AnArr.FValues[I].FNodeRef)._Release;
+      AnArr.FValues[I].FNodeRef := nil;
+    end;
+  end;
   AnArr.FCount := 0;
   AnArr.FKeepAlive := nil;
 
@@ -2545,23 +2687,49 @@ end;
 { TNextGenJsonPool -- thin facade delegating to the current thread's pool }
 
 class function TNextGenJsonPool.RentObject: TJsonObject;
+var
+  Pool: TThreadNodePool;
 begin
-  Result := CurrentNodePool.RentObject;
+  Pool := CurrentNodePool;
+  if Pool <> nil then
+    Result := Pool.RentObject
+  else
+    Result := TJsonObject.Create(True);
 end;
 
 class procedure TNextGenJsonPool.ReturnObject(AnObj: TJsonObject);
+var
+  Pool: TThreadNodePool;
 begin
-  CurrentNodePool.ReturnObject(AnObj);
+  if AnObj = nil then Exit;
+  Pool := CurrentNodePool;
+  if Pool <> nil then
+    Pool.ReturnObject(AnObj)
+  else
+    AnObj.Free;
 end;
 
 class function TNextGenJsonPool.RentArray: TJsonArray;
+var
+  Pool: TThreadNodePool;
 begin
-  Result := CurrentNodePool.RentArray;
+  Pool := CurrentNodePool;
+  if Pool <> nil then
+    Result := Pool.RentArray
+  else
+    Result := TJsonArray.Create(True);
 end;
 
 class procedure TNextGenJsonPool.ReturnArray(AnArr: TJsonArray);
+var
+  Pool: TThreadNodePool;
 begin
-  CurrentNodePool.ReturnArray(AnArr);
+  if AnArr = nil then Exit;
+  Pool := CurrentNodePool;
+  if Pool <> nil then
+    Pool.ReturnArray(AnArr)
+  else
+    AnArr.Free;
 end;
 
 class procedure TNextGenJsonPool.ClearPool;

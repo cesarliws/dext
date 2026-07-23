@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -269,9 +269,20 @@ begin
 end;
 
 procedure TDextHttp2Stream.AppendHeaderFragment(AData: PByte; ALen: Integer);
+var
+  Required: Integer;
+  NewCapacity: Integer;
 begin
-  if FHeaderBlockLen + ALen > Length(FHeaderBlockBuffer) then
-    SetLength(FHeaderBlockBuffer, FHeaderBlockLen + ALen + 256);
+  Required := FHeaderBlockLen + ALen;
+  if Required > Length(FHeaderBlockBuffer) then
+  begin
+    NewCapacity := Length(FHeaderBlockBuffer);
+    if NewCapacity < 256 then
+      NewCapacity := 256;
+    while NewCapacity < Required do
+      NewCapacity := NewCapacity * 2;
+    SetLength(FHeaderBlockBuffer, NewCapacity);
+  end;
   if ALen > 0 then
     Move(AData^, FHeaderBlockBuffer[FHeaderBlockLen], ALen);
   Inc(FHeaderBlockLen, ALen);
@@ -284,9 +295,20 @@ begin
 end;
 
 procedure TDextHttp2Stream.AppendData(AData: PByte; ALen: Integer);
+var
+  Required: Integer;
+  NewCapacity: Integer;
 begin
-  if FDataLen + ALen > Length(FDataBuffer) then
-    SetLength(FDataBuffer, FDataLen + ALen + 512);
+  Required := FDataLen + ALen;
+  if Required > Length(FDataBuffer) then
+  begin
+    NewCapacity := Length(FDataBuffer);
+    if NewCapacity < 512 then
+      NewCapacity := 512;
+    while NewCapacity < Required do
+      NewCapacity := NewCapacity * 2;
+    SetLength(FDataBuffer, NewCapacity);
+  end;
   if ALen > 0 then
     Move(AData^, FDataBuffer[FDataLen], ALen);
   Inc(FDataLen, ALen);
@@ -364,8 +386,16 @@ begin
   // Grow arrays if needed
   if FCount >= Length(FIds) then
   begin
-    SetLength(FIds, FCount + 16);
-    SetLength(FStreams, FCount + 16);
+    if FCount = 0 then
+    begin
+      SetLength(FIds, 16);
+      SetLength(FStreams, 16);
+    end
+    else
+    begin
+      SetLength(FIds, FCount * 2);
+      SetLength(FStreams, FCount * 2);
+    end;
   end;
 
   // Shift right to maintain sorted order

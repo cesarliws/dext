@@ -59,17 +59,53 @@ implementation
 
 class function TMediaTypeHeaderValue.ParseList(const AHeaderValue: string): TArray<TMediaTypeHeaderValue>;
 var
-  Parts: TArray<string>;
-  Item: string;
   List: IList<TMediaTypeHeaderValue>;
-  MediaRange: string;
-  Params: TArray<string>;
-  i: Integer;
+  Len: Integer;
+  PosIdx: Integer;
+  ItemStart: Integer;
+  ItemEnd: Integer;
+  ParamStart: Integer;
+  ParamEnd: Integer;
+  SemiIdx: Integer;
   MediaTypeVal: TMediaTypeHeaderValue;
   P: string;
   QStr: string;
+
+  function TrimCopy(AStart, AEnd: Integer): string;
+  begin
+    while (AStart <= AEnd) and ((AHeaderValue[AStart] = ' ') or
+      (AHeaderValue[AStart] = #9)) do
+      Inc(AStart);
+    while (AEnd >= AStart) and ((AHeaderValue[AEnd] = ' ') or
+      (AHeaderValue[AEnd] = #9)) do
+      Dec(AEnd);
+    if AStart <= AEnd then
+      Result := Copy(AHeaderValue, AStart, AEnd - AStart + 1)
+    else
+      Result := '';
+  end;
+
+  function IsBlankHeader: Boolean;
+  var
+    i: Integer;
+  begin
+    for i := 1 to Length(AHeaderValue) do
+      if (AHeaderValue[i] <> ' ') and (AHeaderValue[i] <> #9) then
+        Exit(False);
+    Result := True;
+  end;
+
+  function HasComplexAcceptSyntax: Boolean;
+  var
+    i: Integer;
+  begin
+    for i := 1 to Length(AHeaderValue) do
+      if (AHeaderValue[i] = ',') or (AHeaderValue[i] = ';') then
+        Exit(True);
+    Result := False;
+  end;
 begin
-  if AHeaderValue.Trim = '' then
+  if IsBlankHeader then
   begin
     SetLength(Result, 1);
     Result[0].MediaType := '*/*';
@@ -77,34 +113,68 @@ begin
     Exit;
   end;
 
+  if not HasComplexAcceptSyntax then
+  begin
+    SetLength(Result, 1);
+    Result[0].MediaType := TrimCopy(1, Length(AHeaderValue));
+    if Result[0].MediaType = '' then
+      Result[0].MediaType := '*/*';
+    Result[0].Quality := 1.0;
+    Exit;
+  end;
+
   List := TCollections.CreateList<TMediaTypeHeaderValue>;
   try
-    Parts := AHeaderValue.Split([',']);
-    for Item in Parts do
+    Len := Length(AHeaderValue);
+    PosIdx := 1;
+    while PosIdx <= Len do
     begin
-      MediaRange := Item.Trim;
-      if MediaRange = '' then Continue;
+      while (PosIdx <= Len) and ((AHeaderValue[PosIdx] = ',') or
+        (AHeaderValue[PosIdx] = ' ') or (AHeaderValue[PosIdx] = #9)) do
+        Inc(PosIdx);
+      if PosIdx > Len then
+        Break;
 
-      // Parse parameters (e.g. application/json; q=0.9)
-      Params := MediaRange.Split([';']);
-      
-      // var MediaTypeVal: TMediaTypeHeaderValue;
-      MediaTypeVal.MediaType := Params[0].Trim.ToLower;
-      MediaTypeVal.Quality := 1.0; // Default
+      ItemStart := PosIdx;
+      while (PosIdx <= Len) and (AHeaderValue[PosIdx] <> ',') do
+        Inc(PosIdx);
+      ItemEnd := PosIdx - 1;
 
-      for i := 1 to High(Params) do
+      SemiIdx := ItemStart;
+      while (SemiIdx <= ItemEnd) and (AHeaderValue[SemiIdx] <> ';') do
+        Inc(SemiIdx);
+
+      MediaTypeVal.MediaType := TrimCopy(ItemStart, SemiIdx - 1);
+      MediaTypeVal.Quality := 1.0;
+      if MediaTypeVal.MediaType <> '' then
       begin
-        P := Params[i].Trim;
-        if P.StartsWith('q=', True) then
+        ParamStart := SemiIdx + 1;
+        while ParamStart <= ItemEnd do
         begin
-          QStr := P.Substring(2);
-          // Handle dot or comma decimal separator if needed, usually dot in HTTP
-          // Use Val or TryStrToFloat with specific settings to be safe
-          MediaTypeVal.Quality := StrToFloatDef(QStr, 1.0, TFormatSettings.Invariant);
+          while (ParamStart <= ItemEnd) and ((AHeaderValue[ParamStart] = ';') or
+            (AHeaderValue[ParamStart] = ' ') or (AHeaderValue[ParamStart] = #9)) do
+            Inc(ParamStart);
+          if ParamStart > ItemEnd then
+            Break;
+
+          ParamEnd := ParamStart;
+          while (ParamEnd <= ItemEnd) and (AHeaderValue[ParamEnd] <> ';') do
+            Inc(ParamEnd);
+
+          P := TrimCopy(ParamStart, ParamEnd - 1);
+          if P.StartsWith('q=', True) then
+          begin
+            QStr := P.Substring(2);
+            MediaTypeVal.Quality := StrToFloatDef(QStr, 1.0,
+              TFormatSettings.Invariant);
+          end;
+          ParamStart := ParamEnd + 1;
         end;
+
+        List.Add(MediaTypeVal);
       end;
-      
-      List.Add(MediaTypeVal);
+
+      Inc(PosIdx);
     end;
 
     // Sort by Quality descending
@@ -113,9 +183,9 @@ begin
       begin
         if Left.Quality > Right.Quality then Result := -1
         else if Left.Quality < Right.Quality then Result := 1
-        else Result := 0; 
+        else Result := 0;
       end));
-      
+
     Result := List.ToArray;
   finally
     // List is ARC

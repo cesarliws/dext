@@ -37,15 +37,15 @@ $PackagesDir = Join-Path $RepoRoot 'Packages'
 #  Folder         : target subfolder inside Packages/
 #  ProductVersion : value to substitute for $(ProductVersion) in output paths
 #  DllSuffix      : literal DllSuffix value (empty string = keep $(Auto))
-#  UseAutoSuffix  : $true  â†’ keep $(Auto) in .dproj and {$LIBSUFFIX AUTO} in .dpk
-#                   $false â†’ replace with DllSuffix literal
+#  UseAutoSuffix  : $true      keep $(Auto) in .dproj and {$LIBSUFFIX AUTO} in .dpk
+#                   $false     replace with DllSuffix literal
 # ---------------------------------------------------------------------------
 $Versions = @(
-    # Versions that natively support $(ProductVersion) and $(Auto) â€” Sydney+
+    # Versions that natively support $(ProductVersion) and $(Auto)     Sydney+
     [PSCustomObject]@{ Folder = 'd12';      ProductVersion = '23.0'; DllSuffix = '';    UseAutoSuffix = $true  }
     [PSCustomObject]@{ Folder = 'd11';      ProductVersion = '22.0'; DllSuffix = '';    UseAutoSuffix = $true  }
     [PSCustomObject]@{ Folder = 'dsydney';  ProductVersion = '21.0'; DllSuffix = '';    UseAutoSuffix = $true  }
-    # Versions that require literal substitution â€” pre-Sydney
+    # Versions that require literal substitution     pre-Sydney
     [PSCustomObject]@{ Folder = 'drio';     ProductVersion = '20.0'; DllSuffix = '260'; UseAutoSuffix = $false }
     [PSCustomObject]@{ Folder = 'dtokyo';   ProductVersion = '19.0'; DllSuffix = '250'; UseAutoSuffix = $false }
     [PSCustomObject]@{ Folder = 'dberlin';  ProductVersion = '18.0'; DllSuffix = '240'; UseAutoSuffix = $false }

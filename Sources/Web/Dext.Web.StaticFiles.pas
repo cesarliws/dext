@@ -107,7 +107,7 @@ end;
 
 class function TContentTypeProvider.NormalizeExtension(const AExtension: string): string;
 begin
-  Result := AExtension.Trim.ToLower;
+  Result := AExtension.Trim;
   if Result = '' then
     Exit('');
   if not Result.StartsWith('.') then

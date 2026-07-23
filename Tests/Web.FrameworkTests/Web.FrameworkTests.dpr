@@ -1,5 +1,8 @@
 ﻿program Web.FrameworkTests;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
 {$APPTYPE CONSOLE}
 
 uses

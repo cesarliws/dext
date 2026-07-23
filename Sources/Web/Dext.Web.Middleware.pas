@@ -305,20 +305,26 @@ var
   BodyContent: string;
   Buffer: TBytes;
   OldPos: Int64;
+  InfoEnabled: Boolean;
+  DebugEnabled: Boolean;
 begin
-  Stopwatch := TStopwatch.StartNew;
-  
-  FLogger.LogInformation('Request starting {Protocol} {Method} {Path}', 
-    ['HTTP/1.1', AContext.Request.Method, AContext.Request.Path]);
+  InfoEnabled := FLogger.IsEnabled(TLogLevel.Information);
+  DebugEnabled := FLogger.IsEnabled(TLogLevel.Debug);
+  if InfoEnabled then
+  begin
+    Stopwatch := TStopwatch.StartNew;
+    FLogger.LogInformation('Request starting {Protocol} {Method} {Path}', 
+      ['HTTP/1.1', AContext.Request.Method, AContext.Request.Path]);
+  end;
 
   // Log Headers
-  if FOptions.LogRequestHeaders then
+  if DebugEnabled and FOptions.LogRequestHeaders then
   begin
     FLogger.LogDebug('Request Headers logged implicitly (enumerators omitted to zero-alloc).', []);
   end;
 
   // Log Body
-  if FOptions.LogRequestBody and (AContext.Request.Body <> nil) and (AContext.Request.Body.Size > 0) then
+  if DebugEnabled and FOptions.LogRequestBody and (AContext.Request.Body <> nil) and (AContext.Request.Body.Size > 0) then
   begin
     BodyStream := AContext.Request.Body;
     if BodyStream.Size <= FOptions.MaxBodySize then
@@ -343,9 +349,12 @@ begin
   try
     ANext(AContext);
   finally
-    Stopwatch.Stop;
-    FLogger.LogInformation('Request finished {Protocol} {Method} {Path} - {StatusCode} {Elapsed}ms',
-      ['HTTP/1.1', AContext.Request.Method, AContext.Request.Path, AContext.Response.StatusCode, Stopwatch.ElapsedMilliseconds]);
+    if InfoEnabled then
+    begin
+      Stopwatch.Stop;
+      FLogger.LogInformation('Request finished {Protocol} {Method} {Path} - {StatusCode} {Elapsed}ms',
+        ['HTTP/1.1', AContext.Request.Method, AContext.Request.Path, AContext.Response.StatusCode, Stopwatch.ElapsedMilliseconds]);
+    end;
   end;
 end;
 

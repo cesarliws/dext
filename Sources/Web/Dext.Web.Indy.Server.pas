@@ -42,7 +42,7 @@ type
     FSSLHandler: IIndySSLHandler;
     FSSLEnabled: Boolean; // Tracks if SSL was successfully configured
     FLock: TCriticalSection;
-    
+
     procedure ConfigureSecureServer;
 
     procedure HandleCommandGet(AContext: TIdContext;
@@ -194,6 +194,8 @@ begin
   Result := FPort;
 end;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
 procedure TDextIndyWebServer.Start;
 var
   Protocol: string;
@@ -205,9 +207,9 @@ begin
     // Capture actual port if dynamic port (0) was requested
     if (FPort = 0) and (FHTTPServer.Bindings.Count > 0) then
       FPort := FHTTPServer.Bindings[0].Port;
-    
+
     Protocol := 'http';
-    if FSSLEnabled then 
+    if FSSLEnabled then
       Protocol := 'https';
 
     SafeWriteLn(Format('Dext server running on %s://localhost:%d', [Protocol, FPort]));
@@ -250,7 +252,7 @@ begin
     while FHTTPServer.Active and (not GServerStopping) do
     begin
       Sleep(100);
-      
+
       // Check for programatic shutdown request
       if (Lifetime <> nil) and (Lifetime.ApplicationStopping.IsCancellationRequested) then
       begin
@@ -279,7 +281,7 @@ begin
   try
     // Signal graceful stop
     GServerStopping := True;
-    
+
     // 1. Aggressively close all sockets to unblock any stuck threads (SSE, etc)
     if (FHTTPServer <> nil) and FHTTPServer.Active then
     begin
@@ -289,8 +291,8 @@ begin
           for i := LContexts.Count - 1 downto 0 do
           begin
             Ctx := TIdContext(LContexts[i]);
-            
-            // Force close the socket handle. 
+
+            // Force close the socket handle.
             // This causes an immediate EIdSocketError or similar in the worker thread,
             // breaking it out of blocking I/O calls.
             if (Ctx.Binding <> nil) and Ctx.Binding.HandleAllocated then
@@ -316,7 +318,7 @@ begin
       except
         // Silence exceptions during shutdown
       end;
-      
+
       Sleep(200);
     end;
   finally

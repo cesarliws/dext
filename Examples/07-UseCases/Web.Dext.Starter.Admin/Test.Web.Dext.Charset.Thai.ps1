@@ -4,7 +4,7 @@
 
 $baseUrl = "http://localhost:8080"
 
-# Thai Name: สมชาย เข็มกลัด (Somchai)
+# Thai Name:                (Somchai)
 $thaiName = "$([char]0x0E2A)$([char]0x0E21)$([char]0x0E0A)$([char]0x0E32)$([char]0x0E22) $([char]0x0E40)$([char]0x0E02)$([char]0x0E47)$([char]0x0E21)$([char]0x0E01)$([char]0x0E25)$([char]0x0E31)$([char]0x0E14) (Somchai)"
 $thaiEmail = "somchai@thai-delphi.com"
 

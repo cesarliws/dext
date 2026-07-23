@@ -72,7 +72,7 @@ begin
   Should(Length(Spec.GetOrderBy)).Be(1);
   Should(Spec.GetOrderBy[0].GetPropertyName).Be('Name');
   Should(Spec.GetOrderBy[0].GetAscending).BeTrue;
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   Query := Default(TFluentQuery<TUser>);
   Spec := nil;
@@ -95,7 +95,7 @@ begin
   Should(Length(Spec.GetOrderBy)).Be(2);
   Should(Spec.GetOrderBy[1].GetPropertyName).Be('Id');
   Should(Spec.GetOrderBy[1].GetAscending).BeFalse;
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   Query := Default(TFluentQuery<TUser>);
   Spec := nil;
@@ -117,7 +117,7 @@ begin
   
   Should(Length(Spec.GetSelectedColumns)).Be(1);
   Should(Spec.GetSelectedColumns[0]).Be('Email');
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   // Explicitly clear to avoid leaks in ActRec
   Projection := Default(TFluentQuery<string>);
@@ -138,7 +138,7 @@ begin
   
   Should(Spec.GetSkip).Be(10);
   Should(Spec.GetTake).Be(20);
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   Query := Default(TFluentQuery<TUser>);
   Spec := nil;
@@ -169,7 +169,7 @@ begin
   
   Should(Query.Count).Be(42);
   Should(CountCalled).BeTrue;
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   Query := Default(TFluentQuery<TUser>);
   Spec := nil;
@@ -187,7 +187,7 @@ begin
   Query.AsNoTracking;
   
   Should(Spec.IsTrackingEnabled).BeFalse;
-  WriteLn('✅');
+  WriteLn('[PASS]');
 
   Query := Default(TFluentQuery<TUser>);
   Spec := nil;

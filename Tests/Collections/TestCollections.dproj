@@ -106,6 +106,7 @@
         <DCCReference Include="TestCollections.RawList.pas"/>
         <DCCReference Include="TestCollections.Lists.pas"/>
         <DCCReference Include="TestCollections.Dictionaries.pas"/>
+        <DCCReference Include="TestCollections.OrderedDictionaries.pas"/>
         <DCCReference Include="TestCollections.Factory.pas"/>
         <DCCReference Include="TestCollections.Frozen.pas"/>
         <DCCReference Include="TestCollections.Vector.pas"/>

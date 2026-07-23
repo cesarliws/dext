@@ -25,6 +25,8 @@
 {***************************************************************************}
 unit Dext.Web.Routing;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -142,6 +144,8 @@ type
     ParameterName: string;
     /// <summary>List of child nodes branch-off from this path segment.</summary>
     Children: IList<TRouteNode>;
+    /// <summary>First parameter child, if any, for fast fallback without scanning all literals again.</summary>
+    ParameterChild: TRouteNode;
     /// <summary>List of configured endpoint leaves at this path level.</summary>
     Leaves: IList<TRouteLeaf>;
     /// <summary>Initializes a new route node with a segment name.</summary>
@@ -150,20 +154,47 @@ type
     destructor Destroy; override;
   end;
 
+  TDextCompiledRouteLeaf = record
+    Method: string;
+    MethodMask: Cardinal;
+    MethodHash: Cardinal;
+    Handler: TRequestDelegate;
+    Metadata: TEndpointMetadata;
+    Plan: Pointer;
+  end;
+
+  TDextCompiledRouteNode = record
+  public
+    Segment: string;
+    IsParameter: Boolean;
+    ParameterName: string;
+    Children: TArray<TDextCompiledRouteNode>;
+    ParameterChildIndex: Integer;
+    Leaves: TArray<TDextCompiledRouteLeaf>;
+    AllowedMethodsMask: Cardinal;
+    HasCustomMethods: Boolean;
+    OptionsHandler: TRequestDelegate;
+    MethodNotAllowedHandler: TRequestDelegate;
+    OptionsMetadata: TEndpointMetadata;
+  end;
+  PDextCompiledRouteNode = ^TDextCompiledRouteNode;
+
   TRouteMatcher = class(TInterfacedObject, IRouteMatcher)
   private
     FRoutes: IList<TRouteDefinition>;
     FRoot: TRouteNode;
+    FCompiledRoot: TDextCompiledRouteNode;
+    FExactRoutes: IDictionary<string, IDictionary<string, TRouteLeaf>>;
     procedure AddRouteToTree(const ARoute: TRouteDefinition);
     function GetRequestedApiVersion(const AContext: IHttpContext): string;
     function IsVersionMatch(
       const RequestedVersion: string;
       const SupportedVersions: TArray<string>
     ): Boolean;
-    function MatchNode(
+    function MatchNodePath(
       Node: TRouteNode;
-      const ASegments: TArray<string>;
-      ASegIdx: Integer;
+      const APath: string;
+      AStartPos, AEndPos: Integer;
       const AMethod, AVersion: string;
       out ALeaf: TRouteLeaf;
       var AParams: TRouteValueDictionary
@@ -180,6 +211,368 @@ type
   ERouteException = class(Exception);
 
 implementation
+
+function NormalizeExactRoutePath(const APath: string): string;
+var
+  EndPos: Integer;
+begin
+  EndPos := Length(APath);
+  if (EndPos > 1) and (APath[EndPos] = '/') then
+    Dec(EndPos);
+  if EndPos = Length(APath) then
+    Result := APath
+  else
+    Result := Copy(APath, 1, EndPos);
+end;
+
+function SamePathSegmentText(const APath: string; AStartPos, ALen: Integer;
+  const ASegment: string): Boolean;
+var
+  i: Integer;
+  C1: Char;
+  C2: Char;
+begin
+  if ALen <> Length(ASegment) then
+    Exit(False);
+
+  for i := 1 to ALen do
+  begin
+    C1 := APath[AStartPos + i - 1];
+    C2 := ASegment[i];
+    if (Ord(C1) > 127) or (Ord(C2) > 127) then
+      Exit(SameText(Copy(APath, AStartPos, ALen), ASegment));
+    if (C1 >= 'A') and (C1 <= 'Z') then
+      C1 := Chr(Ord(C1) + 32);
+    if (C2 >= 'A') and (C2 <= 'Z') then
+      C2 := Chr(Ord(C2) + 32);
+    if C1 <> C2 then
+      Exit(False);
+  end;
+  Result := True;
+end;
+
+function GetMethodMask(const AMethod: string): Cardinal;
+begin
+  if SameText(AMethod, 'GET') then Exit(1);
+  if SameText(AMethod, 'POST') then Exit(2);
+  if SameText(AMethod, 'PUT') then Exit(4);
+  if SameText(AMethod, 'DELETE') then Exit(8);
+  if SameText(AMethod, 'OPTIONS') then Exit(16);
+  if SameText(AMethod, 'HEAD') then Exit(32);
+  if SameText(AMethod, 'PATCH') then Exit(64);
+  Result := 128;
+end;
+
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+function GetMethodHash(const AMethod: string): Cardinal;
+var
+  Character: Char;
+  i: Integer;
+  H: Cardinal;
+begin
+  H := 2166136261;
+  for i := 1 to Length(AMethod) do
+  begin
+    Character := AMethod[i];
+    if (Character >= 'a') and (Character <= 'z') then
+      Character := Chr(Ord(Character) - 32);
+    H := (H xor Cardinal(Ord(Character))) * Cardinal(16777619);
+  end;
+  Result := H;
+end;
+
+function IsVersionMatchHelper(
+  const RequestedVersion: string;
+  const SupportedVersions: TArray<string>
+): Boolean;
+var
+  V: string;
+begin
+  if Length(SupportedVersions) = 0 then
+    Exit(True);
+
+  if RequestedVersion = '' then
+    Exit(False);
+
+  for V in SupportedVersions do
+    if SameText(V, RequestedVersion) then
+      Exit(True);
+
+  Result := False;
+end;
+
+function CreateOptionsHandler(const AAllowMethods,
+  AAcceptQuery: string): TRequestDelegate;
+begin
+  Result := procedure(Context: IHttpContext)
+    begin
+      Context.Response.StatusCode := 200;
+      Context.Response.AddHeader('Allow', AAllowMethods);
+      if AAcceptQuery <> '' then
+        Context.Response.AddHeader('Accept-Query', AAcceptQuery);
+      Context.Response.Write('');
+    end;
+end;
+
+function CreateMethodNotAllowedHandler(
+  const AAllowMethods: string): TRequestDelegate;
+begin
+  Result := procedure(Context: IHttpContext)
+    begin
+      Context.Response.StatusCode := 405;
+      Context.Response.AddHeader('Allow', AAllowMethods);
+      Context.Response.Write('Method Not Allowed');
+    end;
+end;
+
+function CompileRouteNode(Source: TRouteNode): TDextCompiledRouteNode;
+var
+  i: Integer;
+  LeafMask: Cardinal;
+  AllowMethods: string;
+  AcceptQuery: string;
+  QueryTypeIndex: Integer;
+begin
+  Result.Segment := Source.Segment;
+  Result.IsParameter := Source.IsParameter;
+  Result.ParameterName := Source.ParameterName;
+  Result.AllowedMethodsMask := 0;
+  Result.HasCustomMethods := False;
+  Result.OptionsHandler := nil;
+  Result.MethodNotAllowedHandler := nil;
+  Result.OptionsMetadata := Default(TEndpointMetadata);
+
+  // Compile Children
+  SetLength(Result.Children, Source.Children.Count);
+  for i := 0 to Source.Children.Count - 1 do
+  begin
+    Result.Children[i] := CompileRouteNode(Source.Children[i]);
+    Result.AllowedMethodsMask := Result.AllowedMethodsMask or
+      Result.Children[i].AllowedMethodsMask;
+    Result.HasCustomMethods := Result.HasCustomMethods or
+      Result.Children[i].HasCustomMethods;
+  end;
+
+  // Compile ParameterChild
+  Result.ParameterChildIndex := -1;
+  if Source.ParameterChild <> nil then
+  begin
+    for i := 0 to High(Result.Children) do
+    begin
+      if Result.Children[i].Segment = Source.ParameterChild.Segment then
+      begin
+        Result.ParameterChildIndex := i;
+        Break;
+      end;
+    end;
+  end;
+
+  // Compile Leaves
+  SetLength(Result.Leaves, Source.Leaves.Count);
+  for i := 0 to Source.Leaves.Count - 1 do
+  begin
+    Result.Leaves[i].Method := Source.Leaves[i].Method;
+    Result.Leaves[i].MethodHash := GetMethodHash(Source.Leaves[i].Method);
+    Result.Leaves[i].Handler := Source.Leaves[i].Handler;
+    Result.Leaves[i].Metadata := Source.Leaves[i].Metadata;
+    Result.Leaves[i].Plan := nil;
+
+    LeafMask := GetMethodMask(Source.Leaves[i].Method);
+    Result.Leaves[i].MethodMask := LeafMask;
+    Result.AllowedMethodsMask := Result.AllowedMethodsMask or LeafMask;
+    if LeafMask = 128 then
+      Result.HasCustomMethods := True;
+  end;
+
+  if Length(Result.Leaves) > 0 then
+  begin
+    AllowMethods := 'OPTIONS';
+    AcceptQuery := '';
+    for i := 0 to High(Result.Leaves) do
+    begin
+      if not AllowMethods.Contains(Result.Leaves[i].Method) then
+        AllowMethods := AllowMethods + ', ' + Result.Leaves[i].Method;
+      if SameText(Result.Leaves[i].Method, 'QUERY') then
+      begin
+        if Length(Result.Leaves[i].Metadata.AcceptQueryTypes) > 0 then
+        begin
+          for QueryTypeIndex := 0 to High(
+            Result.Leaves[i].Metadata.AcceptQueryTypes) do
+          begin
+            if AcceptQuery <> '' then
+              AcceptQuery := AcceptQuery + ', ';
+            AcceptQuery := AcceptQuery +
+              Result.Leaves[i].Metadata.AcceptQueryTypes[QueryTypeIndex];
+          end;
+        end;
+        if AcceptQuery = '' then
+          AcceptQuery := 'application/json';
+      end;
+    end;
+    Result.OptionsHandler := CreateOptionsHandler(AllowMethods, AcceptQuery);
+    Result.MethodNotAllowedHandler :=
+      CreateMethodNotAllowedHandler(AllowMethods);
+    Result.OptionsMetadata.Method := 'OPTIONS';
+  end;
+end;
+
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+function FindCompiledPathNode(Node: PDextCompiledRouteNode;
+  const APath: string; AStartPos, AEndPos: Integer): PDextCompiledRouteNode;
+var
+  i: Integer;
+  Child: PDextCompiledRouteNode;
+  SlashPos: Integer;
+  SegmentLength: Integer;
+  NextPosition: Integer;
+begin
+  if AStartPos > AEndPos then
+    Exit(Node);
+  SlashPos := AStartPos;
+  while (SlashPos <= AEndPos) and (APath[SlashPos] <> '/') do
+    Inc(SlashPos);
+  SegmentLength := SlashPos - AStartPos;
+  NextPosition := SlashPos + 1;
+  if Length(Node^.Children) > 0 then
+  begin
+    for i := 0 to High(Node^.Children) do
+    begin
+      Child := @Node^.Children[i];
+      if (not Child^.IsParameter) and SamePathSegmentText(APath, AStartPos,
+        SegmentLength, Child^.Segment) then
+      begin
+        Result := FindCompiledPathNode(Child, APath, NextPosition, AEndPos);
+        if Result <> nil then
+          Exit;
+      end;
+    end;
+  end;
+  if Node^.ParameterChildIndex >= 0 then
+    Exit(FindCompiledPathNode(@Node^.Children[Node^.ParameterChildIndex], APath, NextPosition,
+      AEndPos));
+  Result := nil;
+end;
+
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+function MatchCompiledNodePath(
+  Node: PDextCompiledRouteNode;
+  const APath: string;
+  AStartPos, AEndPos: Integer;
+  const AMethod, AVersion: string;
+  var ALeaf: TDextCompiledRouteLeaf;
+  var AParams: TRouteValueDictionary
+): Boolean;
+var
+  i: Integer;
+  Child: PDextCompiledRouteNode;
+  SegmentLen: Integer;
+  SlashPos: Integer;
+  NextPos: Integer;
+  MethodMask: Cardinal;
+  MethodHash: Cardinal;
+  CatchAllLen: Integer;
+  ParamName: string;
+begin
+  if Node = nil then
+    Exit(False);
+
+  MethodMask := GetMethodMask(AMethod);
+  MethodHash := GetMethodHash(AMethod);
+
+  if (MethodMask <> 128) and
+     ((Node^.AllowedMethodsMask and MethodMask) = 0) then
+    Exit(False);
+  if (MethodMask = 128) and not Node^.HasCustomMethods then
+    Exit(False);
+
+  if AStartPos > AEndPos then
+  begin
+    if Length(Node^.Leaves) > 0 then
+    begin
+      for i := 0 to High(Node^.Leaves) do
+      begin
+        if (Node^.Leaves[i].MethodMask = MethodMask) and
+           (Node^.Leaves[i].MethodHash = MethodHash) and
+           SameText(Node^.Leaves[i].Method, AMethod) and
+           IsVersionMatchHelper(AVersion, Node^.Leaves[i].Metadata.ApiVersions) then
+        begin
+          ALeaf := Node^.Leaves[i];
+          Exit(True);
+        end;
+      end;
+
+      for i := 0 to High(Node^.Leaves) do
+      begin
+        if (Node^.Leaves[i].MethodMask = MethodMask) and
+           (Node^.Leaves[i].MethodHash = MethodHash) and
+           SameText(Node^.Leaves[i].Method, AMethod) and
+           (AVersion = '') and
+           (Length(Node^.Leaves[i].Metadata.ApiVersions) = 0) then
+        begin
+          ALeaf := Node^.Leaves[i];
+          Exit(True);
+        end;
+      end;
+    end;
+    Exit(False);
+  end;
+
+  SlashPos := AStartPos;
+  while (SlashPos <= AEndPos) and (APath[SlashPos] <> '/') do
+    Inc(SlashPos);
+
+  SegmentLen := SlashPos - AStartPos;
+  NextPos := SlashPos + 1;
+
+  if Length(Node^.Children) > 0 then
+  begin
+    for i := 0 to High(Node^.Children) do
+    begin
+      Child := @Node^.Children[i];
+      if (not Child^.IsParameter) and
+         SamePathSegmentText(APath, AStartPos, SegmentLen, Child^.Segment) then
+      begin
+        if MatchCompiledNodePath(
+          Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+        ) then
+          Exit(True);
+      end;
+    end;
+  end;
+
+  if Node^.ParameterChildIndex >= 0 then
+  begin
+    Child := @Node^.Children[Node^.ParameterChildIndex];
+    if (Length(Child^.ParameterName) > 0) and (Child^.ParameterName[1] = '*') then
+    begin
+      // Catch-all parameter: matches everything remaining!
+      CatchAllLen := AEndPos - AStartPos + 1;
+      if MatchCompiledNodePath(
+        Child, APath, AEndPos + 1, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        ParamName := Copy(Child^.ParameterName, 2, Length(Child^.ParameterName) - 1);
+        AParams.AddSlice(ParamName, APath, AStartPos, CatchAllLen);
+        Exit(True);
+      end;
+    end
+    else
+    begin
+      if MatchCompiledNodePath(
+        Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        AParams.AddSlice(Child^.ParameterName, APath, AStartPos, SegmentLen);
+        Exit(True);
+      end;
+    end;
+  end;
+
+  Result := False;
+end;
 
 { TRoutePattern }
 
@@ -299,7 +692,7 @@ begin
       if ValueLen = 0 then
         Exit(False);
         
-      AParams.Add(Seg.Text, Copy(APath, ValueStart, ValueLen));
+      AParams.AddSlice(Seg.Text, APath, ValueStart, ValueLen);
     end;
   end;
   
@@ -364,6 +757,7 @@ begin
     ParameterName := Copy(ASegment, 2, Length(ASegment) - 2)
   else
     ParameterName := '';
+  ParameterChild := nil;
   Children := TCollections.CreateList<TRouteNode>(True);
   Leaves := TCollections.CreateList<TRouteLeaf>(True);
 end;
@@ -385,6 +779,8 @@ begin
   inherited Create;
   FRoutes := TCollections.CreateList<TRouteDefinition>(True);
   FRoot := TRouteNode.Create('');
+  FExactRoutes := TCollections.CreateDictionary<string,
+    IDictionary<string, TRouteLeaf>>(8);
 
   for Route in ARoutes do
   begin
@@ -395,11 +791,14 @@ begin
     FRoutes.Add(NewRoute);
     AddRouteToTree(NewRoute);
   end;
+
+  FCompiledRoot := CompileRouteNode(FRoot);
 end;
 
 destructor TRouteMatcher.Destroy;
 begin
   FRoot.Free;
+  FExactRoutes := nil;
   FRoutes := nil;
   inherited;
 end;
@@ -409,11 +808,13 @@ var
   Path: string;
   Segments: TArray<string>;
   CurrNode: TRouteNode;
-  Segment: string;
   i: Integer;
   FoundChild: TRouteNode;
   Child: TRouteNode;
+  Leaf: TRouteLeaf;
+  MethodRoutes: IDictionary<string, TRouteLeaf>;
   Found: Boolean;
+  Segment: string;
 begin
   Path := ARoute.Path;
   if (Length(Path) > 1) and (Path[Length(Path)] = '/') then
@@ -446,13 +847,23 @@ begin
     begin
       FoundChild := TRouteNode.Create(Segment);
       CurrNode.Children.Add(FoundChild);
+      if FoundChild.IsParameter and (CurrNode.ParameterChild = nil) then
+        CurrNode.ParameterChild := FoundChild;
     end;
     CurrNode := FoundChild;
   end;
 
-  CurrNode.Leaves.Add(
-    TRouteLeaf.Create(ARoute.Method, ARoute.Handler, ARoute.Metadata)
-  );
+  Leaf := TRouteLeaf.Create(ARoute.Method, ARoute.Handler, ARoute.Metadata);
+  CurrNode.Leaves.Add(Leaf);
+  if ARoute.Pattern = nil then
+  begin
+    if not FExactRoutes.TryGetValue(ARoute.Method, MethodRoutes) then
+    begin
+      MethodRoutes := TCollections.CreateDictionary<string, TRouteLeaf>;
+      FExactRoutes.Add(ARoute.Method, MethodRoutes);
+    end;
+    MethodRoutes.AddOrSetValue(NormalizeExactRoutePath(ARoute.Path), Leaf);
+  end;
 end;
 
 function TRouteMatcher.GetRequestedApiVersion(
@@ -486,10 +897,10 @@ begin
   Result := False;
 end;
 
-function TRouteMatcher.MatchNode(
+function TRouteMatcher.MatchNodePath(
   Node: TRouteNode;
-  const ASegments: TArray<string>;
-  ASegIdx: Integer;
+  const APath: string;
+  AStartPos, AEndPos: Integer;
   const AMethod, AVersion: string;
   out ALeaf: TRouteLeaf;
   var AParams: TRouteValueDictionary
@@ -497,9 +908,11 @@ function TRouteMatcher.MatchNode(
 var
   i: Integer;
   Child: TRouteNode;
-  Segment: string;
+  SegmentLen: Integer;
+  SlashPos: Integer;
+  NextPos: Integer;
 begin
-  if ASegIdx > High(ASegments) then
+  if AStartPos > AEndPos then
   begin
     for i := 0 to Node.Leaves.Count - 1 do
     begin
@@ -524,30 +937,49 @@ begin
     Exit(False);
   end;
 
-  Segment := ASegments[ASegIdx];
+  SlashPos := AStartPos;
+  while (SlashPos <= AEndPos) and (APath[SlashPos] <> '/') do
+    Inc(SlashPos);
+
+  SegmentLen := SlashPos - AStartPos;
+  NextPos := SlashPos + 1;
 
   for i := 0 to Node.Children.Count - 1 do
   begin
     Child := Node.Children[i];
-    if (not Child.IsParameter) and SameText(Child.Segment, Segment) then
+    if (not Child.IsParameter) and
+       SamePathSegmentText(APath, AStartPos, SegmentLen, Child.Segment) then
     begin
-      if MatchNode(
-        Child, ASegments, ASegIdx + 1, AMethod, AVersion, ALeaf, AParams
+      if MatchNodePath(
+        Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
       ) then
         Exit(True);
     end;
   end;
 
-  for i := 0 to Node.Children.Count - 1 do
+  Child := Node.ParameterChild;
+  if Child <> nil then
   begin
-    Child := Node.Children[i];
-    if Child.IsParameter then
+    if (Length(Child.ParameterName) > 0) and (Child.ParameterName[1] = '*') then
     begin
-      if MatchNode(
-        Child, ASegments, ASegIdx + 1, AMethod, AVersion, ALeaf, AParams
+      // Catch-all parameter: matches everything remaining!
+      var CatchAllLen: Integer := AEndPos - AStartPos + 1;
+      if MatchNodePath(
+        Child, APath, AEndPos + 1, AEndPos, AMethod, AVersion, ALeaf, AParams
       ) then
       begin
-        AParams.Add(Child.ParameterName, Segment);
+        var ParamName: string := Copy(Child.ParameterName, 2, Length(Child.ParameterName) - 1);
+        AParams.AddSlice(ParamName, APath, AStartPos, CatchAllLen);
+        Exit(True);
+      end;
+    end
+    else
+    begin
+      if MatchNodePath(
+        Child, APath, NextPos, AEndPos, AMethod, AVersion, ALeaf, AParams
+      ) then
+      begin
+        AParams.AddSlice(Child.ParameterName, APath, AStartPos, SegmentLen);
         Exit(True);
       end;
     end;
@@ -564,38 +996,74 @@ function TRouteMatcher.FindMatchingRoute(
 ): Boolean;
 var
   Method, Path, RequestVersion: string;
-  Segments: TArray<string>;
   Leaf: TRouteLeaf;
+  StartPos: Integer;
+  EndPos: Integer;
   AllowMethods: string;
   AcceptQuery: string;
+  ExactPath: string;
+  MethodRoutes: IDictionary<string, TRouteLeaf>;
   MatchingRoute: TRouteDefinition;
   i: Integer;
   HasQuery: Boolean;
+  CompiledLeaf: TDextCompiledRouteLeaf;
+  PathNode: PDextCompiledRouteNode;
 begin
-  ARouteParams.Clear;
+  FillChar(ARouteParams, SizeOf(ARouteParams), 0);
   Result := False;
   Method := AContext.Request.Method;
   Path := AContext.Request.Path;
   RequestVersion := GetRequestedApiVersion(AContext);
 
-  if (Length(Path) > 1) and (Path[Length(Path)] = '/') then
-    Path := Copy(Path, 1, Length(Path) - 1);
-  if (Length(Path) > 0) and (Path[1] = '/') then
-    Path := Copy(Path, 2, Length(Path) - 1);
-
-  if Path = '' then
-    Segments := nil
-  else
-    Segments := Path.Split(['/']);
-
-  if MatchNode(
-    FRoot, Segments, 0, Method, RequestVersion, Leaf, ARouteParams
-  ) then
+  ExactPath := Path;
+  if (Length(ExactPath) > 1) and
+     (ExactPath[Length(ExactPath)] = '/') then
+    ExactPath := Copy(ExactPath, 1, Length(ExactPath) - 1);
+  if FExactRoutes.TryGetValue(Method, MethodRoutes) and
+     MethodRoutes.TryGetValue(ExactPath, Leaf) and
+     IsVersionMatch(RequestVersion, Leaf.Metadata.ApiVersions) then
   begin
     AHandler := Leaf.Handler;
     AMetadata := Leaf.Metadata;
     Result := True;
     Exit;
+  end;
+
+  StartPos := 1;
+  EndPos := Length(Path);
+  if (EndPos > 1) and (Path[EndPos] = '/') then
+    Dec(EndPos);
+  if (StartPos <= EndPos) and (Path[StartPos] = '/') then
+    Inc(StartPos);
+
+  PathNode := FindCompiledPathNode(@FCompiledRoot, Path, StartPos, EndPos);
+  if (Method = 'OPTIONS') and (PathNode <> nil) and
+     Assigned(PathNode^.OptionsHandler) then
+  begin
+    AHandler := PathNode^.OptionsHandler;
+    AMetadata := PathNode^.OptionsMetadata;
+    AMetadata.Path := Path;
+    Exit(True);
+  end;
+
+  if MatchCompiledNodePath(
+    @FCompiledRoot, Path, StartPos, EndPos, Method, RequestVersion,
+    CompiledLeaf, ARouteParams
+  ) then
+  begin
+    AHandler := CompiledLeaf.Handler;
+    AMetadata := CompiledLeaf.Metadata;
+    Result := True;
+    Exit;
+  end;
+
+  if (PathNode <> nil) and Assigned(PathNode^.MethodNotAllowedHandler) then
+  begin
+    AHandler := PathNode^.MethodNotAllowedHandler;
+    AMetadata := PathNode^.OptionsMetadata;
+    AMetadata.Method := Method;
+    AMetadata.Path := Path;
+    Exit(True);
   end;
 
   if Method = 'OPTIONS' then
@@ -665,7 +1133,7 @@ begin
           Ctx.Response.Write('');
         end;
 
-      FillChar(AMetadata, SizeOf(AMetadata), 0);
+      AMetadata := Default(TEndpointMetadata);
       AMetadata.Method := 'OPTIONS';
       AMetadata.Path := Path;
 

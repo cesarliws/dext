@@ -306,7 +306,23 @@ type
   end;
   PHTTP_DATA_CHUNK_FILEHANDLE = ^HTTP_DATA_CHUNK_FILEHANDLE;
 
-
+  HTTP_DATA_CHUNK = record
+    case DataChunkType: THttpChunkType of
+      hctFromMemory: (
+        pBuffer: Pointer;
+        BufferLength: ULONG;
+        {$IFDEF CPUX64}
+        Reserved2: array[0..2] of ULONG;
+        {$ELSE}
+        Reserved2: array[0..3] of ULONG;
+        {$ENDIF}
+      );
+      hctFromFileHandle: (
+        ByteRange: HTTP_BYTE_RANGE;
+        FileHandle: THandle;
+      );
+  end;
+  PHTTP_DATA_CHUNK = ^HTTP_DATA_CHUNK;
 
   HTTP_RESPONSE = record
     Flags: ULONG;

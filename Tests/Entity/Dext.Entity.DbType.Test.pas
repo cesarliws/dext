@@ -60,7 +60,7 @@ var
   DateParamName, DecimalParamName: string;
   HasDate, HasBcd: Boolean;
 begin
-  Log('🏺  Testing [DbType] Attribute Propagation');
+  Log('[DB]  Testing [DbType] Attribute Propagation');
   Log('=========================================');
 
   Dialect := TSQLiteDialect.Create;
@@ -111,8 +111,8 @@ begin
         if Typ = ftFMTBcd then HasBcd := True;
       end;
 
-      if HasDate then Log('   ✅ ftDate found in ParamTypes') else Log('   ❌ ftDate NOT found in ParamTypes');
-      if HasBcd then Log('   ✅ ftFMTBcd found in ParamTypes') else Log('   ❌ ftFMTBcd NOT found in ParamTypes');
+      if HasDate then Log('   [PASS] ftDate found in ParamTypes') else Log('   [FAIL] ftDate NOT found in ParamTypes');
+      if HasBcd then Log('   [PASS] ftFMTBcd found in ParamTypes') else Log('   [FAIL] ftFMTBcd NOT found in ParamTypes');
 
       // 2. Test Update Generation
       Generator.GenerateUpdate(Entity);
@@ -126,8 +126,8 @@ begin
         if Typ = ftFMTBcd then HasBcd := True;
       end;
 
-      if HasDate then Log('   ✅ ftDate found in ParamTypes') else Log('   ❌ ftDate NOT found in ParamTypes');
-      if HasBcd then Log('   ✅ ftFMTBcd found in ParamTypes') else Log('   ❌ ftFMTBcd NOT found in ParamTypes');
+      if HasDate then Log('   [PASS] ftDate found in ParamTypes') else Log('   [FAIL] ftDate NOT found in ParamTypes');
+      if HasBcd then Log('   [PASS] ftFMTBcd found in ParamTypes') else Log('   [FAIL] ftFMTBcd NOT found in ParamTypes');
 
     finally
       Entity.Free;

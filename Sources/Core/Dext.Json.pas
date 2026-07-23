@@ -46,6 +46,8 @@ uses
 
 type
   TJsonSettings = Dext.Json.Types.TJsonSettings;
+  /// <summary>Non-capturing sink callback for direct UTF-8 serialization.</summary>
+  TDextJsonWriteProc = procedure(AContext, AData: Pointer; ALength: Integer);
   /// <summary>
   ///   Exception raised for errors during JSON serialization or deserialization.
   /// </summary>
@@ -240,6 +242,13 @@ type
     ///   Serializes a TValue into UTF-8 JSON bytes using custom settings.
     /// </summary>
     class function SerializeUtf8(const AValue: TValue; const ASettings: TJsonSettings): TBytes; overload; static;
+    /// <summary>Serializes a TValue directly to a UTF-8 byte sink.</summary>
+    class procedure SerializeUtf8To(const AValue: TValue; AContext: Pointer;
+      AWrite: TDextJsonWriteProc); overload; static;
+    /// <summary>Serializes a TValue directly to a UTF-8 byte sink.</summary>
+    class procedure SerializeUtf8To(const AValue: TValue;
+      const ASettings: TJsonSettings; AContext: Pointer;
+      AWrite: TDextJsonWriteProc); overload; static;
 
     /// <summary>
     ///   Serializes a TValue into a JSON string using custom settings.
@@ -479,6 +488,7 @@ uses
   System.Variants,
   Dext.Core.Reflection,
   Dext.Core.DateUtils,
+  Dext.Json.Utf8,
   Dext.Core.Json.NextGen; // Default driver NextGen
 
 type
@@ -573,6 +583,25 @@ begin
 
   Json := Serialize(AValue, ASettings);
   Result := TEncoding.UTF8.GetBytes(Json);
+end;
+
+class procedure TDextJson.SerializeUtf8To(const AValue: TValue;
+  AContext: Pointer; AWrite: TDextJsonWriteProc);
+begin
+  SerializeUtf8To(AValue, GetDefaultSettings, AContext, AWrite);
+end;
+
+class procedure TDextJson.SerializeUtf8To(const AValue: TValue;
+  const ASettings: TJsonSettings; AContext: Pointer;
+  AWrite: TDextJsonWriteProc);
+var
+  Writer: TUtf8JsonWriter;
+begin
+  if not Assigned(AWrite) then
+    raise EArgumentNilException.Create('AWrite');
+  Writer := TUtf8JsonWriter.Create(AContext, TUtf8WriteProc(AWrite), False);
+  Writer.Settings := ASettings;
+  Writer.WriteValue(AValue);
 end;
 
 { TJsonUtils }
@@ -868,6 +897,8 @@ var
   TypePlan: IDextTypeCodecPlan;
   TypeFields: TArray<TDextFieldPlan>;
   TypeField: TDextFieldPlan;
+  SmartMeta: TTypeMetadata;
+  BackingField: TRttiField;
 begin
   // Lock-free slot cache lookup
   for I := 0 to 15 do
@@ -987,6 +1018,32 @@ begin
     Item.IsSmartProp := (LTypeKind = tkRecord) and (LTypeInfo <> nil) and
                          TReflection.IsSmartProp(LTypeInfo);
 
+    if Item.IsSmartProp then
+    begin
+      SmartMeta := TReflection.GetMetadata(LTypeInfo);
+      if (SmartMeta <> nil) and (SmartMeta.ValueField <> nil) then
+      begin
+        if not Item.UseDirect then
+        begin
+          BackingField := RttiType.GetField('F' + Prop.Name);
+          if (BackingField <> nil) and (SmartMeta.InnerType <> nil) then
+          begin
+            Item.DirectKind := TDextTypeModel.NativeKindOf(SmartMeta.InnerType);
+            if TDextTypeModel.IsDirectKind(Item.DirectKind) or
+               TDextTypeModel.IsDirectReferenceKind(Item.DirectKind) then
+            begin
+              Item.DirectOffset := BackingField.Offset;
+              Item.UseDirect := True;
+            end;
+          end;
+        end;
+
+        if Item.UseDirect then
+          Item.DirectOffset := Item.DirectOffset + SmartMeta.ValueField.Offset;
+      end
+      else
+        Item.UseDirect := False;
+    end;
     // If SmartProp, classify by inner type
     if Item.IsSmartProp then
     begin

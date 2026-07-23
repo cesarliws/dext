@@ -1,5 +1,8 @@
 ﻿unit WebFrameworkTests.Tests.Base;
 
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+
 interface
 
 uses
@@ -51,8 +54,6 @@ begin
   inherited;
   FPort := 0; // Dynamic port support (S08)
   FClient := THttpClient.Create;
-  FClient.ConnectionTimeout := 1000;
-  FClient.ResponseTimeout := 1000;
   Setup;
 end;
 
@@ -71,7 +72,7 @@ var
   Success: Boolean;
   Resp: System.Net.HttpClient.IHTTPResponse;
 begin
-  WriteLn('🔧 Setting up test...');
+  WriteLn('[CONFIG] Setting up test...');
   Builder := TDextWebHost.CreateDefaultBuilder
     .UseUrls('http://127.0.0.1:' + FPort.ToString);
 
@@ -83,6 +84,11 @@ begin
 
   FServerError := '';
   FServerThread := TThread.CreateAnonymousThread(procedure
+    var
+      StackFrame: PNativeUInt;
+      ReturnAddr: NativeUInt;
+      Depth: Integer;
+      StackStr: string;
     begin
       try
         // Keep a reference to prevent premature destruction
@@ -95,7 +101,26 @@ begin
         end;
       except
         on E: Exception do
-          FServerError := E.Message;
+        begin
+          StackStr := '';
+          asm
+            MOV StackFrame, EBP
+          end;
+          Depth := 0;
+          while (StackFrame <> nil) and (Depth < 10) do
+          begin
+            try
+              ReturnAddr := PNativeUInt(NativeUInt(StackFrame) + 4)^;
+              if ReturnAddr > HInstance then
+                StackStr := StackStr + Format(' -> %p', [Pointer(ReturnAddr - HInstance)]);
+              StackFrame := PNativeUInt(StackFrame^);
+            except
+              Break;
+            end;
+            Inc(Depth);
+          end;
+          FServerError := E.ClassName + ': ' + E.Message + ' RVA: ' + Format('%p', [Pointer(NativeUInt(ExceptAddr) - HInstance)]) + ' Stack: ' + StackStr;
+        end;
       end;
     end);
 
@@ -174,12 +199,12 @@ end;
 
 procedure TBaseTest.LogSuccess(const Msg: string);
 begin
-  WriteLn('   ✅ ' + Msg);
+  WriteLn('   [PASS] ' + Msg);
 end;
 
 procedure TBaseTest.LogError(const Msg: string);
 begin
-  WriteLn('   ❌ ' + Msg);
+  WriteLn('   [FAIL] ' + Msg);
 end;
 
 procedure TBaseTest.AssertTrue(Condition: Boolean; const SuccessMsg, FailMsg: string);

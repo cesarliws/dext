@@ -114,6 +114,7 @@ type
     procedure Write(const AName: string; const AData: TJSONObject; const ACategory: string = 'SYS'; 
       const ADuration: Int64 = 0; const AStatus: string = 'Success'; const AError: string = '';
       const ATraceId: string = ''; const ASpanId: string = ''; const AParentId: string = '');
+    function IsActive: Boolean;
     
     /// <summary>Gets or sets whether the diagnostic source is enabled.</summary>
     property Enabled: Boolean read FEnabled write FEnabled;
@@ -188,6 +189,11 @@ begin
   FObservers.Remove(AObserver);
 end;
 
+function TDiagnosticSource.IsActive: Boolean;
+begin
+  Result := FEnabled and (FObservers.Count > 0);
+end;
+
 procedure TDiagnosticSource.Write(const AName: string; const AData: TJSONObject;
   const ACategory: string; const ADuration: Int64; const AStatus, AError: string;
   const ATraceId, ASpanId, AParentId: string);
@@ -196,7 +202,7 @@ var
   Observer: ITelemetryObserver;
   Ctx: PScopeNode;
 begin
-  if not FEnabled or (FObservers.Count = 0) then
+  if not IsActive then
   begin
     if Assigned(AData) then AData.Free;
     Exit;

@@ -46,6 +46,41 @@ type
 
 implementation
 
+function ContainsTokenAsciiNoCase(const AValue, AToken: string): Boolean;
+var
+  i: Integer;
+  j: Integer;
+  C1: Char;
+  C2: Char;
+  Match: Boolean;
+begin
+  if (AValue = '') or (AToken = '') or (Length(AToken) > Length(AValue)) then
+    Exit(False);
+
+  for i := 1 to Length(AValue) - Length(AToken) + 1 do
+  begin
+    Match := True;
+    for j := 1 to Length(AToken) do
+    begin
+      C1 := AValue[i + j - 1];
+      C2 := AToken[j];
+      if (C1 >= 'A') and (C1 <= 'Z') then
+        C1 := Chr(Ord(C1) + 32);
+      if (C2 >= 'A') and (C2 <= 'Z') then
+        C2 := Chr(Ord(C2) + 32);
+      if C1 <> C2 then
+      begin
+        Match := False;
+        Break;
+      end;
+    end;
+    if Match then
+      Exit(True);
+  end;
+
+  Result := False;
+end;
+
 { TWebSocketHandshake }
 
 class function TWebSocketHandshake.IsUpgradeRequest(const ARequest: IDextRawRequest): Boolean;
@@ -64,7 +99,7 @@ begin
   if not SameText(UpgradeHeader, 'websocket') then Exit;
 
   ConnectionHeader := ARequest.GetHeader('Connection');
-  if (ConnectionHeader = '') or (Pos('upgrade', LowerCase(ConnectionHeader)) = 0) then Exit;
+  if not ContainsTokenAsciiNoCase(ConnectionHeader, 'upgrade') then Exit;
 
   if ARequest.GetHeader('Sec-WebSocket-Key') = '' then Exit;
 
@@ -75,13 +110,36 @@ class function TWebSocketHandshake.ComputeAcceptKey(const ASecWebSocketKey: stri
 const
   WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 var
-  Combined: string;
+  KeyStart: Integer;
+  KeyEnd: Integer;
+  KeyLen: Integer;
+  GuidLen: Integer;
+  Bytes: TBytes;
   HashBytes: TBytes;
   SHA1: THashSHA1;
+  i: Integer;
 begin
-  Combined := ASecWebSocketKey.Trim + WS_GUID;
+  KeyStart := 1;
+  KeyEnd := Length(ASecWebSocketKey);
+  while (KeyStart <= KeyEnd) and (ASecWebSocketKey[KeyStart] <= ' ') do
+    Inc(KeyStart);
+  while (KeyEnd >= KeyStart) and (ASecWebSocketKey[KeyEnd] <= ' ') do
+    Dec(KeyEnd);
+
+  KeyLen := KeyEnd - KeyStart + 1;
+  if KeyLen < 0 then
+    KeyLen := 0;
+  GuidLen := Length(WS_GUID);
+  SetLength(Bytes, KeyLen + GuidLen);
+
+  for i := 0 to KeyLen - 1 do
+    Bytes[i] := Byte(Ord(ASecWebSocketKey[KeyStart + i]));
+  for i := 1 to GuidLen do
+    Bytes[KeyLen + i - 1] := Byte(Ord(WS_GUID[i]));
+
   SHA1 := THashSHA1.Create;
-  SHA1.Update(TEncoding.UTF8.GetBytes(Combined));
+  if Length(Bytes) > 0 then
+    SHA1.Update(Bytes);
   HashBytes := SHA1.HashAsBytes;
   Result := TNetEncoding.Base64.EncodeBytesToString(HashBytes).Trim;
   // Strip any newlines just in case

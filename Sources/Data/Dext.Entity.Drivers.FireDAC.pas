@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -94,6 +94,16 @@ type
     function GetValue(AColumnIndex: Integer): TValue; overload;
     function GetColumnCount: Integer;
     function GetColumnName(AIndex: Integer): string;
+    
+    function GetInt32(AIndex: Integer): Integer;
+    function GetInt64(AIndex: Integer): Int64;
+    function GetDouble(AIndex: Integer): Double;
+    function GetBoolean(AIndex: Integer): Boolean;
+    function GetString(AIndex: Integer): string;
+    function GetDateTime(AIndex: Integer): TDateTime;
+    function GetColumnType(AIndex: Integer): TFieldType;
+    function IsNull(AIndex: Integer): Boolean;
+
     procedure Close;
   end;
 
@@ -364,6 +374,74 @@ end;
 function TFireDACReader.GetValue(const AColumnName: string): TValue;
 begin
   Result := GetValue(FQuery.FieldByName(AColumnName).Index);
+end;
+
+function TFireDACReader.GetInt32(AIndex: Integer): Integer;
+begin
+  Result := FFields[AIndex].AsInteger;
+end;
+
+function TFireDACReader.GetInt64(AIndex: Integer): Int64;
+begin
+  Result := FFields[AIndex].AsLargeInt;
+end;
+
+function TFireDACReader.GetDouble(AIndex: Integer): Double;
+begin
+  Result := FFields[AIndex].AsFloat;
+end;
+
+function TFireDACReader.GetBoolean(AIndex: Integer): Boolean;
+var
+  Field: TField;
+  StrVal: string;
+begin
+  Field := FFields[AIndex];
+
+  case Field.DataType of
+    // 1. Boolean
+    ftBoolean:
+      Result := Field.AsBoolean;
+
+    // 2. Numeric
+    ftInteger, ftSmallint, ftWord, ftLargeint, ftShortint, ftByte, 
+    ftFMTBcd, ftBCD, ftFloat, ftCurrency: // Adicionado outros tipos numéricos comuns para blindar o método
+      Result := Field.AsInteger <> 0;
+
+    // 3. Fallback
+  else
+    StrVal := Field.AsString;
+
+    // Short-Circuit
+    if (StrVal = '1') or SameText(StrVal, 'true') or SameText(StrVal, 't') or
+       SameText(StrVal, 'y') or SameText(StrVal, 's') then
+      Result := True
+    else if (StrVal = '0') or SameText(StrVal, 'false') or
+            SameText(StrVal, 'f') or SameText(StrVal, 'n') then
+      Result := False
+    else
+      Result := StrToBoolDef(StrVal, False);
+  end;
+end;
+
+function TFireDACReader.GetString(AIndex: Integer): string;
+begin
+  Result := FFields[AIndex].AsWideString;
+end;
+
+function TFireDACReader.GetDateTime(AIndex: Integer): TDateTime;
+begin
+  Result := FFields[AIndex].AsDateTime;
+end;
+
+function TFireDACReader.GetColumnType(AIndex: Integer): TFieldType;
+begin
+  Result := FFields[AIndex].DataType;
+end;
+
+function TFireDACReader.IsNull(AIndex: Integer): Boolean;
+begin
+  Result := FFields[AIndex].IsNull;
 end;
 
 function TFireDACReader.Next: Boolean;

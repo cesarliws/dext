@@ -128,8 +128,6 @@
         <DCCReference Include="IndyProtocols.dcp"/>
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="Dext.Core.dcp"/>
-        <DCCReference Include="Dext.EF.Core.dcp"/>
-        <DCCReference Include="Dext.Web.Core.dcp"/>
         <DCCReference Include="..\..\Sources\Testing\Dext.Assertions.pas"/>
         <DCCReference Include="..\..\Sources\Testing\Dext.Mocks.Auto.pas"/>
         <DCCReference Include="..\..\Sources\Testing\Dext.Mocks.Interceptor.pas"/>

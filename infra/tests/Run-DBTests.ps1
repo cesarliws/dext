@@ -29,7 +29,7 @@ $OutputDir = Join-Path $RepoRoot "Output"
 function Write-Success { param($msg) Write-Host "[OK] " -ForegroundColor Green -NoNewline; Write-Host $msg }
 function Write-Failure { param($msg) Write-Host "[FAIL] " -ForegroundColor Red -NoNewline; Write-Host $msg }
 function Write-Info { param($msg) Write-Host "[INFO] " -ForegroundColor Cyan -NoNewline; Write-Host $msg }
-function Write-Header { param($msg) Write-Host "`n═══════════════════════════════════════════════════════════" -ForegroundColor Magenta; Write-Host "  $msg" -ForegroundColor Magenta; Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Magenta }
+function Write-Header { param($msg) Write-Host "`n                                                           " -ForegroundColor Magenta; Write-Host "  $msg" -ForegroundColor Magenta; Write-Host "                                                           " -ForegroundColor Magenta }
 
 # Database configurations
 $Databases = @{

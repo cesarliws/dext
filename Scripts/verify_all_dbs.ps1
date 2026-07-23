@@ -1,6 +1,6 @@
 $ErrorActionPreference = "Stop"
 
-Write-Host "🚀 Starting Multi-Database Verification..." -ForegroundColor Cyan
+Write-Host "[START] Starting Multi-Database Verification..." -ForegroundColor Cyan
 
 # Check if executable exists
 $ExePath = "..\Examples\Output\Orm.EntityDemo.exe"
@@ -32,21 +32,21 @@ foreach ($db in $dbs) {
         $proc = Start-Process -FilePath $ExePath -ArgumentList $db -Wait -NoNewWindow -PassThru
         
         if ($proc.ExitCode -ne 0) {
-            Write-Host "❌ Tests FAILED for $db (Exit Code: $($proc.ExitCode))" -ForegroundColor Red
+            Write-Host "[FAIL] Tests FAILED for $db (Exit Code: $($proc.ExitCode))" -ForegroundColor Red
             $failed += $db
         } else {
-            Write-Host "✅ Tests PASSED for $db" -ForegroundColor Green
+            Write-Host "[PASS] Tests PASSED for $db" -ForegroundColor Green
         }
     } catch {
-        Write-Host "❌ Error executing test for $db : $_" -ForegroundColor Red
+        Write-Host "[FAIL] Error executing test for $db : $_" -ForegroundColor Red
         $failed += $db
     }
 }
 
 Write-Host "`n----------------------------------------"
 if ($failed.Count -eq 0) {
-    Write-Host "🎉 ALL DATABASE CHECKS PASSED!" -ForegroundColor Green
+    Write-Host "[DONE] ALL DATABASE CHECKS PASSED!" -ForegroundColor Green
 } else {
-    Write-Host "❌ SOME CHECKS FAILED: $($failed -join ', ')" -ForegroundColor Red
+    Write-Host "[FAIL] SOME CHECKS FAILED: $($failed -join ', ')" -ForegroundColor Red
     exit 1
 }
