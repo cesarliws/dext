@@ -69,9 +69,9 @@ function Invoke-MsBuildWithRetry {
 
 # 1. Setup Environment from set_env.ps1
 $env:DEXT_PROJECT_TYPE = 'Tests'
-. "$PSScriptRoot\set_env.ps1" -Platform Win32 -Config Debug -UseSourcePath:$false
+. "$PSScriptRoot\set_env.ps1" -Platform Win32 -Config Release -UseSourcePath:$false
 
-$RunTempPath = Join-Path $DextRoot ("Temp\37.0\Win32\Debug\run_tests_{0}" -f ([Guid]::NewGuid().ToString('N')))
+$RunTempPath = Join-Path $DextRoot ("Temp\37.0\Win32\Release\run_tests_{0}" -f ([Guid]::NewGuid().ToString('N')))
 if (-not (Test-Path $RunTempPath)) {
     New-Item -ItemType Directory -Path $RunTempPath -Force | Out-Null
 }
@@ -121,7 +121,7 @@ foreach ($proj in $TestProjects) {
     $MSBuildArgs = @(
         $proj.FullName,
         '/t:Build',
-        '/p:Config=Debug',
+        '/p:Config=Release',
         '/p:Platform=Win32',
         "/p:DCC_ExeOutput=`"$TestsOutput`"",
         "/p:DCC_DcuOutput=`"$env:OUTPUT_PATH`"",
