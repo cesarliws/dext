@@ -41,3 +41,5 @@ history.json
 dext-symbols.*
 *.deployproj
 /Benchmarks/Dext.Benchmarks
+*.prjmgc
+*.user

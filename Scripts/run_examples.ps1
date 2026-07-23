@@ -34,7 +34,7 @@ function Invoke-MsBuildWithRetry {
 
 # 1. Setup Environment from set_env.ps1
 $env:DEXT_PROJECT_TYPE = 'Examples'
-. "$PSScriptRoot\set_env.ps1" -Platform Win32 -Config Debug -UseSourcePath:$false
+. "$PSScriptRoot\set_env.ps1" -Platform Win32 -Config Release -UseSourcePath:$false
 
 Write-Host "[ENV] Product Version: $env:PRODUCT_VERSION"
 Write-Host "[ENV] Platform:        $env:PLATFORM"
