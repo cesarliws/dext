@@ -226,9 +226,9 @@ begin
   for Attr in FMember.GetAttributes do
   begin
     AttrName := Attr.ClassName;
-    if SameText(AttrName, 'PrimaryKeyAttribute') then
+    if SameText(AttrName, 'PrimaryKeyAttribute') or SameText(AttrName, 'PKAttribute') or SameText(AttrName, 'PK') then
       FIsPK := True
-    else if SameText(AttrName, 'AutoIncAttribute') then
+    else if SameText(AttrName, 'AutoIncAttribute') or SameText(AttrName, 'AutoInc') then
       FIsAutoInc := True
     else if SameText(AttrName, 'ColumnAttribute') then
     begin

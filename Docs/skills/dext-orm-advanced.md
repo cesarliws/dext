@@ -709,4 +709,19 @@ finally
 end;
 ```
 
+## Dialect-Aware Batch UPDATE & DELETE (Spec S59)
+
+Dext ORM optimizes bulk updates and deletions (`UpdateRange` / `RemoveRange`) using `TDextBatchStrategyFactory`, bypassing FireDAC Array DML emulation bottlenecks on engines without native protocol array binding.
+
+```pascal
+uses
+  Dext.Entity, Dext.Entity.BatchStrategy;
+
+// PostgreSQL: Single-statement UPDATE table SET ... FROM (VALUES (...), (...)) AS v(...)
+// MySQL: Single-statement UPDATE table SET col = CASE WHEN pk = x THEN y END WHERE pk IN (...)
+// Oracle/Firebird: Native Protocol Array DML
+Db.Users.UpdateRange(UserArray);
+Db.Users.RemoveRange(UserArray);
+```
+
 
