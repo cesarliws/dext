@@ -20,6 +20,7 @@ Dext.Entity é um ORM completo para Delphi com suporte a múltiplos bancos de da
 14. [Transações](transacoes.md)
 15. [Soft Delete](soft-delete.md)
 16. [Mapeamento Aninhado](mapeamento-aninhado.md)
+17. [Operações em Lote](operacoes-em-lote.md)
 
 > 📦 **Exemplos**:
 >

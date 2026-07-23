@@ -1,4 +1,4 @@
-﻿unit EntityDemo.DbConfig;
+unit EntityDemo.DbConfig;
 
 interface
 
@@ -139,7 +139,8 @@ type
     ); static;
 
     /// <summary>
-    ///   Configure MySQL/MariaDB connection
+    ///   Configure MySQL/MariaDB connection.
+    ///   Note: On 64-bit systems with 64-bit libmariadb.dll/libmysql.dll, compile for Win64 platform.
     /// </summary>
     /// <param name="AVendorLib">Path to libmysql.dll or libmariadb.dll (optional if in PATH)</param>
     /// <param name="AVendorHome">Base directory containing lib folder (optional)</param>

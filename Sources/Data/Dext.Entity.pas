@@ -20,6 +20,7 @@ uses
   // {BEGIN_DEXT_USES}
   // Generated Uses
   Dext.Entity.Attributes,
+  Dext.Entity.BatchStrategy,
   Dext.Entity.Cache,
   Dext.Entity.Context,
   Dext.Entity.Core,
@@ -148,6 +149,12 @@ type
   IDbContext = Dext.Entity.Core.IDbContext;
   // IDbSet<T: class> = Dext.Entity.Core.IDbSet<T>;
   // Generic aliases not supported on all Delphi versions
+
+  // Dext.Entity.BatchStrategy
+  TDextBatchStrategyFactory = Dext.Entity.BatchStrategy.TDextBatchStrategyFactory;
+  TDextPostgresBatchStrategy = Dext.Entity.BatchStrategy.TDextPostgresBatchStrategy;
+  TDextMySqlBatchStrategy = Dext.Entity.BatchStrategy.TDextMySqlBatchStrategy;
+  TDextNativeArrayDmlStrategy = Dext.Entity.BatchStrategy.TDextNativeArrayDmlStrategy;
 
   // Dext.Entity.DbSet
   // TDbSet<T: class> = Dext.Entity.DbSet.TDbSet<T>;

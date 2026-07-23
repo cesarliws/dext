@@ -373,6 +373,13 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 - **Query Fluente** — `.Json('path')` para consultar propriedades dentro de colunas JSON: `Prop('Settings').Json('role') = 'admin'`.
 - **Propriedades Aninhadas** — `Prop('Settings').Json('profile.details.level') = 5` com notação de ponto.
 - **IS NULL** — `Prop('Settings').Json('nonexistent').IsNull` para chaves inexistentes.
+
+### 4.9 Operações em Lote Conscientes do Dialeto (`Dext.Entity.BatchStrategy`) — Spec S59
+- **TDextBatchStrategyFactory** — Seleção dinâmica de estratégias de batch `UPDATE` e `DELETE` baseadas em `TDatabaseDialect`.
+- **Estratégia PostgreSQL** (`TDextPostgresBatchStrategy`) — Reescreve lotes de `UPDATE` em instrução única `UPDATE table AS t SET ... FROM (VALUES (...), (...)) AS v(...) WHERE t.pk = v.pk` e deleções em `WHERE (pk1, pk2) IN (...)`.
+- **Estratégia MySQL / MariaDB** (`TDextMySqlBatchStrategy`) — Reescreve lotes de `UPDATE` em instrução única `UPDATE table SET col = CASE WHEN pk = x THEN y END WHERE pk IN (...)`.
+- **Estratégia Array DML Nativo** (`TDextNativeArrayDmlStrategy`) — Mantém binding de arrays nativo para Oracle OCI e Firebird 4+.
+- **Desempenho** — Elimina a emulação iterativa do Array DML do FireDAC em PostgreSQL e MySQL, reduzindo o tempo de latência de ~650 µs para ~118 µs por registro.
 - **Cross-Database** — PostgreSQL (`#>>` / JSONB indexado), MySQL (`JSON_EXTRACT` / `JSON_UNQUOTE`), SQLite (`json_extract` + JSON1), SQL Server (`JSON_VALUE`).
 - **INSERT com Cast** — `::jsonb` automático no PostgreSQL para `[JsonColumn(True)]`.
 
