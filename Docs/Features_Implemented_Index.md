@@ -376,6 +376,13 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 - **Cross-Database** — PostgreSQL (`#>>` / indexed JSONB), MySQL (`JSON_EXTRACT` / `JSON_UNQUOTE`), SQLite (`json_extract` + JSON1), SQL Server (`JSON_VALUE`).
 - **INSERT with Cast** — Automatic `::jsonb` in PostgreSQL for `[JsonColumn(True)]`.
 
+### 4.8b Dialect-Aware Batch Operations (`Dext.Entity.BatchStrategy`) — Spec S59
+- **TDextBatchStrategyFactory** — Dynamic selection of batch `UPDATE` and `DELETE` strategies based on `TDatabaseDialect`.
+- **PostgreSQL Strategy** (`TDextPostgresBatchStrategy`) — Rewrites batch `UPDATE` into a single-statement `UPDATE table AS t SET ... FROM (VALUES (...), (...)) AS v(...) WHERE t.pk = v.pk` and batch deletes into `WHERE (pk1, pk2) IN (...)`.
+- **MySQL / MariaDB Strategy** (`TDextMySqlBatchStrategy`) — Rewrites batch `UPDATE` into a single-statement `UPDATE table SET col = CASE WHEN pk = x THEN y END WHERE pk IN (...)`.
+- **Native Array DML Strategy** (`TDextNativeArrayDmlStrategy`) — Preserves native protocol array binding for Oracle OCI and Firebird 4+.
+- **Performance** — Eliminates FireDAC sequential Array DML emulation bottleneck on PostgreSQL and MySQL, reducing per-record latency from ~650 µs to ~118 µs.
+
 ### 4.9 EntityDataSet (`Dext.Data.EntityDataSet`)
 - **ORM ↔ VCL/FMX Bridge** — Connects components (DBGrid, FastReport) to `TList<T>` POCO collections while preserving a clean architecture.
 - **Zero-Allocation Memory** — Access via `TEntityMap` mapped memory offsets eliminates RTTI or string copying on every record read.

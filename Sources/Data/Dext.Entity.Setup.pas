@@ -138,35 +138,50 @@ end;
 function TDbContextOptions.UseSQLServer(const AConnectionString: string): TDbContextOptions;
 begin
   FDriverName := 'MSSQL';
-  ConnectionString := AConnectionString;
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    ConnectionString := 'DriverID=MSSQL;' + AConnectionString
+  else
+    ConnectionString := AConnectionString;
   Result := Self;
 end;
 
 function TDbContextOptions.UsePostgreSQL(const AConnectionString: string): TDbContextOptions;
 begin
   FDriverName := 'PG';
-  ConnectionString := AConnectionString;
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    ConnectionString := 'DriverID=PG;' + AConnectionString
+  else
+    ConnectionString := AConnectionString;
   Result := Self;
 end;
 
 function TDbContextOptions.UseMySQL(const AConnectionString: string): TDbContextOptions;
 begin
   FDriverName := 'MySQL';
-  ConnectionString := AConnectionString;
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    ConnectionString := 'DriverID=MySQL;' + AConnectionString
+  else
+    ConnectionString := AConnectionString;
   Result := Self;
 end;
 
 function TDbContextOptions.UseFirebird(const AConnectionString: string): TDbContextOptions;
 begin
   FDriverName := 'FB';
-  ConnectionString := AConnectionString;
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    ConnectionString := 'DriverID=FB;' + AConnectionString
+  else
+    ConnectionString := AConnectionString;
   Result := Self;
 end;
 
 function TDbContextOptions.UseOracle(const AConnectionString: string): TDbContextOptions;
 begin
   FDriverName := 'Ora';
-  ConnectionString := AConnectionString;
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    ConnectionString := 'DriverID=Ora;' + AConnectionString
+  else
+    ConnectionString := AConnectionString;
   Result := Self;
 end;
 

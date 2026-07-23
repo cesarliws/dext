@@ -21,6 +21,7 @@ Dext.Entity is a full-featured ORM for Delphi with support for multiple database
 15. [Transactions](transactions.md)
 16. [Soft Delete](soft-delete.md)
 17. [Multi-Mapping](nested-mapping.md)
+18. [Batch Operations](batch-operations.md)
 
 > 📦 **Examples**:
 >

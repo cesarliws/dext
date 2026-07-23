@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -1103,7 +1103,6 @@ begin
   Param := FQuery.ParamByName(AName);
   for i := 0 to High(AValues) do
   begin
-    // Reuse logic similar to SetParamValue but for array index
     Val := AValues[i];
     
     if Val.IsEmpty then
@@ -1116,34 +1115,34 @@ begin
       case Val.Kind of
         tkInteger: 
         begin
-          Param.DataType := ftInteger;
+          if Param.DataType = ftUnknown then Param.DataType := ftInteger;
           Param.AsIntegers[i] := Val.AsInteger;
         end;
         tkInt64:
         begin
-          Param.DataType := ftLargeInt;
+          if Param.DataType = ftUnknown then Param.DataType := ftLargeInt;
           Param.AsLargeInts[i] := Val.AsInt64;
         end;
         tkFloat:
         begin
           if Val.TypeInfo = TypeInfo(TDateTime) then
           begin
-            Param.DataType := ftDateTime;
+            if Param.DataType = ftUnknown then Param.DataType := ftDateTime;
             Param.AsDateTimes[i] := Val.AsType<TDateTime>;
           end
           else if Val.TypeInfo = TypeInfo(TDate) then
           begin
-            Param.DataType := ftDate;
+            if Param.DataType = ftUnknown then Param.DataType := ftDate;
             Param.AsDates[i] := Val.AsType<TDate>;
           end
           else if Val.TypeInfo = TypeInfo(TTime) then
           begin
-            Param.DataType := ftTime;
+            if Param.DataType = ftUnknown then Param.DataType := ftTime;
             Param.AsTimes[i] := Val.AsType<TTime>;
           end
           else
           begin
-            Param.DataType := ftFloat;
+            if Param.DataType = ftUnknown then Param.DataType := ftFloat;
             Param.AsFloats[i] := Val.AsExtended;
           end;
         end;

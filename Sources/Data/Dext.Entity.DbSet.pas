@@ -46,6 +46,7 @@ uses
   Dext.Core.ValueConverters,
   Dext.Json.Utf8,
   Dext.Entity.Attributes,
+  Dext.Entity.BatchStrategy,
   Dext.Entity.Collections,
   Dext.Entity.Core,
   Dext.Entity.Dialects,
@@ -1649,37 +1650,23 @@ end;
 
 procedure TDbSet<T>.PersistUpdateRange(const AEntities: TArray<TObject>);
 var
-  Cmd: IDbCommand;
   EntitiesT: TArray<T>;
   Generator: TSqlGenerator<T>;
-  Helper: TNullableHelper;
   i: Integer;
-  Pair: TPair<TRttiProperty, string>;
-  ParamName: string;
-  ParamValues: TArray<TValue>;
-  Prop: TRttiProperty;
   SetProps, WhereProps: IList<TPair<TRttiProperty, string>>;
   Sql: string;
-  Val: TValue;
-  Converter: ITypeConverter;
-  PropMap: TPropertyMap;
-  ChunkStart: Integer;
-  ChunkCount: Integer;
-  TotalCount: Integer;
-  j: Integer;
   ChunkSize: Integer;
+  TotalCount: Integer;
   EntityIdStr: string;
-  LDataType: TFieldType;
 begin
   if Length(AEntities) = 0 then Exit;
   ChunkSize := FContext.BulkBatchSize;
-  if ChunkSize <= 0 then
-    ChunkSize := 100;
+  if ChunkSize <= 0 then ChunkSize := 100;
   TotalCount := Length(AEntities);
   SetLength(EntitiesT, TotalCount);
   for i := 0 to High(AEntities) do
   begin
-    EntitiesT[i] := T(AEntities[i]);
+    EntitiesT[i] := T(Pointer(AEntities[i]));
     HandleTimestamps(AEntities[i], False);
   end;
   
@@ -1689,142 +1676,18 @@ begin
     try
       if Sql = '' then Exit;
       
-      ChunkStart := 0;
-      while ChunkStart < TotalCount do
+      TDextBatchStrategyFactory.ExecuteUpdateBatch(FContext, GetTableName, SetProps, WhereProps, AEntities, ChunkSize);
+      
+      for i := 0 to High(EntitiesT) do
       begin
-        if TotalCount - ChunkStart < ChunkSize then
-          ChunkCount := TotalCount - ChunkStart
-        else
-          ChunkCount := ChunkSize;
-          
-        Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
-        
-        // Pre-initialize parameter types to prevent PostgreSQL typing errors (Bulk operations)
-        for Pair in SetProps do
+        EntityIdStr := GetEntityId(EntitiesT[i]);
+        if not FIdentityMap.ContainsKey(EntityIdStr) then
         begin
-          Prop := Pair.Key;
-          ParamName := Pair.Value;
-          PropMap := nil;
-          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-          if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
-            LDataType := PropMap.DataType
-          else
-            LDataType := GetFieldType(Prop.PropertyType.Handle);
-            
-          if LDataType <> ftUnknown then
-            Cmd.AddParam(ParamName, TValue.Empty, LDataType);
+           if FOrphans.Contains(EntitiesT[i]) then
+             FIdentityMap.Add(EntityIdStr, FOrphans.Extract(EntitiesT[i]))
+           else
+             FIdentityMap.Add(EntityIdStr, EntitiesT[i]);
         end;
-        
-        for Pair in WhereProps do
-        begin
-          Prop := Pair.Key;
-          ParamName := Pair.Value;
-          PropMap := nil;
-          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-          if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
-            LDataType := PropMap.DataType
-          else
-            LDataType := GetFieldType(Prop.PropertyType.Handle);
-            
-          if LDataType <> ftUnknown then
-            Cmd.AddParam(ParamName, TValue.Empty, LDataType);
-        end;
-
-        Cmd.SetArraySize(ChunkCount);
-        SetLength(ParamValues, ChunkCount);
-        
-        // Bind SET parameters
-        for Pair in SetProps do
-        begin
-          Prop := Pair.Key;
-          ParamName := Pair.Value;
-          
-          PropMap := nil;
-          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-          Converter := nil;
-          if PropMap <> nil then Converter := PropMap.Converter;
-          if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
-          if (Converter = nil) and (PropMap <> nil) and PropMap.IsJsonColumn then
-            Converter := TJsonConverter.Create(PropMap.UseJsonB);
-
-          for j := 0 to ChunkCount - 1 do
-          begin
-            Val := Prop.GetValue(Pointer(EntitiesT[ChunkStart + j]));
-            
-            if IsNullable(Val.TypeInfo) then
-            begin
-               Helper := TNullableHelper.Create(Val.TypeInfo);
-               if Helper.HasValue(Val.GetReferenceToRawData) then
-                 Val := Helper.GetValue(Val.GetReferenceToRawData)
-               else
-                 Val := TValue.Empty;
-            end;
-            
-            TReflection.TryUnwrapProp(Val, Val);
-            
-            if Converter <> nil then
-              Val := Converter.ToDatabase(Val, Generator.GetDialectEnum);
-              
-            ParamValues[j] := Val;
-          end;
-          Cmd.SetParamArray(ParamName, ParamValues);
-        end;
-        
-        // Bind WHERE parameters (PKs)
-        for Pair in WhereProps do
-        begin
-          Prop := Pair.Key;
-          ParamName := Pair.Value;
-          
-          PropMap := nil;
-          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-          Converter := nil;
-          if PropMap <> nil then Converter := PropMap.Converter;
-          if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
-
-          for j := 0 to ChunkCount - 1 do
-          begin
-            Val := Prop.GetValue(Pointer(EntitiesT[ChunkStart + j]));
-            
-            if IsNullable(Val.TypeInfo) then
-            begin
-               Helper := TNullableHelper.Create(Val.TypeInfo);
-               if Helper.HasValue(Val.GetReferenceToRawData) then
-                 Val := Helper.GetValue(Val.GetReferenceToRawData)
-               else
-                 Val := TValue.Empty;
-            end;
-            
-            TReflection.TryUnwrapProp(Val, Val);
-            
-            if Converter <> nil then
-              Val := Converter.ToDatabase(Val, Generator.GetDialectEnum);
-              
-            ParamValues[j] := Val;
-          end;
-          Cmd.SetParamArray(ParamName, ParamValues);
-        end;
-        
-        Cmd.ExecuteBatch(ChunkCount);
-        
-        // After batch execution, update identity maps
-        for j := 0 to ChunkCount - 1 do
-        begin
-          EntityIdStr := GetEntityId(EntitiesT[ChunkStart + j]);
-          if not FIdentityMap.ContainsKey(EntityIdStr) then
-          begin
-             if FOrphans.Contains(EntitiesT[ChunkStart + j]) then
-               FIdentityMap.Add(EntityIdStr, FOrphans.Extract(EntitiesT[ChunkStart + j]))
-             else
-               FIdentityMap.Add(EntityIdStr, EntitiesT[ChunkStart + j]);
-          end;
-        end;
-        
-        ChunkStart := ChunkStart + ChunkCount;
       end;
     finally
       SetProps := nil;
@@ -1837,35 +1700,21 @@ end;
 
 procedure TDbSet<T>.PersistRemoveRange(const AEntities: TArray<TObject>);
 var
-  Cmd: IDbCommand;
   EntitiesT: TArray<T>;
   Generator: TSqlGenerator<T>;
-  Helper: TNullableHelper;
   i: Integer;
-  Pair: TPair<TRttiProperty, string>;
-  ParamName: string;
-  ParamValues: TArray<TValue>;
-  Prop: TRttiProperty;
   WhereProps: IList<TPair<TRttiProperty, string>>;
   Sql: string;
-  Val: TValue;
-  Converter: ITypeConverter;
-  PropMap: TPropertyMap;
-  ChunkStart: Integer;
-  ChunkCount: Integer;
-  TotalCount: Integer;
-  j: Integer;
   ChunkSize: Integer;
-  LDataType: TFieldType;
+  TotalCount: Integer;
 begin
   if Length(AEntities) = 0 then Exit;
   ChunkSize := FContext.BulkBatchSize;
-  if ChunkSize <= 0 then
-    ChunkSize := 100;
+  if ChunkSize <= 0 then ChunkSize := 100;
   TotalCount := Length(AEntities);
   SetLength(EntitiesT, TotalCount);
   for i := 0 to High(AEntities) do
-    EntitiesT[i] := T(AEntities[i]);
+    EntitiesT[i] := T(Pointer(AEntities[i]));
     
   Generator := CreateGenerator;
   try
@@ -1873,82 +1722,10 @@ begin
     try
       if Sql = '' then Exit;
       
-      ChunkStart := 0;
-      while ChunkStart < TotalCount do
-      begin
-        if TotalCount - ChunkStart < ChunkSize then
-          ChunkCount := TotalCount - ChunkStart
-        else
-          ChunkCount := ChunkSize;
-          
-        Cmd := FContext.Connection.CreateCommand(Sql) as IDbCommand;
-        
-        // Pre-initialize parameter types to prevent PostgreSQL typing errors (Bulk operations)
-        for Pair in WhereProps do
-        begin
-          Prop := Pair.Key;
-          ParamName := Pair.Value;
-          PropMap := nil;
-          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-          if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) then
-            LDataType := PropMap.DataType
-          else
-            LDataType := GetFieldType(Prop.PropertyType.Handle);
-            
-          if LDataType <> ftUnknown then
-            Cmd.AddParam(ParamName, TValue.Empty, LDataType);
-        end;
-
-        Cmd.SetArraySize(ChunkCount);
-        SetLength(ParamValues, ChunkCount);
-        
-        // Bind WHERE parameters (PKs)
-        for Pair in WhereProps do
-        begin
-          Prop := Pair.Key;
-          ParamName := Pair.Value;
-          
-          PropMap := nil;
-          if FMap <> nil then FMap.Properties.TryGetValue(Prop.Name, PropMap);
-          
-          Converter := nil;
-          if PropMap <> nil then Converter := PropMap.Converter;
-          if Converter = nil then Converter := TTypeConverterRegistry.Instance.GetConverter(Prop.PropertyType.Handle);
-
-          for j := 0 to ChunkCount - 1 do
-          begin
-            Val := Prop.GetValue(Pointer(EntitiesT[ChunkStart + j]));
-            
-            if IsNullable(Val.TypeInfo) then
-            begin
-               Helper := TNullableHelper.Create(Val.TypeInfo);
-               if Helper.HasValue(Val.GetReferenceToRawData) then
-                 Val := Helper.GetValue(Val.GetReferenceToRawData)
-               else
-                 Val := TValue.Empty;
-            end;
-            
-            TReflection.TryUnwrapProp(Val, Val);
-            
-            if Converter <> nil then
-              Val := Converter.ToDatabase(Val, Generator.GetDialectEnum);
-              
-            ParamValues[j] := Val;
-          end;
-          Cmd.SetParamArray(ParamName, ParamValues);
-        end;
-        
-        Cmd.ExecuteBatch(ChunkCount);
-        
-        // Remove from identity maps
-        for j := 0 to ChunkCount - 1 do
-        begin
-          FIdentityMap.Remove(GetEntityId(EntitiesT[ChunkStart + j]));
-        end;
-        
-        ChunkStart := ChunkStart + ChunkCount;
-      end;
+      TDextBatchStrategyFactory.ExecuteDeleteBatch(FContext, GetTableName, WhereProps, AEntities, ChunkSize);
+      
+      for i := 0 to High(EntitiesT) do
+        FIdentityMap.Remove(GetEntityId(EntitiesT[i]));
     finally
       WhereProps := nil;
     end;
