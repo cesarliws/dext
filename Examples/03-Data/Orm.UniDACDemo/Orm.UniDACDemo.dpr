@@ -18,13 +18,12 @@ program Orm.UniDACDemo;
 
 uses
   System.SysUtils,
-  //Dext.MM,
   Dext.Utils,
   Dext,
-  UniDACDemo.DbConfig in 'UniDACDemo.DbConfig.pas',
   UniDACDemo.Entities in 'UniDACDemo.Entities.pas',
   UniDACDemo.Tests.Base in 'UniDACDemo.Tests.Base.pas',
-  UniDACDemo.Tests.CRUD in 'UniDACDemo.Tests.CRUD.pas';
+  UniDACDemo.Tests.CRUD in 'UniDACDemo.Tests.CRUD.pas',
+  UniDACDemo.DbConfig in 'UniDACDemo.DbConfig.pas';
 
 begin
   try

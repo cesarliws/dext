@@ -5,12 +5,18 @@ interface
 uses
   System.SysUtils,
   Dext,
+  Dext.Entity,
+  Dext.Entity.Context,
   Dext.Entity.Core,
+  Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.Dialects,
   Dext.Entity.Setup;
 
 type
   TUniDACTestBase = class
   private
+    FConn: IDbConnection;
+    FDialect: ISQLDialect;
     FContext: TDbContext;
     function GetContext: TDbContext;
   public
@@ -21,12 +27,20 @@ type
 
 implementation
 
+uses UniDACDemo.DbConfig;
+
 { TUniDACTestBase }
 
 constructor TUniDACTestBase.Create;
+var
+  Options: TDbContextOptions;
 begin
   inherited Create;
-  FContext := nil;
+  Options := CreateOptions;
+  FConn := Options.BuildConnection;
+  FDialect := TSQLiteDialect.Create;
+  FConn.Connect;
+  FContext := TDbContext.Create(FConn, FDialect);
 end;
 
 destructor TUniDACTestBase.Destroy;
@@ -37,8 +51,6 @@ end;
 
 function TUniDACTestBase.GetContext: TDbContext;
 begin
-  if FContext = nil then
-    FContext := TDbContext.Create(UniDACDemo.DbConfig.CreateOptions);
   Result := FContext;
 end;
 

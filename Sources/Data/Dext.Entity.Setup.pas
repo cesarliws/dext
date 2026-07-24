@@ -20,7 +20,7 @@ uses
   {$ELSE}
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Drivers.FireDAC.Manager,
-  FireDAC.Comp.Client,               // TFDConnection
+  FireDAC.Comp.Client;              // TFDConnection
   {$ENDIF}
 
 type

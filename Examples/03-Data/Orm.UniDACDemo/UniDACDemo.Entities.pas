@@ -3,11 +3,14 @@ unit UniDACDemo.Entities;
 interface
 
 uses
-  Dext.Entity,              // Attributes facade
-  Dext.Entity.Collections,  // IEntityCollection<T>
-  Dext.Types.Lazy;          // ILazy<T>
+  Dext,
+  Dext.Entity,
+  Dext.Collections,
+  Dext.Types.Lazy,
+  Dext.Specifications.Base;
 
 type
+  [Table('customers')]
   TCustomer = class
   private
     FId: Integer;
@@ -15,8 +18,6 @@ type
     FEmail: string;
     FBalance: Currency;
     FCreatedAt: TDateTime;
-    FOrders: ILazy<IEntityCollection<TOrder>>;
-    function GetOrders: IEntityCollection<TOrder>;
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
@@ -30,11 +31,9 @@ type
     property Balance: Currency read FBalance write FBalance;
 
     property CreatedAt: TDateTime read FCreatedAt write FCreatedAt;
-
-    [InverseProperty('Customer'), HasMany]
-    property Orders: IEntityCollection<TOrder> read GetOrders;
   end;
 
+  [Table('orders')]
   TOrder = class
   private
     FId: Integer;
@@ -42,9 +41,6 @@ type
     FTotalAmount: Currency;
     FOrderDate: TDateTime;
     FStatus: string;
-    FCustomer: ILazy<TCustomer>;
-    function GetCustomer: TCustomer;
-    procedure SetCustomer(const Value: TCustomer);
   public
     [PK, AutoInc]
     property Id: Integer read FId write FId;
@@ -59,38 +55,8 @@ type
 
     [MaxLength(50)]
     property Status: string read FStatus write FStatus;
-
-    property Customer: TCustomer read GetCustomer write SetCustomer;
   end;
 
 implementation
-
-{ TCustomer }
-
-function TCustomer.GetOrders: IEntityCollection<TOrder>;
-begin
-  if FOrders = nil then
-    FOrders := TLazy<IEntityCollection<TOrder>>.Create;
-  Result := FOrders.Value;
-end;
-
-{ TOrder }
-
-function TOrder.GetCustomer: TCustomer;
-begin
-  if FCustomer <> nil then
-    Result := FCustomer.Value
-  else
-    Result := nil;
-end;
-
-procedure TOrder.SetCustomer(const Value: TCustomer);
-begin
-  if FCustomer = nil then
-    FCustomer := TLazy<TCustomer>.Create;
-  FCustomer.Value := Value;
-  if Value <> nil then
-    FCustomerId := Value.Id;
-end;
 
 end.
