@@ -34,6 +34,12 @@
         <CfgParent>Base</CfgParent>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win32' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win32)'!=''">
+        <Cfg_2_Win32>true</Cfg_2_Win32>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <SanitizedProjectName>DextTool</SanitizedProjectName>
         <DCC_DcuOutput>..\..\Output\$(ProductVersion)\$(Platform)\$(Config)</DCC_DcuOutput>
@@ -76,6 +82,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCC_Optimize>false</DCC_Optimize>
         <DCC_RangeChecking>true</DCC_RangeChecking>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''"/>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
@@ -91,6 +98,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.MigrateUp.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Scaffold.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Test.pas"/>
+        <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.DevCerts.pas"/>
         <DCCReference Include="Tools\Dext.Hosting.CLI.Tools.DocGen.pas"/>
         <DCCReference Include="Tools\Dext.Hosting.CLI.Tools.IndexGen.pas"/>
         <BuildConfiguration Include="Base">

@@ -6,6 +6,7 @@ program DextTool;
 uses
   System.SysUtils,
   System.Classes,
+  Dext.Utils,
   Dext.Configuration.Core,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Json,
@@ -29,7 +30,6 @@ uses
   Dext.Hosting.CLI.Commands.DevCerts in 'Commands\Dext.Hosting.CLI.Commands.DevCerts.pas',
   Dext.Hosting.CLI.Tools.DocGen in 'Tools\Dext.Hosting.CLI.Tools.DocGen.pas',
   Dext.Hosting.CLI.Tools.IndexGen in 'Tools\Dext.Hosting.CLI.Tools.IndexGen.pas';
-
 
 function CreateDbContext: IDbContext;
 var
@@ -131,5 +131,6 @@ begin
     on E: Exception do
       Writeln(E.ClassName, ': ', E.Message);
   end;
+  ConsolePause;
 end.
 

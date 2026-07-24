@@ -18,16 +18,37 @@
         <Projects Include="Dext.EF.Core.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Dext.EF.Components.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="Dext.Web.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.AI.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.Web.Hubs.Core.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.Events.Core.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="Dext.Hosting.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\..\Tests\Net\Dext.Net.Socket.Tests.dproj">
+        <Projects Include="Dext.UI.Core.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\..\Tests\VclOpenSslTest\VclOpenSslTest.dproj">
+        <Projects Include="Dext.EF.Design.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Dext.Testing.Design.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\..\Apps\CLI\DextTool.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="..\..\Apps\Sidecar\DextSidecar.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="..\..\Examples\02-Web\Web.SslDemo\Web.SslDemo.dproj">
@@ -86,6 +107,15 @@
     <Target Name="Dext_EF_Core:Make">
         <MSBuild Projects="Dext.EF.Core.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Dext_EF_Components">
+        <MSBuild Projects="Dext.EF.Components.dproj"/>
+    </Target>
+    <Target Name="Dext_EF_Components:Clean">
+        <MSBuild Projects="Dext.EF.Components.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_EF_Components:Make">
+        <MSBuild Projects="Dext.EF.Components.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Dext_Web_Core">
         <MSBuild Projects="Dext.Web.Core.dproj"/>
     </Target>
@@ -94,6 +124,33 @@
     </Target>
     <Target Name="Dext_Web_Core:Make">
         <MSBuild Projects="Dext.Web.Core.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_AI_Core">
+        <MSBuild Projects="Dext.AI.Core.dproj"/>
+    </Target>
+    <Target Name="Dext_AI_Core:Clean">
+        <MSBuild Projects="Dext.AI.Core.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_AI_Core:Make">
+        <MSBuild Projects="Dext.AI.Core.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_Web_Hubs_Core">
+        <MSBuild Projects="Dext.Web.Hubs.Core.dproj"/>
+    </Target>
+    <Target Name="Dext_Web_Hubs_Core:Clean">
+        <MSBuild Projects="Dext.Web.Hubs.Core.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Web_Hubs_Core:Make">
+        <MSBuild Projects="Dext.Web.Hubs.Core.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_Events_Core">
+        <MSBuild Projects="Dext.Events.Core.dproj"/>
+    </Target>
+    <Target Name="Dext_Events_Core:Clean">
+        <MSBuild Projects="Dext.Events.Core.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Events_Core:Make">
+        <MSBuild Projects="Dext.Events.Core.dproj" Targets="Make"/>
     </Target>
     <Target Name="Dext_Hosting_Core">
         <MSBuild Projects="Dext.Hosting.Core.dproj"/>
@@ -104,23 +161,50 @@
     <Target Name="Dext_Hosting_Core:Make">
         <MSBuild Projects="Dext.Hosting.Core.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Dext_Net_Socket_Tests">
-        <MSBuild Projects="..\..\Tests\Net\Dext.Net.Socket.Tests.dproj"/>
+    <Target Name="Dext_UI_Core">
+        <MSBuild Projects="Dext.UI.Core.dproj"/>
     </Target>
-    <Target Name="Dext_Net_Socket_Tests:Clean">
-        <MSBuild Projects="..\..\Tests\Net\Dext.Net.Socket.Tests.dproj" Targets="Clean"/>
+    <Target Name="Dext_UI_Core:Clean">
+        <MSBuild Projects="Dext.UI.Core.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="Dext_Net_Socket_Tests:Make">
-        <MSBuild Projects="..\..\Tests\Net\Dext.Net.Socket.Tests.dproj" Targets="Make"/>
+    <Target Name="Dext_UI_Core:Make">
+        <MSBuild Projects="Dext.UI.Core.dproj" Targets="Make"/>
     </Target>
-    <Target Name="VclOpenSslTest">
-        <MSBuild Projects="..\..\Tests\VclOpenSslTest\VclOpenSslTest.dproj"/>
+    <Target Name="Dext_EF_Design">
+        <MSBuild Projects="Dext.EF.Design.dproj"/>
     </Target>
-    <Target Name="VclOpenSslTest:Clean">
-        <MSBuild Projects="..\..\Tests\VclOpenSslTest\VclOpenSslTest.dproj" Targets="Clean"/>
+    <Target Name="Dext_EF_Design:Clean">
+        <MSBuild Projects="Dext.EF.Design.dproj" Targets="Clean"/>
     </Target>
-    <Target Name="VclOpenSslTest:Make">
-        <MSBuild Projects="..\..\Tests\VclOpenSslTest\VclOpenSslTest.dproj" Targets="Make"/>
+    <Target Name="Dext_EF_Design:Make">
+        <MSBuild Projects="Dext.EF.Design.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Dext_Testing_Design">
+        <MSBuild Projects="Dext.Testing.Design.dproj"/>
+    </Target>
+    <Target Name="Dext_Testing_Design:Clean">
+        <MSBuild Projects="Dext.Testing.Design.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Dext_Testing_Design:Make">
+        <MSBuild Projects="Dext.Testing.Design.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DextTool">
+        <MSBuild Projects="..\..\Apps\CLI\DextTool.dproj"/>
+    </Target>
+    <Target Name="DextTool:Clean">
+        <MSBuild Projects="..\..\Apps\CLI\DextTool.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DextTool:Make">
+        <MSBuild Projects="..\..\Apps\CLI\DextTool.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="DextSidecar">
+        <MSBuild Projects="..\..\Apps\Sidecar\DextSidecar.dproj"/>
+    </Target>
+    <Target Name="DextSidecar:Clean">
+        <MSBuild Projects="..\..\Apps\Sidecar\DextSidecar.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="DextSidecar:Make">
+        <MSBuild Projects="..\..\Apps\Sidecar\DextSidecar.dproj" Targets="Make"/>
     </Target>
     <Target Name="Web_SslDemo">
         <MSBuild Projects="..\..\Examples\02-Web\Web.SslDemo\Web.SslDemo.dproj"/>
@@ -132,13 +216,13 @@
         <MSBuild Projects="..\..\Examples\02-Web\Web.SslDemo\Web.SslDemo.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="Dext_Core;Dext_Testing_Core;Dext_AST_Core;Dext_Net_Core;Dext_EF_Core;Dext_Web_Core;Dext_Hosting_Core;Dext_Net_Socket_Tests;VclOpenSslTest;Web_SslDemo"/>
+        <CallTarget Targets="Dext_Core;Dext_Testing_Core;Dext_AST_Core;Dext_Net_Core;Dext_EF_Core;Dext_EF_Components;Dext_Web_Core;Dext_AI_Core;Dext_Web_Hubs_Core;Dext_Events_Core;Dext_Hosting_Core;Dext_UI_Core;Dext_EF_Design;Dext_Testing_Design;DextTool;DextSidecar;Web_SslDemo"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Dext_Core:Clean;Dext_Testing_Core:Clean;Dext_AST_Core:Clean;Dext_Net_Core:Clean;Dext_EF_Core:Clean;Dext_Web_Core:Clean;Dext_Hosting_Core:Clean;Dext_Net_Socket_Tests:Clean;VclOpenSslTest:Clean;Web_SslDemo:Clean"/>
+        <CallTarget Targets="Dext_Core:Clean;Dext_Testing_Core:Clean;Dext_AST_Core:Clean;Dext_Net_Core:Clean;Dext_EF_Core:Clean;Dext_EF_Components:Clean;Dext_Web_Core:Clean;Dext_AI_Core:Clean;Dext_Web_Hubs_Core:Clean;Dext_Events_Core:Clean;Dext_Hosting_Core:Clean;Dext_UI_Core:Clean;Dext_EF_Design:Clean;Dext_Testing_Design:Clean;DextTool:Clean;DextSidecar:Clean;Web_SslDemo:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Dext_Core:Make;Dext_Testing_Core:Make;Dext_AST_Core:Make;Dext_Net_Core:Make;Dext_EF_Core:Make;Dext_Web_Core:Make;Dext_Hosting_Core:Make;Dext_Net_Socket_Tests:Make;VclOpenSslTest:Make;Web_SslDemo:Make"/>
+        <CallTarget Targets="Dext_Core:Make;Dext_Testing_Core:Make;Dext_AST_Core:Make;Dext_Net_Core:Make;Dext_EF_Core:Make;Dext_EF_Components:Make;Dext_Web_Core:Make;Dext_AI_Core:Make;Dext_Web_Hubs_Core:Make;Dext_Events_Core:Make;Dext_Hosting_Core:Make;Dext_UI_Core:Make;Dext_EF_Design:Make;Dext_Testing_Design:Make;DextTool:Make;DextSidecar:Make;Web_SslDemo:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
