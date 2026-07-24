@@ -177,9 +177,6 @@ const
   CERT_ALT_NAME_DNS_NAME = 3;
   X509_ALTERNATE_NAME = PAnsiChar(12);
 
-function CertOpenSystemStoreW(hProv: ULONG_PTR; szSubSystemProtocol: PWideChar): HCERTSTORE; stdcall; external 'crypt32.dll' name 'CertOpenSystemStoreW';
-function CertAddCertificateContextToStore(hCertStore: HCERTSTORE; pCertContext: PCCERT_CONTEXT; dwAddDisposition: DWORD; ppStoreContext: Pointer): BOOL; stdcall; external 'crypt32.dll' name 'CertAddCertificateContextToStore';
-function CertCloseStore(hCertStore: HCERTSTORE; dwFlags: DWORD): BOOL; stdcall; external 'crypt32.dll' name 'CertCloseStore';
 function CryptEncodeObjectEx(dwCertEncodingType: DWORD; lpszStructType: PAnsiChar; pvStructInfo: Pointer; dwFlags: DWORD; pEncodePara: Pointer; pvEncoded: Pointer; pcbEncoded: PDWORD): BOOL; stdcall; external 'crypt32.dll' name 'CryptEncodeObjectEx';
 function CertStrToNameA(dwCertEncodingType: DWORD; pszX500: PAnsiChar; dwStrType: DWORD; pvReserved: Pointer; pbEncoded: PByte; pcbEncoded: PDWORD; ppszError: PPAnsiChar): BOOL; stdcall; external 'crypt32.dll' name 'CertStrToNameA';
 function CertCreateSelfSignCertificate(hCryptProvOrNCryptKey: HCRYPTPROV_OR_NCRYPT_KEY_HANDLE; pSubjectIssuerBlob: PCERT_NAME_BLOB; dwFlags: DWORD; pKeyProviderInfo: Pointer; pSignatureAlgorithm: PCRYPT_ALGORITHM_IDENTIFIER; pStartTime: PSYSTEMTIME; pEndTime: PSYSTEMTIME; pExtensions: Pointer): PCCERT_CONTEXT; stdcall; external 'crypt32.dll' name 'CertCreateSelfSignCertificate';
@@ -222,23 +219,19 @@ function BuildSanExtensionAsn1: TBytes;
 var
   Dns1, Dns2, Entries: TBytes;
   StrBytes1, StrBytes2: TBytes;
-  Len1, Len2: TBytes;
-  I: Integer;
 begin
   // DNS:localhost -> context tag 0x82
   StrBytes1 := TEncoding.ASCII.GetBytes('localhost');
-  Len1 := [Byte(Length(StrBytes1))];
   SetLength(Dns1, 2 + Length(StrBytes1));
   Dns1[0] := $82;
-  Dns1[1] := Len1[0];
+  Dns1[1] := Byte(Length(StrBytes1));
   Move(StrBytes1[0], Dns1[2], Length(StrBytes1));
 
   // DNS:127.0.0.1 -> context tag 0x82
   StrBytes2 := TEncoding.ASCII.GetBytes('127.0.0.1');
-  Len2 := [Byte(Length(StrBytes2))];
   SetLength(Dns2, 2 + Length(StrBytes2));
   Dns2[0] := $82;
-  Dns2[1] := Len2[0];
+  Dns2[1] := Byte(Length(StrBytes2));
   Move(StrBytes2[0], Dns2[2], Length(StrBytes2));
 
   Entries := Concat(Dns1, Dns2);
@@ -413,11 +406,7 @@ var
   Base64Key: string;
   Pkcs1Bytes: TBytes;
   KeyProvInfo: CRYPT_KEY_PROV_INFO;
-  hRootStore: HCERTSTORE;
-  AltNameEntries: array[0..1] of CERT_ALT_NAME_ENTRY;
-  AltNameInfo: CERT_ALT_NAME_INFO;
   EncodedSanBytes: TBytes;
-  EncodedSanLen: DWORD;
   SanExt: CERT_EXTENSION;
   CertExtStruct: CERT_EXTENSIONS;
 begin
