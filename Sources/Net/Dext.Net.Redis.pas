@@ -33,7 +33,8 @@ uses
   Dext.Threading.Async,
   Dext.Collections.Channels,
   Dext.Json,
-  Dext.DI.Interfaces;
+  Dext.DI.Interfaces,
+  Dext.Net.Security;
 
 type
   /// <summary>
@@ -219,7 +220,8 @@ type
     FPubSub: TDextRedisPubSub;
   public
     /// <summary>Initializes the client with connection parameters.</summary>
-    constructor Create(const AHost: string = 'localhost'; APort: Word = 6379; AMaxPoolSize: Integer = 16);
+    constructor Create(const AHost: string = 'localhost'; APort: Word = 6379; AMaxPoolSize: Integer = 16); overload;
+    constructor Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions; AMaxPoolSize: Integer = 16); overload;
     /// <summary>Cleans the client resources.</summary>
     destructor Destroy; override;
 
@@ -850,6 +852,11 @@ end;
 { TDextRedisClient }
 
 constructor TDextRedisClient.Create(const AHost: string; APort: Word; AMaxPoolSize: Integer);
+begin
+  Create(AHost, APort, Default(TDextTLSOptions), AMaxPoolSize);
+end;
+
+constructor TDextRedisClient.Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions; AMaxPoolSize: Integer);
 begin
   inherited Create;
   FPool := TDextRedisConnectionPool.Create(AHost, APort, AMaxPoolSize);

@@ -85,6 +85,28 @@ Inicia o Dashboard administrativo web do Dext.
 dext ui --port 3000
 ```
 
+## Gerenciamento de Certificados SSL (`dev-certs`)
+
+Gera e gerencia certificados SSL/TLS autoassinados de desenvolvimento
+locais para `localhost` e `127.0.0.1` (similar ao `dotnet dev-certs https`).
+
+```bash
+dext dev-certs https [--trust] [--out-cert <path>]
+```
+
+| Opção | Descrição |
+|-------|-----------|
+| `https` | Subcomando para gerar certificado autoassinado de desenvolvimento. |
+| `--trust` | Importa e confia no certificado no Repositório Raiz do Windows. |
+| `--out-cert` | Caminho do arquivo de certificado gerado (padrão: `server.crt`). |
+
+### Exemplo de uso:
+
+```bash
+# Gera o certificado server.crt e instala no repositório de confiança do Windows
+dext dev-certs https --trust --out-cert C:\dev\MeuProjeto\server.crt
+```
+
 ---
 
 [← CLI](README.md) | [Próximo: Migrations →](migrations.md)

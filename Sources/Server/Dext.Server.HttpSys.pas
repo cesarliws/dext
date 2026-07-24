@@ -2315,20 +2315,24 @@ var
 begin
   if FRunning then Exit;
 
+  var Scheme: string := 'http';
+  if FOptions.UseHttps then
+    Scheme := 'https';
+
   // Register prefix
   if (FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '') then
-    UrlPrefix := Format('http://+:%d/', [FListeningPort])
+    UrlPrefix := Format('%s://+:%d/', [Scheme, FListeningPort])
   else
-    UrlPrefix := Format('http://%s:%d/', [FAddress, FListeningPort]);
+    UrlPrefix := Format('%s://%s:%d/', [Scheme, FAddress, FListeningPort]);
     
   Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
   if (Ret = 5) and ((FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '')) then
   begin
-    UrlPrefix := Format('http://127.0.0.1:%d/', [FListeningPort]);
+    UrlPrefix := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
     Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
     if Ret = ERROR_SUCCESS then
     begin
-      var LocalhostPrefix: string := Format('http://localhost:%d/', [FListeningPort]);
+      var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
       HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
     end;
   end;

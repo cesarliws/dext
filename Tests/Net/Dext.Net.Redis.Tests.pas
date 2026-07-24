@@ -209,7 +209,7 @@ begin
           Response := TEncoding.UTF8.GetBytes('-ERR Unknown Command'#13#10);
         AConnection.Send(Response);
       end;
-    
+
     Server.Bind('127.0.0.1', 0);
     Server.Start;
 
@@ -259,19 +259,19 @@ begin
           AConnection.Send(Response);
         end;
       end;
-    
+
     Server.Bind('127.0.0.1', 0);
     Server.Start;
 
     Client := TDextRedisClient.Create('127.0.0.1', Server.ListenPort);
     try
       Chan := Client.Subscribe('mychan');
-      
+
       // Wait briefly for connection registration
       Sleep(200);
 
       Should(ActiveConn).NotBeNil;
-      
+
       // Push message from the mock server
       Response := TEncoding.UTF8.GetBytes('*3'#13#10'$7'#13#10'message'#13#10'$6'#13#10'mychan'#13#10'$5'#13#10'hello'#13#10);
       ActiveConn.Send(Response);
@@ -325,7 +325,7 @@ begin
     Server.Start;
 
     Cache := TRedisCacheStore.Create('127.0.0.1', Server.ListenPort);
-    
+
     Should(Cache.TryGet('mykey', ResValue)).BeTrue;
     Should(ResValue).Be('cached_value');
 

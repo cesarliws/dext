@@ -9,6 +9,7 @@ uses
   Dext,
   Dext.Utils,
   Dext.Web,
+
   Dext.Web.Interfaces,
   Dext.Configuration.Interfaces;
 
@@ -151,6 +152,8 @@ begin
 
     Writeln('');
 
+    App.Builder.UseHttpLogging;
+    App.Builder.UseDeveloperExceptionPage;
     App.Builder
       .MapGet('/', procedure(Context: IHttpContext)
       begin

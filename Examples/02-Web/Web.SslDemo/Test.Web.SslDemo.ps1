@@ -2,8 +2,7 @@
 # Tests the server in HTTPS mode by default (ignoring cert errors)
 
 $ErrorActionPreference = "Stop"
-#$baseUrl = "https://localhost:8080"
-$baseUrl = "http://localhost:8080" # It is running HTTP
+$baseUrl = "https://localhost:8080"
 
 Write-Host "Testing Web.SslDemo" -ForegroundColor Cyan
 Write-Host "===================" -ForegroundColor Cyan
@@ -11,6 +10,7 @@ Write-Host ""
 Write-Host "Testing HTTPS connection (SkipCertificateCheck = true)"
 Write-Host ""
 
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12 -bor [System.Net.SecurityProtocolType]::Tls11 -bor [System.Net.SecurityProtocolType]::Tls
 [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 
 function Invoke-DextRequest {
@@ -19,16 +19,29 @@ function Invoke-DextRequest {
         [string]$Method = "GET"
     )
     try {
-        $params = @{
-            Uri             = $Uri
-            Method          = $Method
-            UseBasicParsing = $true
+        if ($PSVersionTable.PSVersion.Major -ge 6) {
+            $resp = Invoke-WebRequest -Uri $Uri -Method $Method -SkipCertificateCheck -UseBasicParsing
+            return @{ 
+                StatusCode = $resp.StatusCode
+                Content    = $resp.Content
+            }
         }
-        
-        $resp = Invoke-WebRequest @params
-        return @{ 
-            StatusCode = $resp.StatusCode
-            Content    = $resp.Content
+        else {
+            $req = [System.Net.HttpWebRequest]::Create($Uri)
+            $req.Method = $Method
+            $req.ServerCertificateValidationCallback = { $true }
+            
+            $resp = $req.GetResponse()
+            $stream = $resp.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($stream)
+            $content = $reader.ReadToEnd()
+            $reader.Close()
+            $resp.Close()
+            
+            return @{ 
+                StatusCode = [int]$resp.StatusCode
+                Content    = $content
+            }
         }
     }
     catch {

@@ -26,6 +26,7 @@ uses
   Dext.Hosting.CLI.Commands.MigrateUp in 'Commands\Dext.Hosting.CLI.Commands.MigrateUp.pas',
   Dext.Hosting.CLI.Commands.Scaffold in 'Commands\Dext.Hosting.CLI.Commands.Scaffold.pas',
   Dext.Hosting.CLI.Commands.Test in 'Commands\Dext.Hosting.CLI.Commands.Test.pas',
+  Dext.Hosting.CLI.Commands.DevCerts in 'Commands\Dext.Hosting.CLI.Commands.DevCerts.pas',
   Dext.Hosting.CLI.Tools.DocGen in 'Tools\Dext.Hosting.CLI.Tools.DocGen.pas',
   Dext.Hosting.CLI.Tools.IndexGen in 'Tools\Dext.Hosting.CLI.Tools.IndexGen.pas';
 
@@ -115,6 +116,7 @@ begin
       CLI.AddCommand(TConfigInitCommand.Create);
       CLI.AddCommand(TCodecsCommand.Create);
       CLI.AddCommand(TEnvScanCommand.Create);
+      CLI.AddCommand(TDevCertsCommand.Create);
 
       CLI.AddCommand(TScaffoldCommand.Create);
       CLI.AddCommand(TDocCommand.Create);

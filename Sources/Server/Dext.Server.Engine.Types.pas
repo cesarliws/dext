@@ -63,6 +63,8 @@ type
     MaxRequestHeaderSize: Integer;
     /// <summary>Maximum accepted request body size.</summary>
     MaxRequestBodySize: Int64;
+    /// <summary>Enable HTTPS/SSL on the server engine (default: False).</summary>
+    UseHttps: Boolean;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -131,6 +133,7 @@ begin
   Result.OutstandingReceiveDepth := 2;
   Result.MaxRequestHeaderSize := 64 * 1024;
   Result.MaxRequestBodySize := 16 * 1024 * 1024;
+  Result.UseHttps := False;
 end;
 
 { TServerEngineOptionsHelper }

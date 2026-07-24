@@ -142,6 +142,28 @@ dext ui --port 8080
 
 Visit `http://localhost:3000` (or specified port).
 
+## Dev Certs Command (`dev-certs`)
+
+Generate and manage local self-signed SSL/TLS development certificates
+for `localhost` and `127.0.0.1` (similar to `dotnet dev-certs https`).
+
+```bash
+dext dev-certs https [--trust] [--out-cert <path>]
+```
+
+| Option | Description |
+|--------|-------------|
+| `https` | Subcommand to generate self-signed development certificate. |
+| `--trust` | Imports and trusts the certificate in Windows Root Store. |
+| `--out-cert` | Path of the generated certificate file (default: `server.crt`). |
+
+### Example Usage:
+
+```bash
+# Generate server.crt and install into Windows Trusted Root Store
+dext dev-certs https --trust --out-cert C:\dev\MyProject\server.crt
+```
+
 ---
 
 [← CLI](README.md) | [Next: Migrations →](migrations.md)
