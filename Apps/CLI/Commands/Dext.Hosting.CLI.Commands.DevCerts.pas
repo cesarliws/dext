@@ -127,6 +127,33 @@ type
   end;
   PCERT_CONTEXT = ^CERT_CONTEXT;
 
+  CERT_EXTENSION = record
+    pszObjId: PAnsiChar;
+    fCritical: BOOL;
+    Value: CRYPT_OBJID_BLOB;
+  end;
+  PCERT_EXTENSION = ^CERT_EXTENSION;
+
+  CERT_EXTENSIONS = record
+    cExtension: DWORD;
+    rgExtension: PCERT_EXTENSION;
+  end;
+  PCERT_EXTENSIONS = ^CERT_EXTENSIONS;
+
+  CERT_ALT_NAME_ENTRY = record
+    dwAltNameChoice: DWORD;
+    case Integer of
+      0: (pwszDNSName: PWideChar);
+      1: (pwszURL: PWideChar);
+  end;
+  PCERT_ALT_NAME_ENTRY = ^CERT_ALT_NAME_ENTRY;
+
+  CERT_ALT_NAME_INFO = record
+    cAltEntry: DWORD;
+    rgAltEntry: PCERT_ALT_NAME_ENTRY;
+  end;
+  PCERT_ALT_NAME_INFO = ^CERT_ALT_NAME_INFO;
+
   TDevCertsCommand = class(TInterfacedObject, IConsoleCommand)
   private
     procedure ShowUsage;
@@ -146,7 +173,14 @@ const
   X509_ASN_ENCODING   = $00000001;
   MY_ENCODING_TYPE    = PKCS_7_ASN_ENCODING or X509_ASN_ENCODING;
   CERT_FRIENDLY_NAME_PROP_ID = 1;
+  szOID_SUBJECT_ALT_NAME2 = '2.5.29.17';
+  CERT_ALT_NAME_DNS_NAME = 3;
+  X509_ALTERNATE_NAME = PAnsiChar(12);
 
+function CertOpenSystemStoreW(hProv: ULONG_PTR; szSubSystemProtocol: PWideChar): HCERTSTORE; stdcall; external 'crypt32.dll' name 'CertOpenSystemStoreW';
+function CertAddCertificateContextToStore(hCertStore: HCERTSTORE; pCertContext: PCCERT_CONTEXT; dwAddDisposition: DWORD; ppStoreContext: Pointer): BOOL; stdcall; external 'crypt32.dll' name 'CertAddCertificateContextToStore';
+function CertCloseStore(hCertStore: HCERTSTORE; dwFlags: DWORD): BOOL; stdcall; external 'crypt32.dll' name 'CertCloseStore';
+function CryptEncodeObjectEx(dwCertEncodingType: DWORD; lpszStructType: PAnsiChar; pvStructInfo: Pointer; dwFlags: DWORD; pEncodePara: Pointer; pvEncoded: Pointer; pcbEncoded: PDWORD): BOOL; stdcall; external 'crypt32.dll' name 'CryptEncodeObjectEx';
 function CertStrToNameA(dwCertEncodingType: DWORD; pszX500: PAnsiChar; dwStrType: DWORD; pvReserved: Pointer; pbEncoded: PByte; pcbEncoded: PDWORD; ppszError: PPAnsiChar): BOOL; stdcall; external 'crypt32.dll' name 'CertStrToNameA';
 function CertCreateSelfSignCertificate(hCryptProvOrNCryptKey: HCRYPTPROV_OR_NCRYPT_KEY_HANDLE; pSubjectIssuerBlob: PCERT_NAME_BLOB; dwFlags: DWORD; pKeyProviderInfo: Pointer; pSignatureAlgorithm: PCRYPT_ALGORITHM_IDENTIFIER; pStartTime: PSYSTEMTIME; pEndTime: PSYSTEMTIME; pExtensions: Pointer): PCCERT_CONTEXT; stdcall; external 'crypt32.dll' name 'CertCreateSelfSignCertificate';
 function CertSetCertificateContextProperty(pCertContext: PCCERT_CONTEXT; dwPropId: DWORD; dwFlags: DWORD; pvData: Pointer): BOOL; stdcall; external 'crypt32.dll' name 'CertSetCertificateContextProperty';
@@ -168,20 +202,52 @@ begin
   begin
     SetLength(Result, 1);
     Result[0] := Byte(Len);
-  end;
-  if (Len >= 128) and (Len <= 255) then
+  end
+  else if Len <= 255 then
   begin
     SetLength(Result, 2);
     Result[0] := $81;
     Result[1] := Byte(Len);
-  end;
-  if Len > 255 then
+  end
+  else
   begin
     SetLength(Result, 3);
     Result[0] := $82;
     Result[1] := Byte(Len shr 8);
     Result[2] := Byte(Len and $FF);
   end;
+end;
+
+function BuildSanExtensionAsn1: TBytes;
+var
+  Dns1, Dns2, Entries: TBytes;
+  StrBytes1, StrBytes2: TBytes;
+  Len1, Len2: TBytes;
+  I: Integer;
+begin
+  // DNS:localhost -> context tag 0x82
+  StrBytes1 := TEncoding.ASCII.GetBytes('localhost');
+  Len1 := [Byte(Length(StrBytes1))];
+  SetLength(Dns1, 2 + Length(StrBytes1));
+  Dns1[0] := $82;
+  Dns1[1] := Len1[0];
+  Move(StrBytes1[0], Dns1[2], Length(StrBytes1));
+
+  // DNS:127.0.0.1 -> context tag 0x82
+  StrBytes2 := TEncoding.ASCII.GetBytes('127.0.0.1');
+  Len2 := [Byte(Length(StrBytes2))];
+  SetLength(Dns2, 2 + Length(StrBytes2));
+  Dns2[0] := $82;
+  Dns2[1] := Len2[0];
+  Move(StrBytes2[0], Dns2[2], Length(StrBytes2));
+
+  Entries := Concat(Dns1, Dns2);
+  
+  // Tag SEQUENCE 0x30
+  SetLength(Result, 2 + Length(Entries));
+  Result[0] := $30;
+  Result[1] := Byte(Length(Entries));
+  Move(Entries[0], Result[2], Length(Entries));
 end;
 
 function TDevCertsCommand.EncodeAsn1Sequence(const Content: TBytes): TBytes;
@@ -253,6 +319,11 @@ var
 
   function SubBytes(StartIdx, Count: Integer): TBytes;
   begin
+    if (StartIdx < 0) or (StartIdx + Count > Length(KeyBlob)) then
+    begin
+      SetLength(Result, 0);
+      Exit;
+    end;
     SetLength(Result, Count);
     Move(KeyBlob[StartIdx], Result[0], Count);
     Result := ReverseBytes(Result);
@@ -277,11 +348,9 @@ begin
   PrivateExponent := SubBytes(Offset, ByteLen);
 
   SetLength(PublicExponent, 3);
-  PublicExponent[0] := Byte(RsaPubKeyStruct.pubexp shr 16);
-  PublicExponent[1] := Byte(RsaPubKeyStruct.pubexp shr 8);
-  PublicExponent[2] := Byte(RsaPubKeyStruct.pubexp);
-  if PublicExponent[0] = 0 then
-    PublicExponent := Copy(PublicExponent, 1, 2);
+  PublicExponent[0] := $01;
+  PublicExponent[1] := $00;
+  PublicExponent[2] := $01;
 
   SetLength(VersionInt, 1);
   VersionInt[0] := 0;
@@ -344,6 +413,13 @@ var
   Base64Key: string;
   Pkcs1Bytes: TBytes;
   KeyProvInfo: CRYPT_KEY_PROV_INFO;
+  hRootStore: HCERTSTORE;
+  AltNameEntries: array[0..1] of CERT_ALT_NAME_ENTRY;
+  AltNameInfo: CERT_ALT_NAME_INFO;
+  EncodedSanBytes: TBytes;
+  EncodedSanLen: DWORD;
+  SanExt: CERT_EXTENSION;
+  CertExtStruct: CERT_EXTENSIONS;
 begin
   Result := False;
   KeyFilePath := ChangeFileExt(CertFilePath, '.key');
@@ -388,8 +464,18 @@ begin
     KeyProvInfo.rgProvParam := nil;
     KeyProvInfo.dwKeySpec := 1; {AT_KEYEXCHANGE}
 
-    // 3. Cria certificado autoassinado nativo X.509
-    CertContext := CertCreateSelfSignCertificate(hProv, @SubjectBlob, 0, @KeyProvInfo, nil, nil, nil, nil);
+    // Prepara Extensão SAN (Subject Alternative Name) nativa ASN.1
+    EncodedSanBytes := BuildSanExtensionAsn1;
+    SanExt.pszObjId := PAnsiChar('2.5.29.17');
+    SanExt.fCritical := False;
+    SanExt.Value.cbData := Length(EncodedSanBytes);
+    SanExt.Value.pbData := @EncodedSanBytes[0];
+
+    CertExtStruct.cExtension := 1;
+    CertExtStruct.rgExtension := @SanExt;
+
+    // 3. Cria certificado autoassinado nativo X.509 com extensão SAN
+    CertContext := CertCreateSelfSignCertificate(hProv, @SubjectBlob, 0, @KeyProvInfo, nil, nil, nil, @CertExtStruct);
     if CertContext = nil then
     begin
       SafeWriteLn('[ERROR] CryptoAPI CertCreateSelfSignCertificate failed: ' + IntToStr(GetLastError));
