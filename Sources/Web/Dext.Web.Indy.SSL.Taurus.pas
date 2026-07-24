@@ -26,10 +26,8 @@ type
 
 implementation
 
-{$IFNDEF DEXT_ENABLE_TAURUS_TLS}
 uses
   Dext.Utils;
-{$ENDIF}
 
 { TDextIndyTaurusSSLHandler }
 
@@ -54,7 +52,7 @@ begin
   if FRootFile <> '' then
     LIOHandler.DefaultCert.RootKey := FRootFile;
 
-  // Additional Taurus specific configurations if needed
+  SafeWriteLn('[HTTPS] Taurus TLS Server IOHandler initialized with Cert: ' + FCertFile + ' Key: ' + FKeyFile);
 
   Result := LIOHandler;
   {$ELSE}

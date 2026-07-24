@@ -39,7 +39,8 @@ requires
   Dext.EF.Core,
   Dext.Net.Core,
   RESTComponents,
-  inet;
+  inet,
+  TaurusTLS_RT;
 
 contains
   Dext.Server.Engine.Types in '..\..\Sources\Server\Dext.Server.Engine.Types.pas',

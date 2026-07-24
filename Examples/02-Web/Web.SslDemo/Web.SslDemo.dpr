@@ -20,7 +20,8 @@ const
     '    "Server": {' + sLineBreak +
     '        "Port": 8080,' + sLineBreak +
     '        "UseHttps": "true",' + sLineBreak +
-    '        "SslProvider": "OpenSSL",' + sLineBreak +
+//    '        "SslProvider": "OpenSSL",' + sLineBreak +
+    '        "SslProvider": "Taurus",' + sLineBreak +
     '        "SslCert": "server.crt",' + sLineBreak +
     '        "SslKey": "server.key",' + sLineBreak +
     '        "SslRootCert": ""' + sLineBreak +

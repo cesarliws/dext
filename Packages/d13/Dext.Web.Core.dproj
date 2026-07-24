@@ -91,6 +91,7 @@
         <DCCReference Include="Dext.Net.Core.dcp"/>
         <DCCReference Include="RESTComponents.dcp"/>
         <DCCReference Include="inet.dcp"/>
+        <DCCReference Include="TaurusTLS_RT.dcp"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Engine.Types.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.Engine.Interfaces.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.Server.HttpSys.Api.pas"/>
