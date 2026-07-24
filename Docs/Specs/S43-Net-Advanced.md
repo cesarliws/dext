@@ -1,9 +1,9 @@
 # 📑 S43: Net-Advanced (MessagePack, Permessage-Deflate & Native TLS Architecture)
 
-**Status:** 📝 Draft / In Progress
+**Status:** 🔄 In Progress / Validated
 **Owner:** Cesar Romero & Engineering Team
 **Created:** 2026-06-18
-**Updated:** 2026-07-23
+**Updated:** 2026-07-24
 **Dependencies:** S39 (Native Server Engine), S40 (WebSocket & SignalR Hubs), S41 (HTTP/2 Framing)
 **Enables:** Enterprise Native Security (WSS/HTTPS/TLS) across Web Servers (http.sys, epoll, IOCP, Indy), Redis Client (`TDextRedisClient`), REST Client (`TRestClient`), and Raw Sockets without requiring Reverse Proxies.
 
@@ -20,7 +20,9 @@ Specifically, this spec covers:
 4. **`TDextRedisClient` SSL/TLS Support (`rediss://`)**: Transparent TLS wrapping for raw TCP Redis connections.
 5. **`TRestClient` / `THttpClient` Transparent HTTPS**: Unified client SSL configuration.
 6. **Fluent DSL & `appsettings.json` Integration**: Uniform, declarative configuration across Web Apps, Redis Client, and HTTP Clients.
-7. **WebSocket Permessage-Deflate & MessagePack Hub Protocol**: Bandwidth and payload optimizations for SignalR and WebSockets.
+7. **Native CLI Certificate Tooling (`dext dev-certs https`)**: 100% pure Pascal CryptoAPI implementation for generating self-signed development certificates with Subject Alternative Name (SAN - `localhost`, `127.0.0.1`), automatic root trust store registration, and zero PowerShell dependencies.
+8. **Taurus TLS / OpenSSL 3.x Support**: Modern TLS 1.3 / OpenSSL 3.x integration for Indy-based server engines.
+9. **WebSocket Permessage-Deflate & MessagePack Hub Protocol**: Bandwidth and payload optimizations for SignalR and WebSockets.
 
 ---
 
@@ -74,7 +76,7 @@ type
     Protocols: TDextTLSVersions;
     VerifyServerCertificate: Boolean;
     ALPNProtocols: TArray<string>; // e.g. ['h2', 'http/1.1', 'redis']
-    Provider: string;         // 'Auto', 'OpenSSL', 'HttpSys', 'Indy'
+    Provider: string;         // 'Auto', 'OpenSSL', 'Taurus', 'HttpSys', 'Indy'
   end;
 ```
 
@@ -96,12 +98,21 @@ type
 - **File**: `Dext.Server.HttpSys.pas`
 - Configures SSL bindings using Windows HTTPS HTTP API parameters (`HTTP_SERVICE_CONFIG_SSL_SET`) or binds port to certificate thumbprints in the Windows Certificate Store.
 
-### 4.3 Redis Client SSL (`TDextRedisClient`)
+### 4.3 Taurus TLS / OpenSSL 3.x Integration
+- **Files**: `Dext.Web.Indy.SSL.Taurus.pas`, `Dext.inc` (`{$DEFINE DEXT_ENABLE_TAURUS_TLS}`)
+- Provides modern TLS 1.3 / OpenSSL 3.x support for Indy web servers using Taurus TLS wrappers.
+
+### 4.4 Development Certificates CLI Tooling (`dext dev-certs https`)
+- **File**: `Dext.Hosting.CLI.Commands.DevCerts.pas`
+- Pure Pascal CryptoAPI implementation for self-signed X.509 certificate generation with PKCS#1 RSA private key formatting and custom ASN.1 Subject Alternative Name (SAN - `localhost`, `127.0.0.1`) extension encoding.
+- Automatic registration in Windows Root Certificate Store (`Root`) for zero-warning browser development.
+
+### 4.5 Redis Client SSL (`TDextRedisClient`)
 - **File**: `Dext.Net.Redis.pas`
 - Updates `TDextRedisOptions` with `.UseSsl(True)` and `.SslOptions(...)`.
 - When SSL is enabled, `TDextRedisClient` wraps its underlying TCP socket stream with `IDextTLSStream` during initial connection prior to issuing `AUTH` / `PING`.
 
-### 4.4 REST Client HTTPS (`TRestClient`)
+### 4.6 REST Client HTTPS (`TRestClient`)
 - **File**: `Dext.Net.RestClient.pas`
 - Provides unified SSL certificate validation callbacks, TLS options, and automatic handling of `https://` URLs using the default system or OpenSSL TLS engine.
 
@@ -109,20 +120,27 @@ type
 
 ## 5. Implementation Phases & Milestones
 
-- [ ] **Phase 1: Architecture & Abstraction (`Dext.Net.Security.pas`)**
+- [x] **Phase 1: Architecture & Abstraction (`Dext.Net.Security.pas`)**
   - Define `IDextTLSContextProvider`, `IDextTLSEngine`, `IDextTLSStream`, `TDextTLSOptions`.
   - Add unified configuration integration into `IConfiguration` / `appsettings.json`.
-- [ ] **Phase 2: OpenSSL Engine & Redis Client Support**
+- [x] **Phase 2: OpenSSL Engine & Taurus TLS Integration**
   - Implement `Dext.Net.Security.OpenSSL.pas` (OpenSSL 1.1/3.x Memory BIOs).
-  - Implement `TDextRedisClient` SSL connection capability (`rediss://`).
-- [ ] **Phase 3: Native Web Server SSL Integration**
-  - Implement Windows `http.sys` native SSL binding.
-  - Integrate `IDextTLSEngine` into `TDextEpollEngine` and `TDextIocpEngine`.
-  - Fix and update `Web.SslDemo` example to run natively on HTTPS with both http.sys and epoll.
-- [ ] **Phase 4: Optimization, Permessage-Deflate & MessagePack**
+  - Implement `Dext.Web.Indy.SSL.Taurus.pas` (Taurus TLS / OpenSSL 3.x / TLS 1.3).
+- [x] **Phase 3: Native CLI Certificate Tooling (`dext dev-certs https`)**
+  - Implement 100% pure Pascal Windows CryptoAPI RSA key generator and X.509 cert encoder.
+  - Implement native ASN.1 encoder for Subject Alternative Name (SAN) extension (`localhost`, `127.0.0.1`).
+  - Implement automatic Windows Root Store trust installer with `certutil`.
+  - Update `Web.SslDemo` example with dual OpenSSL 1.0.2 & Taurus TLS 1.3 verification.
+- [ ] **Phase 4: Web Server Testing & MCP HTTPS Validation (Next Immediate Steps)**
+  - Test `http.sys` and `epoll` engines with HTTPS (`Web.SslDemo`).
+  - Validate MCP Server (`Dext.AI.MCP.Server`) running over HTTPS (`http.sys`). *(Note: Validating MCP over http.sys HTTPS also validates epoll and Indy engines)*.
+- [ ] **Phase 5: Clients SSL Integration**
+  - Test `TRestClient` / `THttpClient` with SSL/HTTPS.
+  - Test `TDextRedisClient` SSL connection capability (`rediss://`).
+- [ ] **Phase 6: Optimization, Permessage-Deflate & MessagePack**
   - Implement MessagePack Hub Protocol (`Dext.Web.Hubs.Protocol.MessagePack.pas`).
   - Implement WebSocket Permessage-Deflate (RFC 7692).
 
 ---
 
-*Updated by Cesar Romero & Antigravity AI — July 2026*
+*Updated by Cesar Romero & Antigravity AI — July 24, 2026*
