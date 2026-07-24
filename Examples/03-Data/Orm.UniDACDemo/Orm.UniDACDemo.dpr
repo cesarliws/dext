@@ -18,7 +18,7 @@ program Orm.UniDACDemo;
 
 uses
   System.SysUtils,
-  Dext.MM,
+  //Dext.MM,
   Dext.Utils,
   Dext,
   UniDACDemo.DbConfig in 'UniDACDemo.DbConfig.pas',
