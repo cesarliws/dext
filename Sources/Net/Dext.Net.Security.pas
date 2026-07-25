@@ -52,6 +52,7 @@ type
     RootCertFile: string;
     CertHash: string;
     StoreName: string;
+    Host: string;
     Protocols: TDextTLSVersions;
     VerifyServerCertificate: Boolean;
     ALPNProtocols: TArray<string>;

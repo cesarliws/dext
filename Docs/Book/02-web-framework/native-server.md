@@ -143,8 +143,68 @@ If you want to manually bind an existing certificate to your port in the Kernel:
 
 ---
 
-> [!WARNING]
-> On Windows, running `http.sys` servers requires appropriate URL reservation permissions. If you bind to all interfaces (`0.0.0.0`), Dext will register the strong wildcard prefix `http://+:port/` or `https://+:port/` which requires running the application as Administrator, or configuring a URL ACL namespace reservation via:
-> ```cmd
 > netsh http add urlacl url=https://+:8080/ user=Everyone
 > ```
+
+---
+
+## 🔒 Native HTTPS and TLS on Linux (`epoll` + OpenSSL)
+
+On Linux (WSL2, Ubuntu, Debian, or RHEL), Dext leverages the **`epoll`** engine paired with the **OpenSSL 3.x Memory BIO Engine** in a fully decoupled architecture, delivering zero-copy TLS encryption at maximum performance without requiring reverse proxies (Nginx/HAProxy).
+
+### 1. Required Linux Packages
+
+Install the OpenSSL development libraries:
+
+```bash
+# Ubuntu / Debian / WSL2
+sudo apt update
+sudo apt install -y libssl-dev openssl
+
+# RHEL / AlmaLinux / Rocky Linux
+sudo dnf install -y openssl-devel openssl
+```
+
+### 2. Generating Development Certificates with OpenSSL
+
+```bash
+# 1. Generate CA Private Key and Root Certificate
+openssl req -x509 -newkey rsa:4096 -nodes -keyout ca.key -out ca.crt -days 365 -subj "/CN=Dext Test CA"
+
+# 2. Generate Server Private Key and CSR
+openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/CN=localhost"
+
+# 3. Sign Certificate with SAN (Subject Alternative Name) Extension
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 365 \
+  -extfile <(printf "subjectAltName=DNS:localhost,IP:127.0.0.1")
+```
+
+### 3. Pascal Code (Linux Native Server)
+
+```pascal
+var
+  App: IWebApplication;
+begin
+  App := TWebApplication.Create;
+
+  // On Linux, Dext automatically activates epoll with OpenSSL 3.x Memory BIOs
+  App.UseNativeServer(
+    ServerEngineOptions
+      .WithHttps(True)
+  );
+
+  App.MapGet('/ping', function(Req: IHttpRequest; Res: IHttpResponse)
+  begin
+    Res.Send('PONG over HTTPS (Linux epoll)');
+  end);
+
+  App.Run(8443);
+end.
+```
+
+### 4. Testing Connection with `curl`
+
+```bash
+curl --cacert ca.crt https://localhost:8443/ping
+# Expected Response: PONG over HTTPS (Linux epoll)
+```
