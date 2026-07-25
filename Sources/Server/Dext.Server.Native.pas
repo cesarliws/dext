@@ -932,7 +932,11 @@ begin
   FPort := FEngine.ListenPort;
   FRunning := True;
 
-  SafeWriteLn(Format('Dext high-performance native server running on http://localhost:%d', [FPort]));
+  var Scheme: string := 'http';
+  if FOptions.UseHttps then
+    Scheme := 'https';
+
+  SafeWriteLn(Format('Dext high-performance native server running on %s://localhost:%d', [Scheme, FPort]));
 end;
 
 procedure TDextNativeWebServer.Stop;

@@ -65,6 +65,8 @@ type
     MaxRequestBodySize: Int64;
     /// <summary>Enable HTTPS/SSL on the server engine (default: False).</summary>
     UseHttps: Boolean;
+    /// <summary>SSL Certificate Hash (Thumbprint) for Windows Schannel / http.sys.</summary>
+    SslCertHash: string;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;

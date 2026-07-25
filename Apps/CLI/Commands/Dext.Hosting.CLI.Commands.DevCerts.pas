@@ -181,7 +181,12 @@ function CryptEncodeObjectEx(dwCertEncodingType: DWORD; lpszStructType: PAnsiCha
 function CertStrToNameA(dwCertEncodingType: DWORD; pszX500: PAnsiChar; dwStrType: DWORD; pvReserved: Pointer; pbEncoded: PByte; pcbEncoded: PDWORD; ppszError: PPAnsiChar): BOOL; stdcall; external 'crypt32.dll' name 'CertStrToNameA';
 function CertCreateSelfSignCertificate(hCryptProvOrNCryptKey: HCRYPTPROV_OR_NCRYPT_KEY_HANDLE; pSubjectIssuerBlob: PCERT_NAME_BLOB; dwFlags: DWORD; pKeyProviderInfo: Pointer; pSignatureAlgorithm: PCRYPT_ALGORITHM_IDENTIFIER; pStartTime: PSYSTEMTIME; pEndTime: PSYSTEMTIME; pExtensions: Pointer): PCCERT_CONTEXT; stdcall; external 'crypt32.dll' name 'CertCreateSelfSignCertificate';
 function CertSetCertificateContextProperty(pCertContext: PCCERT_CONTEXT; dwPropId: DWORD; dwFlags: DWORD; pvData: Pointer): BOOL; stdcall; external 'crypt32.dll' name 'CertSetCertificateContextProperty';
+function CertGetCertificateContextProperty(pCertContext: PCCERT_CONTEXT; dwPropId: DWORD; pvData: Pointer; pcbData: PDWORD): BOOL; stdcall; external 'crypt32.dll' name 'CertGetCertificateContextProperty';
 function CertFreeCertificateContext(pCertContext: PCCERT_CONTEXT): BOOL; stdcall; external 'crypt32.dll' name 'CertFreeCertificateContext';
+function CertOpenStore(lpszStoreProvider: PAnsiChar; dwMsgAndCertEncodingType: DWORD; hCryptProv: ULONG_PTR; dwFlags: DWORD; pvPara: Pointer): HCERTSTORE; stdcall; external 'crypt32.dll' name 'CertOpenStore';
+function CertAddCertificateContextToStore(hCertStore: HCERTSTORE; pCertContext: PCCERT_CONTEXT; dwAddDisposition: DWORD; ppStoreContext: Pointer): BOOL; stdcall; external 'crypt32.dll' name 'CertAddCertificateContextToStore';
+function CertCloseStore(hCertStore: HCERTSTORE; dwFlags: DWORD): BOOL; stdcall; external 'crypt32.dll' name 'CertCloseStore';
+function PFXExportCertStoreEx(hStore: HCERTSTORE; pPFX: PCERT_NAME_BLOB; szPassword: PWideChar; pvReserved: Pointer; dwFlags: DWORD): BOOL; stdcall; external 'crypt32.dll' name 'PFXExportCertStoreEx';
 
 function CryptAcquireContextA(phProv: PHCRYPTPROV; pszContainer: PAnsiChar; pszProvider: PAnsiChar; dwProvType: DWORD; dwFlags: DWORD): BOOL; stdcall; external 'advapi32.dll' name 'CryptAcquireContextA';
 function CryptGenKey(hProv: HCRYPTPROV; Algid: DWORD; dwFlags: DWORD; phKey: PHCRYPTKEY): BOOL; stdcall; external 'advapi32.dll' name 'CryptGenKey';
@@ -409,17 +414,21 @@ var
   EncodedSanBytes: TBytes;
   SanExt: CERT_EXTENSION;
   CertExtStruct: CERT_EXTENSIONS;
+  PfxFilePath: string;
+  hMemStore: HCERTSTORE;
+  PfxBlob: CRYPT_OBJID_BLOB;
+  PfxBytes: TBytes;
 begin
   Result := False;
   KeyFilePath := ChangeFileExt(CertFilePath, '.key');
   SubjectName := 'CN=localhost';
 
-  // 1. Criar container de chaves criptográficas RSA 2048-bit 100% nativo no Windows CryptoAPI
+  // 1. Criar container de chaves criptográficas RSA 2048-bit 100% nativo no Windows CryptoAPI (PROV_RSA_AES para suporte a SHA-256)
   hProv := 0;
   hKey := 0;
-  CryptAcquireContextA(@hProv, PAnsiChar('DextDevKeyContainer'), PAnsiChar('Microsoft Enhanced Cryptographic Provider v1.0'), 1 {PROV_RSA_FULL}, 8 {CRYPT_NEWKEYSET});
+  CryptAcquireContextA(@hProv, PAnsiChar('DextDevKeyContainer'), PAnsiChar('Microsoft Enhanced RSA and AES Cryptographic Provider'), 24 {PROV_RSA_AES}, 8 {CRYPT_NEWKEYSET});
   if hProv = 0 then
-    CryptAcquireContextA(@hProv, PAnsiChar('DextDevKeyContainer'), nil, 1, 0);
+    CryptAcquireContextA(@hProv, PAnsiChar('DextDevKeyContainer'), nil, 24 {PROV_RSA_AES}, 0);
 
   if hProv <> 0 then
   begin
@@ -445,13 +454,18 @@ begin
     SubjectBlob.cbData := EncodedNameLen;
     SubjectBlob.pbData := @EncodedName[0];
 
-    KeyProvInfo.pwszContainerName := PWideChar('DextDevContainer');
-    KeyProvInfo.pwszProvName := PWideChar('Microsoft Enhanced Cryptographic Provider v1.0');
-    KeyProvInfo.dwProvType := 1; {PROV_RSA_FULL}
+    KeyProvInfo.pwszContainerName := PWideChar('DextDevKeyContainer');
+    KeyProvInfo.pwszProvName := PWideChar('Microsoft Enhanced RSA and AES Cryptographic Provider');
+    KeyProvInfo.dwProvType := 24; {PROV_RSA_AES}
     KeyProvInfo.dwFlags := 0;
     KeyProvInfo.cProvParam := 0;
     KeyProvInfo.rgProvParam := nil;
     KeyProvInfo.dwKeySpec := 1; {AT_KEYEXCHANGE}
+
+    // Prepara Algoritmo de Assinatura SHA-256 (exigido por Chrome, Edge, Firefox)
+    var SigAlg: CRYPT_ALGORITHM_IDENTIFIER;
+    FillChar(SigAlg, SizeOf(SigAlg), 0);
+    SigAlg.pszObjId := PAnsiChar('1.2.840.113549.1.1.11'); {szOID_RSA_SHA256RSA}
 
     // Prepara Extensão SAN (Subject Alternative Name) nativa ASN.1
     EncodedSanBytes := BuildSanExtensionAsn1;
@@ -463,8 +477,8 @@ begin
     CertExtStruct.cExtension := 1;
     CertExtStruct.rgExtension := @SanExt;
 
-    // 3. Cria certificado autoassinado nativo X.509 com extensão SAN
-    CertContext := CertCreateSelfSignCertificate(hProv, @SubjectBlob, 0, @KeyProvInfo, nil, nil, nil, @CertExtStruct);
+    // 3. Cria certificado autoassinado nativo X.509 SHA-256 com extensão SAN
+    CertContext := CertCreateSelfSignCertificate(hProv, @SubjectBlob, 0, @KeyProvInfo, @SigAlg, nil, nil, @CertExtStruct);
     if CertContext = nil then
     begin
       SafeWriteLn('[ERROR] CryptoAPI CertCreateSelfSignCertificate failed: ' + IntToStr(GetLastError));
@@ -472,11 +486,12 @@ begin
     end;
 
     try
-      // 4. Atribui o Nome Amigável "Dext Development Certificate"
+      // 4. Atribui o Nome Amigável "Dext Development Certificate" e a Chave Privada
       FriendlyName := 'Dext Development Certificate';
       FriendlyNameBlob.cbData := (Length(FriendlyName) + 1) * SizeOf(WideChar);
       FriendlyNameBlob.pbData := PByte(PWideChar(FriendlyName));
       CertSetCertificateContextProperty(CertContext, CERT_FRIENDLY_NAME_PROP_ID, 0, @FriendlyNameBlob);
+      CertSetCertificateContextProperty(CertContext, 2 {CERT_KEY_PROV_INFO_PROP_ID}, 0, @KeyProvInfo);
 
       // 5. Grava o Certificado (.crt) em formato PEM de forma 100% síncrona
       Base64Cert := TNetEncoding.Base64String.EncodeBytesToString(CertContext.pbCertEncoded, CertContext.cbCertEncoded);
@@ -503,11 +518,58 @@ begin
         end;
       end;
 
-      // 7. Confia no certificado no Repositório de Raízes do Windows
+      // 6b. Exporta o arquivo PKCS#12 (.pfx) nativo no Windows CryptoAPI (necessário para http.sys / Schannel)
+      PfxFilePath := ChangeFileExt(CertFilePath, '.pfx');
+      hMemStore := CertOpenStore(PAnsiChar(2) {CERT_STORE_PROV_MEMORY}, 0, 0, 0, nil);
+      if hMemStore <> 0 then
+      begin
+        try
+          if CertAddCertificateContextToStore(hMemStore, CertContext, 3 {CERT_STORE_ADD_REPLACE_EXISTING}, nil) then
+          begin
+            PfxBlob.cbData := 0;
+            PfxBlob.pbData := nil;
+            if PFXExportCertStoreEx(hMemStore, @PfxBlob, PWideChar('dba'), nil, 4 {EXPORT_PRIVATE_KEYS}) then
+            begin
+              GetMem(PfxBlob.pbData, PfxBlob.cbData);
+              try
+                if PFXExportCertStoreEx(hMemStore, @PfxBlob, PWideChar('dba'), nil, 4) then
+                begin
+                  SetLength(PfxBytes, PfxBlob.cbData);
+                  Move(PfxBlob.pbData^, PfxBytes[0], PfxBlob.cbData);
+                  TFile.WriteAllBytes(PfxFilePath, PfxBytes);
+                  SafeWriteLn('[SUCCESS] Native PKCS#12 Bundle generated at: ' + PfxFilePath);
+                end;
+              finally
+                FreeMem(PfxBlob.pbData);
+              end;
+            end;
+          end;
+        finally
+          CertCloseStore(hMemStore, 0);
+        end;
+      end;
+
+      // 7. Confia no certificado no Repositório de Raízes e no Repositório Pessoal (MY) do Windows
       if TrustInRoot then
       begin
         ShellExecuteW(0, 'open', 'certutil.exe', PWideChar('-addstore -f Root "' + CertFilePath + '"'), nil, SW_HIDE);
-        SafeWriteLn('[SUCCESS] Certificate trusted in Windows Root Store with Friendly Name "Dext Development Certificate"!');
+        ShellExecuteW(0, 'open', 'certutil.exe', PWideChar('-p dba -importpfx -f "' + PfxFilePath + '"'), nil, SW_HIDE);
+        SafeWriteLn('[SUCCESS] Certificate trusted in Windows Root & My Store!');
+
+        // 8. Automatiza o binding no Kernel do Windows via netsh para o http.sys
+        var HashBytes: array[0..19] of Byte;
+        var HashLen: DWORD := SizeOf(HashBytes);
+        if CertGetCertificateContextProperty(CertContext, 3 {CERT_SHA1_HASH_PROP_ID}, @HashBytes[0], @HashLen) then
+        begin
+          var ThumbprintStr: string := '';
+          for var I: Integer := 0 to 19 do
+            ThumbprintStr := ThumbprintStr + IntToHex(HashBytes[I], 2);
+
+          SafeWriteLn('[http.sys] Binding Certificate ' + ThumbprintStr + ' to port 8080 in Kernel...');
+          ShellExecuteW(0, 'open', 'netsh.exe', PWideChar('http delete sslcert ipport=0.0.0.0:8080'), nil, SW_HIDE);
+          ShellExecuteW(0, 'open', 'netsh.exe', PWideChar('http add sslcert ipport=0.0.0.0:8080 certhash=' + ThumbprintStr + ' appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}'), nil, SW_HIDE);
+          SafeWriteLn('[SUCCESS] http.sys Kernel SSL binding completed for port 8080!');
+        end;
       end;
 
       Result := True;

@@ -87,25 +87,31 @@ dext ui --port 3000
 
 ## Gerenciamento de Certificados SSL (`dev-certs`)
 
-Gera e gerencia certificados SSL/TLS autoassinados de desenvolvimento
-locais para `localhost` e `127.0.0.1` (similar ao `dotnet dev-certs https`).
+Gera e gerencia certificados SSL/TLS autoassinados de desenvolvimento locais para `localhost` e `127.0.0.1` (similar ao `dotnet dev-certs https`), incluindo a automação do binding no Kernel do Windows (`http.sys`).
 
 ```bash
-dext dev-certs https [--trust] [--out-cert <path>]
+dext dev-certs https [--trust] [--force] [--out-cert <path>]
 ```
 
 | Opção | Descrição |
 |-------|-----------|
-| `https` | Subcomando para gerar certificado autoassinado de desenvolvimento. |
-| `--trust` | Importa e confia no certificado no Repositório Raiz do Windows. |
+| `https` | Subcomando para gerar certificado autoassinado X.509 de desenvolvimento com extensão SAN (`localhost`, `127.0.0.1`). |
+| `--trust` | Importa o certificado no Repositório de Raízes Confiáveis (`Root`), no Repositório Pessoal (`My`) e vincula a porta 8080 no Kernel (`http.sys`). |
+| `--force` | Força a sobrescrita de certificados e chaves já existentes no diretório. |
 | `--out-cert` | Caminho do arquivo de certificado gerado (padrão: `server.crt`). |
 
 ### Exemplo de uso:
 
 ```bash
-# Gera o certificado server.crt e instala no repositório de confiança do Windows
-dext dev-certs https --trust --out-cert C:\dev\MeuProjeto\server.crt
+# Gera o certificado server.crt, chave server.key, pacote server.pfx e instala no repositório do Windows
+dext dev-certs https --trust
 ```
+
+O comando gera:
+- `server.crt`: Certificado X.509 em formato PEM.
+- `server.key`: Chave privada RSA em formato PEM.
+- `server.pfx`: Pacote PKCS#12 com chave privada vinculada para o Windows Schannel.
+- Instalação no repositório `LocalMachine\My` e execução do binding Kernel: `netsh http add sslcert ipport=0.0.0.0:8080 certhash=<THUMBPRINT> appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}`.
 
 ---
 

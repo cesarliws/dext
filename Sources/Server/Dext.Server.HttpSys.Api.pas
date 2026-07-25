@@ -32,6 +32,8 @@ unit Dext.Server.HttpSys.Api;
 
 interface
 
+{$MINENUMSIZE 4}
+
 {$IFDEF MSWINDOWS}
 uses
   Winapi.Windows;
@@ -418,6 +420,62 @@ function HttpReceiveRequestEntityBody(ReqQueueHandle: THandle; RequestId: HTTP_R
 function HttpSendHttpResponse(ReqQueueHandle: THandle; RequestId: HTTP_REQUEST_ID; Flags: ULONG; pHttpResponse: PHTTP_RESPONSE; pReserved1: Pointer; var BytesSent: ULONG; pReserved2: Pointer; Reserved3: ULONG; pOverlapped: POverlapped; pLogData: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
 function HttpSendResponseEntityBody(ReqQueueHandle: THandle; RequestId: HTTP_REQUEST_ID; Flags: ULONG; EntityChunkCount: USHORT; pEntityChunks: Pointer; var BytesSent: ULONG; pReserved1: Pointer; pReserved2: Pointer; pOverlapped: POverlapped; pLogData: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
 
+type
+  HTTP_SERVICE_CONFIG_ID = (
+    HttpServiceConfigSslCertInfo,
+    HttpServiceConfigUrlAclInfo,
+    HttpServiceConfigTimeout,
+    HttpServiceConfigMax
+  );
+
+  SOCKADDR = record
+    sa_family: WORD;
+    sa_data: array[0..13] of AnsiChar;
+  end;
+
+  SOCKADDR_IN = record
+    sin_family: WORD;
+    sin_port: WORD;
+    sin_addr: ULONG;
+    sin_zero: array[0..7] of AnsiChar;
+  end;
+  PSOCKADDR_IN = ^SOCKADDR_IN;
+
+  SOCKADDR_STORAGE = record
+    ss_family: WORD;
+    __ss_pad1: array[0..5] of Byte;
+    __ss_align: Int64;
+    __ss_pad2: array[0..111] of Byte;
+  end;
+  PSOCKADDR_STORAGE = ^SOCKADDR_STORAGE;
+
+  HTTP_SERVICE_CONFIG_SSL_KEY = record
+    pIpPort: Pointer;
+  end;
+
+  HTTP_SERVICE_CONFIG_SSL_PARAM = record
+    CertHashLength: ULONG;
+    pCertHash: Pointer;
+    AppId: TGUID;
+    pCertStoreName: PWideChar;
+    CertCheckMode: DWORD;
+    RevocationFreshnessTime: DWORD;
+    RevocationUrlRetrievalTimeout: DWORD;
+    pSslCtlIdentifier: PWideChar;
+    pSslCtlStoreName: PWideChar;
+    DefaultFlags: DWORD;
+  end;
+
+  HTTP_SERVICE_CONFIG_SSL_SET = record
+    KeyDesc: HTTP_SERVICE_CONFIG_SSL_KEY;
+    ParamDesc: HTTP_SERVICE_CONFIG_SSL_PARAM;
+  end;
+  PHTTP_SERVICE_CONFIG_SSL_SET =
+    ^HTTP_SERVICE_CONFIG_SSL_SET;
+
+
+function HttpSetServiceConfiguration(ServiceHandle: THandle; ConfigId: DWORD; pConfigInformation: Pointer; ConfigInformationLength: ULONG; pOverlapped: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
+function HttpDeleteServiceConfiguration(ServiceHandle: THandle; ConfigId: DWORD; pConfigInformation: Pointer; ConfigInformationLength: ULONG; pOverlapped: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
 function HttpSetUrlGroupProperty(UrlGroupId: HTTP_URL_GROUP_ID; PropertyId: HTTP_SERVER_PROPERTY; pPropertyInformation: Pointer; PropertyInformationLength: ULONG): ULONG; stdcall; external HTTPAPI_DLL;
 {$ENDIF}
 

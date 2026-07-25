@@ -657,8 +657,13 @@ var
 begin
   Opts := AOptions;
   ServerSec := FConfiguration.GetSection('Server');
-  if (ServerSec <> nil) and SameText(ServerSec['UseHttps'], 'true') then
-    Opts.UseHttps := True;
+  if ServerSec <> nil then
+  begin
+    if SameText(ServerSec['UseHttps'], 'true') then
+      Opts.UseHttps := True;
+    if ServerSec['SslCertHash'] <> '' then
+      Opts.SslCertHash := ServerSec['SslCertHash'];
+  end;
 
   FServerFactory := function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost
     begin

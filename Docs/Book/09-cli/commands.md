@@ -145,24 +145,31 @@ Visit `http://localhost:3000` (or specified port).
 ## Dev Certs Command (`dev-certs`)
 
 Generate and manage local self-signed SSL/TLS development certificates
-for `localhost` and `127.0.0.1` (similar to `dotnet dev-certs https`).
+for `localhost` and `127.0.0.1` (similar to `dotnet dev-certs https`), including automated Windows Kernel (`http.sys`) binding.
 
 ```bash
-dext dev-certs https [--trust] [--out-cert <path>]
+dext dev-certs https [--trust] [--force] [--out-cert <path>]
 ```
 
 | Option | Description |
 |--------|-------------|
-| `https` | Subcommand to generate self-signed development certificate. |
-| `--trust` | Imports and trusts the certificate in Windows Root Store. |
+| `https` | Subcommand to generate self-signed X.509 development certificate with SAN extension (`localhost`, `127.0.0.1`). |
+| `--trust` | Imports certificate into Trusted Root Store (`Root`), Personal Store (`My`), and binds port 8080 in Windows Kernel (`http.sys`). |
+| `--force` | Force overwriting existing certificates and keys in the target directory. |
 | `--out-cert` | Path of the generated certificate file (default: `server.crt`). |
 
 ### Example Usage:
 
 ```bash
-# Generate server.crt and install into Windows Trusted Root Store
-dext dev-certs https --trust --out-cert C:\dev\MyProject\server.crt
+# Generate server.crt, server.key, server.pfx and bind in Windows Kernel
+dext dev-certs https --trust
 ```
+
+Generated artifacts:
+- `server.crt`: PEM-encoded X.509 Certificate.
+- `server.key`: PEM-encoded RSA Private Key.
+- `server.pfx`: PKCS#12 bundle with linked private key for Windows Schannel.
+- Automatic store installation in `LocalMachine\My` and Kernel binding via `netsh http add sslcert ipport=0.0.0.0:8080 certhash=<THUMBPRINT> appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}`.
 
 ---
 

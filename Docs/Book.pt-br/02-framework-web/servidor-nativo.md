@@ -108,8 +108,43 @@ O motor de servidor nativo do Dext resolve esse gargalo implementando o **Agenda
 
 Isso garante linearidade de escalabilidade e 100% de uso de CPU em todos os grupos de processadores e nós NUMA da máquina.
 
+## Configuração de HTTPS/SSL no Kernel do Windows (`http.sys`)
+
+Ao utilizar o motor nativo `.UseNativeServer` no Windows (`http.sys`), o processamento de criptografia TLS/HTTPS é delegado diretamente para o Kernel do Windows (SChannel), garantindo zero-copy e performance máxima.
+
+No `http.sys`, o Kernel do Windows gerencia os certificados através da loja de certificados do sistema (`LocalMachine\My`).
+
+### Opção 1: Configuração Automatizada via Dext CLI (Recomendado)
+
+Execute a CLI do Dext como Administrador para gerar os certificados, importar as chaves e realizar o binding no Kernel de forma 100% automatizada:
+
+```bash
+dext dev-certs https --trust
+```
+
+### Opção 2: Configuração Manual via Terminal Administrador
+
+Caso deseje vincular um certificado manual existente à porta no Kernel:
+
+1. **Importar o pacote PKCS#12 (`.pfx`) com Chave Privada:**
+   ```powershell
+   Import-PfxCertificate -FilePath "server.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString "dba" -AsPlainText -Force)
+   ```
+
+2. **Vincular o Thumbprint do Certificado à Porta no Kernel via `netsh`:**
+   ```cmd
+   netsh http add sslcert ipport=0.0.0.0:8080 certhash=SEU_THUMBPRINT_SHA1 appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}
+   ```
+
+3. **Verificar os bindings ativos no Kernel:**
+   ```cmd
+   netsh http show sslcert ipport=0.0.0.0:8080
+   ```
+
+---
+
 > [!WARNING]
-> No Windows, a execução do servidor através do `http.sys` exige permissões de reserva de URL adequadas. Se você vincular o servidor a todas as interfaces (`0.0.0.0`), o Dext registrará o prefixo curinga forte `http://+:porta/`, que exige a execução da aplicação como Administrador ou a reserva correspondente no namespace de URLs via:
+> No Windows, a execução do servidor através do `http.sys` exige permissões de reserva de URL adequadas. Se você vincular o servidor a todas as interfaces (`0.0.0.0`), o Dext registrará o prefixo curinga forte `http://+:porta/` ou `https://+:porta/`, que exige a execução da aplicação como Administrador ou a reserva correspondente no namespace de URLs via:
 > ```cmd
-> netsh http add urlacl url=http://+:5000/ user=Everyone
+> netsh http add urlacl url=https://+:8080/ user=Everyone
 > ```

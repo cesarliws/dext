@@ -33,8 +33,10 @@ uses
   System.Classes,
   System.SysUtils,
   System.SyncObjs,
-  Dext.Collections.Dict,
+  System.NetEncoding,
   Winapi.Windows,
+  Winapi.Winsock2,
+  Dext.Collections.Dict,
   Dext.Threading.ProcessorGroups,
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces,
@@ -348,6 +350,7 @@ type
     FBufferPool: TDextHttpSysBufferPool;
     FRequestPool: TDextHttpSysRequestPool;
     FResponsePool: TDextHttpSysResponsePool;
+    procedure RegisterSslBinding;
     procedure InitializeHttpSys;
     procedure ConfigureTimeouts;
     procedure ConfigureLimits;
@@ -2303,6 +2306,16 @@ begin
   // Set configuration timeouts if specified in Options
 end;
 
+procedure TDextHttpSysEngine.RegisterSslBinding;
+begin
+  if not FOptions.UseHttps then Exit;
+
+  SafeWriteLn('[http.sys] Enabling HTTPS listener on Port ' + IntToStr(FListeningPort) + '...');
+  if FOptions.SslCertHash <> '' then
+    SafeWriteLn('[http.sys] Expected SSL Cert Hash: ' + FOptions.SslCertHash);
+  SafeWriteLn('[http.sys] Note: Ensure certificate is bound to port via "dext dev-certs https" or netsh.');
+end;
+
 procedure TDextHttpSysEngine.Start;
 var
   UrlPrefix: string;
@@ -2317,7 +2330,10 @@ begin
 
   var Scheme: string := 'http';
   if FOptions.UseHttps then
+  begin
     Scheme := 'https';
+    RegisterSslBinding;
+  end;
 
   // Register prefix
   if (FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '') then
@@ -2325,18 +2341,35 @@ begin
   else
     UrlPrefix := Format('%s://%s:%d/', [Scheme, FAddress, FListeningPort]);
     
+  SafeWriteLn('[http.sys] Registering URL Prefix in Kernel: ' + UrlPrefix);
   Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
+
+  if Ret = ERROR_SUCCESS then
+    SafeWriteLn('[http.sys] URL Prefix successfully registered in Kernel: ' + UrlPrefix)
+  else if Ret = 183 {ERROR_ALREADY_EXISTS} then
+    SafeWriteLn('[http.sys] URL Prefix is already active in Kernel: ' + UrlPrefix);
+
   if (Ret = 5) and ((FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '')) then
   begin
     UrlPrefix := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
     Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
-    if Ret = ERROR_SUCCESS then
+    if (Ret = ERROR_SUCCESS) or (Ret = 183 {ERROR_ALREADY_EXISTS}) then
     begin
       var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
       HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
     end;
+  end
+  else if (Ret = ERROR_SUCCESS) or (Ret = 183 {ERROR_ALREADY_EXISTS}) then
+  begin
+    // Garante escuta nos aliases locais caso escutando via + ou 0.0.0.0
+    var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
+    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
+    var LocalIpPrefix: string := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
+    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalIpPrefix)), 0, 0);
   end;
-  if Ret <> ERROR_SUCCESS then
+
+  // 183 (ERROR_ALREADY_EXISTS) é tolerado pois o prefixo já se encontra registrado no Kernel
+  if (Ret <> ERROR_SUCCESS) and (Ret <> 183 {ERROR_ALREADY_EXISTS}) then
   begin
     if Ret = 5 then
     begin

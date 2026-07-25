@@ -76,7 +76,7 @@
 // Note: Requires OpenSSL libraries (libeay32.dll, ssleay32.dll) or compatible provider.
 {$DEFINE DEXT_ENABLE_SSL}
 // Define DEXT_ENABLE_TAURUS_TLS to enable Taurus TLS support (OpenSSL 1.1.x / 3.x)
-{$DEFINE DEXT_ENABLE_TAURUS_TLS}
+{.$DEFINE DEXT_ENABLE_TAURUS_TLS}
 
 // Define DEXT_ENABLE_DCS to enable the DCS (Delphi-Cross-Socket) server adapter.
 // Note: Requires the DCS library in the project search path.
