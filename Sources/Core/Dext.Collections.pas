@@ -314,6 +314,7 @@ type
 
     /// <summary>Creates an insertion-ordered dictionary (IOrderedDictionary).</summary>
     class function CreateOrderedDictionary<K, V>(ACapacity: Integer = 0): IOrderedDictionary<K, V>; overload; static;
+    /// <summary>Creates an insertion-ordered dictionary specifying value ownership (classes only).</summary>
     class function CreateOrderedDictionary<K, V>(AOwnsValues: Boolean; ACapacity: Integer = 0): IOrderedDictionary<K, V>; overload; static;
     /// <summary>Creates a case-insensitive insertion-ordered string dictionary.</summary>
     class function CreateOrderedDictionaryIgnoreCase<K, V>(AOwnsValues: Boolean = False; ACapacity: Integer = 0): IOrderedDictionary<K, V>; static;
