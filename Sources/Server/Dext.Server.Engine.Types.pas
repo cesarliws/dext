@@ -76,6 +76,10 @@ type
   ///   Fluent helper for TServerEngineOptions to chain configurations.
   /// </summary>
   TServerEngineOptionsHelper = record helper for TServerEngineOptions
+    /// <summary>Enables or disables HTTPS/SSL on the server engine.</summary>
+    function WithHttps(AValue: Boolean = True): TServerEngineOptions;
+    /// <summary>Configures the SSL Certificate Hash (Thumbprint) for Windows Schannel / http.sys.</summary>
+    function WithSslCertHash(const AHash: string): TServerEngineOptions;
     /// <summary>Configures the number of worker I/O threads.</summary>
     /// <param name="ACount">Number of threads (0 for CPU count auto-detection).</param>
     function WithIoThreads(ACount: Integer): TServerEngineOptions;
@@ -117,6 +121,11 @@ type
     class function CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean; static; inline;
   end;
 
+/// <summary>
+///   Global entry point for fluently configuring TServerEngineOptions.
+/// </summary>
+function ServerEngineOptions: TServerEngineOptions; inline;
+
 implementation
 
 { TServerEngineOptions }
@@ -138,7 +147,24 @@ begin
   Result.UseHttps := False;
 end;
 
+function ServerEngineOptions: TServerEngineOptions;
+begin
+  Result := TServerEngineOptions.Default;
+end;
+
 { TServerEngineOptionsHelper }
+
+function TServerEngineOptionsHelper.WithHttps(AValue: Boolean): TServerEngineOptions;
+begin
+  Self.UseHttps := AValue;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithSslCertHash(const AHash: string): TServerEngineOptions;
+begin
+  Self.SslCertHash := AHash;
+  Result := Self;
+end;
 
 function TServerEngineOptionsHelper.WithIoThreads(ACount: Integer): TServerEngineOptions;
 begin

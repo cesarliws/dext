@@ -136,6 +136,10 @@ uses
     function Timeout(AValue: Integer): IRestClient;
     /// <summary>Configures the maximum number of automatic retries in case of network failure.</summary>
     function Retry(AValue: Integer): IRestClient;
+    /// <summary>Configures whether to ignore SSL certificate validation errors (default: True).</summary>
+    function IgnoreCertificateErrors(AValue: Boolean = True): IRestClient;
+    /// <summary>Alias for IgnoreCertificateErrors to allow self-signed certificates.</summary>
+    function AllowSelfSigned(AValue: Boolean = True): IRestClient;
     /// <summary>Associates an authentication provider (Bearer, Basic, API Key).</summary>
     function Auth(AProvider: IAuthenticationProvider): IRestClient;
     /// <summary>Adds a fixed HTTP header to the client.</summary>
@@ -206,6 +210,7 @@ uses
     FBaseUrl: string;
     FTimeout: Integer;
     FMaxRetries: Integer;
+    FIgnoreCertErrors: Boolean;
     FHeaders: IDictionary<string, string>;
     FContentType: TDextContentType;
     FAuthProvider: IAuthenticationProvider;
@@ -222,6 +227,8 @@ uses
     function BaseUrl(const AValue: string): IRestClient;
     function Timeout(AValue: Integer): IRestClient;
     function Retry(AValue: Integer): IRestClient;
+    function IgnoreCertificateErrors(AValue: Boolean = True): IRestClient;
+    function AllowSelfSigned(AValue: Boolean = True): IRestClient;
     function Auth(AProvider: IAuthenticationProvider): IRestClient;
     function Header(const AName, AValue: string): IRestClient;
     function ContentType(AValue: TDextContentType): IRestClient;
@@ -264,6 +271,10 @@ uses
     function Timeout(AValue: Integer): TRestClient;
     /// <summary>Sets the maximum number of retry attempts for failed requests.</summary>
     function Retry(AValue: Integer): TRestClient;
+    /// <summary>Configures whether to ignore SSL certificate validation errors.</summary>
+    function IgnoreCertificateErrors(AValue: Boolean = True): TRestClient;
+    /// <summary>Alias for IgnoreCertificateErrors to allow self-signed certificates.</summary>
+    function AllowSelfSigned(AValue: Boolean = True): TRestClient;
     /// <summary>Configures Bearer (JWT) authentication for requests.</summary>
     function BearerToken(const AToken: string): TRestClient;
     /// <summary>Configures basic authentication (Username/Password).</summary>
@@ -538,6 +549,7 @@ begin
   FTimeout := 30000;
   FHeaders := TCollections.CreateDictionary<string, string>;
   FContentType := ctJson;
+  FIgnoreCertErrors := True;
   FPool := TConnectionPool(TRestClient.FSharedPool);
   FLock := TCriticalSection.Create;
 end;
@@ -547,6 +559,17 @@ begin
   // FHeaders is ARC
   FLock.Free;
   inherited;
+end;
+
+function TRestClientImpl.IgnoreCertificateErrors(AValue: Boolean): IRestClient;
+begin
+  FIgnoreCertErrors := AValue;
+  Result := Self;
+end;
+
+function TRestClientImpl.AllowSelfSigned(AValue: Boolean): IRestClient;
+begin
+  Result := IgnoreCertificateErrors(AValue);
 end;
 
 function TRestClientImpl.GetFullUrl(const AEndpoint: string): string;
@@ -807,6 +830,7 @@ begin
                   HttpClient := TConnectionPool(TRestClient.FSharedPool).Acquire;
                   try
                     HttpClient.SetConnectionTimeout(Timeout);
+                    HttpClient.SetIgnoreCertificateErrors(FIgnoreCertErrors);
                     HttpClient.SetSendTimeout(Timeout);
                     HttpClient.SetResponseTimeout(Timeout);
 
@@ -862,6 +886,18 @@ end;
 function TRestClient.BaseUrl(const AValue: string): TRestClient;
 begin
   FInstance.BaseUrl(AValue);
+  Result := Self;
+end;
+
+function TRestClient.IgnoreCertificateErrors(AValue: Boolean): TRestClient;
+begin
+  FInstance.IgnoreCertificateErrors(AValue);
+  Result := Self;
+end;
+
+function TRestClient.AllowSelfSigned(AValue: Boolean): TRestClient;
+begin
+  FInstance.AllowSelfSigned(AValue);
   Result := Self;
 end;
 

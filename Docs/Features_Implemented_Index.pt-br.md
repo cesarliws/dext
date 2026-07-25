@@ -175,6 +175,10 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Timeout Policy** (`TTimeoutPolicy`) — Lança `ETimeoutException` caso operações excedam a duração máxima permitida através de cancelamento cooperativo e futures assíncronas.
 - **RestClient Integration** — O `TRestClient` integra-se nativamente com o motor de resiliência, permitindo o uso retrocompatível dos métodos `.Retry()` e `.Timeout()`, além de configuração de pipelines customizados.
 
+### 1.19 Fluent ServerEngineOptions & TRestClient SSL/TLS Controls
+- **`ServerEngineOptions`** (`Dext.Server.Engine.Types.pas`) — Função de entrada global e helpers fluentes (`WithHttps`, `WithSslCertHash`, `WithIoThreads`, `WithReceiveBufferSize`) para configuração elegante de servidores HTTPS sem burocracia.
+- **`TRestClient.IgnoreCertificateErrors / AllowSelfSigned`** (`Dext.Net.RestClient.pas`) — Interface fluente para controle explícito de validação de certificados SSL/TLS em clientes REST, permitindo conexões HTTPS com certificados auto-assinados de ambiente de desenvolvimento.
+
 ### 1.18 Persistent Background Jobs (`Dext.BackgroundJobs.*`)
 - **`IJobStorage`** — Abstração de armazenamento desacoplada com suporte a múltiplos provedores.
 - **`IJobClient` / `TDextJobs`** — Cliente thread-safe para enfileiramento e fachada utilitária estática (`TDextJobs.Enqueue<T>`, `TDextJobs.Schedule<T>`).

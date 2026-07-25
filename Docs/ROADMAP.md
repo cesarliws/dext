@@ -65,6 +65,7 @@ Status | Task | Spec | Description
 ✅ | **Linux Epoll Evolution** | [S50](Specs/S50-Linux-Epoll-Evolution.md) | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, lock-free buffer pooling, and keep-alive timing wheels.
 ✅ | **Direct Codecs & Static Code Generation** | [S54](Specs/S54-Codegen-Direct-Codecs.md) | Runtime finalized: shared direct-offset and generated-code codecs for gRPC, REST/JSON, ORM hydration, and EntityDataSet sync. Expert DX deferred.
 ✅ | **Model Context Protocol (MCP)** | [S23](Specs/S23-Http-Streamable-HTMX.md) | Native MCP v2025-03-26 server integration with builder API and HTTP.sys support.
+✅ | **Net-Advanced & Native TLS** | [S43](Specs/S43-Net-Advanced.md) | Unified TLS abstraction, http.sys HTTPS, OpenSSL 3.x, dev-certs CLI, and fluent TRestClient SSL validation.
 
 ## 🔮 Future / Post-V1
 - [ ] **OData Support**: Full OData query support.

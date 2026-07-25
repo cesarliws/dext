@@ -64,6 +64,7 @@ type
     procedure SetConnectionTimeout(AMilliseconds: Integer);
     procedure SetSendTimeout(AMilliseconds: Integer);
     procedure SetResponseTimeout(AMilliseconds: Integer);
+    procedure SetIgnoreCertificateErrors(AValue: Boolean);
     function Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
   end;
 
@@ -152,6 +153,7 @@ type
   TDextIndyHttpEngine = class(TInterfacedObject, IDextHttpEngine)
   private
     FIdHttp: TIdHTTP;
+    FIgnoreCertErrors: Boolean;
     function VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
   public
     constructor Create;
@@ -159,6 +161,7 @@ type
     procedure SetConnectionTimeout(AMilliseconds: Integer);
     procedure SetSendTimeout(AMilliseconds: Integer);
     procedure SetResponseTimeout(AMilliseconds: Integer);
+    procedure SetIgnoreCertificateErrors(AValue: Boolean);
     function Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
   end;
 
@@ -191,6 +194,11 @@ end;
 procedure TDextIndyHttpEngine.SetResponseTimeout(AMilliseconds: Integer);
 begin
   FIdHttp.ReadTimeout := AMilliseconds;
+end;
+
+procedure TDextIndyHttpEngine.SetIgnoreCertificateErrors(AValue: Boolean);
+begin
+  FIgnoreCertErrors := AValue;
 end;
 
 function TDextIndyHttpEngine.VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
@@ -288,6 +296,7 @@ type
   TDextNetHttpEngine = class(TInterfacedObject, IDextHttpEngine)
   private
     FClient: THTTPClient;
+    FIgnoreCertErrors: Boolean;
     procedure ValidateServerCertificate(const Sender: TObject; const ARequest: TURLRequest; const Certificate: TCertificate; var AValidate: Boolean);
   public
     constructor Create;
@@ -295,6 +304,7 @@ type
     procedure SetConnectionTimeout(AMilliseconds: Integer);
     procedure SetSendTimeout(AMilliseconds: Integer);
     procedure SetResponseTimeout(AMilliseconds: Integer);
+    procedure SetIgnoreCertificateErrors(AValue: Boolean);
     function Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
   end;
 
@@ -303,13 +313,20 @@ type
 constructor TDextNetHttpEngine.Create;
 begin
   inherited Create;
+  FIgnoreCertErrors := True;
   FClient := THTTPClient.Create;
   FClient.OnValidateServerCertificate := ValidateServerCertificate;
 end;
 
 procedure TDextNetHttpEngine.ValidateServerCertificate(const Sender: TObject; const ARequest: TURLRequest; const Certificate: TCertificate; var AValidate: Boolean);
 begin
-  AValidate := True;
+  if FIgnoreCertErrors then
+    AValidate := True;
+end;
+
+procedure TDextNetHttpEngine.SetIgnoreCertificateErrors(AValue: Boolean);
+begin
+  FIgnoreCertErrors := AValue;
 end;
 
 destructor TDextNetHttpEngine.Destroy;

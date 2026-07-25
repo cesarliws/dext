@@ -67,7 +67,6 @@ end;
 
 var
   Builder: TMCPServerBuilder;
-  Options: TServerEngineOptions;
   Port, Url: string;
   Server: TMCPServer;
   Transport: TMCPTransport;
@@ -104,14 +103,14 @@ begin
 
     if UseHttpSys then
     begin
-      Options := TServerEngineOptions.Default;
+      var Opts := ServerEngineOptions;
       if UseHttps then
       begin
-        Options.UseHttps := True;
+        Opts := Opts.WithHttps(True);
         if CertHash <> '' then
-          Options.SslCertHash := CertHash;
+          Opts := Opts.WithSslCertHash(CertHash);
       end;
-      Builder.UseHttpSys(Options);
+      Builder.UseHttpSys(Opts);
     end
     else
       Builder.UseIndy;

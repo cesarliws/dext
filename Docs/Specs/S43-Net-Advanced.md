@@ -131,11 +131,11 @@ type
   - Implement native ASN.1 encoder for Subject Alternative Name (SAN) extension (`localhost`, `127.0.0.1`).
   - Implement automatic Windows Root Store trust installer with `certutil`.
   - Update `Web.SslDemo` example with dual OpenSSL 1.0.2 & Taurus TLS 1.3 verification.
-- [ ] **Phase 4: Web Server Testing & MCP HTTPS Validation (Next Immediate Steps)**
+- [x] **Phase 4: Web Server Testing & MCP HTTPS Validation**
   - Test `http.sys` and `epoll` engines with HTTPS (`Web.SslDemo`).
-  - Validate MCP Server (`Dext.AI.MCP.Server`) running over HTTPS (`http.sys`). *(Note: Validating MCP over http.sys HTTPS also validates epoll and Indy engines)*.
-- [ ] **Phase 5: Clients SSL Integration**
-  - Test `TRestClient` / `THttpClient` with SSL/HTTPS.
+  - Validate MCP Server (`Dext.AI.MCP.Server`) running over HTTPS (`http.sys`) with fluent `ServerEngineOptions`.
+- [x] **Phase 5: Clients SSL Integration**
+  - Test `TRestClient` / `THttpClient` with SSL/HTTPS and explicit `IgnoreCertificateErrors` / `AllowSelfSigned` fluent API.
   - Test `TDextRedisClient` SSL connection capability (`rediss://`).
 - [ ] **Phase 6: Optimization, Permessage-Deflate & MessagePack**
   - Implement MessagePack Hub Protocol (`Dext.Web.Hubs.Protocol.MessagePack.pas`).
@@ -143,4 +143,4 @@ type
 
 ---
 
-*Updated by Cesar Romero & Antigravity AI — July 24, 2026*
+*Updated by Cesar Romero & Antigravity AI — July 25, 2026*
