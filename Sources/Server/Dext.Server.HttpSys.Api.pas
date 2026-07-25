@@ -22,7 +22,7 @@
 {  Author:  Cesar Romero                                                    }
 {  Created: 2026-06-17                                                      }
 {                                                                           }
-{  Windows HTTP Server API (http.sys) headers and structures mapping.      }
+{  Windows HTTP Server API (http.sys) headers and structures mapping.       }
 {                                                                           }
 {***************************************************************************}
 unit Dext.Server.HttpSys.Api;

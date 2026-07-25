@@ -203,6 +203,46 @@ end;
 
 ---
 
+## 🔒 Running MCP Server over Native HTTPS (`http.sys`)
+
+To run your MCP Server over Windows Kernel (`http.sys`) with encrypted HTTPS:
+
+1. **Generate and bind the local certificate using Dext CLI (as Administrator):**
+   ```bash
+   dext dev-certs https --trust
+   ```
+
+2. **Configure `TMCPServerBuilder` with `UseHttpSys` and `UseHttps`:**
+   ```pascal
+   var
+     Options: TServerEngineOptions;
+   begin
+     Options := TServerEngineOptions.Default;
+     Options.UseHttps := True;
+     
+     Builder := TMCPServerBuilder.Create;
+     try
+       Builder
+         .Name('my-mcp-server')
+         .Transport(mtStreamable)
+         .Url('https://localhost:3031')
+         .UseHttpSys(Options);
+         
+       // Register tools...
+       Server := Builder.Build;
+     finally
+       Builder.Free;
+     end;
+   end;
+   ```
+
+3. **Connect AI Assistants directly via HTTPS:**
+   ```bash
+   claude mcp add my-mcp https://localhost:3031/mcp
+   ```
+
+---
+
 ## 🔌 Connecting AI Assistants
 
 ### 1. Claude Code (CLI)

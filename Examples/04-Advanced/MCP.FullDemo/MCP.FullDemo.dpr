@@ -1,4 +1,4 @@
-﻿program MCP.FullDemo;
+program MCP.FullDemo;
 
 {$APPTYPE CONSOLE}
 {$R *.res}
@@ -77,8 +77,15 @@ begin
   ReportMemoryLeaksOnShutdown := True;
   Randomize;
 
-  Port       := GetParam('--port', '3031');
-  Url        := 'http://localhost:' + Port;
+  Port := GetParam('--port', '3031');
+  var UseHttps: Boolean := HasFlag('--https');
+  var CertHash: string := GetParam('--cert-hash', '');
+
+  if UseHttps then
+    Url := 'https://localhost:' + Port
+  else
+    Url := 'http://localhost:' + Port;
+
   Transport  := mtStreamable;
   UseHttpSys := HasFlag('--httpsys');
 
@@ -97,7 +104,13 @@ begin
 
     if UseHttpSys then
     begin
-      Options := TServerEngineOptions.Default.WithBindAddress('localhost');
+      Options := TServerEngineOptions.Default;
+      if UseHttps then
+      begin
+        Options.UseHttps := True;
+        if CertHash <> '' then
+          Options.SslCertHash := CertHash;
+      end;
       Builder.UseHttpSys(Options);
     end
     else
