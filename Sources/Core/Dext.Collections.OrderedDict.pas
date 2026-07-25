@@ -55,7 +55,9 @@ type
   /// </summary>
   IOrderedDictionary<K, V> = interface(IDictionary<K, V>)
     ['{C3A5E1B2-7D64-4F08-9A31-2E6B5C0D8F14}']
+    /// <summary>Returns the key stored at the given insertion position.</summary>
     function GetKeyAt(Index: Integer): K;
+    /// <summary>Returns the value stored at the given insertion position.</summary>
     function GetValueAt(Index: Integer): V;
     /// <summary>Returns the 0-based insertion position of a key, or -1 if absent.</summary>
     function IndexOf(const Key: K): Integer;
@@ -121,6 +123,7 @@ type
   public
     function GetInterfaceEnumerator: IEnumerator<TPair<K, V>>; override;
 
+    /// <summary>Creates a default empty insertion-ordered dictionary.</summary>
     constructor Create; overload;
     /// <summary>Creates the dictionary with a pre-allocated initial capacity.</summary>
     constructor Create(ACapacity: Integer); overload;
@@ -135,22 +138,36 @@ type
     /// <summary>Returns a record-based enumerator for high-performance for-in loops.</summary>
     function GetEnumerator: TOrderedDictionaryEnumerator<K, V>; reintroduce; inline;
 
+    /// <summary>Adds a new key-value pair. Raises if the key already exists.</summary>
     procedure Add(const Key: K; const Value: V);
+    /// <summary>Adds a new pair or updates the existing value in-place without changing key order.</summary>
     procedure AddOrSetValue(const Key: K; const Value: V);
+    /// <summary>Attempts to retrieve the value associated with the key.</summary>
     function TryGetValue(const Key: K; out Value: V): Boolean;
+    /// <summary>Returns True if the key exists in the dictionary.</summary>
     function ContainsKey(const Key: K): Boolean;
+    /// <summary>Removes the key and its value. Returns True if removed.</summary>
     function Remove(const Key: K): Boolean;
+    /// <summary>Removes and returns the value associated with Key without freeing object instances.</summary>
     function Extract(const Key: K): V;
+    /// <summary>Removes all key-value pairs from the dictionary.</summary>
     procedure Clear;
 
+    /// <summary>Returns an array of all keys in insertion order.</summary>
     function Keys: TArray<K>;
+    /// <summary>Returns an array of all values in insertion order.</summary>
     function Values: TArray<V>;
+    /// <summary>Returns an array of key-value pairs in insertion order.</summary>
     function ToArray: TArray<TPair<K, V>>;
 
     // Ordered access
+    /// <summary>Returns the 0-based insertion position of a key, or -1 if absent.</summary>
     function IndexOf(const Key: K): Integer;
+    /// <summary>Returns the key stored at the given insertion position.</summary>
     function GetKeyAt(Index: Integer): K;
+    /// <summary>Returns the value stored at the given insertion position.</summary>
     function GetValueAt(Index: Integer): V;
+    /// <summary>Returns the key-value pair stored at a given position.</summary>
     function PairAt(Index: Integer): TPair<K, V>;
 
     /// <summary>Number of elements present in the dictionary.</summary>

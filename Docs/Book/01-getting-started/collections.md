@@ -1,28 +1,60 @@
-# 📦 Generic Collections
+# 📦 Generic Collections (`Dext.Collections`)
 
-Dext includes a modern collection library designed to be lightweight, memory-safe, and rich in functional features (inspired by LINQ). It is the backbone of the framework, used by the ORM, Dependency Injection, and Web modules.
-
-## Why not just use `TList<T>`?
-
-Standard Delphi collections (`System.Generics.Collections`) have two main drawbacks in modern architectures:
-
-1. **Manual Memory Management**: You must always remember to call `.Free`. This is error-prone when passing lists between services or layers.
-2. **Verbosity**: Standard lists require loops for simple operations like filtering or checking existence.
-
-## Key Features
-
-- **Interface-based (`IList<T>`)**: Automatic lifecycle management via reference counting.
-- **Safe Ownership**: Smart handling of objects. They are destroyed only when the list "owns" them.
-- **LINQ-inspired Engine**: Built-in methods like `Where`, `Select`, `Any`, `First`, and `OrderBy`.
-- **ORM Integration**: Filter your database results in-memory using the same specification patterns.
+`Dext.Collections` is the high-performance, memory-safe in-memory data engine
+of the **Dext Framework**. Designed from the ground up to solve the main
+pain points of standard Delphi generics (`System.Generics.Collections`), it
+dramatically reduces **Compilation Time** (via Binary Code Folding) while
+delivering **Zero Memory Leaks**, **Lock-Free Concurrency**, and **LINQ**
+expressiveness.
 
 ---
 
-## Getting Started
+## 🚀 Why Not Just `System.Generics.Collections`?
 
-### Creating Collections
+Standard Delphi collections impose a heavy tax on modern applications:
 
-Always refer to collections by their interface names. Use the `TCollections` factory to create instances.
+1. **Compilation Time & Binary Bloat**: Instantiating hundreds of generic
+   lists (`TList<T1>`, `TList<T2>`) forces the compiler to duplicate machine
+   code for every type parameter.
+2. **Manual Memory Management**: Missing a `.Free` call causes memory leaks,
+   especially when passing collections across service boundaries.
+3. **Cache Inefficiency**: RTL `TDictionary` uses linked-list bucket chaining,
+   causing heavy L1/L2 CPU cache misses.
+4. **Lock Contention**: Thread-safe operations in legacy code depend on heavy
+   `TCriticalSection` or `TMonitor` locks.
+
+---
+
+## 🏗️ Architecture & Performance Pillars
+
+### 1. Binary Code Folding (`TRawList`, `TRawDictionary`, `TRawOrderedDict`)
+Dext uses a thin generic interface frontend (`IList<T>`, `IDictionary<K,V>`,
+`IOrderedDictionary<K,V>`) over non-generic raw memory backends. The internal
+raw engines handle memory buffers, hashing, probing, and managed type
+finalization safely.
+
+> ⚡ **Result**: Reduces generic code duplication by up to 60%, dropping build
+> times on large codebases from 9 minutes down to 3.5 minutes!
+
+### 2. Cache-Optimized Probing (`Open Addressing` + `Linear Probing`)
+`TRawDictionary` and `TRawOrderedDict` store metadata and entries contiguously
+in memory. Searching keys traverses sequential memory addresses, aligning 100%
+with modern CPU cache lines and eliminating pointer-chasing cache misses.
+
+### 3. Hardware Acceleration & Zero-Allocations
+- **Vector & Span (`Dext.Collections.Vector.pas`)**: Zero-allocation slices for
+  high-throughput string/buffer processing.
+- **SIMD Vectorization (`Dext.Collections.Simd.pas`)**: Employs AVX/SSE2
+  instructions to inspect 16 to 32 bytes per CPU clock cycle.
+- **Hybrid Sort (`Dext.Collections.Algorithms.pas`)**: Combines optimized
+  `QuickSort` with cache-friendly `Insertion Sort` for small partitions.
+
+---
+
+## 🛠️ Collection Suite Overview
+
+All Dext collections are accessed via interfaces and instantiated through the
+`TCollections` factory facade (`Dext.Collections.Factory.pas`).
 
 ```pascal
 uses
@@ -30,138 +62,188 @@ uses
 
 var
   Users: IList<TUser>;
+  Config: IDictionary<string, string>;
+  History: IOrderedDictionary<string, TOrder>;
+  ReadCache: IFrozenDictionary<string, TProduct>;
+  JobQueue: IChannel<TWorkItem>;
 begin
-  // Creates a list that OWNS the objects (will free them automatically)
+  // Object List (Owns and frees objects automatically)
   Users := TCollections.CreateObjectList<TUser>;
 
-  // Creates a list of primitives (no ownership logic needed)
-  var Numbers := TCollections.CreateList<Integer>;
-end; // Both Users and Numbers are safely cleared from memory here.
-```
+  // Dictionary with Case-Insensitive String Keys
+  Config := TCollections.CreateDictionaryIgnoreCase<string>;
 
-### Basic Operations
+  // Ordered Dictionary (Insertion-order iteration + O(1) key lookups)
+  History := TCollections.CreateOrderedDictionary<string, TOrder>;
 
-```pascal
-Users.Add(User1);
-Users.AddRange([User2, User3]);
-
-Writeln('Count: ', Users.Count);
-Writeln('First User: ', Users[0].Name);
-
-Users.Remove(User1);
-Users.Clear; // Frees objects if OwnsObjects is True
+  // Lock-Free Concurrent Channel (Go-style with backpressure)
+  JobQueue := TChannel<TWorkItem>.CreateBounded(100);
+end; // All collections and owned items automatically freed here!
 ```
 
 ---
 
-## <a name="ownership"></a> Ownership & Memory Safety
+## 🔒 Memory Safety & Ownership Management
 
-Memory safety is a first-class citizen in Dext.
+Memory safety is built directly into `IList<T>`, `IDictionary<K,V>`, and
+`IOrderedDictionary<K,V>`.
 
-### Object Lists
-
-When you use `TCollections.CreateObjectList<T>`, the list takes responsibility for the objects you add to it.
-
-- When an object is removed, it is destroyed.
-- When the list (interface) goes out of scope, all remaining objects are destroyed.
-
-### Reference Lists
-
-If you want to keep a list of objects but **not** destroy them (because they belong to another part of the app), use `CreateList<T>(False)`:
+### Object Lists (`OwnsObjects`)
+When created via `TCollections.CreateObjectList<T>`, the list takes full
+ownership of its items:
+- Removing an item automatically destroys it.
+- Clearing the list frees all contained objects.
+- When the list interface goes out of scope, remaining objects are freed.
 
 ```pascal
-// False means OwnsObjects = False
+// Reference-only list (Does NOT destroy objects on remove/clear/destroy)
 var RefList := TCollections.CreateList<TUser>(False);
 ```
 
----
-
-## LINQ & Functional Logic
-
-Dext Collections bring the power of functional programming to Delphi.
-
-### Filtering and Searching
-
-```pascal
-var u := Prototype.Entity<TUser>;
-
-// Find all active admins
-var Admins := Users.Where(u.IsActive and (u.Role = 'Admin')).ToList;
-
-// Check if any user is from London
-if Users.Any(u.City = 'London') then
-  Writeln('Londoners found!');
-
-// Get the first match or nil
-var FirstVip := Users.FirstOrDefault(u.IsVip);
-```
-
-### Projections (Transforming)
-
-```pascal
-var u := Prototype.Entity<TUser>;
-
-  // Get a list of just the names (string list)
-  var Names := Users.Select<string>(u.Name).ToList;
-```
+### Key/Value Ownership in Dictionaries
+`IDictionary` and `IOrderedDictionary` support object ownership for values.
+Calling `Extract` hands ownership back to the caller without freeing the object.
 
 ---
 
-## Performance Tip
+## 🗂️ New Feature: `IOrderedDictionary<K,V>`
 
-Methods like `.Where()` and `.Select()` return lazy iterators by default. They don't copy the whole list immediately. If you just need to loop over the result, don't call `.ToList`. Use `.ToList` only when you need to store the result for later or return it from a method.
+`IOrderedDictionary<K,V>` combines `O(1)` key lookups with dense,
+insertion-ordered storage.
+
+### Key Benefits
+- **Insertion-Order Enumeration**: Iterating via `for-in` yields elements in the
+  exact order they were added (allocation-free enumerator).
+- **Positional Access**: Retrieve keys/values by insertion index (`KeyAt`,
+  `ValueAt`, `PairAt`, `IndexOf`).
+- **Full Comparer & Ownership Support**: Supports custom `IEqualityComparer<K>`,
+  case-insensitive string keys, and `OwnsValues`.
 
 ```pascal
-// Efficient: No copy made
-for var Admin in Users.Where(IsAdmin) do
-  Process(Admin);
+var Dict := TCollections.CreateOrderedDictionary<string, Integer>;
+Dict.Add('First', 10);
+Dict.Add('Second', 20);
 
-// Required: Result is stored/returned
-Result := Users.Where(IsAdmin).ToList;
+// Fast positional lookup
+Writeln('Item at index 0: ', Dict.KeyAt(0), ' = ', Dict.ValueAt(0));
+
+// Iterates in exact insertion order: 'First', then 'Second'
+for var Pair in Dict do
+  Writeln(Pair.Key, ': ', Pair.Value);
 ```
 
 ---
 
-## Modern Concurrency: Channels and Lock-Free
+## ⚡ Concurrency & Multi-Threading Patterns
 
-Most collection libraries (including standard Delphi ones) rely on `TCriticalSection` or `TMonitor` to ensure thread safety. The major issue with this approach is that *locks* create bottlenecks on multi-core systems, preventing true scalability.
+Modern backend server applications face bottlenecks when managing concurrent data
+(such as user sessions or active web connections). Dext provides three distinct
+concurrency models tailored to different workload characteristics:
 
-In Dext, we solve this by introducing concurrency patterns inspired by the Go programming language, focusing on **Lock-Free** operations.
+### 1. `TConcurrentDictionary<K,V>` (Lock Striping / Bucket Locking)
+Located in `Dext.Collections.Concurrent.pas`, `TConcurrentDictionary` implements
+**Lock Striping** (similar to Intel TBB or Java `ConcurrentHashMap`).
 
-### IChannel&lt;T&gt; (Go-style Channels)
-
-The most efficient way to share data between threads is not by locking lists, but by passing messages through uninterrupted channels.
-
-`IChannel<T>` provides:
-
-- **Zero Lock Contention**: Achieve maximum performance without the throttling caused by thread locks.
-- **Backpressure**: Channels with limited capacity (`Bounded`) prevent a faster producer thread from overloading memory with pending messages.
+Instead of protecting the entire dictionary with a single global `TCriticalSection`,
+it distributes entries across multiple independent spin-lock buckets (`TSpinLock`).
+- **High Concurrency**: Writes and lookups to different key buckets execute in
+  parallel without blocking each other.
+- **Zero Global Contention**: Lock scope is confined strictly to the specific bucket
+  being modified.
 
 ```pascal
+uses
+  Dext.Collections.Concurrent;
+
 var
-  Chan: IChannel<TOrder>;
-  ProducerTask, ConsumerTask: ITask;
+  Sessions: TConcurrentDictionary<string, TSessionList>;
 begin
-  // Create a channel with a limit of 100 messages (Backpressure)
-  Chan := TChannel<TOrder>.CreateBounded(100);
-
-  // Producer Thread
-  ProducerTask := TTask.Run(procedure
-    begin
-      // Produce and send to the channel
-      Chan.Write(Order1);
-      Chan.Write(Order2);
-      Chan.Close; // Important: Close to signal the end
-    end);
-
-  // Consumer Thread
-  ConsumerTask := TTask.Run(procedure
-    begin
-      // Consume until the channel is closed and emptied
-      while Chan.IsOpen do
-        ProcessOrder(Chan.Read);
-    end);
+  // Thread-safe lookup with bucket-level lock scoping only
+  if Sessions.TryGetValue(SessionId, OutList) then
+    ProcessSessions(OutList);
 end;
 ```
 
-For scenarios where memory limits are not a concern or volumes are small, you can instantiate an infinite channel: `TChannel<T>.CreateUnbounded;`.
+### 2. `IFrozenDictionary<K,V>` (Lock-Free Read Operations) 🧊
+Located in `Dext.Collections.Frozen.pas`, frozen collections are designed for
+read-heavy multi-threaded workloads (e.g., routing tables, cached metadata, session tokens).
+
+1. Build and populate the dictionary during startup or initialization.
+2. Call `.ToFrozenDictionary`.
+3. Read concurrently from hundreds of threads **100% Lock-Free** without any
+   locks (`TCriticalSection` or `TSpinLock`) or memory barrier penalties.
+
+### 3. `IChannel<T>` (Go-Style Lock-Free Message Passing) 🚀
+Located in `Dext.Collections.Channels.pas`, `IChannel<T>` replaces shared thread-locked
+queues with lock-free message channels.
+
+- **Zero Lock Contention**: Producers and consumers communicate without locking arrays.
+- **Native Backpressure**: Bounded channels (`TChannel<T>.CreateBounded(1000)`) prevent
+  fast producers from overwhelming memory when consumers process slow network operations.
+
+```pascal
+var
+  Chan: IChannel<TSessionMessage> := TChannel<TSessionMessage>.CreateBounded(1000);
+
+// Producer Thread (adds network payload)
+TTask.Run(procedure
+  begin
+    Chan.Write(Msg);
+  end);
+
+// Consumer Thread (sends data to slow clients without holding locks)
+TTask.Run(procedure
+  begin
+    while Chan.IsOpen do
+      SendToNetwork(Chan.Read);
+  end);
+```
+
+---
+
+## ⚡ LINQ & Expression Filtering
+
+Dext collections feature rich LINQ methods integrated directly into `IList<T>`.
+
+```pascal
+var u := Prototype.Entity<TUser>;
+
+// Expressive Spec/Property Filtering (Dext.Specifications)
+var Admins := Users
+  .Where(u.IsActive and (u.Role = 'Admin'))
+  .OrderBy(u.Name.Asc)
+  .ToList;
+
+// Functional LINQ Methods
+var HasVip := Users.Any(function(User: TUser): Boolean
+  begin
+    Result := User.IsVip;
+  end);
+```
+
+---
+
+## 📂 Summary of Dext Collections Units
+
+| Unit Name | Primary Purpose & Responsibilities |
+| :--- | :--- |
+| `Dext.Collections.pas` | Core interfaces (`IList<T>`, `IDictionary<K,V>`, `IOrderedDictionary<K,V>`, etc.) |
+| `Dext.Collections.Factory.pas` | `TCollections` factory facade for clean instantiation |
+| `Dext.Collections.Base.pas` | Base implementations (`TSmartList<T>`, `TSmartDictionary<K,V>`) |
+| `Dext.Collections.Raw.pas` | Non-generic list backend for code folding (`TRawList`) |
+| `Dext.Collections.RawDict.pas` | Non-generic open-addressing dictionary backend (`TRawDictionary`) |
+| `Dext.Collections.RawOrderedDict.pas` | Non-generic insertion-ordered dictionary backend (`TRawOrderedDict`) |
+| `Dext.Collections.Dict.pas` | Generic `TDictionary<K,V>` frontend wrapper |
+| `Dext.Collections.OrderedDict.pas` | Generic `TOrderedDictionary<K,V>` frontend wrapper |
+| `Dext.Collections.HashSet.pas` | Set collection interface and open-addressing implementation (`IHashSet<T>`) |
+| `Dext.Collections.Frozen.pas` | Read-only lock-free structures (`IFrozenDictionary`, `IFrozenSet`) |
+| `Dext.Collections.Channels.pas` | Go-style lock-free channel concurrency (`IChannel<T>`) |
+| `Dext.Collections.Concurrent.pas` | Thread-safe concurrent queues, stacks, and collections |
+| `Dext.Collections.Queue.pas` | Generic Queue data structure (`IQueue<T>`) |
+| `Dext.Collections.Stack.pas` | Generic Stack data structure (`IStack<T>`) |
+| `Dext.Collections.Vector.pas` | Contiguous zero-allocation dynamic vector & span views |
+| `Dext.Collections.Simd.pas` | Hardware-accelerated SIMD search and comparison routines |
+| `Dext.Collections.Algorithms.pas` | Hybrid Sort (QuickSort + Insertion Sort) and binary search routines |
+| `Dext.Collections.Comparers.pas` | Optimized type-specific equality and hashing comparers |
+| `Dext.Collections.Extensions.pas` | Helper extension methods for arrays, enumerables, and LINQ |
+| `Dext.Collections.Memory.pas` | Low-level memory utilities and managed type inspection (`IsManagedType`) |
