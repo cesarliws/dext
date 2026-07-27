@@ -442,7 +442,18 @@ end;
 procedure TRawDictionary.Grow;
 begin
   if FCapacity = 0 then
-    Rehash(DEFAULT_CAPACITY)
+  begin
+    Rehash(DEFAULT_CAPACITY);
+    Exit;
+  end;
+  // The load factor now counts tombstones, so Grow can also be reached while the
+  // number of LIVE entries is nowhere near the limit -- e.g. a steady add/remove
+  // cycle, where every round leaves a tombstone behind. Doubling there would make
+  // the table grow without bound for a constant working set: rehashing at the
+  // SAME capacity is enough, since a rehash carries over occupied slots only and
+  // drops every tombstone. Grow only when the live entries really need the room.
+  if (FCount + 1) * 100 <= FCapacity * (MAX_LOAD_FACTOR div 2) then
+    Rehash(FCapacity)
   else
     Rehash(FCapacity * 2);
 end;
