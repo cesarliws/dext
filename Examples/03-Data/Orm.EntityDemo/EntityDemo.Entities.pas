@@ -1,4 +1,4 @@
-unit EntityDemo.Entities;
+﻿unit EntityDemo.Entities;
 
 interface
 
