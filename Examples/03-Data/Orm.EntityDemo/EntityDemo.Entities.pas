@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Entities;
+unit EntityDemo.Entities;
 
 interface
 
@@ -447,6 +447,8 @@ end;
 
 function TArticle.GetBody: TStrings;
 begin
+  if FBody = nil then
+    FBody := TStringList.Create;
   Result := FBody;
 end;
 

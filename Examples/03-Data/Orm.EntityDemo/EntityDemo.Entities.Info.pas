@@ -72,6 +72,7 @@ begin
   City.Info.Free;
   AddressId.Info.Free;
   Address.Info.Free;
+  inherited;
 end;
 
 { TAddressType }

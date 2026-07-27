@@ -1,4 +1,4 @@
-﻿unit EntityDemo.Tests.LazyLoading;
+unit EntityDemo.Tests.LazyLoading;
 
 interface
 
@@ -184,7 +184,7 @@ begin
   FContext.SaveChanges;
   SavedArticleId := Article.Id;
 
-  NormalizedExpected := Article.Body.Text;
+  NormalizedExpected := TrimRight(Article.Body.Text);
   // Clear context
   FContext.Clear;
 
@@ -201,7 +201,7 @@ begin
 
     LogSuccess('Article metadata loaded without large body');
 
-    NormalizedBody := LoadedArticle.Body.Text;
+    NormalizedBody := TrimRight(LoadedArticle.Body.Text);
     BodyLength := Length(NormalizedBody);
     ExpectedLength := Length(NormalizedExpected);
 

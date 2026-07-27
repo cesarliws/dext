@@ -634,6 +634,20 @@ begin
       end;
 
       Cmd := AContext.Connection.CreateCommand(Sql);
+
+      for i := 0 to SetProps.Count - 1 do
+      begin
+        Prop := SetProps[i].Key;
+        ParamName := 's_' + IntToStr(i);
+        Cmd.AddParam(ParamName, TValue.Empty, TDEXTBatchHelper.GetFieldType(Prop.PropertyType.Handle));
+      end;
+      for i := 0 to WhereProps.Count - 1 do
+      begin
+        Prop := WhereProps[i].Key;
+        ParamName := 'w_' + IntToStr(i);
+        Cmd.AddParam(ParamName, TValue.Empty, TDEXTBatchHelper.GetFieldType(Prop.PropertyType.Handle));
+      end;
+
       Cmd.SetArraySize(ChunkCount);
 
       for i := 0 to SetProps.Count - 1 do
