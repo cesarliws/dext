@@ -151,6 +151,22 @@ type
 
     [Test]
     procedure Rehash_ShouldPreserveAllEntries;
+
+    /// <summary>
+    ///   Regression: a plain add/remove/add cycle used to saturate the table with
+    ///   occupied+tombstone slots (tombstones were not counted by the load factor,
+    ///   so the rehash that clears them never happened). FindSlot only stops on
+    ///   SLOT_EMPTY, so the next lookup for an absent key never returned.
+    /// </summary>
+    [Test]
+    procedure AddRemoveAdd_LookupOfRemovedKey_ShouldNotHang;
+
+    /// <summary>
+    ///   Regression: a long-lived dictionary under a remove/insert cycle must stay
+    ///   correct -- tombstones must not accumulate until the table is exhausted.
+    /// </summary>
+    [Test]
+    procedure LongAddRemoveCycle_ShouldStayConsistent;
   end;
 
   /// <summary>TCollections factory method tests</summary>
@@ -576,6 +592,51 @@ begin
     D.Remove(I);
 
   Should(D.Count).Be(0);
+end;
+
+procedure TDictionaryStressTests.AddRemoveAdd_LookupOfRemovedKey_ShouldNotHang;
+var
+  D: IDictionary<Int64, Integer>;
+  V: Integer;
+begin
+  // Five operations are enough with DEFAULT_CAPACITY = 4.
+  D := TCollections.CreateDictionary<Int64, Integer>;
+  D.Add(100, 1);
+  D.Add(200, 2);
+  D.Add(300, 3); // 3 occupied, load 75% -> no grow
+  D.Remove(100); // 2 occupied + 1 tombstone
+  D.Add(900, 4); // 3 occupied + 1 tombstone -> table used to be saturated here
+
+  Should(D.TryGetValue(100, V)).BeFalse; // used to spin forever
+  Should(D.ContainsKey(900)).BeTrue;
+  Should(D.ContainsKey(200)).BeTrue;
+  Should(D.ContainsKey(300)).BeTrue;
+  Should(D.Count).Be(3);
+end;
+
+procedure TDictionaryStressTests.LongAddRemoveCycle_ShouldStayConsistent;
+var
+  D: IDictionary<Integer, Integer>;
+  I, V: Integer;
+begin
+  // Keeps a handful of live entries while churning thousands of insert/remove:
+  // without counting tombstones the table fills up and never grows.
+  D := TCollections.CreateDictionary<Integer, Integer>;
+  for I := 0 to 9 do
+    D.Add(I, I);
+
+  for I := 10 to 5000 do
+  begin
+    D.Add(I, I);
+    D.Remove(I - 10); // steady state: 10 live entries, one tombstone per round
+    Should(D.Count).Be(10);
+  end;
+
+  // The live window is intact and absent keys are reported as absent.
+  for I := 4991 to 5000 do
+    Should(D.ContainsKey(I)).BeTrue;
+  Should(D.TryGetValue(0, V)).BeFalse;
+  Should(D.TryGetValue(4990, V)).BeFalse;
 end;
 
 procedure TDictionaryStressTests.Rehash_ShouldPreserveAllEntries;
