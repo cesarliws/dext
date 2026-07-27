@@ -62,6 +62,12 @@ type
     FSlots: Pointer;         // Array of [Key|Value] pairs, contiguous
     FMetadata: PByte;        // Array of slot states (1 byte each)
     FCount: Integer;
+    // Tombstones (removed slots) still consume probe positions, so they MUST be
+    // taken into account by the load factor: only a rehash clears them. Without
+    // this, a long-running Add/Remove cycle fills the table with tombstones
+    // without ever growing, until no SLOT_EMPTY is left and FindSlot cannot
+    // terminate.
+    FTombstones: Integer;
     FCapacity: Integer;      // Always power of 2
     FKeySize: Integer;
     FValueSize: Integer;
@@ -377,6 +383,7 @@ var
   FirstTombstone: Integer;
   MetaPtr: PByte;
   Meta, H2: Byte;
+  Probes: Integer;
 begin
   Hash := FHashFunc(Key, FKeySize);
   H2 := Byte(Hash shr 24) or $80; // H2 Metadata: store high bits of hash
@@ -384,8 +391,13 @@ begin
   Idx := Integer(Hash and Cardinal(Mask));
   FirstTombstone := -1;
   Result := False;
+  // Safety net: never probe more than the whole table. With the load factor
+  // accounting for tombstones there is always a SLOT_EMPTY to stop at, so this
+  // can only trigger if that invariant is ever broken again -- and returning
+  // "not found" is infinitely better than spinning forever.
+  Probes := 0;
 
-  while True do
+  while Probes <= FCapacity do
   begin
     MetaPtr := FMetadata + Idx;
     Meta := MetaPtr^;
@@ -416,7 +428,15 @@ begin
     end;
 
     Idx := (Idx + 1) and Mask;
+    Inc(Probes);
   end;
+
+  // Table exhausted without finding the key: report a reusable tombstone if we
+  // saw one, otherwise signal "no slot" with -1 (insertions check for it).
+  if FirstTombstone >= 0 then
+    SlotIndex := FirstTombstone
+  else
+    SlotIndex := -1;
 end;
 
 procedure TRawDictionary.Grow;
@@ -450,6 +470,7 @@ begin
   FSlots := System.AllocMem(FCapacity * FSlotSize);
   FMetadata := System.AllocMem(FCapacity);
   FillChar(FMetadata^, FCapacity, SLOT_EMPTY);
+  FTombstones := 0; // only occupied entries are carried over below
 
   // Re-insert all occupied entries
   Mask := FCapacity - 1;
@@ -493,10 +514,14 @@ var
   H2: Byte;
 begin
   // Check load factor before insertion
-  if (FCount + 1) * 100 > FCapacity * MAX_LOAD_FACTOR then
+  // Tombstones count towards the load: they occupy probe positions until the
+  // next rehash, and ignoring them lets an Add/Remove cycle saturate the table.
+  if (FCount + FTombstones + 1) * 100 > FCapacity * MAX_LOAD_FACTOR then
     Grow;
 
   Found := FindSlot(Key, SlotIndex);
+  if not Found and (SlotIndex < 0) then
+    raise Exception.Create('TRawDictionary: no free slot available (internal invariant violated)');
   SlotPtr := GetSlotPtr(SlotIndex);
 
   if Found then
@@ -538,13 +563,17 @@ var
   Hash: Cardinal;
   H2: Byte;
 begin
-  if (FCount + 1) * 100 > FCapacity * MAX_LOAD_FACTOR then
+  // Tombstones count towards the load: they occupy probe positions until the
+  // next rehash, and ignoring them lets an Add/Remove cycle saturate the table.
+  if (FCount + FTombstones + 1) * 100 > FCapacity * MAX_LOAD_FACTOR then
     Grow;
 
   Found := FindSlot(Key, SlotIndex);
 
   if Found then
     raise Exception.Create('An item with the same key has already been added.');
+  if SlotIndex < 0 then
+    raise Exception.Create('TRawDictionary: no free slot available (internal invariant violated)');
 
   SlotPtr := GetSlotPtr(SlotIndex);
 
@@ -595,6 +624,7 @@ begin
   FreeSlotContent(SlotPtr);
   PByte(NativeUInt(FMetadata) + NativeUInt(SlotIndex))^ := SLOT_TOMBSTONE;
   Dec(FCount);
+  Inc(FTombstones); // cleared only by Rehash/Clear -- see the field's comment
 end;
 
 procedure TRawDictionary.Clear;
@@ -622,6 +652,7 @@ begin
     FillChar(FMetadata^, FCapacity, SLOT_EMPTY);
   end;
   FCount := 0;
+  FTombstones := 0; // every slot is SLOT_EMPTY again
 end;
 
 procedure TRawDictionary.ForEachRaw(Callback: TFunc<Pointer, Pointer, Boolean>);
