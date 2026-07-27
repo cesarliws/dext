@@ -82,6 +82,7 @@ begin
           TDictionaryEnumeratorTests,
           TDictionaryInterfaceTests,
           TDictionaryManagedRecordTests,
+          TDictionaryFloatKeyTests,
           TOrderedDictBasicTests,
           TOrderedDictOrderTests,
           TOrderedDictEdgeTests,

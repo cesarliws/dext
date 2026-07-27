@@ -200,6 +200,31 @@ type
     procedure ManagedRecord_ShouldWork;
   end;
 
+  /// <summary>
+  ///   Floating-point keys: Equals compares by VALUE, so GetHashCode must
+  ///   agree. +0.0 and -0.0 are numerically equal with different bit patterns;
+  ///   hashing raw bytes would break the Equals/GetHashCode contract and the
+  ///   dictionary would silently lose the key.
+  /// </summary>
+  [TestFixture('Dictionary - Float Keys')]
+  TDictionaryFloatKeyTests = class
+  public
+    [Test]
+    procedure NegativeZero_ShouldFindTheSameKey;
+
+    [Test]
+    procedure NegativeZero_ShouldNotAddASecondKey;
+
+    [Test]
+    procedure SingleKey_NegativeZero_ShouldFindTheSameKey;
+
+    [Test]
+    procedure Currency_ShouldStillWork;
+
+    [Test]
+    procedure NonZeroFloats_ShouldStillWork;
+  end;
+
 implementation
 
 { TDummyValue }
@@ -720,6 +745,86 @@ begin
   Should(D['Key'].I).Be(123);
   D.Clear;
   Should(D.Count).Be(0);
+end;
+
+{ TDictionaryFloatKeyTests }
+
+procedure TDictionaryFloatKeyTests.NegativeZero_ShouldFindTheSameKey;
+var
+  D: IDictionary<Double, string>;
+  Zero, NegZero: Double;
+  V: string;
+begin
+  Zero := 0.0;
+  NegZero := -0.0;
+  // Same number as far as arithmetic is concerned...
+  Should(Zero = NegZero).BeTrue;
+
+  D := TCollections.CreateDictionary<Double, string>;
+  D.Add(Zero, 'value');
+  // ...so looking it up with the other spelling must find it.
+  Should(D.ContainsKey(NegZero)).BeTrue;
+  Should(D.TryGetValue(NegZero, V)).BeTrue;
+  Should(V).Be('value');
+end;
+
+procedure TDictionaryFloatKeyTests.NegativeZero_ShouldNotAddASecondKey;
+var
+  D: IDictionary<Double, string>;
+  Zero, NegZero: Double;
+begin
+  Zero := 0.0;
+  NegZero := -0.0;
+  D := TCollections.CreateDictionary<Double, string>;
+  D.Add(Zero, 'first');
+  D.AddOrSetValue(NegZero, 'second');
+  // One number, one entry: the second call overwrites, it does not insert.
+  Should(D.Count).Be(1);
+  Should(D[Zero]).Be('second');
+end;
+
+procedure TDictionaryFloatKeyTests.SingleKey_NegativeZero_ShouldFindTheSameKey;
+var
+  D: IDictionary<Single, string>;
+  Zero, NegZero: Single;
+begin
+  Zero := 0.0;
+  NegZero := -0.0;
+  D := TCollections.CreateDictionary<Single, string>;
+  D.Add(Zero, 'value');
+  Should(D.ContainsKey(NegZero)).BeTrue;
+end;
+
+procedure TDictionaryFloatKeyTests.Currency_ShouldStillWork;
+var
+  D: IDictionary<Currency, string>;
+  A, B: Currency;
+begin
+  // Currency is a scaled 64-bit integer: equal values already have equal bits,
+  // so it takes the plain byte-hash path. Guard against regressions there.
+  A := 0.1;
+  B := 0.2;
+  D := TCollections.CreateDictionary<Currency, string>;
+  D.Add(0.3, 'sum');
+  Should(D.ContainsKey(A + B)).BeTrue;
+  Should(D[A + B]).Be('sum');
+  Should(D.ContainsKey(0.31)).BeFalse;
+end;
+
+procedure TDictionaryFloatKeyTests.NonZeroFloats_ShouldStillWork;
+var
+  D: IDictionary<Double, Integer>;
+begin
+  // The zero normalization must not disturb ordinary values.
+  D := TCollections.CreateDictionary<Double, Integer>;
+  D.Add(1.5, 1);
+  D.Add(-1.5, 2);
+  D.Add(2.25, 3);
+  Should(D.Count).Be(3);
+  Should(D[1.5]).Be(1);
+  Should(D[-1.5]).Be(2);
+  Should(D[2.25]).Be(3);
+  Should(D.ContainsKey(3.75)).BeFalse;
 end;
 
 end.
