@@ -1269,14 +1269,56 @@ begin
              end
              else
              begin
+               // Null Nullable<T>: clear the slot and ensure DataType
+               // is set from the underlying inner type so FireDAC array
+               // DML does not report "parameter data type is unknown".
                Param.Clear(i);
+                if Param.DataType = ftUnknown then
+                begin
+                  var Underlying := GetUnderlyingType(Val.TypeInfo);
+                  if Underlying <> nil then
+                  begin
+                    case Underlying.Kind of
+                      tkInteger: Param.DataType := ftInteger;
+                      tkInt64: Param.DataType := ftLargeInt;
+                      tkFloat:
+                        if Underlying = TypeInfo(TDateTime) then
+                          Param.DataType := ftDateTime
+                        else if Underlying = TypeInfo(TDate) then
+                          Param.DataType := ftDate
+                        else if Underlying = TypeInfo(TTime) then
+                          Param.DataType := ftTime
+                        else
+                          Param.DataType := ftFloat;
+                      tkString, tkUString, tkWString, tkChar, tkWChar:
+                        Param.DataType := ftString;
+                      tkEnumeration:
+                        if Underlying = TypeInfo(Boolean) then
+                          Param.DataType := ftBoolean
+                        else
+                          Param.DataType := ftInteger;
+                    else
+                      Param.DataType := ftString;
+                    end;
+                  end
+                  else
+                    Param.DataType := ftString;
+                end;
              end;
           end
           else
              Param.Values[i] := Val.AsVariant;
         end;
       else
+      begin
         Param.Values[i] := Val.AsVariant;
+        // If we just assigned a Null/Empty variant and the param type is
+        // still unknown, SQLite will refuse to execute. Use ftString as
+        // a safe default so FireDAC can bind the NULL correctly.
+        if (Param.DataType = ftUnknown) and VarIsNull(Val.AsVariant)
+        then
+          Param.DataType := ftString;
+      end;
       end;
     end;
   end;

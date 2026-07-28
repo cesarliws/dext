@@ -1,4 +1,4 @@
-unit ControllerExample.Controller;
+﻿unit ControllerExample.Controller;
 
 {
 1. Binding: Body, Query, Route, Header, Services.
@@ -200,7 +200,7 @@ type
     [HttpGet('/nested')]
     [AllowAnonymous]
     procedure GetPersonWithAddress(Ctx: IHttpContext);
-    
+
     [HttpGet('/list')]
     [AllowAnonymous]
     procedure GetPeopleList(Ctx: IHttpContext);
@@ -451,13 +451,13 @@ begin
     Person.Name := 'John Doe';
     Person.Email := 'john@example.com';
     Person.Address := nil; // Test null object
-    
+
     // Serialize to JSON before freeing
     Json := TDextJson.Serialize(Person);
   finally
     Person.Free;
   end;
-  
+
   // Return JSON string
   Ctx.Response.Json(Json);
 end;
@@ -471,12 +471,12 @@ begin
     Person.Id := 2;
     Person.Name := 'Jane Smith';
     Person.Email := 'jane@example.com';
-    
+
     Person.Address := TAddress.Create;
     Person.Address.Street := '123 Main St';
     Person.Address.City := 'New York';
     Person.Address.ZipCode := '10001';
-    
+
     // Use Results.Ok for automatic serialization
     Results.Ok<TPersonWithAddress>(Person).Execute(Ctx);
   finally
@@ -500,7 +500,7 @@ begin
   Person.Address.City := 'Los Angeles';
   Person.Address.ZipCode := '90001';
   People.Add(Person);
-    
+
   // Person 2 - with address
   Person := TPersonWithAddress.Create;
   Person.Id := 2;
@@ -511,7 +511,7 @@ begin
   Person.Address.City := 'New York';
   Person.Address.ZipCode := '10001';
   People.Add(Person);
-    
+
   // Person 3 - without address (null)
   Person := TPersonWithAddress.Create;
   Person.Id := 3;
@@ -519,7 +519,7 @@ begin
   Person.Email := 'bob@example.com';
   Person.Address := nil;
   People.Add(Person);
-    
+
   // Use Results.Ok for automatic serialization
   Results.Ok<IList<TPersonWithAddress>>(People).Execute(Ctx);
 end;

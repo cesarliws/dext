@@ -187,12 +187,13 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 
 ## 📚 2. Dext Collections Library (`Sources\Core`)
 
-### 2.1 Core Collections (`Dext.Collections`, `Dext.Collections.Base`)
+### 2.1 Core Collections (`Dext.Collections`, `Dext.Collections.Base`, `Dext.Collections.OrderedDict`)
 - **TRawList\<T\>** — Backbone of all collections. Generic list based on dynamic arrays with `Move`-based insertion/deletion to minimize overhead. `for-in` support via custom enumerator.
 - **TList\<T\>** / **IList\<T\>** — High-performance generic list. Operations: `Add`, `Insert`, `Remove`, `IndexOf`, `Sort`, `BinarySearch`, `Contains`, `ToArray`.
 - **TDictionary\<K,V\>** / **IDictionary\<K,V\>** — Generic hash map supporting `TryGetValue`, `AddOrSetValue`, `ContainsKey`, `Keys`, `Values`.
+- **TOrderedDictionary\<K,V\>** / **IOrderedDictionary\<K,V\>** — Generic insertion-ordered hash map combining $O(1)$ key lookups with dense insertion-order iteration, positional indexing (`KeyAt`, `ValueAt`, `PairAt`, `IndexOf`), and `OwnsValues` object lifecycle management. Backed by `TRawOrderedDict` to prevent code bloat.
 - **THashSet\<T\>** / **IHashSet\<T\>** — Set of unique values with set theory operations: `UnionWith`, `IntersectWith`, `ExceptWith`.
-- **TCollections (Factory)** — Static factory: `CreateList<T>`, `CreateDictionary<K,V>`, `CreateHashSet<T>`, `CreateSortedList<T>`, etc.
+- **TCollections (Factory)** — Static factory: `CreateList<T>`, `CreateDictionary<K,V>`, `CreateOrderedDictionary<K,V>`, `CreateHashSet<T>`, `CreateSortedList<T>`, etc.
 - **TSmartEnumerator\<T\>** — Extensible base enumerator for custom iteration in derived collections.
 
 ### 2.2 LINQ Extensions (`Dext.Collections.Extensions`)

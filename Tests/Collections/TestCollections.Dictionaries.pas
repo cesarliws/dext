@@ -151,6 +151,22 @@ type
 
     [Test]
     procedure Rehash_ShouldPreserveAllEntries;
+
+    /// <summary>
+    ///   Regression: a plain add/remove/add cycle used to saturate the table with
+    ///   occupied+tombstone slots (tombstones were not counted by the load factor,
+    ///   so the rehash that clears them never happened). FindSlot only stops on
+    ///   SLOT_EMPTY, so the next lookup for an absent key never returned.
+    /// </summary>
+    [Test]
+    procedure AddRemoveAdd_LookupOfRemovedKey_ShouldNotHang;
+
+    /// <summary>
+    ///   Regression: a long-lived dictionary under a remove/insert cycle must stay
+    ///   correct -- tombstones must not accumulate until the table is exhausted.
+    /// </summary>
+    [Test]
+    procedure LongAddRemoveCycle_ShouldStayConsistent;
   end;
 
   /// <summary>TCollections factory method tests</summary>
@@ -198,6 +214,31 @@ type
   public
     [Test]
     procedure ManagedRecord_ShouldWork;
+  end;
+
+  /// <summary>
+  ///   Floating-point keys: Equals compares by VALUE, so GetHashCode must
+  ///   agree. +0.0 and -0.0 are numerically equal with different bit patterns;
+  ///   hashing raw bytes would break the Equals/GetHashCode contract and the
+  ///   dictionary would silently lose the key.
+  /// </summary>
+  [TestFixture('Dictionary - Float Keys')]
+  TDictionaryFloatKeyTests = class
+  public
+    [Test]
+    procedure NegativeZero_ShouldFindTheSameKey;
+
+    [Test]
+    procedure NegativeZero_ShouldNotAddASecondKey;
+
+    [Test]
+    procedure SingleKey_NegativeZero_ShouldFindTheSameKey;
+
+    [Test]
+    procedure Currency_ShouldStillWork;
+
+    [Test]
+    procedure NonZeroFloats_ShouldStillWork;
   end;
 
 implementation
@@ -578,6 +619,51 @@ begin
   Should(D.Count).Be(0);
 end;
 
+procedure TDictionaryStressTests.AddRemoveAdd_LookupOfRemovedKey_ShouldNotHang;
+var
+  D: IDictionary<Int64, Integer>;
+  V: Integer;
+begin
+  // Five operations are enough with DEFAULT_CAPACITY = 4.
+  D := TCollections.CreateDictionary<Int64, Integer>;
+  D.Add(100, 1);
+  D.Add(200, 2);
+  D.Add(300, 3); // 3 occupied, load 75% -> no grow
+  D.Remove(100); // 2 occupied + 1 tombstone
+  D.Add(900, 4); // 3 occupied + 1 tombstone -> table used to be saturated here
+
+  Should(D.TryGetValue(100, V)).BeFalse; // used to spin forever
+  Should(D.ContainsKey(900)).BeTrue;
+  Should(D.ContainsKey(200)).BeTrue;
+  Should(D.ContainsKey(300)).BeTrue;
+  Should(D.Count).Be(3);
+end;
+
+procedure TDictionaryStressTests.LongAddRemoveCycle_ShouldStayConsistent;
+var
+  D: IDictionary<Integer, Integer>;
+  I, V: Integer;
+begin
+  // Keeps a handful of live entries while churning thousands of insert/remove:
+  // without counting tombstones the table fills up and never grows.
+  D := TCollections.CreateDictionary<Integer, Integer>;
+  for I := 0 to 9 do
+    D.Add(I, I);
+
+  for I := 10 to 5000 do
+  begin
+    D.Add(I, I);
+    D.Remove(I - 10); // steady state: 10 live entries, one tombstone per round
+    Should(D.Count).Be(10);
+  end;
+
+  // The live window is intact and absent keys are reported as absent.
+  for I := 4991 to 5000 do
+    Should(D.ContainsKey(I)).BeTrue;
+  Should(D.TryGetValue(0, V)).BeFalse;
+  Should(D.TryGetValue(4990, V)).BeFalse;
+end;
+
 procedure TDictionaryStressTests.Rehash_ShouldPreserveAllEntries;
 var
   D: IDictionary<Integer, Integer>;
@@ -720,6 +806,86 @@ begin
   Should(D['Key'].I).Be(123);
   D.Clear;
   Should(D.Count).Be(0);
+end;
+
+{ TDictionaryFloatKeyTests }
+
+procedure TDictionaryFloatKeyTests.NegativeZero_ShouldFindTheSameKey;
+var
+  D: IDictionary<Double, string>;
+  Zero, NegZero: Double;
+  V: string;
+begin
+  Zero := 0.0;
+  NegZero := -0.0;
+  // Same number as far as arithmetic is concerned...
+  Should(Zero = NegZero).BeTrue;
+
+  D := TCollections.CreateDictionary<Double, string>;
+  D.Add(Zero, 'value');
+  // ...so looking it up with the other spelling must find it.
+  Should(D.ContainsKey(NegZero)).BeTrue;
+  Should(D.TryGetValue(NegZero, V)).BeTrue;
+  Should(V).Be('value');
+end;
+
+procedure TDictionaryFloatKeyTests.NegativeZero_ShouldNotAddASecondKey;
+var
+  D: IDictionary<Double, string>;
+  Zero, NegZero: Double;
+begin
+  Zero := 0.0;
+  NegZero := -0.0;
+  D := TCollections.CreateDictionary<Double, string>;
+  D.Add(Zero, 'first');
+  D.AddOrSetValue(NegZero, 'second');
+  // One number, one entry: the second call overwrites, it does not insert.
+  Should(D.Count).Be(1);
+  Should(D[Zero]).Be('second');
+end;
+
+procedure TDictionaryFloatKeyTests.SingleKey_NegativeZero_ShouldFindTheSameKey;
+var
+  D: IDictionary<Single, string>;
+  Zero, NegZero: Single;
+begin
+  Zero := 0.0;
+  NegZero := -0.0;
+  D := TCollections.CreateDictionary<Single, string>;
+  D.Add(Zero, 'value');
+  Should(D.ContainsKey(NegZero)).BeTrue;
+end;
+
+procedure TDictionaryFloatKeyTests.Currency_ShouldStillWork;
+var
+  D: IDictionary<Currency, string>;
+  A, B: Currency;
+begin
+  // Currency is a scaled 64-bit integer: equal values already have equal bits,
+  // so it takes the plain byte-hash path. Guard against regressions there.
+  A := 0.1;
+  B := 0.2;
+  D := TCollections.CreateDictionary<Currency, string>;
+  D.Add(0.3, 'sum');
+  Should(D.ContainsKey(A + B)).BeTrue;
+  Should(D[A + B]).Be('sum');
+  Should(D.ContainsKey(0.31)).BeFalse;
+end;
+
+procedure TDictionaryFloatKeyTests.NonZeroFloats_ShouldStillWork;
+var
+  D: IDictionary<Double, Integer>;
+begin
+  // The zero normalization must not disturb ordinary values.
+  D := TCollections.CreateDictionary<Double, Integer>;
+  D.Add(1.5, 1);
+  D.Add(-1.5, 2);
+  D.Add(2.25, 3);
+  Should(D.Count).Be(3);
+  Should(D[1.5]).Be(1);
+  Should(D[-1.5]).Be(2);
+  Should(D[2.25]).Be(3);
+  Should(D.ContainsKey(3.75)).BeFalse;
 end;
 
 end.

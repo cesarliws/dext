@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -115,7 +115,7 @@ begin
       except
         // Ignore if table does not exist yet
       end;
-      
+
       // 1. Prepare items attached to Context (AddRange Benchmark)
       for i := 1 to ABatchCount do
       begin

@@ -89,6 +89,7 @@ begin
     Exit;
   end;
 
+
   if GInsideIntercept then
   begin
     // If we are already intercepting, it means Invocation.Proceed is causing recursion.
@@ -120,9 +121,25 @@ begin
     try
       if not FLoaded then
       begin
-        FLoaded := True;
         if FLoader <> nil then
           FLoader.Load(Instance, FPropName);
+
+        RType := TReflection.Context.GetType(Instance.ClassType);
+        if RType <> nil then
+        begin
+          RField := GetBackingField(RType, FPropName);
+          if RField <> nil then
+          begin
+            // A failed load (for example before the primary key is hydrated)
+            // must remain retryable on the next getter invocation.
+            if RField.GetValue(Instance).IsObject then
+              FLoaded := (RField.GetValue(Instance).AsObject <> nil) and
+                (not (RField.GetValue(Instance).AsObject is TStrings) or
+                 (TStrings(RField.GetValue(Instance).AsObject).Count > 0))
+            else
+              FLoaded := not RField.GetValue(Instance).IsEmpty;
+          end;
+        end;
       end;
 
       // Access the field directly. This is safer and faster for Lazy properties.
@@ -166,19 +183,25 @@ begin
   if Map.IsProxy then Exit(True);
   
   try
+    RType := TReflection.Context.GetType(Map.EntityType);
     for Prop in Map.Properties.Values do
     begin
-      if Prop.IsLazy then
+      RProp := RType.GetProperty(Prop.PropertyName);
+      if Prop.IsLazy or
+         ((RProp <> nil) and RProp.PropertyType.IsInstance and
+          RProp.PropertyType.AsInstance.MetaclassType.InheritsFrom(TStrings)) then
       begin
-         RType := TReflection.Context.GetType(Map.EntityType);
          if RType = nil then Continue;
-         
-         RProp := RType.GetProperty(Prop.PropertyName);
          // If it's NOT a Lazy<T> record property, then we might need a proxy for it
          if (RProp <> nil) and (not RProp.PropertyType.Name.StartsWith('Lazy<')) then
            Exit(True);
       end;
     end;
+    for RProp in RType.GetProperties do
+      if (RProp.PropertyType.IsInstance) and
+         RProp.PropertyType.AsInstance.MetaclassType.InheritsFrom(TStrings) and
+         (not Map.Properties.ContainsKey(RProp.Name)) then
+        Exit(True);
   except
     raise;
   end;
@@ -212,13 +235,20 @@ begin
     RType := TReflection.Context.GetType(TypeInfo(T));
     for Prop in Map.Properties.Values do
     begin
-      if Prop.IsLazy then
+      RProp := RType.GetProperty(Prop.PropertyName);
+      if Prop.IsLazy or
+         ((RProp <> nil) and RProp.PropertyType.IsInstance and
+          RProp.PropertyType.AsInstance.MetaclassType.InheritsFrom(TStrings)) then
       begin
-        RProp := RType.GetProperty(Prop.PropertyName);
         if (RProp <> nil) and (not RProp.PropertyType.Name.StartsWith('Lazy<')) then
           Interceptors.Add(TLazyProxyInterceptor.Create(ALoader, Prop.PropertyName));
       end;
     end;
+    for RProp in RType.GetProperties do
+      if (RProp.PropertyType.IsInstance) and
+         RProp.PropertyType.AsInstance.MetaclassType.InheritsFrom(TStrings) and
+         (not Map.Properties.ContainsKey(RProp.Name)) then
+        Interceptors.Add(TLazyProxyInterceptor.Create(ALoader, RProp.Name));
   except
     raise;
   end;
@@ -250,14 +280,21 @@ begin
     RType := TReflection.Context.GetType(TypeInfo(T));
     for Prop in Map.Properties.Values do
     begin
-      if Prop.IsLazy then
+      RProp := RType.GetProperty(Prop.PropertyName);
+      if Prop.IsLazy or
+         ((RProp <> nil) and RProp.PropertyType.IsInstance and
+          RProp.PropertyType.AsInstance.MetaclassType.InheritsFrom(TStrings)) then
       begin
-        RProp := RType.GetProperty(Prop.PropertyName);
         // Only add proxy interceptor if NOT a Lazy<T> record
         if (RProp <> nil) and (not RProp.PropertyType.Name.StartsWith('Lazy<')) then
           Interceptors.Add(TLazyProxyInterceptor.Create(Loader, Prop.PropertyName));
       end;
     end;
+    for RProp in RType.GetProperties do
+      if RProp.PropertyType.IsInstance and
+         RProp.PropertyType.AsInstance.MetaclassType.InheritsFrom(TStrings) and
+         (not Map.Properties.ContainsKey(RProp.Name)) then
+        Interceptors.Add(TLazyProxyInterceptor.Create(Loader, RProp.Name));
   except
     raise;
   end;

@@ -95,8 +95,6 @@ $(PreBuildEvent)]]></PreBuildEvent>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
-        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -138,17 +136,17 @@ $(PreBuildEvent)]]></PreBuildEvent>
                 <Excluded_Packages/>
             </Delphi.Personality>
             <Platforms>
+                <Platform value="Android">False</Platform>
+                <Platform value="Android64">False</Platform>
+                <Platform value="Linux64">False</Platform>
+                <Platform value="OSX64">False</Platform>
+                <Platform value="OSXARM64">False</Platform>
                 <Platform value="Win32">True</Platform>
                 <Platform value="Win64">True</Platform>
+                <Platform value="Win64x">False</Platform>
                 <Platform value="WinARM64EC">False</Platform>
-                <Platform value="OSX64">False</Platform>
-                <Platform value="Android64">False</Platform>
-                <Platform value="Android">False</Platform>
-                <Platform value="OSXARM64">False</Platform>
                 <Platform value="iOSDevice64">False</Platform>
                 <Platform value="iOSSimARM64">False</Platform>
-                <Platform value="Win64x">False</Platform>
-                <Platform value="Linux64">False</Platform>
             </Platforms>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>

@@ -353,7 +353,6 @@ begin
           ParamName := 'v' + IntToStr(j) + '_w' + IntToStr(i);
           Val := TDEXTBatchHelper.ExtractPropValue(AEntities[ChunkStart + j], Prop, nil, AContext.Dialect.GetDialect);
           DataType := TDEXTBatchHelper.GetFieldType(Val.TypeInfo);
-          if j = 0 then WriteLn('     Param ', ParamName, ' = ', Val.ToString, ' (type ', Ord(DataType), ')');
           Cmd.AddParam(ParamName, Val, DataType);
         end;
 
@@ -364,7 +363,6 @@ begin
           ParamName := 'v' + IntToStr(j) + '_s' + IntToStr(i);
           Val := TDEXTBatchHelper.ExtractPropValue(AEntities[ChunkStart + j], Prop, nil, AContext.Dialect.GetDialect);
           DataType := TDEXTBatchHelper.GetFieldType(Val.TypeInfo);
-          if j = 0 then WriteLn('     Param ', ParamName, ' = ', Val.ToString, ' (type ', Ord(DataType), ')');
           Cmd.AddParam(ParamName, Val, DataType);
         end;
       end;
@@ -451,9 +449,11 @@ begin
       Cmd.ExecuteNonQuery;
       ChunkStart := ChunkStart + ChunkCount;
     end;
-    Tx.Commit;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Commit;
   except
-    Tx.Rollback;
+    if OwnsTx and (Tx <> nil) then
+      Tx.Rollback;
     raise;
   end;
 end;
@@ -634,6 +634,20 @@ begin
       end;
 
       Cmd := AContext.Connection.CreateCommand(Sql);
+
+      for i := 0 to SetProps.Count - 1 do
+      begin
+        Prop := SetProps[i].Key;
+        ParamName := 's_' + IntToStr(i);
+        Cmd.AddParam(ParamName, TValue.Empty, TDEXTBatchHelper.GetFieldType(Prop.PropertyType.Handle));
+      end;
+      for i := 0 to WhereProps.Count - 1 do
+      begin
+        Prop := WhereProps[i].Key;
+        ParamName := 'w_' + IntToStr(i);
+        Cmd.AddParam(ParamName, TValue.Empty, TDEXTBatchHelper.GetFieldType(Prop.PropertyType.Handle));
+      end;
+
       Cmd.SetArraySize(ChunkCount);
 
       for i := 0 to SetProps.Count - 1 do

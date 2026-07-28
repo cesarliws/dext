@@ -1,4 +1,4 @@
-unit EntityDemo.DbConfig;
+﻿unit EntityDemo.DbConfig;
 
 interface
 
