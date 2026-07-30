@@ -16,9 +16,7 @@ uses
   Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas',
   Dext.Net.Mqtt.Tests in 'Dext.Net.Mqtt.Tests.pas',
   Dext.Net.Redis in '..\..\Sources\Net\Dext.Net.Redis.pas',
-  Dext.Net.Redis.Tests in 'Dext.Net.Redis.Tests.pas',
-  Dext.Net.Download in '..\..\Sources\Net\Dext.Net.Download.pas',
-  Dext.Net.Download.Tests in 'Dext.Net.Download.Tests.pas';
+  Dext.Net.Redis.Tests in 'Dext.Net.Redis.Tests.pas';
 
 begin
   SetConsoleCharSet;
@@ -30,8 +28,7 @@ begin
         TDextUdpTests,
         TDextMqttTests,
         TDextRedisParserTests,
-        TDextRedisClientTests,
-        TDextDownloadGateTests
+        TDextRedisClientTests
       ]));
   except
     on error: Exception do

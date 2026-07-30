@@ -18,7 +18,7 @@
 {           License.                                                        }
 {                                                                           }
 {***************************************************************************}
-unit Dext.Net.Download.Tests;
+unit TRestClient_Streaming_Tests;
 
 interface
 
@@ -27,10 +27,12 @@ uses
   System.Classes,
   Dext.Testing,
   Dext.Testing.Fluent,
-  Dext.Net.Download;
+  Dext.Net.Download,
+  Dext.Net.RestClient,
+  Dext.Net.RestRequest;
 
 type
-  [TestFixture('Dext.Net streaming download')]
+  [TestFixture('TRestClient streaming download (S58)')]
   TDextDownloadGateTests = class
   public
     [Test]
@@ -45,9 +47,24 @@ type
     procedure ErrorPayload_ShouldBeCapped;
     [Test]
     procedure EmptySuccess_ShouldWriteNothing;
+
+    // --- la superficie pubblica del client ---
+    [Test]
+    procedure ExecuteIntoAsync_ShouldRejectANilTarget;
+    [Test]
+    procedure OnReceive_ShouldBeStoredOnTheClient;
+    [Test]
+    procedure OnReceive_OnTheRequest_ShouldReplaceTheClientOne;
   end;
 
 implementation
+
+type
+  /// Stesso accesso al campo privato usato da Tests\Web (TTRestRequestHack):
+  /// il builder e' un record che tiene lo stato in un'interfaccia.
+  TRestRequestPeek = record
+    Data: IRestRequestData;
+  end;
 
 function TextOf(AStream: TMemoryStream): string;
 var
@@ -209,6 +226,77 @@ begin
     Gate.Free;
     Target.Free;
   end;
+end;
+
+/// Uno stream di destinazione non e' opzionale: senza, non c'e' streaming.
+procedure TDextDownloadGateTests.ExecuteIntoAsync_ShouldRejectANilTarget;
+var
+  Client: TRestClient;
+  Failed: Boolean;
+begin
+  Client := TRestClient.Create('http://localhost:1');
+  Failed := False;
+  try
+    Client.Instance.ExecuteIntoAsync(hmGET, '/x', nil);
+  except
+    on E: EArgumentNilException do
+      Failed := True;
+  end;
+  Should(Failed).BeTrue;
+end;
+
+/// L'handler globale si posa sul client e si rilegge da li'.
+procedure TDextDownloadGateTests.OnReceive_ShouldBeStoredOnTheClient;
+var
+  Client: TRestClient;
+begin
+  Client := TRestClient.Create('http://localhost:1');
+  Should(Assigned(Client.Instance.ReceiveHandler)).BeFalse;
+
+  Client.OnReceive(
+    procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
+    begin
+    end);
+
+  Should(Assigned(Client.Instance.ReceiveHandler)).BeTrue;
+end;
+
+/// Quello di richiesta SOSTITUISCE quello del client: non si sommano, e il
+/// globale resta al suo posto per le altre richieste.
+procedure TDextDownloadGateTests.OnReceive_OnTheRequest_ShouldReplaceTheClientOne;
+var
+  Client: TRestClient;
+  Req: TRestRequest;
+  Chiamato: string;
+  Abort: Boolean;
+  Handler, Globale: TRestReceiveAnonEvent;
+begin
+  Chiamato := '';
+  Client := TRestClient.Create('http://localhost:1');
+  Client.OnReceive(
+    procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
+    begin
+      Chiamato := 'client';
+    end);
+
+  Req := Client.Request(hmGET, '/x').OnReceive(
+    procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
+    begin
+      Chiamato := 'richiesta';
+    end);
+
+  // Quello che verrebbe usato per QUESTA richiesta.
+  Handler := TRestRequestPeek(Req).Data.GetReceiveHandler;
+  Should(Assigned(Handler)).BeTrue;
+  Abort := False;
+  Handler(0, 0, Abort);
+  Should(Chiamato).Be('richiesta');
+
+  // Il globale non e' stato toccato.
+  Chiamato := '';
+  Globale := Client.Instance.ReceiveHandler;
+  Globale(0, 0, Abort);
+  Should(Chiamato).Be('client');
 end;
 
 end.

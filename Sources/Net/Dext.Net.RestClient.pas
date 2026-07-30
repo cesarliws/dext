@@ -116,6 +116,18 @@ uses
   public
     constructor Create(AStatusCode: Integer; const AStatusText: string; AStream: TStream;
       const AHeaders: TDextNetHeaders = nil);
+    /// <summary>
+    ///   Response of a streamed call: the body went to the caller's stream.
+    /// </summary>
+    /// <param name="AErrorPayload">
+    ///   nil when the call succeeded -- ContentStream stays NIL, so nobody can
+    ///   accidentally materialise a 500 MB download by reading a property. On an
+    ///   error status it is the bounded payload the server sent, which becomes
+    ///   the readable body: it is present exactly when it is something you need
+    ///   to read.
+    /// </param>
+    constructor CreateStreamed(AStatusCode: Integer; const AStatusText: string;
+      const AHeaders: TDextNetHeaders; AErrorPayload: TStream = nil);
     destructor Destroy; override;
   end;
 
@@ -129,6 +141,35 @@ uses
       AData: T; const AHeaders: TDextNetHeaders = nil);
     destructor Destroy; override;
   end;
+
+  // === Streaming download (S58) ===============================================
+
+  /// <summary>
+  ///   Raised once per received chunk while the response body is streaming.
+  /// </summary>
+  /// <param name="AContentLength">
+  ///   Total announced by the server, or 0 when it did not announce one
+  ///   (chunked transfer): a zero total means "unknown", not "empty".
+  /// </param>
+  /// <param name="AAbort">
+  ///   Set it to True to stop the transfer. The call then fails with
+  ///   EOperationCancelled.
+  /// </param>
+  /// <remarks>
+  ///   Called on the WORKER thread that performs the request, not on the main
+  ///   one: a VCL/FMX progress bar has to marshal (TThread.Queue/Synchronize).
+  /// </remarks>
+  TRestReceiveEvent = procedure(const AContentLength,
+    AReadCount: Int64; var AAbort: Boolean) of object;
+
+  /// <summary>Anonymous flavour of <see cref="TRestReceiveEvent"/>.</summary>
+  TRestReceiveAnonEvent = reference to procedure(const AContentLength,
+    AReadCount: Int64; var AAbort: Boolean);
+
+  /// <summary>Options for the DownloadToFile helper.</summary>
+  TRestDownloadOption = (doResume, doValidateETag, doUseContentDisposition,
+    doOverwrite);
+  TRestDownloadOptions = set of TRestDownloadOption;
 
   /// <summary>Interface for a highly configurable and asynchronous REST Client.</summary>
   IRestClient = interface
@@ -198,6 +239,64 @@ uses
     /// </summary>
     function QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
 
+    // === Streaming download (S58) ===
+    /// <summary>
+    ///   GET whose body is written straight into AResponseStream as it arrives,
+    ///   instead of being buffered in memory first.
+    /// </summary>
+    /// <remarks>
+    ///   On success the response carries headers and status but NO body:
+    ///   ContentStream is nil and ContentString is empty -- the bytes went to
+    ///   the caller's stream, and nobody should be able to materialise 500 MB
+    ///   by touching a property. On an error status (>= 400) ContentStream
+    ///   holds the (bounded) error payload instead, and the destination stream
+    ///   is left exactly as it was.
+    /// </remarks>
+    function GetInto(const AEndpoint: string;
+      const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>POST whose response body is streamed into AResponseStream.</summary>
+    function PostInto(const AEndpoint: string;
+      const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>PUT whose response body is streamed into AResponseStream.</summary>
+    function PutInto(const AEndpoint: string;
+      const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>PATCH whose response body is streamed into AResponseStream.</summary>
+    function PatchInto(const AEndpoint: string;
+      const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>
+    ///   QUERY whose response body is streamed into AResponseStream. This is the
+    ///   one that earns its keep: QUERY is how large reads with a request body
+    ///   are done.
+    /// </summary>
+    function QueryInto(const AEndpoint: string;
+      const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+
+    /// <summary>
+    ///   Progress handler for every streaming call of this client. A handler set
+    ///   on the request REPLACES this one for that request.
+    /// </summary>
+    function OnReceive(const AHandler: TRestReceiveEvent): IRestClient; overload;
+    /// <summary>Anonymous flavour of OnReceive.</summary>
+    function OnReceive(const AHandler: TRestReceiveAnonEvent): IRestClient; overload;
+    /// <summary>The client-level handler, or nil. Used by the request builder.</summary>
+    function ReceiveHandler: TRestReceiveAnonEvent;
+
+    /// <summary>
+    ///   Executes any verb streaming the response body into ATarget.
+    /// </summary>
+    /// <remarks>
+    ///   Retries and the destination stream do not mix by accident: before every
+    ///   attempt the stream is put back where it was (Size and Position), so a
+    ///   second attempt overwrites the failed one instead of appending to it.
+    ///   When the stream cannot seek, retries are disabled for that call --
+    ///   retrying would corrupt the download, and a slow failure beats a silent
+    ///   mess.
+    /// </remarks>
+    function ExecuteIntoAsync(AMethod: TDextHttpMethod; const AEndpoint: string;
+      const ATarget: TStream; const ABody: TStream = nil; AOwnsBody: Boolean = False;
+      AHeaders: IDictionary<string, string> = nil;
+      const AProgress: TRestReceiveAnonEvent = nil): TAsyncBuilder<IRestResponse>;
+
     /// <summary>Executes an asynchronous HTTP request.</summary>
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -215,8 +314,14 @@ uses
     FPool: TConnectionPool;
     FLock: TCriticalSection;
     FResiliencePipeline: IResiliencePipeline;
-    
+    FOnReceive: TRestReceiveAnonEvent;
+
     function GetFullUrl(const AEndpoint: string): string;
+    /// Unico punto di esecuzione: ExecuteAsync e ExecuteIntoAsync passano di qui.
+    function ExecuteCore(AMethod: TDextHttpMethod; const AEndpoint: string;
+      const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>;
+      const ATarget: TStream;
+      const AProgress: TRestReceiveAnonEvent): TAsyncBuilder<IRestResponse>;
   public
     constructor Create(const ABaseUrl: string = '');
 
@@ -241,6 +346,19 @@ uses
     function PutJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
     function QueryJson(const APayload: string): TAsyncBuilder<IRestResponse>; overload;
     function QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>; overload;
+
+    function GetInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    function PostInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    function PutInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    function PatchInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    function QueryInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    function OnReceive(const AHandler: TRestReceiveEvent): IRestClient; overload;
+    function OnReceive(const AHandler: TRestReceiveAnonEvent): IRestClient; overload;
+    function ReceiveHandler: TRestReceiveAnonEvent;
+    function ExecuteIntoAsync(AMethod: TDextHttpMethod; const AEndpoint: string;
+      const ATarget: TStream; const ABody: TStream = nil; AOwnsBody: Boolean = False;
+      AHeaders: IDictionary<string, string> = nil;
+      const AProgress: TRestReceiveAnonEvent = nil): TAsyncBuilder<IRestResponse>;
 
     function ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
@@ -376,6 +494,22 @@ uses
       const ABody: TStream = nil; AOwnsBody: Boolean = False;
       AHeaders: IDictionary<string, string> = nil): TAsyncBuilder<IRestResponse>;
 
+    // === Streaming download (S58) ===
+    /// <summary>GET streamed straight into AResponseStream (no memory buffering).</summary>
+    function GetInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>POST whose response is streamed into AResponseStream.</summary>
+    function PostInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>PUT whose response is streamed into AResponseStream.</summary>
+    function PutInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>PATCH whose response is streamed into AResponseStream.</summary>
+    function PatchInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>QUERY whose response is streamed into AResponseStream.</summary>
+    function QueryInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>Progress handler for every streaming call of this client.</summary>
+    function OnReceive(const AHandler: TRestReceiveEvent): TRestClient; overload;
+    /// <summary>Anonymous flavour of OnReceive.</summary>
+    function OnReceive(const AHandler: TRestReceiveAnonEvent): TRestClient; overload;
+
     /// <summary>
     ///   Executes a request defined by a THttpRequestInfo object (compatible with .http parsers).
     /// </summary>
@@ -486,6 +620,23 @@ begin
   FRawContentStream.Position := 0;
 end;
 
+constructor TRestResponse.CreateStreamed(AStatusCode: Integer;
+  const AStatusText: string; const AHeaders: TDextNetHeaders; AErrorPayload: TStream);
+begin
+  if AErrorPayload <> nil then
+  begin
+    // C'e' un corpo da leggere (e' un errore): stessa strada di sempre.
+    Create(AStatusCode, AStatusText, AErrorPayload, AHeaders);
+    Exit;
+  end;
+  inherited Create;
+  FStatusCode := AStatusCode;
+  FStatusText := AStatusText;
+  FHeaders := AHeaders;
+  FContentStream := nil;
+  FRawContentStream := nil;
+end;
+
 destructor TRestResponse.Destroy;
 begin
   // The view must go first: it points into FRawContentStream's memory.
@@ -508,7 +659,9 @@ function TRestResponse.GetContentString: string;
 var
   Data: TBytes;
 begin
-  if FContentStream.Size = 0 then Exit('');
+  // Nil dopo una chiamata in streaming andata bene: il corpo e' nello stream del
+  // chiamante, e da qui non deve rimaterializzarsi.
+  if (FContentStream = nil) or (FContentStream.Size = 0) then Exit('');
 
   FContentStream.Position := 0;
   SetLength(Data, FContentStream.Size);
@@ -715,7 +868,34 @@ end;
 
 function TRestClientImpl.ExecuteAsync(AMethod: TDextHttpMethod; const AEndpoint: string; 
   const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteCore(AMethod, AEndpoint, ABody, AOwnsBody, AHeaders, nil, nil);
+end;
+
+function TRestClientImpl.ExecuteIntoAsync(AMethod: TDextHttpMethod; const AEndpoint: string;
+  const ATarget: TStream; const ABody: TStream; AOwnsBody: Boolean;
+  AHeaders: IDictionary<string, string>;
+  const AProgress: TRestReceiveAnonEvent): TAsyncBuilder<IRestResponse>;
 var
+  Handler: TRestReceiveAnonEvent;
+begin
+  if ATarget = nil then
+    raise EArgumentNilException.Create('ExecuteIntoAsync: target stream is required');
+  // Quello della richiesta SOSTITUISCE quello del client (non si sommano).
+  Handler := AProgress;
+  if not Assigned(Handler) then
+    Handler := FOnReceive;
+  Result := ExecuteCore(AMethod, AEndpoint, ABody, AOwnsBody, AHeaders, ATarget, Handler);
+end;
+
+function TRestClientImpl.ExecuteCore(AMethod: TDextHttpMethod; const AEndpoint: string;
+  const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>;
+  const ATarget: TStream;
+  const AProgress: TRestReceiveAnonEvent): TAsyncBuilder<IRestResponse>;
+var
+  Streaming: Boolean;
+  CanSeek: Boolean;
+  TargetBase, TargetSize: Int64;
   Auth: IAuthenticationProvider;
   ContentTypeStr: string;
   HasAcceptEncoding: Boolean;
@@ -730,6 +910,28 @@ var
 begin
   Url := GetFullUrl(AEndpoint);
   Retries := FMaxRetries;
+
+  Streaming := ATarget <> nil;
+  CanSeek := False;
+  TargetBase := 0;
+  TargetSize := 0;
+  if Streaming then
+  begin
+    // Dove sta il chiamante ADESSO: e' il punto a cui rimettere lo stream prima
+    // di ogni tentativo, cosi' un retry riscrive il tentativo fallito invece di
+    // accodarcisi. Se lo stream non sa muoversi, il retry lo si TOGLIE: ritentare
+    // corromperebbe il download, e fallire piano e' meglio di un file sbagliato.
+    try
+      TargetBase := ATarget.Position;
+      TargetSize := ATarget.Size;
+      CanSeek := True;
+    except
+      on E: Exception do
+        CanSeek := False;
+    end;
+    if not CanSeek then
+      Retries := 0;
+  end;
   Timeout := FTimeout;
   Auth := FAuthProvider;
   
@@ -768,7 +970,11 @@ begin
       end;
     end;
 
-    if not HasAcceptEncoding then
+    // In streaming la codifica la negozia l'ENGINE: sull'RTL accende la
+    // decompressione al volo (e chiede lui gzip), su Indy chiede identity perche'
+    // li' la decompressione passa da un buffer temporaneo e vanificherebbe lo
+    // streaming. Imporre qui "gzip, deflate" scavalcherebbe quella scelta.
+    if (not HasAcceptEncoding) and (not Streaming) then
       HeadList.Add(TDextNetHeader.Create('Accept-Encoding', 'gzip, deflate'));
 
     HasContentType := False;
@@ -848,8 +1054,31 @@ begin
                     HttpClient.SetSendTimeout(Timeout);
                     HttpClient.SetResponseTimeout(Timeout);
 
-                    Response := HttpClient.Execute(MethodStr, Url, ABody, Headers);
-                    Result := TValue.From<IRestResponse>(TRestResponse.Create(Response.GetStatusCode, Response.GetStatusText, Response.GetContentStream, Response.GetHeaders));
+                    if Streaming then
+                    begin
+                      // Ogni tentativo riparte da dove stava il chiamante.
+                      if CanSeek then
+                      begin
+                        ATarget.Size := TargetSize;
+                        ATarget.Position := TargetBase;
+                      end;
+                      Response := HttpClient.ExecuteInto(MethodStr, Url, ABody, Headers,
+                        ATarget,
+                        procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
+                        begin
+                          if Assigned(AProgress) then
+                            AProgress(AContentLength, AReadCount, AAbort);
+                        end);
+                      // Corpo assente se e' andata bene, payload d'errore se no.
+                      Result := TValue.From<IRestResponse>(TRestResponse.CreateStreamed(
+                        Response.GetStatusCode, Response.GetStatusText,
+                        Response.GetHeaders, Response.GetContentStream));
+                    end
+                    else
+                    begin
+                      Response := HttpClient.Execute(MethodStr, Url, ABody, Headers);
+                      Result := TValue.From<IRestResponse>(TRestResponse.Create(Response.GetStatusCode, Response.GetStatusText, Response.GetContentStream, Response.GetHeaders));
+                    end;
                     
                     LSpan.SetAttribute('http.status_code', Response.GetStatusCode);
                     LSpan.SetStatus('Success');
@@ -874,6 +1103,62 @@ begin
       end
     )
   );
+end;
+
+// === Streaming download (S58) ================================================
+
+function TRestClientImpl.GetInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteIntoAsync(hmGET, AEndpoint, AResponseStream);
+end;
+
+function TRestClientImpl.PostInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteIntoAsync(hmPOST, AEndpoint, AResponseStream);
+end;
+
+function TRestClientImpl.PutInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteIntoAsync(hmPUT, AEndpoint, AResponseStream);
+end;
+
+function TRestClientImpl.PatchInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteIntoAsync(hmPATCH, AEndpoint, AResponseStream);
+end;
+
+function TRestClientImpl.QueryInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := ExecuteIntoAsync(hmQUERY, AEndpoint, AResponseStream);
+end;
+
+function TRestClientImpl.OnReceive(const AHandler: TRestReceiveEvent): IRestClient;
+begin
+  if Assigned(AHandler) then
+    FOnReceive :=
+      procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
+      begin
+        AHandler(AContentLength, AReadCount, AAbort);
+      end
+  else
+    FOnReceive := nil;
+  Result := Self;
+end;
+
+function TRestClientImpl.OnReceive(const AHandler: TRestReceiveAnonEvent): IRestClient;
+begin
+  FOnReceive := AHandler;
+  Result := Self;
+end;
+
+function TRestClientImpl.ReceiveHandler: TRestReceiveAnonEvent;
+begin
+  Result := FOnReceive;
 end;
 
 { TRestClient }
@@ -1183,6 +1468,48 @@ end;
 function TRestClient.QueryJson(const AEndpoint, APayload: string): TAsyncBuilder<IRestResponse>;
 begin
   Result := FInstance.QueryJson(AEndpoint, APayload);
+end;
+
+function TRestClient.GetInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.GetInto(AEndpoint, AResponseStream);
+end;
+
+function TRestClient.PostInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PostInto(AEndpoint, AResponseStream);
+end;
+
+function TRestClient.PutInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PutInto(AEndpoint, AResponseStream);
+end;
+
+function TRestClient.PatchInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.PatchInto(AEndpoint, AResponseStream);
+end;
+
+function TRestClient.QueryInto(const AEndpoint: string;
+  const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.QueryInto(AEndpoint, AResponseStream);
+end;
+
+function TRestClient.OnReceive(const AHandler: TRestReceiveEvent): TRestClient;
+begin
+  FInstance.OnReceive(AHandler);
+  Result := Self;
+end;
+
+function TRestClient.OnReceive(const AHandler: TRestReceiveAnonEvent): TRestClient;
+begin
+  FInstance.OnReceive(AHandler);
+  Result := Self;
 end;
 
 function TRestClient.Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder<IRestResponse>;
