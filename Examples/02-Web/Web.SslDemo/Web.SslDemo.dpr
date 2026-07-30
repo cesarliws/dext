@@ -125,13 +125,13 @@ begin
 
     Config := App.Configuration.GetSection('Server');
     Port := 8080;
-    UseHttps := False;
+    UseHttps := True;
 
-    if Config <> nil then
-    begin
+    if (Config <> nil) and (Config['Port'] <> '') then
       Port := StrToIntDef(Config['Port'], 8080);
+
+    if (Config <> nil) and (Config['UseHttps'] <> '') then
       UseHttps := SameText(Config['UseHttps'], 'true');
-    end;
 
     {$IFDEF USE_NATIVE_SERVER}
     App.UseNativeServer;
@@ -145,9 +145,20 @@ begin
 
     Writeln('🚀 Configuration Loaded (HTTPS Enforced):');
     Writeln('   Port:     ', Port);
-    Writeln('   Provider: ', Config['SslProvider']);
-    Writeln('   Cert:     ', Config['SslCert']);
-    Writeln('   Key:      ', Config['SslKey']);
+    if (Config <> nil) and (Config['SslProvider'] <> '') then
+      Writeln('   Provider: ', Config['SslProvider'])
+    else
+      Writeln('   Provider: Taurus');
+
+    if (Config <> nil) and (Config['SslCert'] <> '') then
+      Writeln('   Cert:     ', Config['SslCert'])
+    else
+      Writeln('   Cert:     server.crt');
+
+    if (Config <> nil) and (Config['SslKey'] <> '') then
+      Writeln('   Key:      ', Config['SslKey'])
+    else
+      Writeln('   Key:      server.key');
 
     if not SameText(Config['SslProvider'], 'HttpSys') then
     begin

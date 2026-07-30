@@ -3,14 +3,17 @@ program Dext.ServerTest;
 uses
   Dext.MM,
   System.SysUtils,
+  {$IFDEF MSWINDOWS}
   Winapi.Windows,
+  {$ENDIF}
   Dext.Utils,
   Dext.DI.Interfaces,
   Dext.Web.Interfaces,
   Dext.WebHost,
   Dext.Web.Middleware,
   Dext.Logging,
-  Dext.Logging.Console;
+  Dext.Logging.Console,
+  Dext.Logging.Extensions;
 
 {$APPTYPE CONSOLE}
 
@@ -45,8 +48,12 @@ begin
       .ConfigureServices(procedure(Services: IServiceCollection)
       begin
         TDextServices.Create(Services)
-          .AddSingleton<ITimeService, TTimeService>
-          .AddSingleton<ILogger, TConsoleLogger>;
+          .AddSingleton<ITimeService, TTimeService>;
+        TServiceCollectionLoggingExtensions.AddLogging(Services,
+          procedure(Builder: ILoggingBuilder)
+          begin
+            Builder.AddConsole;
+          end);
       end)
       .Configure(procedure(App: IApplicationBuilder)
       begin

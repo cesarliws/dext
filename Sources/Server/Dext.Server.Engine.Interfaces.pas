@@ -295,7 +295,7 @@ begin
   {$IFDEF MSWINDOWS}
   Result := TDextHttpSysEngine.Create(AOptions);
   {$ELSE}
-  raise ENotImplemented.Create('Native server engine not implemented yet. Phase 1 interfaces defined.');
+  Result := TDextEpollEngine.Create(AOptions);
   {$ENDIF}
 end;
 

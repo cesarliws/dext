@@ -236,7 +236,8 @@ begin
       if FOptions.LogExceptions then
       begin
         SafeWriteLn(Format('[Exception] Unhandled: %s: %s', [E.ClassName, E.Message]));
-        FLogger.LogError(E, 'An unhandled exception has occurred while executing the request.', []);
+        if FLogger <> nil then
+          FLogger.LogError(E, 'An unhandled exception has occurred while executing the request.', []);
       end;
 
       // Note: We can't easily check if response has started without extending IHttpResponse.
@@ -308,8 +309,8 @@ var
   InfoEnabled: Boolean;
   DebugEnabled: Boolean;
 begin
-  InfoEnabled := FLogger.IsEnabled(TLogLevel.Information);
-  DebugEnabled := FLogger.IsEnabled(TLogLevel.Debug);
+  InfoEnabled := (FLogger <> nil) and FLogger.IsEnabled(TLogLevel.Information);
+  DebugEnabled := (FLogger <> nil) and FLogger.IsEnabled(TLogLevel.Debug);
   if InfoEnabled then
   begin
     Stopwatch := TStopwatch.StartNew;

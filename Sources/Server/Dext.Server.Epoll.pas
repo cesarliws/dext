@@ -1954,6 +1954,21 @@ begin
       TInterlocked.Increment(FEngine.FTotalRequests);
       AContext.FConsumedBytes := BodyOffset + ContentLength;
 
+      Connection := TDextEpollConnection.Create(AContext.FFd);
+      RawRequest := TDextEpollRequest.Create(
+        Method,
+        HeaderSegments,
+        AContext.FReadBuffer,
+        BodyOffset,
+        Max(0, AContext.FReadLen - BodyOffset),
+        ContentLength,
+        PathOffset,
+        PathLen,
+        QueryOffset,
+        QueryLen
+      );
+      RawResponse := TDextEpollResponse.Create(AContext);
+
       if (AContext.FConsumedBytes > 0) and (AContext.FConsumedBytes < AContext.FReadLen) then
       begin
         var Remaining: Integer := AContext.FReadLen - AContext.FConsumedBytes;
@@ -1963,21 +1978,6 @@ begin
       else
         AContext.FReadLen := 0;
       AContext.FConsumedBytes := 0;
-
-      Connection := TDextEpollConnection.Create(AContext.FFd);
-      RawRequest := TDextEpollRequest.Create(
-        Method,
-        HeaderSegments,
-        AContext.FReadBuffer,
-        BodyOffset,
-        AContext.FReadLen - BodyOffset,
-        ContentLength,
-        PathOffset,
-        PathLen,
-        QueryOffset,
-        QueryLen
-      );
-      RawResponse := TDextEpollResponse.Create(AContext);
 
       if FEngine.FProfileEnabled then
         FWorkerTotalReadParseTicks := FWorkerTotalReadParseTicks +
