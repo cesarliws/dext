@@ -6,6 +6,7 @@ uses
   System.Rtti,
   System.SysUtils,
   System.TypInfo,
+  System.Variants,
   Dext.Entity.Core,
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
@@ -55,9 +56,11 @@ var
   Dialect: ISQLDialect;
   SQL: string;
   Cmd: IDbCommand;
+  Reader: IDbReader;
   RType: TRttiType;
   NewObj: TObject;
   FinalVal: TValue;
+  DBText: string;
 begin
   if (FContext = nil) or (AEntity = nil) then Exit;
 
@@ -129,7 +132,19 @@ begin
             end
             else
               Cmd.AddParam('p1', PKVal);
-            DBVal := Cmd.ExecuteScalar;
+            Reader := Cmd.ExecuteQuery;
+            if Reader.Next then
+              DBVal := Reader.GetValue(0)
+            else
+              DBVal := TValue.Empty;
+            if not DBVal.IsEmpty then
+            begin
+              DBText := DBVal.ToString;
+              if DBVal.Kind = tkVariant then
+                DBText := VarToStr(DBVal.AsVariant);
+            end
+            else
+              DBText := '';
             
             ExistingVal := TValue.Empty;
             if PropField <> nil then 
@@ -137,17 +152,17 @@ begin
             else
               ExistingVal := Prop.GetValue(AEntity);
 
-            if not DBVal.IsEmpty then
+            if (not DBVal.IsEmpty) or (DBText <> '') then
             begin
               if ExistingVal.IsObject and (ExistingVal.AsObject is TStrings) then
               begin
-                TStrings(ExistingVal.AsObject).Text := DBVal.ToString;
+                TStrings(ExistingVal.AsObject).Text := DBText;
               end
               else if Prop.PropertyType.IsInstance then
               begin
                 NewObj := TActivator.CreateInstance(Prop.PropertyType.AsInstance.MetaclassType, []);
                 if NewObj is TStrings then
-                  TStrings(NewObj).Text := DBVal.ToString;
+                  TStrings(NewObj).Text := DBText;
                 
                 if PropField <> nil then
                   PropField.SetValue(AEntity, NewObj)

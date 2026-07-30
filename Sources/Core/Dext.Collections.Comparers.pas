@@ -350,8 +350,35 @@ begin
         PPointer(VP)^,
         SizeOf(Pointer)
       );
+    tkFloat:
+      // Equals compares floats BY VALUE (see above), so the hash must agree:
+      // +0.0 and -0.0 are numerically equal but have different bit patterns.
+      // Hashing the raw bytes would send them to different buckets, breaking
+      // the Equals/GetHashCode contract - the dictionary would silently lose
+      // the key. Normalizing zero is what .NET's Double.GetHashCode does.
+      // Currency needs no special case: it is a scaled 64-bit integer, so
+      // equal values always have equal bits.
+      case SizeOf(T) of
+        4:
+          if PSingle(VP)^ = 0 then
+            Result := 0
+          else
+            Result := THashBobJenkins.GetHashValue(Value, SizeOf(T));
+        8:
+          if (TypeInfo(T) <> TypeInfo(Currency)) and (PDouble(VP)^ = 0) then
+            Result := 0
+          else
+            Result := THashBobJenkins.GetHashValue(Value, SizeOf(T));
+        10:
+          if PExtended(VP)^ = 0 then
+            Result := 0
+          else
+            Result := THashBobJenkins.GetHashValue(Value, SizeOf(T));
+      else
+        Result := THashBobJenkins.GetHashValue(Value, SizeOf(T));
+      end;
   else
-    // Integer, Float, Int64, Enum, Set, Record, etc: hash raw bytes
+    // Integer, Int64, Enum, Set, Record, etc: hash raw bytes
     Result := THashBobJenkins.GetHashValue(Value, SizeOf(T));
   end;
 end;

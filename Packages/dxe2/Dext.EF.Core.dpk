@@ -9,21 +9,21 @@
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS OFF}
+{$LOCALSYMBOLS ON}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION ON}
-{$OVERFLOWCHECKS OFF}
-{$RANGECHECKS OFF}
-{$REFERENCEINFO OFF}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS ON}
+{$RANGECHECKS ON}
+{$REFERENCEINFO ON}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES OFF}
+{$STACKFRAMES ON}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE RELEASE}
+{$DEFINE DEBUG}
 {$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'Dext Framework - ORM & Data Access'}
 {$LIBSUFFIX '160'}
@@ -38,9 +38,15 @@ requires
   FireDACCommonDriver,
   FireDACSqliteDriver,
   Dext.AST.Core,
-  Dext.Core;
+  Dext.Core,
+  FireDACPgDriver,
+  FireDACCommonODBC,
+  FireDACIBDriver,
+  FireDACMySQLDriver,
+  FireDACMSSQLDriver;
 
 contains
+  Dext.Entity.BatchStrategy in '..\..\Sources\Data\Dext.Entity.BatchStrategy.pas',
   Dext.Entity.Context in '..\..\Sources\Data\Dext.Entity.Context.pas',
   Dext.Entity.Setup in '..\..\Sources\Data\Dext.Entity.Setup.pas',
   Dext.Entity.Mapping in '..\..\Sources\Data\Dext.Entity.Mapping.pas',

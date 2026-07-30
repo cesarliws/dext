@@ -98,7 +98,10 @@ uses
   private
     FStatusCode: Integer;
     FStatusText: string;
-    FContentStream: TMemoryStream;
+    /// Decoded content. When the response is NOT compressed this is a read-only
+    /// view over FRawContentStream's memory (same bytes, own Position) instead
+    /// of a second copy of it.
+    FContentStream: TStream;
     FRawContentStream: TMemoryStream;
     FHeaders: TDextNetHeaders;
   protected
@@ -411,6 +414,34 @@ begin
   Result := TRestClient.Create(ABaseUrl);
 end;
 
+type
+  /// <summary>
+  ///   Read-only view over memory owned by another stream: same bytes, no copy,
+  ///   but an independent Position so callers can read both views concurrently.
+  /// </summary>
+  /// <remarks>
+  ///   Used when the response is not compressed and the decoded content is
+  ///   byte-for-byte the raw content: duplicating it would double the memory of
+  ///   every response for no benefit. The view never outlives the stream that
+  ///   owns the memory (both are fields of the same TRestResponse).
+  /// </remarks>
+  TDextMemoryView = class(TCustomMemoryStream)
+  public
+    constructor Create(AMemory: Pointer; ASize: NativeInt);
+    function Write(const Buffer; Count: Longint): Longint; override;
+  end;
+
+constructor TDextMemoryView.Create(AMemory: Pointer; ASize: NativeInt);
+begin
+  inherited Create;
+  SetPointer(AMemory, ASize);
+end;
+
+function TDextMemoryView.Write(const Buffer; Count: Longint): Longint;
+begin
+  raise EStreamError.Create('Response content stream is read-only.');
+end;
+
 { TRestResponse }
 
 constructor TRestResponse.Create(AStatusCode: Integer; const AStatusText: string; AStream: TStream;
@@ -423,45 +454,52 @@ begin
   FStatusCode := AStatusCode;
   FStatusText := AStatusText;
   FHeaders := AHeaders;
-  FContentStream := TMemoryStream.Create;
   FRawContentStream := TMemoryStream.Create;
-  if Assigned(AStream) then
+  if not Assigned(AStream) then
   begin
-    AStream.Position := 0;
-    FRawContentStream.CopyFrom(AStream, AStream.Size);
-    FRawContentStream.Position := 0;
-    
-    ContentEncoding := GetHeader('Content-Encoding');
-    if SameText(ContentEncoding, 'gzip') then
-    begin
-      Decompressor := TZDecompressionStream.Create(FRawContentStream, 31);
-      try
-        FContentStream.CopyFrom(Decompressor, 0);
-      finally
-        Decompressor.Free;
-      end;
-    end
-    else if SameText(ContentEncoding, 'deflate') then
-    begin
-      Decompressor := TZDecompressionStream.Create(FRawContentStream, 15);
-      try
-        FContentStream.CopyFrom(Decompressor, 0);
-      finally
-        Decompressor.Free;
-      end;
-    end
-    else
-    begin
-      FContentStream.CopyFrom(FRawContentStream, FRawContentStream.Size);
-    end;
-    
-    FContentStream.Position := 0;
-    FRawContentStream.Position := 0;
+    // No payload: keep an empty decoded stream, as before.
+    FContentStream := TMemoryStream.Create;
+    Exit;
   end;
+
+  AStream.Position := 0;
+  FRawContentStream.CopyFrom(AStream, AStream.Size);
+  FRawContentStream.Position := 0;
+
+  ContentEncoding := GetHeader('Content-Encoding');
+  if SameText(ContentEncoding, 'gzip') or SameText(ContentEncoding, 'deflate')
+  then
+  begin
+    // Compressed: the decoded content really is different from the raw bytes,
+    // so it needs its own stream.
+    FContentStream := TMemoryStream.Create;
+    if SameText(ContentEncoding, 'gzip') then
+      Decompressor := TZDecompressionStream.Create(FRawContentStream, 31)
+    else
+      Decompressor := TZDecompressionStream.Create(FRawContentStream, 15);
+    try
+      TMemoryStream(FContentStream).CopyFrom(Decompressor, 0);
+    finally
+      Decompressor.Free;
+    end;
+  end
+  else
+  begin
+    // Not compressed: decoded content == raw content, byte for byte. Copying it
+    // doubled the memory of every response for nothing -- a 500 MB download kept
+    // 1 GB alive. A view shares the bytes and keeps its own Position, so
+    // ContentStream and RawContentStream stay independent for the caller.
+    FContentStream := TDextMemoryView.Create(FRawContentStream.Memory,
+      FRawContentStream.Size);
+  end;
+
+  FContentStream.Position := 0;
+  FRawContentStream.Position := 0;
 end;
 
 destructor TRestResponse.Destroy;
 begin
+  // The view must go first: it points into FRawContentStream's memory.
   FContentStream.Free;
   FRawContentStream.Free;
   inherited;

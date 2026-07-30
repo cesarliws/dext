@@ -67,6 +67,8 @@ type
   // Dext.Entity.Attributes
   TInheritanceStrategy = Dext.Entity.Attributes.TInheritanceStrategy;
   TableAttribute = Dext.Entity.Attributes.TableAttribute;
+  LazyAttribute = Dext.Entity.Attributes.LazyAttribute;
+  Lazy = Dext.Entity.Attributes.LazyAttribute;
   ColumnAttribute = Dext.Entity.Attributes.ColumnAttribute;
   PrimaryKeyAttribute = Dext.Entity.Attributes.PrimaryKeyAttribute;
   PKAttribute = Dext.Entity.Attributes.PKAttribute;

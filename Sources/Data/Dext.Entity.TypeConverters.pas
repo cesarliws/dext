@@ -932,36 +932,28 @@ var
   LConstructor: TRttiMethod;
 begin
   if AValue.IsEmpty or (AValue.ToString = '') then
-    Exit(TValue.From<TStrings>(nil));
+    Exit(TValue.Empty);
 
   Typ := TReflection.Context.GetType(ATypeInfo);
   if Typ is TRttiInstanceType then
   begin
     LClass := TRttiInstanceType(Typ).MetaclassType;
-    // Default to TStringList if typed as abstract TStrings
     if (LClass = TStrings) then
       LClass := TStringList;
 
-    // Use RTTI to find and call the constructor
-    // We get the type of the concrete class to find its 'Create' method
-    LConstructor := TReflection.Context.GetType(LClass).GetMethod('Create');
-    if (LConstructor <> nil) and (LConstructor.IsConstructor) then
-    begin
-       Strings := LConstructor.Invoke(LClass, []).AsObject as TStrings;
-       Strings.Text := AValue.ToString;
-       Result := Strings;
-    end
+    if LClass = TStringList then
+      Strings := TStringList.Create
     else
     begin
-      // Fallback: direct instantiation if RTTI fails for some reason
-      if LClass = TStringList then
-        Strings := TStringList.Create
+      LConstructor := TReflection.Context.GetType(LClass).GetMethod('Create');
+      if (LConstructor <> nil) and (LConstructor.IsConstructor) then
+        Strings := LConstructor.Invoke(LClass, []).AsObject as TStrings
       else
-        Strings := TStrings(LClass.NewInstance); // Risky, but better than nothing
-        
-      Strings.Text := AValue.ToString;
-      Result := Strings;
+        Strings := TStrings(LClass.NewInstance);
     end;
+
+    Strings.Text := AValue.ToString;
+    Result := TValue.From<TStrings>(Strings);
   end
   else
     Result := TValue.Empty;

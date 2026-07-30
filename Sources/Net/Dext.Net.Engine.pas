@@ -94,10 +94,29 @@ type
   private
     FStatusCode: Integer;
     FStatusText: string;
-    FContentStream: TMemoryStream;
+    FContentStream: TStream;
+    /// True when this instance owns FContentStream and must free it. False when
+    /// the stream belongs to someone else, kept alive by FKeepAlive.
+    FOwnsStream: Boolean;
+    /// Holds a reference to whoever owns the content stream (the RTL's
+    /// IHTTPResponse), so the bytes stay valid for as long as this response does.
+    FKeepAlive: IInterface;
     FHeaders: TDextNetHeaders;
   public
-    constructor Create(AStatusCode: Integer; const AStatusText: string; AStream: TStream; const AHeaders: TDextNetHeaders);
+    /// <summary>Takes the response over WITHOUT copying its content.</summary>
+    /// <param name="AOwnsStream">
+    ///   True: this instance frees AStream (caller must not).
+    ///   False: AKeepAlive must reference the owner, so the memory outlives us.
+    /// </param>
+    /// <remarks>
+    ///   The payload used to be copied into a private TMemoryStream, which meant
+    ///   every response existed twice in RAM at once -- a 500 MB download peaked
+    ///   at a gigabyte. Nothing here needs a copy: the bytes are already in a
+    ///   stream that we can either adopt or keep alive.
+    /// </remarks>
+    constructor Create(AStatusCode: Integer; const AStatusText: string;
+      AStream: TStream; const AHeaders: TDextNetHeaders;
+      AOwnsStream: Boolean; const AKeepAlive: IInterface = nil);
     destructor Destroy; override;
     function GetStatusCode: Integer;
     function GetStatusText: string;
@@ -107,24 +126,26 @@ type
 
 { TDextHttpResponseImpl }
 
-constructor TDextHttpResponseImpl.Create(AStatusCode: Integer; const AStatusText: string; AStream: TStream; const AHeaders: TDextNetHeaders);
+constructor TDextHttpResponseImpl.Create(AStatusCode: Integer;
+  const AStatusText: string; AStream: TStream; const AHeaders: TDextNetHeaders;
+  AOwnsStream: Boolean; const AKeepAlive: IInterface);
 begin
   inherited Create;
   FStatusCode := AStatusCode;
   FStatusText := AStatusText;
   FHeaders := AHeaders;
-  FContentStream := TMemoryStream.Create;
-  if Assigned(AStream) then
-  begin
-    AStream.Position := 0;
-    FContentStream.CopyFrom(AStream, AStream.Size);
+  FContentStream := AStream;
+  FOwnsStream := AOwnsStream;
+  FKeepAlive := AKeepAlive;
+  if Assigned(FContentStream) then
     FContentStream.Position := 0;
-  end;
 end;
 
 destructor TDextHttpResponseImpl.Destroy;
 begin
-  FContentStream.Free;
+  if FOwnsStream then
+    FContentStream.Free;
+  FKeepAlive := nil;
   inherited;
 end;
 
@@ -275,15 +296,18 @@ begin
             Line.Substring(Pos + 1).Trim
           ));
       end;
+      // The response ADOPTS the stream (no copy, and we must not free it here).
       Result := TDextHttpResponseImpl.Create(
         FIdHttp.ResponseCode,
         FIdHttp.ResponseText,
         ResponseStream,
-        HeadersList.ToArray
+        HeadersList.ToArray,
+        True { AOwnsStream }
       );
+      ResponseStream := nil; // ownership transferred
     finally
       HeadersList.Free;
-      ResponseStream.Free;
+      ResponseStream.Free; // only reached if the line above never ran
     end;
   except
     raise;
@@ -362,11 +386,15 @@ begin
       NetHeadersList.Add(TNetHeader.Create(AHeaders[i].Name, AHeaders[i].Value));
 
     Response := FClient.Execute(AMethod, TURI.Create(AUrl), ABody, nil, NetHeadersList.ToArray) as IHTTPResponse;
+    // No copy: the RTL already buffered the payload. We hand the same stream over
+    // and keep the IHTTPResponse referenced, so its memory stays valid.
     Result := TDextHttpResponseImpl.Create(
       Response.StatusCode,
       Response.StatusText,
       Response.ContentStream,
-      Response.Headers
+      Response.Headers,
+      False { AOwnsStream },
+      Response { AKeepAlive }
     );
   finally
     NetHeadersList.Free;
