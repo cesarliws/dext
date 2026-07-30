@@ -272,6 +272,35 @@ uses
       const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
 
     /// <summary>
+    ///   Downloads AEndpoint to a file, streaming it: memory stays flat whatever
+    ///   the size.
+    /// </summary>
+    /// <param name="ATargetFilePath">
+    ///   Where the file has to end up. Always the destination, even with
+    ///   doUseContentDisposition: that option only lets the SERVER choose the
+    ///   NAME, inside this file's directory, and the name is sanitised -- a
+    ///   Content-Disposition filename is attacker-controlled and must never
+    ///   escape that directory.
+    /// </param>
+    /// <param name="AOptions">
+    ///   doResume: continue a previous partial download (Range, 206).
+    ///   doValidateETag: ask with If-None-Match and keep the local file on 304.
+    ///   doUseContentDisposition: take the name from the server.
+    ///   doOverwrite: replace the destination when it already exists; without
+    ///   it, an existing destination is an error BEFORE anything is downloaded.
+    /// </param>
+    /// <remarks>
+    ///   The bytes go to "&lt;target&gt;.part" and the file only takes its final
+    ///   name once the download completed, with an atomic rename. A failure
+    ///   therefore never leaves a plausible-looking half file where the
+    ///   application expects a whole one -- and what was received stays there,
+    ///   ready for a later doResume.
+    /// </remarks>
+    function DownloadToFile(const AEndpoint: string; const ATargetFilePath: string;
+      const AProgress: TRestReceiveAnonEvent = nil;
+      const AOptions: TRestDownloadOptions = []): TAsyncBuilder<IRestResponse>;
+
+    /// <summary>
     ///   Progress handler for every streaming call of this client. A handler set
     ///   on the request REPLACES this one for that request.
     /// </summary>
@@ -320,8 +349,15 @@ uses
     /// Unico punto di esecuzione: ExecuteAsync e ExecuteIntoAsync passano di qui.
     function ExecuteCore(AMethod: TDextHttpMethod; const AEndpoint: string;
       const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>;
-      const ATarget: TStream;
-      const AProgress: TRestReceiveAnonEvent): TAsyncBuilder<IRestResponse>;
+      const ATarget: TStream; const AProgress: TRestReceiveAnonEvent;
+      AOwnsTarget: Boolean = False): TAsyncBuilder<IRestResponse>;
+    /// Nome di file sicuro a partire da cio' che dice il server.
+    class function SanitizeFileName(const AName: string): string; static;
+    /// Il filename dichiarato in Content-Disposition, gia' ripulito ('' se non c'e').
+    class function DispositionFileName(const AResponse: IRestResponse): string; static;
+    /// Chiude il giro: 304 lascia tutto com'e', successo rinomina, errore no.
+    class procedure FinishDownload(const AResponse: IRestResponse;
+      const APartPath, ATargetPath: string; AOptions: TRestDownloadOptions); static;
   public
     constructor Create(const ABaseUrl: string = '');
 
@@ -352,6 +388,9 @@ uses
     function PutInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
     function PatchInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
     function QueryInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    function DownloadToFile(const AEndpoint: string; const ATargetFilePath: string;
+      const AProgress: TRestReceiveAnonEvent = nil;
+      const AOptions: TRestDownloadOptions = []): TAsyncBuilder<IRestResponse>;
     function OnReceive(const AHandler: TRestReceiveEvent): IRestClient; overload;
     function OnReceive(const AHandler: TRestReceiveAnonEvent): IRestClient; overload;
     function ReceiveHandler: TRestReceiveAnonEvent;
@@ -505,6 +544,10 @@ uses
     function PatchInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
     /// <summary>QUERY whose response is streamed into AResponseStream.</summary>
     function QueryInto(const AEndpoint: string; const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>Downloads to a file, streaming (memory flat) with atomic rename.</summary>
+    function DownloadToFile(const AEndpoint: string; const ATargetFilePath: string;
+      const AProgress: TRestReceiveAnonEvent = nil;
+      const AOptions: TRestDownloadOptions = []): TAsyncBuilder<IRestResponse>;
     /// <summary>Progress handler for every streaming call of this client.</summary>
     function OnReceive(const AHandler: TRestReceiveEvent): TRestClient; overload;
     /// <summary>Anonymous flavour of OnReceive.</summary>
@@ -529,6 +572,8 @@ implementation
 
 uses
   System.Math,
+  System.IOUtils, // DownloadToFile: file temporaneo + rename atomico
+  System.NetEncoding, // filename*=UTF-8'' (RFC 5987)
   Dext.Json,
   Dext.Logging.Tracing;
 
@@ -890,8 +935,8 @@ end;
 
 function TRestClientImpl.ExecuteCore(AMethod: TDextHttpMethod; const AEndpoint: string;
   const ABody: TStream; AOwnsBody: Boolean; AHeaders: IDictionary<string, string>;
-  const ATarget: TStream;
-  const AProgress: TRestReceiveAnonEvent): TAsyncBuilder<IRestResponse>;
+  const ATarget: TStream; const AProgress: TRestReceiveAnonEvent;
+  AOwnsTarget: Boolean): TAsyncBuilder<IRestResponse>;
 var
   Streaming: Boolean;
   CanSeek: Boolean;
@@ -1099,6 +1144,10 @@ begin
           LSpan.Finish;
           if AOwnsBody and Assigned(ABody) then
             ABody.Free;
+          // Il file .part si chiude QUI, dentro il task: chi viene dopo (il
+          // rename) deve trovarlo gia' rilasciato.
+          if AOwnsTarget and Assigned(ATarget) then
+            ATarget.Free;
         end;
       end
     )
@@ -1135,6 +1184,161 @@ function TRestClientImpl.QueryInto(const AEndpoint: string;
   const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
 begin
   Result := ExecuteIntoAsync(hmQUERY, AEndpoint, AResponseStream);
+end;
+
+class function TRestClientImpl.SanitizeFileName(const AName: string): string;
+var
+  C: Char;
+begin
+  // Del nome dato dal server si tiene SOLO l'ultimo segmento, e nemmeno quello
+  // per intero: separatori, '..' e caratteri non validi via. Cosi' un
+  // Content-Disposition ostile non puo' uscire dalla cartella di destinazione.
+  Result := AName.Trim(['"', ' ']);
+  Result := Result.Replace('\', '/');
+  if Result.Contains('/') then
+    Result := Result.Substring(Result.LastIndexOf('/') + 1);
+  Result := Result.Replace('..', '');
+  for C in TPath.GetInvalidFileNameChars do
+    Result := Result.Replace(C, '');
+  Result := Result.Trim(['.', ' ']);
+end;
+
+class function TRestClientImpl.DispositionFileName(const AResponse: IRestResponse): string;
+var
+  Header, Part: string;
+  Pieces: TArray<string>;
+begin
+  Result := '';
+  Header := AResponse.GetHeader('Content-Disposition');
+  if Header = '' then
+    Exit;
+  Pieces := Header.Split([';']);
+  // filename*=UTF-8''nome vince su filename="nome" (RFC 5987).
+  for Part in Pieces do
+    if Part.Trim.StartsWith('filename*=', True) then
+    begin
+      Result := Part.Trim.Substring(Length('filename*='));
+      if Result.Contains('''''') then
+        Result := Result.Substring(Result.LastIndexOf('''''') + 2);
+      Result := TNetEncoding.URL.Decode(Result);
+      Break;
+    end;
+  if Result = '' then
+    for Part in Pieces do
+      if Part.Trim.StartsWith('filename=', True) then
+      begin
+        Result := Part.Trim.Substring(Length('filename='));
+        Break;
+      end;
+  Result := SanitizeFileName(Result);
+end;
+
+class procedure TRestClientImpl.FinishDownload(const AResponse: IRestResponse;
+  const APartPath, ATargetPath: string; AOptions: TRestDownloadOptions);
+var
+  FinalPath, Name: string;
+begin
+  // 304: il file locale e' ancora buono. Non si tocca niente, e il .part vuoto
+  // che era stato aperto se ne va.
+  if AResponse.GetStatusCode = 304 then
+  begin
+    if TFile.Exists(APartPath) and (TFile.GetSize(APartPath) = 0) then
+      TFile.Delete(APartPath);
+    Exit;
+  end;
+
+  // Errore: il gate non ha scritto niente nel .part, quindi quello che c'era
+  // resta li' -- pronto per un doResume piu' avanti. Nessun rename.
+  if not AResponse.GetIsSuccess then
+    Exit;
+
+  FinalPath := ATargetPath;
+  if doUseContentDisposition in AOptions then
+  begin
+    Name := DispositionFileName(AResponse);
+    if Name <> '' then
+      // Il nome lo sceglie il server, la CARTELLA no.
+      FinalPath := TPath.Combine(TPath.GetDirectoryName(ATargetPath), Name);
+  end;
+
+  if TFile.Exists(FinalPath) then
+  begin
+    if not (doOverwrite in AOptions) then
+      raise EInOutError.CreateFmt(
+        'DownloadToFile: "%s" esiste gia. Passa doOverwrite per sostituirlo.',
+        [FinalPath]);
+    TFile.Delete(FinalPath);
+  end;
+  // Il file prende il nome definitivo solo ORA: o e' intero, o non c'e'.
+  TFile.Move(APartPath, FinalPath);
+end;
+
+function TRestClientImpl.DownloadToFile(const AEndpoint: string;
+  const ATargetFilePath: string; const AProgress: TRestReceiveAnonEvent;
+  const AOptions: TRestDownloadOptions): TAsyncBuilder<IRestResponse>;
+var
+  PartPath, TargetPath, ETagPath: string;
+  Part: TFileStream;
+  Headers: IDictionary<string, string>;
+  Handler: TRestReceiveAnonEvent;
+  Existing: Int64;
+  Opts: TRestDownloadOptions;
+begin
+  TargetPath := TPath.GetFullPath(ATargetFilePath);
+  Opts := AOptions;
+
+  // Se la destinazione c'e' gia' e non si puo' sostituire, meglio saperlo PRIMA
+  // di scaricare mezzo giga.
+  if TFile.Exists(TargetPath) and not (doOverwrite in Opts) and
+     not (doValidateETag in Opts) and not (doUseContentDisposition in Opts) then
+    raise EInOutError.CreateFmt(
+      'DownloadToFile: "%s" esiste gia. Passa doOverwrite per sostituirlo.',
+      [TargetPath]);
+
+  ForceDirectories(TPath.GetDirectoryName(TargetPath));
+  PartPath := TargetPath + '.part';
+  ETagPath := TargetPath + '.etag';
+
+  Headers := TCollections.CreateDictionary<string, string>;
+  Existing := 0;
+  if (doResume in Opts) and TFile.Exists(PartPath) then
+  begin
+    Existing := TFile.GetSize(PartPath);
+    if Existing > 0 then
+      // "Dammi il resto": se il server sta al gioco risponde 206 e si accoda.
+      Headers.AddOrSetValue('Range', Format('bytes=%d-', [Existing]));
+  end;
+  if (doValidateETag in Opts) and TFile.Exists(ETagPath) and TFile.Exists(TargetPath) then
+    Headers.AddOrSetValue('If-None-Match', TFile.ReadAllText(ETagPath).Trim);
+
+  if Existing > 0 then
+  begin
+    Part := TFileStream.Create(PartPath, fmOpenReadWrite or fmShareDenyWrite);
+    Part.Seek(0, soEnd); // il gia' scaricato non si tocca
+  end
+  else
+    Part := TFileStream.Create(PartPath, fmCreate or fmShareDenyWrite);
+
+  Handler := AProgress;
+  if not Assigned(Handler) then
+    Handler := FOnReceive;
+
+  // ExecuteCore possiede il .part e lo chiude dentro il task; il rename avviene
+  // dopo, a file gia' rilasciato.
+  Result := ExecuteCore(hmGET, AEndpoint, nil, False, Headers, Part, Handler, True)
+    .ThenBy(
+      procedure(AResponse: IRestResponse)
+      var
+        ETag: string;
+      begin
+        FinishDownload(AResponse, PartPath, TargetPath, Opts);
+        if AResponse.GetIsSuccess then
+        begin
+          ETag := AResponse.GetHeader('ETag');
+          if ETag <> '' then
+            TFile.WriteAllText(ETagPath, ETag);
+        end;
+      end);
 end;
 
 function TRestClientImpl.OnReceive(const AHandler: TRestReceiveEvent): IRestClient;
@@ -1498,6 +1702,13 @@ function TRestClient.QueryInto(const AEndpoint: string;
   const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
 begin
   Result := FInstance.QueryInto(AEndpoint, AResponseStream);
+end;
+
+function TRestClient.DownloadToFile(const AEndpoint: string;
+  const ATargetFilePath: string; const AProgress: TRestReceiveAnonEvent;
+  const AOptions: TRestDownloadOptions): TAsyncBuilder<IRestResponse>;
+begin
+  Result := FInstance.DownloadToFile(AEndpoint, ATargetFilePath, AProgress, AOptions);
 end;
 
 function TRestClient.OnReceive(const AHandler: TRestReceiveEvent): TRestClient;

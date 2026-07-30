@@ -21,7 +21,8 @@ begin
     RunTests(ConfigureTests
       .Verbose
       .RegisterFixtures([
-        TDextDownloadGateTests
+        TDextDownloadGateTests,
+        TRestClientStreamingTests
       ]));
   except
     on error: Exception do
