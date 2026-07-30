@@ -141,7 +141,8 @@ implementation
 
 uses
   System.TypInfo,
-  Dext.Utils;
+  Dext.Utils,
+  Dext.Web.Hubs.Protocol.MessagePack;
 
 function ReadStreamToString(AStream: TStream): string;
 var
@@ -268,7 +269,7 @@ begin
   FWebSocketTransport.SetOnConnected(
     procedure(const ConnectionId: string)
     var
-      Conn: TWebSocketHubConnection;
+      Conn: IHubConnection;
       Dispatcher: THubDispatcher;
     begin
       Conn := FWebSocketTransport.GetConnection(ConnectionId);
@@ -334,6 +335,55 @@ begin
         finally
           Protocol.Free;
         end;
+      end;
+    end
+  );
+
+  FWebSocketTransport.SetOnBinaryMessageReceived(
+    procedure(const ConnectionId: string; const Data: TBytes)
+    var
+      Dispatcher: THubDispatcher;
+      Msg: THubMessage;
+      Protocol: TMessagePackHubProtocol;
+      JsonProtocol: TJsonHubProtocol;
+      ResultValue: TValue;
+      ResponseMsg: THubMessage;
+      ResponseStr: string;
+      Consumed: Integer;
+      Offset: Integer;
+    begin
+      if not FConnectionDispatchers.TryGetValue(ConnectionId, Dispatcher) then
+        Exit;
+      Protocol := TMessagePackHubProtocol.Create;
+      JsonProtocol := TJsonHubProtocol.Create;
+      try
+        Offset := 0;
+        while Offset < Length(Data) do
+        begin
+          Msg := Protocol.DeserializeBinary(Data, Offset,
+            Length(Data) - Offset, Consumed);
+          if Consumed <= 0 then
+            Break;
+          Inc(Offset, Consumed);
+          if Msg.MessageType = hmtInvocation then
+          begin
+            try
+              ResultValue := Dispatcher.InvokeMethod(
+                ConnectionId, Msg.Target, Msg.Arguments);
+              ResponseMsg := THubMessage.Completion(
+                Msg.InvocationId, ResultValue);
+            except
+              on E: Exception do
+                ResponseMsg := THubMessage.CompletionError(
+                  Msg.InvocationId, E.Message);
+            end;
+            ResponseStr := JsonProtocol.Serialize(ResponseMsg);
+            FWebSocketTransport.SendAsync(ConnectionId, ResponseStr);
+          end;
+        end;
+      finally
+        JsonProtocol.Free;
+        Protocol.Free;
       end;
     end
   );

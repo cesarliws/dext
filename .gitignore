@@ -43,3 +43,5 @@ dext-symbols.*
 /Benchmarks/Dext.Benchmarks
 *.prjmgc
 *.user
+/Temp
+/Tests/Core/*.vrc

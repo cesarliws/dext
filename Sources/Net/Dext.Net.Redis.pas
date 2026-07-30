@@ -125,7 +125,12 @@ type
     FLock: TCriticalSection;
     FTLSOptions: TDextTLSOptions;
     FTLSEngine: IDextTLSEngine;
+    FTLSNetworkBuffer: TBytes;
+    FReceiveBuffer: TBytes;
     procedure PerformTlsHandshake;
+    procedure DrainTlsOutput;
+    procedure FeedTlsInput;
+    procedure WriteTlsPlaintext(const AData: TBytes);
   public
     FBuffer: TBytes;
     FBufferLen: Integer;
@@ -566,6 +571,8 @@ begin
   FTcpClient := TDextTcpClient.Create;
   FLock := TCriticalSection.Create;
   FBufferLen := 0;
+  SetLength(FTLSNetworkBuffer, 16 * 1024);
+  SetLength(FReceiveBuffer, 16 * 1024);
 end;
 
 destructor TDextRedisConnection.Destroy;
@@ -579,9 +586,7 @@ end;
 procedure TDextRedisConnection.PerformTlsHandshake;
 var
   Provider: IDextTLSContextProvider;
-  HandshakeBuffer: array[0..4095] of Byte;
   Status: TDextTLSEngineStatus;
-  BytesRead, BytesWritten: Integer;
   LoopCount: Integer;
 begin
   Provider := TDextOpenSSLContextProvider.Create(FTLSOptions);
@@ -595,26 +600,76 @@ begin
       raise EDextRedisException.Create('TLS handshake timeout: exceeded 50 iterations');
 
     Status := FTLSEngine.DoHandshake;
-    
-    repeat
-      BytesWritten := FTLSEngine.EncryptedOutgoing(@HandshakeBuffer[0], Length(HandshakeBuffer));
-      if BytesWritten > 0 then
-        FTcpClient.Send(TByteSpan.Create(@HandshakeBuffer[0], BytesWritten));
-    until BytesWritten <= 0;
+    DrainTlsOutput;
 
     if FTLSEngine.IsHandshakeCompleted or (Status = tlsHandshakeCompleted) then
       Break;
 
     if Status = tlsHandshakeNeedRead then
-    begin
-      BytesRead := FTcpClient.Receive(TByteSpan.Create(@HandshakeBuffer[0], Length(HandshakeBuffer)), 5000);
-      if BytesRead <= 0 then
-        raise EDextRedisException.CreateFmt('Redis server closed connection during TLS handshake at loop %d.', [LoopCount]);
-      FTLSEngine.EncryptedIncoming(@HandshakeBuffer[0], BytesRead);
-    end
+      FeedTlsInput
     else if Status = tlsError then
-      raise EDextRedisException.CreateFmt('TLS handshake failed with status error at loop %d.', [LoopCount]);
+      raise EDextRedisException.CreateFmt(
+        'TLS handshake failed at loop %d (OpenSSL error %d).',
+        [LoopCount, FTLSEngine.GetLastErrorCode]);
   end;
+end;
+
+procedure TDextRedisConnection.DrainTlsOutput;
+var
+  BytesWritten: Integer;
+begin
+  repeat
+    BytesWritten := FTLSEngine.EncryptedOutgoing(
+      @FTLSNetworkBuffer[0], Length(FTLSNetworkBuffer));
+    if BytesWritten > 0 then
+      FTcpClient.Send(TByteSpan.Create(@FTLSNetworkBuffer[0], BytesWritten));
+  until BytesWritten = 0;
+end;
+
+procedure TDextRedisConnection.FeedTlsInput;
+var
+  BytesRead: Integer;
+begin
+  BytesRead := FTcpClient.Receive(
+    TByteSpan.Create(@FTLSNetworkBuffer[0], Length(FTLSNetworkBuffer)), 5000);
+  if BytesRead <= 0 then
+    raise EDextRedisException.Create(
+      'Redis server closed the TLS connection unexpectedly');
+  if FTLSEngine.EncryptedIncoming(
+    @FTLSNetworkBuffer[0], BytesRead) <> BytesRead then
+    raise EDextRedisException.Create(
+      'OpenSSL input BIO did not accept all encrypted bytes');
+end;
+
+procedure TDextRedisConnection.WriteTlsPlaintext(const AData: TBytes);
+var
+  Offset: Integer;
+  Written: Integer;
+begin
+  Offset := 0;
+  while Offset < Length(AData) do
+  begin
+    Written := FTLSEngine.PlaintextWrite(
+      @AData[Offset], Length(AData) - Offset);
+    DrainTlsOutput;
+    if Written > 0 then
+      Inc(Offset, Written)
+    else
+      case FTLSEngine.GetLastIOStatus of
+        tlsIONeedRead:
+          FeedTlsInput;
+        tlsIONeedWrite:
+          Continue;
+        tlsIOClosed:
+          raise EDextRedisException.Create(
+            'TLS connection closed while writing Redis command');
+      else
+        raise EDextRedisException.CreateFmt(
+          'TLS write failed (OpenSSL error %d)',
+          [FTLSEngine.GetLastErrorCode]);
+      end;
+  end;
+  DrainTlsOutput;
 end;
 
 procedure TDextRedisConnection.Connect;
@@ -665,8 +720,7 @@ var
   ParsedValue: TDextRedisValue;
   BytesConsumed: Integer;
   ReadSpan: TByteSpan;
-  RecvBuf: TBytes;
-  RecvCount: Integer;
+  PlainCount: Integer;
 begin
   FLock.Enter;
   try
@@ -675,21 +729,13 @@ begin
 
     ReqBytes := BuildRedisCommand(ACommand, AArgs);
     if FTLSOptions.Enabled and Assigned(FTLSEngine) then
-    begin
-      // TLS Send
-      FTLSEngine.PlaintextWrite(@ReqBytes[0], Length(ReqBytes));
-      SetLength(RecvBuf, 65536);
-      RecvCount := FTLSEngine.EncryptedOutgoing(@RecvBuf[0], Length(RecvBuf));
-      if RecvCount > 0 then
-        FTcpClient.Send(TByteSpan.Create(@RecvBuf[0], RecvCount));
-    end
+      WriteTlsPlaintext(ReqBytes)
     else
     begin
       // Plain TCP Send
       FTcpClient.Send(ReqBytes);
     end;
 
-    SetLength(RecvBuf, 65536);
     while True do
     begin
       if FBufferLen > 0 then
@@ -706,24 +752,26 @@ begin
 
       if FTLSOptions.Enabled and Assigned(FTLSEngine) then
       begin
-        // TLS Recv: receive encrypted socket bytes and decrypt via OpenSSL Memory BIO
-        RecvCount := FTcpClient.Receive(TByteSpan.Create(@RecvBuf[0], Length(RecvBuf)), 5000);
-        if RecvCount <= 0 then
-          raise EDextRedisException.Create('Redis server closed TLS connection unexpectedly');
-
-        FTLSEngine.EncryptedIncoming(@RecvBuf[0], RecvCount);
-        SetLength(RecvBuf, 65536);
-        BytesConsumed := FTLSEngine.PlaintextRead(@RecvBuf[0], Length(RecvBuf));
-        if BytesConsumed > 0 then
-          AppendData(TByteSpan.Create(@RecvBuf[0], BytesConsumed));
+        FeedTlsInput;
+        repeat
+          PlainCount := FTLSEngine.PlaintextRead(
+            @FReceiveBuffer[0], Length(FReceiveBuffer));
+          if PlainCount > 0 then
+            AppendData(TByteSpan.Create(@FReceiveBuffer[0], PlainCount));
+        until PlainCount = 0;
+        if FTLSEngine.GetLastIOStatus = tlsIOError then
+          raise EDextRedisException.CreateFmt(
+            'TLS read failed (OpenSSL error %d)',
+            [FTLSEngine.GetLastErrorCode]);
       end
       else
       begin
         // Plain TCP Recv
-        RecvCount := FTcpClient.Receive(TByteSpan.Create(@RecvBuf[0], Length(RecvBuf)), 5000);
-        if RecvCount <= 0 then
+        PlainCount := FTcpClient.Receive(
+          TByteSpan.Create(@FReceiveBuffer[0], Length(FReceiveBuffer)), 5000);
+        if PlainCount <= 0 then
           raise EDextRedisException.Create('Redis server closed connection unexpectedly');
-        AppendData(TByteSpan.Create(@RecvBuf[0], RecvCount));
+        AppendData(TByteSpan.Create(@FReceiveBuffer[0], PlainCount));
       end;
     end;
   finally

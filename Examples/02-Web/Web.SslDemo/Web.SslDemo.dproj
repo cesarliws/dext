@@ -136,7 +136,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
     <Import Project="$(BDS)\Bin\CodeGear.Delphi.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Delphi.Targets')"/>
     <Import Project="$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj" Condition="Exists('$(APPDATA)\Embarcadero\$(BDSAPPDATABASEDIR)\$(PRODUCTVERSION)\UserTools.proj')"/>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Android64'">
-        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
+        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -144,7 +144,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Linux64'">
-        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
+        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -152,7 +152,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Release' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
+        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -160,7 +160,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Android64'">
-        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
+        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -168,7 +168,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Linux64'">
-        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
+        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>
@@ -176,7 +176,7 @@ $(PreBuildEvent)]]></PreBuildEvent>
         <PostBuildEventIgnoreExitCode>False</PostBuildEventIgnoreExitCode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' And '$(Platform)'=='Win32'">
-        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
+        <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.crt copy /Y server.crt &quot;$(DCC_ExeOutput)&quot;;&amp;&amp;if exist server.key copy /Y server.key &quot;$(DCC_ExeOutput)&quot;;</PreBuildEvent>
         <PreBuildEventIgnoreExitCode>False</PreBuildEventIgnoreExitCode>
         <PreLinkEvent/>
         <PreLinkEventIgnoreExitCode>False</PreLinkEventIgnoreExitCode>

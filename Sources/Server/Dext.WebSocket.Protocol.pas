@@ -53,12 +53,20 @@ type
 
   TWebSocketFrame = record
     FIN: Boolean;
+    RSV1: Boolean;
     Opcode: TWebSocketOpcode;
     Masked: Boolean;
     MaskKey: array[0..3] of Byte;
     PayloadLength: UInt64;
     Payload: TBytes;
   end;
+
+  TWebSocketDecodeResult = (
+    wsDecodeIncomplete,
+    wsDecodeComplete,
+    wsDecodeProtocolError,
+    wsDecodeMessageTooBig
+  );
 
   TWebSocketFrameCodec = class
   private
@@ -79,6 +87,10 @@ type
     class function TryDecode(const ABuffer: TBytes; AOffset: Integer;
       ALength: Integer; out AFrame: TWebSocketFrame;
       out ABytesConsumed: Integer): Boolean; static;
+    class function Decode(const ABuffer: TBytes; AOffset, ALength: Integer;
+      out AFrame: TWebSocketFrame; out ABytesConsumed: Integer;
+      ARequireMask: Boolean; AMaxPayloadLength: UInt64;
+      AAllowRSV1: Boolean = False): TWebSocketDecodeResult; static;
 
     /// <summary>Unmasks payload in-place.</summary>
     class procedure Unmask(var APayload: TBytes; const AMaskKey: array of Byte); static;
@@ -214,6 +226,14 @@ var
   B0, B1: Byte;
   I: Integer;
 begin
+  if AFrame.PayloadLength <> UInt64(Length(AFrame.Payload)) then
+    raise EArgumentException.Create(
+      'WebSocket payload length does not match payload buffer');
+  if (Byte(AFrame.Opcode) >= $8) and
+     ((not AFrame.FIN) or (AFrame.PayloadLength > 125)) then
+    raise EArgumentException.Create(
+      'WebSocket control frames must be final and at most 125 bytes');
+
   // Calculate header length
   HeaderLen := 2;
   if AFrame.PayloadLength > 65535 then
@@ -232,6 +252,8 @@ begin
   B0 := Byte(AFrame.Opcode) and $0F;
   if AFrame.FIN then
     B0 := B0 or $80;
+  if AFrame.RSV1 then
+    B0 := B0 or $40;
   P[0] := B0;
 
   // Byte 1: Mask and initial Payload len
@@ -288,6 +310,7 @@ var
 begin
   if not AFIN then
   begin
+    Frame := Default(TWebSocketFrame);
     Frame.FIN := AFIN;
     Frame.Opcode := wsText;
     Frame.Masked := False;
@@ -306,6 +329,7 @@ class function TWebSocketFrameCodec.EncodeBinary(const AData: TBytes; AFIN: Bool
 var
   Frame: TWebSocketFrame;
 begin
+  Frame := Default(TWebSocketFrame);
   Frame.FIN := AFIN;
   Frame.Opcode := wsBinary;
   Frame.Masked := False;
@@ -332,6 +356,7 @@ class function TWebSocketFrameCodec.EncodePing(const AData: TBytes): TBytes;
 var
   Frame: TWebSocketFrame;
 begin
+  Frame := Default(TWebSocketFrame);
   Frame.FIN := True;
   Frame.Opcode := wsPing;
   Frame.Masked := False;
@@ -344,6 +369,7 @@ class function TWebSocketFrameCodec.EncodePong(const AData: TBytes): TBytes;
 var
   Frame: TWebSocketFrame;
 begin
+  Frame := Default(TWebSocketFrame);
   Frame.FIN := True;
   Frame.Opcode := wsPong;
   Frame.Masked := False;
@@ -353,26 +379,54 @@ begin
 end;
 
 class function TWebSocketFrameCodec.TryDecode(const ABuffer: TBytes; AOffset, ALength: Integer; out AFrame: TWebSocketFrame; out ABytesConsumed: Integer): Boolean;
+begin
+  Result := Decode(ABuffer, AOffset, ALength, AFrame, ABytesConsumed,
+    False, High(Integer), False) = wsDecodeComplete;
+end;
+
+class function TWebSocketFrameCodec.Decode(const ABuffer: TBytes;
+  AOffset, ALength: Integer; out AFrame: TWebSocketFrame;
+  out ABytesConsumed: Integer; ARequireMask: Boolean;
+  AMaxPayloadLength: UInt64; AAllowRSV1: Boolean): TWebSocketDecodeResult;
 var
   B0, B1: Byte;
   FIN: Boolean;
+  RSV1: Boolean;
   Opcode: Byte;
   Masked: Boolean;
   LenCode: Byte;
   HeaderLen: Integer;
   PayloadLen: UInt64;
 begin
+  AFrame := Default(TWebSocketFrame);
   ABytesConsumed := 0;
+  Result := wsDecodeIncomplete;
+  if (AOffset < 0) or (ALength < 0) or
+     (AOffset > Length(ABuffer)) or
+     (ALength > Length(ABuffer) - AOffset) then
+    Exit(wsDecodeProtocolError);
   if ALength < 2 then
-    Exit(False);
+    Exit;
 
   B0 := ABuffer[AOffset];
   B1 := ABuffer[AOffset + 1];
 
   FIN := (B0 and $80) <> 0;
+  RSV1 := (B0 and $40) <> 0;
   Opcode := B0 and $0F;
   Masked := (B1 and $80) <> 0;
   LenCode := B1 and $7F;
+
+  if ((B0 and $30) <> 0) or (RSV1 and not AAllowRSV1) then
+    Exit(wsDecodeProtocolError);
+  if not (Opcode in [$0, $1, $2, $8, $9, $A]) then
+    Exit(wsDecodeProtocolError);
+  if RSV1 and not (Opcode in [$1, $2]) then
+    Exit(wsDecodeProtocolError);
+  if ARequireMask and not Masked then
+    Exit(wsDecodeProtocolError);
+  if (Opcode >= $8) and (not FIN or (LenCode > 125)) then
+    Exit(wsDecodeProtocolError);
 
   HeaderLen := 2;
   PayloadLen := LenCode;
@@ -380,30 +434,39 @@ begin
   if LenCode = 126 then
   begin
     if ALength < 4 then
-      Exit(False);
+      Exit;
     PayloadLen := ReadWordBE(@ABuffer[AOffset + 2]);
+    if PayloadLen < 126 then
+      Exit(wsDecodeProtocolError);
     HeaderLen := 4;
   end
   else if LenCode = 127 then
   begin
     if ALength < 10 then
-      Exit(False);
+      Exit;
     PayloadLen := ReadUInt64BE(@ABuffer[AOffset + 2]);
+    if (PayloadLen < 65536) or ((PayloadLen and (UInt64(1) shl 63)) <> 0) then
+      Exit(wsDecodeProtocolError);
     HeaderLen := 10;
   end;
 
   if Masked then
   begin
     if ALength < HeaderLen + 4 then
-      Exit(False);
+      Exit;
     Move(ABuffer[AOffset + HeaderLen], AFrame.MaskKey[0], 4);
     HeaderLen := HeaderLen + 4;
   end;
 
+  if PayloadLen > AMaxPayloadLength then
+    Exit(wsDecodeMessageTooBig);
+  if PayloadLen > UInt64(High(Integer) - HeaderLen) then
+    Exit(wsDecodeMessageTooBig);
   if UInt64(ALength) < UInt64(HeaderLen) + PayloadLen then
-    Exit(False);
+    Exit;
 
   AFrame.FIN := FIN;
+  AFrame.RSV1 := RSV1;
   AFrame.Opcode := TWebSocketOpcode(Opcode);
   AFrame.Masked := Masked;
   AFrame.PayloadLength := PayloadLen;
@@ -417,15 +480,27 @@ begin
   end;
 
   ABytesConsumed := HeaderLen + Integer(PayloadLen);
-  Result := True;
+  Result := wsDecodeComplete;
 end;
 
 class procedure TWebSocketFrameCodec.Unmask(var APayload: TBytes; const AMaskKey: array of Byte);
 var
   I: Integer;
 begin
-  for I := 0 to Length(APayload) - 1 do
-    APayload[I] := APayload[I] xor AMaskKey[I mod 4];
+  I := 0;
+  while I + 4 <= Length(APayload) do
+  begin
+    APayload[I] := APayload[I] xor AMaskKey[0];
+    APayload[I + 1] := APayload[I + 1] xor AMaskKey[1];
+    APayload[I + 2] := APayload[I + 2] xor AMaskKey[2];
+    APayload[I + 3] := APayload[I + 3] xor AMaskKey[3];
+    Inc(I, 4);
+  end;
+  while I < Length(APayload) do
+  begin
+    APayload[I] := APayload[I] xor AMaskKey[I and 3];
+    Inc(I);
+  end;
 end;
 
 end.

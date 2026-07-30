@@ -67,6 +67,18 @@ type
     UseHttps: Boolean;
     /// <summary>SSL Certificate Hash (Thumbprint) for Windows Schannel / http.sys.</summary>
     SslCertHash: string;
+    /// <summary>PEM certificate chain used by user-mode TLS providers.</summary>
+    SslCertFile: string;
+    /// <summary>PEM private key used by user-mode TLS providers.</summary>
+    SslKeyFile: string;
+    /// <summary>Optional CA bundle used by user-mode TLS providers.</summary>
+    SslRootCertFile: string;
+    /// <summary>Configured TLS provider name.</summary>
+    SslProvider: string;
+    /// <summary>Windows certificate store used by the http.sys binding.</summary>
+    SslCertStoreName: string;
+    /// <summary>Administrative owner of an http.sys SSL binding.</summary>
+    HttpSysAppId: TGUID;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -145,6 +157,9 @@ begin
   Result.MaxRequestHeaderSize := 64 * 1024;
   Result.MaxRequestBodySize := 16 * 1024 * 1024;
   Result.UseHttps := False;
+  Result.SslCertStoreName := 'MY';
+  Result.SslProvider := 'Auto';
+  Result.HttpSysAppId := TGUID.Empty;
 end;
 
 function ServerEngineOptions: TServerEngineOptions;

@@ -151,20 +151,84 @@ end;
 
 procedure TDextSecurityOpenSSLTests.OpenSSL_ShouldDriveHandshakeAndEncryptPlaintextPayload;
 var
-  Opts: TDextTLSOptions;
-  Engine: IDextTLSEngine;
-  Status: TDextTLSEngineStatus;
+  ClientOptions: TDextTLSOptions;
+  ServerOptions: TDextTLSOptions;
+  ClientEngine: IDextTLSEngine;
+  ServerEngine: IDextTLSEngine;
+  ClientStatus: TDextTLSEngineStatus;
+  ServerStatus: TDextTLSEngineStatus;
   Plaintext: TBytes;
+  Decrypted: TBytes;
+  NetworkBuffer: TBytes;
+  CertFile: string;
+  KeyFile: string;
   Written: Integer;
+  ReadCount: Integer;
+  WireCount: Integer;
+  Iteration: Integer;
 begin
-  Opts := TDextTLSOptions.DefaultClient;
-  Engine := TDextOpenSSLTLSEngine.Create(Opts, tlsmClient);
-  Status := Engine.DoHandshake;
-  Should(Ord(Status) in [Ord(tlsHandshakeNeedRead), Ord(tlsHandshakeNeedWrite), Ord(tlsHandshakeCompleted)]).BeTrue;
+  EnsureTestCertificates(CertFile, KeyFile);
+  ServerOptions := TDextTLSOptions.DefaultServer(CertFile, KeyFile);
+  ServerOptions.ALPNProtocols := ['h2', 'http/1.1'];
+  ClientOptions := TDextTLSOptions.DefaultClient;
+  ClientOptions.VerifyServerCertificate := False;
+  ClientOptions.Host := 'localhost';
+  ClientOptions.ALPNProtocols := ['h2', 'http/1.1'];
+  ClientEngine := TDextOpenSSLTLSEngine.Create(
+    ClientOptions, tlsmClient);
+  ServerEngine := TDextOpenSSLTLSEngine.Create(
+    ServerOptions, tlsmServer);
+  SetLength(NetworkBuffer, 16 * 1024);
+
+  for Iteration := 1 to 100 do
+  begin
+    ClientStatus := ClientEngine.DoHandshake;
+    repeat
+      WireCount := ClientEngine.EncryptedOutgoing(
+        @NetworkBuffer[0], Length(NetworkBuffer));
+      if WireCount > 0 then
+        Should(ServerEngine.EncryptedIncoming(
+          @NetworkBuffer[0], WireCount)).Be(WireCount);
+    until WireCount = 0;
+
+    ServerStatus := ServerEngine.DoHandshake;
+    repeat
+      WireCount := ServerEngine.EncryptedOutgoing(
+        @NetworkBuffer[0], Length(NetworkBuffer));
+      if WireCount > 0 then
+        Should(ClientEngine.EncryptedIncoming(
+          @NetworkBuffer[0], WireCount)).Be(WireCount);
+    until WireCount = 0;
+
+    if ClientEngine.IsHandshakeCompleted and
+       ServerEngine.IsHandshakeCompleted then
+      Break;
+    Should(ClientStatus = tlsError).BeFalse;
+    Should(ServerStatus = tlsError).BeFalse;
+  end;
+
+  Should(ClientEngine.IsHandshakeCompleted).BeTrue;
+  Should(ServerEngine.IsHandshakeCompleted).BeTrue;
+  Should(ClientEngine.GetNegotiatedALPN).Be('h2');
+  Should(ServerEngine.GetNegotiatedALPN).Be('h2');
 
   Plaintext := TEncoding.UTF8.GetBytes('GET / HTTP/1.1'#13#10#13#10);
-  Written := Engine.PlaintextWrite(@Plaintext[0], Length(Plaintext));
+  Written := ClientEngine.PlaintextWrite(
+    @Plaintext[0], Length(Plaintext));
   Should(Written).Be(Length(Plaintext));
+  repeat
+    WireCount := ClientEngine.EncryptedOutgoing(
+      @NetworkBuffer[0], Length(NetworkBuffer));
+    if WireCount > 0 then
+      ServerEngine.EncryptedIncoming(@NetworkBuffer[0], WireCount);
+  until WireCount = 0;
+
+  SetLength(Decrypted, Length(Plaintext));
+  ReadCount := ServerEngine.PlaintextRead(
+    @Decrypted[0], Length(Decrypted));
+  Should(ReadCount).Be(Length(Plaintext));
+  Should(TEncoding.UTF8.GetString(Decrypted)).Be(
+    TEncoding.UTF8.GetString(Plaintext));
 end;
 
 { TDextSecurityIndyHandlerTests }

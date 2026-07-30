@@ -473,9 +473,24 @@ type
   PHTTP_SERVICE_CONFIG_SSL_SET =
     ^HTTP_SERVICE_CONFIG_SSL_SET;
 
+  HTTP_SERVICE_CONFIG_QUERY_TYPE = (
+    HttpServiceConfigQueryExact,
+    HttpServiceConfigQueryNext,
+    HttpServiceConfigQueryMax
+  );
+
+  HTTP_SERVICE_CONFIG_SSL_QUERY = record
+    QueryDesc: HTTP_SERVICE_CONFIG_QUERY_TYPE;
+    KeyDesc: HTTP_SERVICE_CONFIG_SSL_KEY;
+    dwToken: DWORD;
+  end;
 
 function HttpSetServiceConfiguration(ServiceHandle: THandle; ConfigId: DWORD; pConfigInformation: Pointer; ConfigInformationLength: ULONG; pOverlapped: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
 function HttpDeleteServiceConfiguration(ServiceHandle: THandle; ConfigId: DWORD; pConfigInformation: Pointer; ConfigInformationLength: ULONG; pOverlapped: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
+function HttpQueryServiceConfiguration(ServiceHandle: THandle; ConfigId: DWORD;
+  pInputConfigInfo: Pointer; InputConfigInfoLength: ULONG;
+  pOutputConfigInfo: Pointer; OutputConfigInfoLength: ULONG;
+  var pReturnLength: ULONG; pOverlapped: Pointer): ULONG; stdcall; external HTTPAPI_DLL;
 function HttpSetUrlGroupProperty(UrlGroupId: HTTP_URL_GROUP_ID; PropertyId: HTTP_SERVER_PROPERTY; pPropertyInformation: Pointer; PropertyInformationLength: ULONG): ULONG; stdcall; external HTTPAPI_DLL;
 {$ENDIF}
 

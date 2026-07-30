@@ -35,18 +35,18 @@ uses
   {$ENDIF}
   System.Classes,
   System.DateUtils,
+  System.Hash,
   System.JSON,
   System.NetEncoding,
   System.Rtti,
   System.SysUtils,
-  System.Hash,
-  Dext.Collections,
-  Dext.Core.Span,
   IdGlobal,
   IdHashSHA,
   IdHMAC,
   IdHMACSHA1,
-  IdSSLOpenSSL;
+  IdSSLOpenSSL,
+  Dext.Core.Span,
+  Dext.Collections;
 
 type
   /// <summary>

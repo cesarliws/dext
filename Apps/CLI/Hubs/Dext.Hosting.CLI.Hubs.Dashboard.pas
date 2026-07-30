@@ -3,8 +3,7 @@ unit Dext.Hosting.CLI.Hubs.Dashboard;
 interface
 
 uses
-  System.SysUtils,
-  Dext.Web.Hubs;
+  Dext.Web.Hubs.Hub;
 
 type
   TDashboardHub = class(THub)

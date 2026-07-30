@@ -30,7 +30,8 @@ uses
   Dext.Testing.Fluent,
   Dext.Testing,
   Dext.WebSocket.Protocol,
-  Dext.WebSocket.Handshake;
+  Dext.WebSocket.Handshake,
+  Dext.WebSocket.Compression;
 
 type
   [TestFixture]
@@ -48,6 +49,22 @@ type
     procedure TestCloseFrame;
     [Test]
     procedure TestPingPongFrames;
+    [Test]
+    procedure TestRejectsUnmaskedClientFrame;
+    [Test]
+    procedure TestRejectsReservedBitsAndOpcodes;
+    [Test]
+    procedure TestRejectsInvalidControlFrame;
+    [Test]
+    procedure TestEnforcesPayloadLimit;
+    [Test]
+    procedure TestPermessageDeflateRoundtrip;
+    [Test]
+    procedure TestPermessageDeflateOutputLimit;
+    [Test]
+    procedure TestRSV1Rules;
+    [Test]
+    procedure TestPermessageDeflateNegotiation;
   end;
 
 implementation
@@ -176,6 +193,154 @@ begin
   Should(TWebSocketFrameCodec.TryDecode(PongBytes, 0, Length(PongBytes), Frame, Consumed)).BeTrue;
   Should(Ord(Frame.Opcode)).Be(Ord(wsPong));
   Should(TEncoding.UTF8.GetString(Frame.Payload)).Be('ping-data');
+end;
+
+procedure TWebSocketTests.TestRejectsUnmaskedClientFrame;
+var
+  Encoded: TBytes;
+  Frame: TWebSocketFrame;
+  Consumed: Integer;
+begin
+  Encoded := TWebSocketFrameCodec.EncodeText('client');
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Frame, Consumed, True, 1024))).Be(
+    Ord(wsDecodeProtocolError));
+end;
+
+procedure TWebSocketTests.TestRejectsReservedBitsAndOpcodes;
+var
+  Encoded: TBytes;
+  Frame: TWebSocketFrame;
+  Consumed: Integer;
+begin
+  SetLength(Encoded, 2);
+  Encoded[0] := $C1;
+  Encoded[1] := $80;
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Frame, Consumed, True, 1024))).Be(
+    Ord(wsDecodeProtocolError));
+
+  Encoded[0] := $83;
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Frame, Consumed, True, 1024))).Be(
+    Ord(wsDecodeProtocolError));
+end;
+
+procedure TWebSocketTests.TestRejectsInvalidControlFrame;
+var
+  Encoded: TBytes;
+  Frame: TWebSocketFrame;
+  Consumed: Integer;
+begin
+  SetLength(Encoded, 6);
+  Encoded[0] := $09;
+  Encoded[1] := $80;
+  FillChar(Encoded[2], 4, 0);
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Frame, Consumed, True, 1024))).Be(
+    Ord(wsDecodeProtocolError));
+end;
+
+procedure TWebSocketTests.TestEnforcesPayloadLimit;
+var
+  Encoded: TBytes;
+  Frame: TWebSocketFrame;
+  Consumed: Integer;
+begin
+  Encoded := TWebSocketFrameCodec.EncodeText(
+    'payload larger than configured limit');
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Frame, Consumed, False, 4))).Be(
+    Ord(wsDecodeMessageTooBig));
+end;
+
+procedure TWebSocketTests.TestPermessageDeflateRoundtrip;
+var
+  Context: TWebSocketDeflateContext;
+  Input, Compressed, Output: TBytes;
+begin
+  Context := TWebSocketDeflateContext.Create(True);
+  try
+    Input := TEncoding.UTF8.GetBytes(
+      'repeated repeated repeated repeated repeated');
+    Compressed := Context.Compress(Input);
+    Output := Context.Decompress(Compressed);
+    Should(TEncoding.UTF8.GetString(Output)).Be(
+      'repeated repeated repeated repeated repeated');
+    Should(Length(Compressed) < Length(Input)).BeTrue;
+  finally
+    Context.Free;
+  end;
+end;
+
+procedure TWebSocketTests.TestPermessageDeflateOutputLimit;
+var
+  Compressor, LimitedInflater: TWebSocketDeflateContext;
+  Compressed: TBytes;
+  Raised: Boolean;
+begin
+  Compressor := TWebSocketDeflateContext.Create(True);
+  LimitedInflater := TWebSocketDeflateContext.Create(True, 8);
+  try
+    Compressed := Compressor.Compress(
+      TEncoding.UTF8.GetBytes('more than eight decompressed bytes'));
+    Raised := False;
+    try
+      LimitedInflater.Decompress(Compressed);
+    except
+      on E: EWebSocketCompressionError do
+        Raised := True;
+    end;
+    Should(Raised).BeTrue;
+  finally
+    LimitedInflater.Free;
+    Compressor.Free;
+  end;
+end;
+
+procedure TWebSocketTests.TestRSV1Rules;
+var
+  Frame: TWebSocketFrame;
+  Encoded: TBytes;
+  Decoded: TWebSocketFrame;
+  Consumed: Integer;
+begin
+  Frame := Default(TWebSocketFrame);
+  Frame.FIN := True;
+  Frame.RSV1 := True;
+  Frame.Opcode := wsText;
+  Frame.Payload := TEncoding.UTF8.GetBytes('compressed');
+  Encoded := TWebSocketFrameCodec.Encode(Frame);
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Decoded, Consumed, False, 1024, True))).Be(
+    Ord(wsDecodeComplete));
+
+  Frame.Opcode := wsContinuation;
+  Encoded := TWebSocketFrameCodec.Encode(Frame);
+  Should(Ord(TWebSocketFrameCodec.Decode(
+    Encoded, 0, Length(Encoded), Decoded, Consumed, False, 1024, True))).Be(
+    Ord(wsDecodeProtocolError));
+end;
+
+procedure TWebSocketTests.TestPermessageDeflateNegotiation;
+var
+  Response: string;
+begin
+  Should(TWebSocketHandshake.TryNegotiatePermessageDeflate(
+    'permessage-deflate; client_max_window_bits',
+    Response)).BeTrue;
+  Should(Response).Be(
+    'permessage-deflate; server_no_context_takeover; client_no_context_takeover');
+  Should(TWebSocketHandshake.TryNegotiatePermessageDeflate(
+    'x-test, permessage-deflate; server_max_window_bits=15',
+    Response)).BeTrue;
+  Should(TWebSocketHandshake.TryNegotiatePermessageDeflate(
+    'permessage-deflate; unknown=value', Response)).BeFalse;
+  Should(TWebSocketHandshake.TryNegotiatePermessageDeflate(
+    'permessage-deflate; client_max_window_bits=7', Response)).BeFalse;
+  Should(TWebSocketHandshake.TryNegotiatePermessageDeflate(
+    'permessage-deflate; client_no_context_takeover; client_no_context_takeover',
+    Response)).BeFalse;
 end;
 
 end.

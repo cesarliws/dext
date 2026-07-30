@@ -32,6 +32,8 @@ interface
 uses
   System.Classes,
   System.SysUtils,
+  Dext.Collections,
+  Dext.Collections.Comparers,
   Dext.Collections.Dict,
   Dext.Server.Engine.Types,
   Dext.Core.Span;
@@ -54,6 +56,9 @@ type
   /// <summary>Event raised to evaluate if a connection upgrade to WebSockets is accepted.</summary>
   TUpgradeEventHandler = reference to procedure(const AConnection: IDextServerConnection;
     var AAccepted: Boolean);
+  TWebSocketDataEvent = reference to procedure(const ABuffer: TBytes;
+    ACount: Integer);
+  TWebSocketClosedEvent = reference to procedure;
 
   IDextTransportConnection = interface
     ['{C3F54B78-C392-4AEB-B410-6C2A9B890F12}']
@@ -153,6 +158,8 @@ type
     /// <summary>Sends a binary data frame over the WebSocket connection.</summary>
     /// <param name="AData">The byte array containing binary data.</param>
     procedure SendBinary(const AData: TBytes);
+    /// <summary>Sends an already encoded WebSocket frame.</summary>
+    procedure SendFrame(const AFrame: TBytes);
     /// <summary>Closes the WebSocket connection with a status code and reason.</summary>
     /// <param name="AStatusCode">The WebSocket status code (default: 1000 - Normal Close).</param>
     /// <param name="AReason">Optional descriptive reason string.</param>
@@ -162,6 +169,33 @@ type
     function Receive(var ABuffer: TBytes; AOffset, ACount: Integer): Integer;
     
     property ConnectionId: UInt64 read GetConnectionId;
+  end;
+
+  /// <summary>Optional event-driven WebSocket transport implemented by native engines.</summary>
+  IDextAsyncWebSocketConnection = interface
+    ['{FA7639E3-F7E4-41C3-9813-998FC5B25362}']
+    procedure SetOnData(const AHandler: TWebSocketDataEvent);
+    procedure SetOnClosed(const AHandler: TWebSocketClosedEvent);
+    procedure StartReceive;
+  end;
+
+  /// <summary>Optional per-connection send-queue observability.</summary>
+  IDextWebSocketQueueMetrics = interface
+    ['{CB4AFA7B-8A7E-4D62-B136-DAA0D988C27F}']
+    function GetPendingSendBytes: NativeInt;
+    function GetPeakPendingSendBytes: NativeInt;
+    function GetRejectedSendCount: Int64;
+    property PendingSendBytes: NativeInt read GetPendingSendBytes;
+    property PeakPendingSendBytes: NativeInt read GetPeakPendingSendBytes;
+    property RejectedSendCount: Int64 read GetRejectedSendCount;
+  end;
+
+  /// <summary>Optional RFC 7692 compression owned by the native connection.</summary>
+  IDextCompressedWebSocketConnection = interface
+    ['{41826C83-5CF8-456E-B346-B304645D5BC9}']
+    function IsCompressionEnabled: Boolean;
+    function CompressMessage(const AData: TBytes): TBytes;
+    function DecompressMessage(const AData: TBytes): TBytes;
   end;
 
   /// <summary>

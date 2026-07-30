@@ -157,7 +157,10 @@ type
   TDevCertsCommand = class(TInterfacedObject, IConsoleCommand)
   private
     procedure ShowUsage;
-    function GenerateSelfSignedCert(const CertFilePath: string; TrustInRoot: Boolean): Boolean;
+    procedure RunElevatedAndWait(const Executable, Parameters: string);
+    function GenerateSelfSignedCert(const CertFilePath: string;
+      TrustInRoot: Boolean; const BindingMode, BindingIp: string;
+      BindingPort: Word; const BindingStore, BindingAppId: string): Boolean;
     function EncodeAsn1Length(Len: Integer): TBytes;
     function EncodeAsn1Sequence(const Content: TBytes): TBytes;
     function EncodeAsn1Integer(const Value: TBytes): TBytes;
@@ -380,18 +383,57 @@ begin
   Result := 'Generates and manages local development SSL certificates (like dotnet dev-certs).';
 end;
 
+procedure TDevCertsCommand.RunElevatedAndWait(const Executable,
+  Parameters: string);
+var
+  Info: TShellExecuteInfo;
+  ExitCode: DWORD;
+begin
+  FillChar(Info, SizeOf(Info), 0);
+  Info.cbSize := SizeOf(Info);
+  Info.fMask := SEE_MASK_NOCLOSEPROCESS;
+  Info.Wnd := 0;
+  Info.lpVerb := 'runas';
+  Info.lpFile := PChar(Executable);
+  Info.lpParameters := PChar(Parameters);
+  Info.nShow := SW_HIDE;
+  if not ShellExecuteEx(@Info) then
+    RaiseLastOSError;
+  try
+    WaitForSingleObject(Info.hProcess, INFINITE);
+    if not GetExitCodeProcess(Info.hProcess, ExitCode) then
+      RaiseLastOSError;
+    if ExitCode <> 0 then
+      raise EOSError.CreateFmt('%s failed with exit code %d',
+        [Executable, ExitCode]);
+  finally
+    CloseHandle(Info.hProcess);
+  end;
+end;
+
 procedure TDevCertsCommand.ShowUsage;
 begin
   SafeWriteLn('Usage:');
   SafeWriteLn('  dext dev-certs https [--trust] [--out-cert <path>]');
+  SafeWriteLn('      [--bind|--update-binding|--remove-binding]');
+  SafeWriteLn('      [--ip <address>] [--port <port>] [--store <name>] [--appid <guid>]');
   SafeWriteLn('');
   SafeWriteLn('Options:');
   SafeWriteLn('  https         Generate self-signed development certificate for localhost.');
   SafeWriteLn('  --trust       Install and trust the certificate in Windows Root Store (Requires Admin).');
   SafeWriteLn('  --out-cert    Output certificate path (default: server.crt).');
+  SafeWriteLn('  --bind        Create an http.sys binding; fails if it already exists.');
+  SafeWriteLn('  --update-binding  Replace an existing http.sys binding.');
+  SafeWriteLn('  --remove-binding  Remove the selected binding without generating a certificate.');
+  SafeWriteLn('  --ip          Binding IPv4 address (default: 0.0.0.0).');
+  SafeWriteLn('  --port        Binding TCP port (default: 8080).');
+  SafeWriteLn('  --store       Windows certificate store (default: MY).');
+  SafeWriteLn('  --appid       Binding owner GUID.');
 end;
 
-function TDevCertsCommand.GenerateSelfSignedCert(const CertFilePath: string; TrustInRoot: Boolean): Boolean;
+function TDevCertsCommand.GenerateSelfSignedCert(const CertFilePath: string;
+  TrustInRoot: Boolean; const BindingMode, BindingIp: string;
+  BindingPort: Word; const BindingStore, BindingAppId: string): Boolean;
 var
   SubjectName: string;
   SubjectBlob: CERT_NAME_BLOB;
@@ -549,26 +591,43 @@ begin
         end;
       end;
 
-      // 7. Confia no certificado no Repositório de Raízes e no Repositório Pessoal (MY) do Windows
+      // Trust and certificate-store installation are separate from binding.
       if TrustInRoot then
       begin
-        ShellExecuteW(0, 'open', 'certutil.exe', PWideChar('-addstore -f Root "' + CertFilePath + '"'), nil, SW_HIDE);
-        ShellExecuteW(0, 'open', 'certutil.exe', PWideChar('-p dba -importpfx -f "' + PfxFilePath + '"'), nil, SW_HIDE);
-        SafeWriteLn('[SUCCESS] Certificate trusted in Windows Root & My Store!');
+        RunElevatedAndWait('certutil.exe',
+          '-addstore -f Root "' + CertFilePath + '"');
+        SafeWriteLn('[SUCCESS] Certificate trusted in Windows Root Store.');
+      end;
 
-        // 8. Automatiza o binding no Kernel do Windows via netsh para o http.sys
+      if BindingMode <> '' then
+      begin
+        RunElevatedAndWait('certutil.exe', Format(
+          '-p dba -importpfx -f %s "%s"', [BindingStore, PfxFilePath]));
+        SafeWriteLn('[SUCCESS] Certificate imported into Windows store ' +
+          BindingStore + '.');
+
+        // Provisioning is explicit because changing http.sys bindings requires
+        // administrative ownership outside normal application startup.
         var HashBytes: array[0..19] of Byte;
         var HashLen: DWORD := SizeOf(HashBytes);
-        if CertGetCertificateContextProperty(CertContext, 3 {CERT_SHA1_HASH_PROP_ID}, @HashBytes[0], @HashLen) then
+        if (BindingMode <> '') and
+           CertGetCertificateContextProperty(CertContext,
+             3 {CERT_SHA1_HASH_PROP_ID}, @HashBytes[0], @HashLen) then
         begin
           var ThumbprintStr: string := '';
           for var I: Integer := 0 to 19 do
             ThumbprintStr := ThumbprintStr + IntToHex(HashBytes[I], 2);
 
-          SafeWriteLn('[http.sys] Binding Certificate ' + ThumbprintStr + ' to port 8080 in Kernel...');
-          ShellExecuteW(0, 'open', 'netsh.exe', PWideChar('http delete sslcert ipport=0.0.0.0:8080'), nil, SW_HIDE);
-          ShellExecuteW(0, 'open', 'netsh.exe', PWideChar('http add sslcert ipport=0.0.0.0:8080 certhash=' + ThumbprintStr + ' appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}'), nil, SW_HIDE);
-          SafeWriteLn('[SUCCESS] http.sys Kernel SSL binding completed for port 8080!');
+          if SameText(BindingMode, 'update') then
+            RunElevatedAndWait('netsh.exe',
+              Format('http delete sslcert ipport=%s:%d',
+                [BindingIp, BindingPort]));
+          RunElevatedAndWait('netsh.exe', Format(
+              'http add sslcert ipport=%s:%d certhash=%s appid=%s certstorename=%s',
+              [BindingIp, BindingPort, ThumbprintStr, BindingAppId, BindingStore]));
+          SafeWriteLn(Format(
+            '[http.sys] Requested %s binding for %s:%d (store %s, AppId %s).',
+            [BindingMode, BindingIp, BindingPort, BindingStore, BindingAppId]));
         end;
       end;
 
@@ -588,6 +647,11 @@ var
   CertFile: string;
   ShouldTrust: Boolean;
   SubCommand: string;
+  BindingMode: string;
+  BindingIp: string;
+  BindingStore: string;
+  BindingAppId: string;
+  BindingPort: Integer;
 begin
   if (Args.Values.Count = 0) then
   begin
@@ -612,11 +676,48 @@ begin
   ShouldTrust := Args.HasOption('trust');
   CertFile := Args.GetOption('out-cert', 'server.crt');
   CertAbsPath := TPath.GetFullPath(CertFile);
+  BindingMode := '';
+  if Args.HasOption('bind') then
+    BindingMode := 'add';
+  if Args.HasOption('update-binding') then
+  begin
+    if BindingMode <> '' then
+      raise EArgumentException.Create('Use only one binding action');
+    BindingMode := 'update';
+  end;
+  if Args.HasOption('remove-binding') then
+  begin
+    if BindingMode <> '' then
+      raise EArgumentException.Create('Use only one binding action');
+    BindingMode := 'remove';
+  end;
+  BindingIp := Args.GetOption('ip', '0.0.0.0');
+  BindingPort := StrToIntDef(Args.GetOption('port', '8080'), 0);
+  if (BindingPort < 1) or (BindingPort > High(Word)) then
+    raise EArgumentOutOfRangeException.Create('Port must be between 1 and 65535');
+  BindingStore := Args.GetOption('store', 'MY');
+  BindingAppId := Args.GetOption('appid',
+    '{4f3b2c10-8a9b-4d7e-8f12-3456789abcde}');
+  try
+    StringToGUID(BindingAppId);
+  except
+    raise EArgumentException.Create('--appid must be a valid GUID');
+  end;
+
+  if SameText(BindingMode, 'remove') then
+  begin
+    RunElevatedAndWait('netsh.exe',
+      Format('http delete sslcert ipport=%s:%d', [BindingIp, BindingPort]));
+    SafeWriteLn(Format('[http.sys] Requested binding removal for %s:%d.',
+      [BindingIp, BindingPort]));
+    Exit;
+  end;
 
   SafeWriteLn('Generating 100% native development HTTPS certificate via Windows CryptoAPI...');
   SafeWriteLn('Target certificate path: ' + CertAbsPath);
 
-  if GenerateSelfSignedCert(CertAbsPath, ShouldTrust) then
+  if GenerateSelfSignedCert(CertAbsPath, ShouldTrust, BindingMode, BindingIp,
+    Word(BindingPort), BindingStore, BindingAppId) then
     SafeWriteLn('[COMPLETED] Local HTTPS Certificate is ready for development!')
   else
     SafeWriteLn('[ERROR] Failed to generate native certificate.');

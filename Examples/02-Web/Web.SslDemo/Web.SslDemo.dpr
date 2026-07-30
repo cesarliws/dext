@@ -1,4 +1,4 @@
-program Web.SslDemo;
+﻿program Web.SslDemo;
 
 {$APPTYPE CONSOLE}
 
@@ -14,7 +14,11 @@ program Web.SslDemo;
 // --- 2. SELEÇÃO DO PROVEDOR SSL / TLS ---
 {.$DEFINE SSL_PROVIDER_TAURUS}   // Taurus TLS (OpenSSL 3.x / TLS 1.3)
 {.$DEFINE SSL_PROVIDER_OPENSSL}  // OpenSSL 1.0.2 / 1.1.x
-{$DEFINE SSL_PROVIDER_HTTPSYS}  // Windows Kernel Schannel (http.sys)
+{$IFDEF MSWINDOWS}
+  {$DEFINE SSL_PROVIDER_HTTPSYS} // Windows Kernel Schannel (http.sys)
+{$ELSE}
+  {$DEFINE SSL_PROVIDER_OPENSSL} // Linux native OpenSSL (epoll)
+{$ENDIF}
 
 uses
   Dext.MM,
@@ -54,6 +58,8 @@ const
     '    }' + sLineBreak +
     '}';
 begin
+  if FileExists('appsettings.json') then
+    Exit;
   Writeln('Creating/Updating default appsettings.json...');
   TFile.WriteAllText('appsettings.json', DEFAULT_SETTINGS);
 end;
@@ -143,10 +149,13 @@ begin
     Writeln('   Cert:     ', Config['SslCert']);
     Writeln('   Key:      ', Config['SslKey']);
 
-    if not FileExists(Config['SslCert']) then
-      raise Exception.Create('Certificate file not found: ' + Config['SslCert']);
-    if not FileExists(Config['SslKey']) then
-      raise Exception.Create('Key file not found: ' + Config['SslKey']);
+    if not SameText(Config['SslProvider'], 'HttpSys') then
+    begin
+      if not FileExists(Config['SslCert']) then
+        raise Exception.Create('Certificate file not found: ' + Config['SslCert']);
+      if not FileExists(Config['SslKey']) then
+        raise Exception.Create('Key file not found: ' + Config['SslKey']);
+    end;
 
     Writeln('');
 

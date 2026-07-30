@@ -71,6 +71,15 @@ type
     tlsError
   );
 
+  /// <summary>Result of the most recent TLS data operation.</summary>
+  TDextTLSIOStatus = (
+    tlsIOOk,
+    tlsIONeedRead,
+    tlsIONeedWrite,
+    tlsIOClosed,
+    tlsIOError
+  );
+
   /// <summary>
   ///   Core abstraction for asynchronous, memory-based TLS engine (Memory BIOs).
   ///   Decouples network IO from encryption logic.
@@ -92,6 +101,14 @@ type
     function IsHandshakeCompleted: Boolean;
     /// <summary>Returns negotiated ALPN protocol if present (e.g. 'h2', 'http/1.1').</summary>
     function GetNegotiatedALPN: string;
+    /// <summary>Returns the status of the most recent TLS data operation.</summary>
+    function GetLastIOStatus: TDextTLSIOStatus;
+    /// <summary>Returns the most recent native TLS error code.</summary>
+    function GetLastErrorCode: NativeUInt;
+    /// <summary>Returns encrypted bytes waiting in the output BIO.</summary>
+    function GetPendingEncryptedBytes: NativeInt;
+    /// <summary>Starts or advances the TLS close-notify handshake.</summary>
+    function Shutdown: TDextTLSIOStatus;
   end;
 
   /// <summary>

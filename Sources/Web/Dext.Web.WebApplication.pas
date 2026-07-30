@@ -663,6 +663,21 @@ begin
       Opts.UseHttps := True;
     if ServerSec['SslCertHash'] <> '' then
       Opts.SslCertHash := ServerSec['SslCertHash'];
+    Opts.SslCertFile := ServerSec['SslCert'];
+    Opts.SslKeyFile := ServerSec['SslKey'];
+    Opts.SslRootCertFile := ServerSec['SslRootCert'];
+    if ServerSec['SslProvider'] <> '' then
+      Opts.SslProvider := ServerSec['SslProvider'];
+    if ServerSec['SslCertStore'] <> '' then
+      Opts.SslCertStoreName := ServerSec['SslCertStore'];
+    if ServerSec['HttpSysAppId'] <> '' then
+      try
+        Opts.HttpSysAppId := StringToGUID(ServerSec['HttpSysAppId']);
+      except
+        on E: EConvertError do
+        raise EArgumentException.Create(
+          'Server:HttpSysAppId must be a valid GUID');
+      end;
   end;
 
   FServerFactory := function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost

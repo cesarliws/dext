@@ -1,4 +1,4 @@
-program MCP.FullDemo;
+﻿program MCP.FullDemo;
 
 {$APPTYPE CONSOLE}
 {$R *.res}

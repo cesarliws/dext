@@ -119,6 +119,7 @@
         <DCCReference Include="Sources\BM.Http.pas"/>
         <DCCReference Include="Sources\BM.Orm.pas"/>
         <DCCReference Include="Sources\BM.S54.pas"/>
+        <DCCReference Include="Sources\BM.S43.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
