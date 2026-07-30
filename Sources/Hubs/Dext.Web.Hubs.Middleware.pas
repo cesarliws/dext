@@ -42,6 +42,7 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
+  Dext.Server.Engine.Interfaces,
   Dext.Web.Hubs.Clients,
   Dext.Web.Hubs.Connections,
   Dext.Web.Hubs.Context,
@@ -130,6 +131,7 @@ type
     procedure ReleaseConnection(const ConnectionId: string);
     function ClientError(const DetailedMessage, SafeMessage: string): string;
     function IsTransportEnabled(const TransportName: string): Boolean;
+    function ConnectionSupportsUpgrade(const Ctx: IHttpContext): Boolean;
     
     function FindDispatcher(const Path: string; out HubPath: string): THubDispatcher;
   public
@@ -522,6 +524,17 @@ begin
       Exit(True);
 end;
 
+function THubMiddleware.ConnectionSupportsUpgrade(
+  const Ctx: IHttpContext): Boolean;
+var
+  LConnection: IDextServerConnection;
+begin
+  LConnection := Ctx.Connection;
+  Result := Assigned(LConnection);
+  if Result then
+    Result := LConnection.SupportsUpgrade;
+end;
+
 procedure THubMiddleware.Shutdown;
 begin
   if FSSETransport <> nil then
@@ -596,7 +609,7 @@ begin
       Ctx.Response.SetContentType('application/json');
       Ctx.Response.Write('{"error":"WebSocket transport is disabled"}');
     end
-    else if Ctx.Connection.SupportsUpgrade then
+    else if ConnectionSupportsUpgrade(Ctx) then
       HandleWebSocket(HubPath, Ctx, Dispatcher)
     else
     begin
@@ -639,7 +652,7 @@ begin
   SetLength(Response.AvailableTransports, 0);
   LTransportCount := 0;
   if IsTransportEnabled('WebSockets') and
-     Ctx.Connection.SupportsUpgrade then
+     ConnectionSupportsUpgrade(Ctx) then
   begin
     SetLength(Response.AvailableTransports, LTransportCount + 1);
     Response.AvailableTransports[LTransportCount] :=
