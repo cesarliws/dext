@@ -1,4 +1,4 @@
-﻿program Web.SslDemo;
+program Web.SslDemo;
 
 {$APPTYPE CONSOLE}
 
@@ -8,11 +8,11 @@
   ============================================================================== }
 
 // --- 1. SELEÇÃO DO SERVER ENGINE ---
-{$DEFINE USE_NATIVE_SERVER}  // Usar Server Engine Nativo (.UseNativeServer: http.sys no Windows / epoll no Linux)
-{.$DEFINE USE_INDY_SERVER}     // Usar Indy Server Engine (Padrão)
+{.$DEFINE USE_NATIVE_SERVER}  // Usar Server Engine Nativo (.UseNativeServer: http.sys no Windows / epoll no Linux)
+{$DEFINE USE_INDY_SERVER}     // Usar Indy Server Engine (Padrão para Demo sem registro admin no http.sys)
 
 // --- 2. SELEÇÃO DO PROVEDOR SSL / TLS ---
-{.$DEFINE SSL_PROVIDER_TAURUS}   // Taurus TLS (OpenSSL 3.x / TLS 1.3)
+{$DEFINE SSL_PROVIDER_TAURUS}   // Taurus TLS (OpenSSL 3.x / TLS 1.3)
 {.$DEFINE SSL_PROVIDER_OPENSSL}  // OpenSSL 1.0.2 / 1.1.x
 {$IFDEF MSWINDOWS}
   {$DEFINE SSL_PROVIDER_HTTPSYS} // Windows Kernel Schannel (http.sys)

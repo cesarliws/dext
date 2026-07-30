@@ -310,6 +310,7 @@ begin
   Frame.RSV1 := True;
   Frame.Opcode := wsText;
   Frame.Payload := TEncoding.UTF8.GetBytes('compressed');
+  Frame.PayloadLength := Length(Frame.Payload);
   Encoded := TWebSocketFrameCodec.Encode(Frame);
   Should(Ord(TWebSocketFrameCodec.Decode(
     Encoded, 0, Length(Encoded), Decoded, Consumed, False, 1024, True))).Be(

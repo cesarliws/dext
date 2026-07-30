@@ -164,7 +164,7 @@ function SSL_set1_host(ssl: PSSL; const hostname: PAnsiChar): Integer; cdecl; ex
 function SSL_set_alpn_protos(ssl: PSSL; const protos: PByte; protos_len: Cardinal): Integer; cdecl; external LIBSSL_DLL name 'SSL_set_alpn_protos';
 procedure SSL_get0_alpn_selected(ssl: PSSL; out data: PByte; out len: Cardinal); cdecl; external LIBSSL_DLL name 'SSL_get0_alpn_selected';
 function SSL_select_next_proto(out out_: PByte; out outlen: Byte;
-  const server, client: PByte; server_len, client_len: Cardinal): Integer; cdecl; external LIBSSL_DLL name 'SSL_select_next_proto';
+  const server: PByte; server_len: Cardinal; const client: PByte; client_len: Cardinal): Integer; cdecl; external LIBSSL_DLL name 'SSL_select_next_proto';
 
 function BIO_s_mem: PBIO_METHOD; cdecl; external LIBCRYPTO_DLL name 'BIO_s_mem';
 function BIO_new(type_: PBIO_METHOD): PBIO; cdecl; external LIBCRYPTO_DLL name 'BIO_new';
@@ -231,8 +231,8 @@ begin
   Context := TDextOpenSSLContext(arg);
   if (Context = nil) or (Length(Context.FALPNWire) = 0) then
     Exit(SSL_TLSEXT_ERR_NOACK);
-  if SSL_select_next_proto(out_, outlen, @Context.FALPNWire[0], in_,
-    Length(Context.FALPNWire), inlen) = OPENSSL_NPN_NEGOTIATED then
+  if SSL_select_next_proto(out_, outlen, @Context.FALPNWire[0],
+    Length(Context.FALPNWire), in_, inlen) = OPENSSL_NPN_NEGOTIATED then
     Result := SSL_TLSEXT_ERR_OK
   else
     Result := SSL_TLSEXT_ERR_NOACK;
