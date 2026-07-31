@@ -454,6 +454,14 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 - **Reactive Pub/Sub** — Messaging pipeline using concurrent channels (`IChannel<TDextRedisMessage>`).
 - **RedisJSON & Dext.Json Integration** — Direct type-safe serialization of Delphi classes to Redis JSON values using the core JSON engine.
 
+### 5.4 Native TLS/SSL Architecture (`Dext.Net.Security` & `Dext.Net.Security.OpenSSL`)
+- **Unified TLS Abstraction** — `IDextTLSEngine`, `IDextTLSContextProvider`, and `IDextTLSStream` definitions for decoupled transport security.
+- **OpenSSL 3.x Memory BIO Engine** — Zero-copy/lock-free TLS handshake and memory-buffered encrypted framing for raw asynchronous TCP Sockets (`epoll` on Linux and `IOCP` on Windows).
+- **HTTP.sys & Windows Schannel Integration** — Native HTTPS bindings and Windows Certificate Store integration without external DLLs.
+- **Taurus TLS & Indy SSL** — Modern TLS 1.3 / OpenSSL 3.x provider (`TDextTaurusTLSContext`) for Indy server engines.
+- **`TDextRedisClient` SSL Support (`rediss://`)** — Transparent SSL/TLS stream wrapper for the native Redis client.
+- **`dext dev-certs` CLI Tooling** — Pure Pascal CryptoAPI generator for self-signed X.509 development certificates with SAN extension (`localhost`, `127.0.0.1`) and automatic Root Certificate Store registration.
+
 ---
 
 ## 📢 6. Dext Event Bus (`Sources\Events`)

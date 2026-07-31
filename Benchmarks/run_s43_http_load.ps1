@@ -5,7 +5,7 @@ param(
     [int]$Port = 8086,
     [int]$Concurrency = 32,
     [int]$DurationSeconds = 10,
-    [string]$BenchmarkExe = (Join-Path $PSScriptRoot 'Dext.Benchmarks.exe'),
+    [string]$BenchmarkExe = 'Benchmarks\Dext.Benchmarks.exe',
     [switch]$Wsl
 )
 

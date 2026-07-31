@@ -119,6 +119,7 @@ type
     procedure InitializeTLS(const AProvider: IDextTLSContextProvider);
     function FeedTLS(const ABuffer: Pointer; ACount: Integer): Integer;
     procedure DrainTLSOutput;
+    procedure FlushTLSOutput;
     
     constructor Create(AFd: Integer; AEpollFd: Integer);
   end;
@@ -567,16 +568,14 @@ end;
 
 procedure TDextEpollContext.DrainTLSOutput;
 var
-  Required, Written, OldLength: Integer;
-  Temp: TBytes;
+  Temp: array[0..8191] of Byte;
+  Written, OldLength: Integer;
 begin
   if FTLS = nil then Exit;
   repeat
-    Required := FTLS.GetPendingEncryptedBytes;
-    if Required <= 0 then Required := 16 * 1024;
-    SetLength(Temp, Required);
     Written := FTLS.EncryptedOutgoing(@Temp[0], Length(Temp));
     if Written <= 0 then Break;
+
     OldLength := FTLSOutputEnd - FTLSOutputStart;
     if (FTLSOutputStart > 0) and (OldLength > 0) then
       Move(FTLSOutputBuffer[FTLSOutputStart], FTLSOutputBuffer[0], OldLength);
@@ -586,6 +585,27 @@ begin
     Move(Temp[0], FTLSOutputBuffer[FTLSOutputEnd], Written);
     Inc(FTLSOutputEnd, Written);
   until Written < Length(Temp);
+end;
+
+procedure TDextEpollContext.FlushTLSOutput;
+var
+  SentBytes: Integer;
+begin
+  while (FTLSOutputEnd > FTLSOutputStart) and (FFd >= 0) do
+  begin
+    SentBytes := Posix.SysSocket.send(FFd, FTLSOutputBuffer[FTLSOutputStart],
+      FTLSOutputEnd - FTLSOutputStart, 0);
+    if SentBytes > 0 then
+      Inc(FTLSOutputStart, SentBytes)
+    else
+      Break;
+  end;
+  if FTLSOutputStart = FTLSOutputEnd then
+  begin
+    FTLSOutputBuffer := nil;
+    FTLSOutputStart := 0;
+    FTLSOutputEnd := 0;
+  end;
 end;
 
 function TDextEpollContext.FeedTLS(const ABuffer: Pointer;
@@ -600,6 +620,7 @@ begin
   if Result < 0 then Exit;
   Status := FTLS.DoHandshake;
   DrainTLSOutput;
+  FlushTLSOutput;
   if Status = tlsError then Exit(-1);
   FTLSHandshakeComplete := FTLS.IsHandshakeCompleted;
   if not FTLSHandshakeComplete then Exit;
@@ -1167,9 +1188,12 @@ begin
         Inc(PlainOffset, WrittenPlain);
         FContext.DrainTLSOutput;
       end;
+      FContext.FlushTLSOutput;
     end;
     FillChar(Event, SizeOf(Event), 0);
-    Event.events := EPOLLOUT or EPOLLONESHOT;
+    Event.events := EPOLLIN or EPOLLONESHOT;
+    if FContext.FTLSOutputEnd > FContext.FTLSOutputStart then
+      Event.events := Event.events or EPOLLOUT;
     Event.data.ptr := FContext;
     epoll_ctl(FContext.FEpollFd, EPOLL_CTL_MOD, FSocket, @Event);
     Exit;
@@ -2360,6 +2384,8 @@ begin
               end
               else if RecvRet = 0 then
               begin
+                if (Context.FTLS <> nil) and (RawRecvRet > 0) then
+                  Continue;
                 ReadFailedOrClosed := True;
                 Break;
               end

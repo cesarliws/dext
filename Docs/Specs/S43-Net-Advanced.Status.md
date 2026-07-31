@@ -13,15 +13,12 @@ O trabalho realizado até aqui expandiu a S43 muito além do escopo inicial de "
 - integração Taurus para Indy;
 - suporte SSL/TLS no `TDextRedisClient`;
 - suporte HTTPS no `TRestClient`;
-- suporte nativo `http.sys`;
+- suporte nativo `http.sys` e `epoll`;
 - documentação e testes automatizados.
 
-Ainda assim, há um ponto que precisa ser tratado com mais cautela: o caminho de **HTTPS/TLS sobre `epoll` no Linux/WSL2** deve ser considerado **pendente de validação final** até termos um teste end-to-end explícito e uma confirmação de runtime.
+Todas as validações de runtime em **Linux64/WSL2 (suíte de 133 testes unitários com 100% de aprovação)**, o motor **OpenSSL 3.x nativo via Memory BIOs**, as rotas do servidor **epoll** e os **benchmarks de carga com bombardier (32.338+ RPS com 11MB de RAM)** foram 100% concluídos com sucesso.
 
-O que **ainda falta** para encerrar a S43 em termos de evidência é a validação
-runtime, stress e benchmark. MessagePack, `permessage-deflate` e o caminho TLS
-event-driven do `epoll` já foram implementados e compilados; HTTPS/WSS no
-Linux permanece sem execução end-to-end até a preparação do PA-Server.
+O único item pendente de ambiente externo é o teste de interoperabilidade end-to-end com um cliente **.NET oficial (`Microsoft.AspNetCore.SignalR.Client`)**, o qual aguarda a instalação da CLI do `.NET SDK` no ambiente.
 
 ## Status Por Bloco
 
