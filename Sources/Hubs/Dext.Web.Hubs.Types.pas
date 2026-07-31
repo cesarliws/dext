@@ -105,7 +105,12 @@ type
     ClientTimeoutInterval: Integer;
     /// <summary>Keep-alive ping interval in seconds</summary>
     KeepAliveInterval: Integer;
-    /// <summary>Maximum message size in bytes</summary>
+    /// <summary>
+    ///   Maximum message size in bytes, enforced on the body of an HTTP
+    ///   invocation. The WebSocket transport is not covered yet: it sizes its
+    ///   receive buffer on demand, so applying this limit there is a separate
+    ///   change.
+    /// </summary>
     MaximumReceiveMessageSize: Int64;
     /// <summary>Enabled transports</summary>
     EnabledTransports: TArray<string>;

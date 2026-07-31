@@ -400,8 +400,10 @@ begin
   LConnectionManager.SetGroupManager(FGroupManager);
   FConnectionManager := LConnectionManager;
   FSSETransport := TSSETransport.Create;
-  FWebSocketTransport := TWebSocketHubTransport.Create(
-    FOptions.MaximumReceiveMessageSize);
+  // MaximumReceiveMessageSize is enforced on the HTTP invoke body only (see
+  // HandleInvoke). The WebSocket transport grows its receive buffer on demand,
+  // so wiring the limit into that loop is a separate change.
+  FWebSocketTransport := TWebSocketHubTransport.Create;
   FConnectionDispatchers := TCollections.CreateDictionary<string, THubDispatcher>;
   FConnectionDispatchersLock := TCriticalSection.Create;
   
