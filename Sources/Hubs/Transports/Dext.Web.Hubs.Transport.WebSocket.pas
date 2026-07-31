@@ -131,6 +131,7 @@ type
     FOnConnected: TOnConnectionEvent;
     FOnDisconnected: TOnConnectionEvent;
     FShuttingDown: Boolean;
+    FMaximumReceiveMessageSize: Int64;
     FKeepAliveThread: TWebSocketKeepAliveThread;
     procedure SendKeepAlives;
     procedure ProcessAsyncData(AConnection: TWebSocketHubConnection;
@@ -142,7 +143,7 @@ type
       const AWSConnection: IDextWebSocketConnection;
       const AFrame: TWebSocketFrame): Boolean;
   public
-    constructor Create;
+    constructor Create(AMaximumReceiveMessageSize: Int64 = 32 * 1024);
     destructor Destroy; override;
 
     // IHubTransport
@@ -346,13 +347,18 @@ end;
 
 { TWebSocketHubTransport }
 
-constructor TWebSocketHubTransport.Create;
+constructor TWebSocketHubTransport.Create(AMaximumReceiveMessageSize: Int64);
 begin
   inherited Create;
+  if (AMaximumReceiveMessageSize <= 0) or
+     (AMaximumReceiveMessageSize > High(Integer) - 14) then
+    raise EArgumentOutOfRangeException.Create(
+      'MaximumReceiveMessageSize is outside the supported range');
   FConnections := TCollections.CreateDictionary<string, IHubConnection>;
   FLock := TCriticalSection.Create;
   FPreparedLock := TCriticalSection.Create;
   FShuttingDown := False;
+  FMaximumReceiveMessageSize := AMaximumReceiveMessageSize;
   FKeepAliveThread := TWebSocketKeepAliveThread.Create(Self);
   FKeepAliveThread.Start;
 end;
