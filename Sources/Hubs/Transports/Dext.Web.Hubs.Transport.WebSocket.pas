@@ -133,6 +133,13 @@ type
     FShuttingDown: Boolean;
     FMaximumReceiveMessageSize: Int64;
     FKeepAliveThread: TWebSocketKeepAliveThread;
+    /// <summary>
+    /// Receive ceiling actually applied to WebSocket frames: the configured
+    /// MaximumReceiveMessageSize, never above ABSOLUTE_MAX_MESSAGE_SIZE. The
+    /// constructor already rejects values outside the supported range, so the
+    /// clamp here only guards the absolute cap.
+    /// </summary>
+    function EffectiveMaxMessageSize: Integer;
     procedure SendKeepAlives;
     procedure ProcessAsyncData(AConnection: TWebSocketHubConnection;
       const AWSConnection: IDextWebSocketConnection;
@@ -172,6 +179,13 @@ uses
   Dext.WebSocket.Handshake,
   Dext.Web.Hubs.Protocol.Json,
   Dext.Web.Hubs.Protocol.MessagePack;
+
+const
+  /// Hard ceiling for a single WebSocket message, independent of configuration.
+  /// A receive limit above this is clamped down: the buffers are indexed with
+  /// Integer, and no configured value should be able to push an allocation
+  /// beyond what the transport can address.
+  ABSOLUTE_MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
 
 var
   GStrictUtf8: TUTF8Encoding;
@@ -363,6 +377,14 @@ begin
   FKeepAliveThread.Start;
 end;
 
+function TWebSocketHubTransport.EffectiveMaxMessageSize: Integer;
+begin
+  if FMaximumReceiveMessageSize > ABSOLUTE_MAX_MESSAGE_SIZE then
+    Result := ABSOLUTE_MAX_MESSAGE_SIZE
+  else
+    Result := Integer(FMaximumReceiveMessageSize);
+end;
+
 destructor TWebSocketHubTransport.Destroy;
 begin
   if FKeepAliveThread <> nil then
@@ -548,10 +570,19 @@ var
   AsyncConnection: IDextAsyncWebSocketConnection;
   CompressedConnection: IDextCompressedWebSocketConnection;
   AllowRSV1: Boolean;
+  MaxMessageSize: Integer;
+  InitialBufferSize: Integer;
 const
-  INITIAL_BUFFER_SIZE = 8 * 1024;
-  MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
+  DEFAULT_INITIAL_BUFFER_SIZE = 8 * 1024;
 begin
+  // A receive limit below the initial buffer would allocate past its own
+  // ceiling before the first frame arrives.
+  MaxMessageSize := EffectiveMaxMessageSize;
+  if MaxMessageSize < DEFAULT_INITIAL_BUFFER_SIZE then
+    InitialBufferSize := MaxMessageSize
+  else
+    InitialBufferSize := DEFAULT_INITIAL_BUFFER_SIZE;
+
   // Engines without a raw server connection (Indy, DCS, WebBroker) return nil.
   ServerConnection := AContext.Connection;
   if ServerConnection = nil then
@@ -603,7 +634,7 @@ begin
     Exit;
   end;
 
-  SetLength(Buffer, INITIAL_BUFFER_SIZE);
+  SetLength(Buffer, InitialBufferSize);
   BufferStart := 0;
   BufferEnd := 0;
   KeepAliveTimer := Now;
@@ -621,14 +652,14 @@ begin
         end
         else
         begin
-          if Length(Buffer) >= MAX_MESSAGE_SIZE then
+          if Length(Buffer) >= MaxMessageSize then
           begin
             WSConn.Close(1009, 'Message too large');
             Break;
           end;
           NewCapacity := Length(Buffer) * 2;
-          if NewCapacity > MAX_MESSAGE_SIZE then
-            NewCapacity := MAX_MESSAGE_SIZE;
+          if NewCapacity > MaxMessageSize then
+            NewCapacity := MaxMessageSize;
           SetLength(Buffer, NewCapacity);
         end;
       end;
@@ -645,7 +676,7 @@ begin
         BytesConsumed := 0;
         DecodeResult := TWebSocketFrameCodec.Decode(
           Buffer, BufferStart, BufferEnd - BufferStart, Frame,
-          BytesConsumed, True, MAX_MESSAGE_SIZE,
+          BytesConsumed, True, MaxMessageSize,
           AllowRSV1);
         if DecodeResult = wsDecodeComplete then
         begin
@@ -704,8 +735,7 @@ procedure TWebSocketHubTransport.ProcessAsyncData(
   const AWSConnection: IDextWebSocketConnection;
   const ABuffer: TBytes; ACount: Integer);
 const
-  INITIAL_BUFFER_SIZE = 8 * 1024;
-  MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
+  DEFAULT_INITIAL_BUFFER_SIZE = 8 * 1024;
 var
   Required: Integer;
   NewCapacity: Integer;
@@ -714,9 +744,16 @@ var
   DecodeResult: TWebSocketDecodeResult;
   CompressedConnection: IDextCompressedWebSocketConnection;
   AllowRSV1: Boolean;
+  MaxMessageSize: Integer;
+  InitialBufferSize: Integer;
 begin
   if (AConnection = nil) or (ACount <= 0) or FShuttingDown then
     Exit;
+  MaxMessageSize := EffectiveMaxMessageSize;
+  if MaxMessageSize < DEFAULT_INITIAL_BUFFER_SIZE then
+    InitialBufferSize := MaxMessageSize
+  else
+    InitialBufferSize := DEFAULT_INITIAL_BUFFER_SIZE;
   AllowRSV1 := Supports(AWSConnection, IDextCompressedWebSocketConnection,
     CompressedConnection);
   if AllowRSV1 then
@@ -737,12 +774,12 @@ begin
     begin
       NewCapacity := Length(AConnection.FReceiveBuffer);
       if NewCapacity = 0 then
-        NewCapacity := INITIAL_BUFFER_SIZE;
+        NewCapacity := InitialBufferSize;
       while (NewCapacity < Required) and
-            (NewCapacity < MAX_MESSAGE_SIZE) do
+            (NewCapacity < MaxMessageSize) do
         NewCapacity := NewCapacity * 2;
-      if (Required > MAX_MESSAGE_SIZE) or
-         (NewCapacity > MAX_MESSAGE_SIZE) then
+      if (Required > MaxMessageSize) or
+         (NewCapacity > MaxMessageSize) then
       begin
         AWSConnection.Close(1009, 'Message too large');
         Exit;
@@ -760,7 +797,7 @@ begin
     DecodeResult := TWebSocketFrameCodec.Decode(
       AConnection.FReceiveBuffer, AConnection.FReceiveStart,
       AConnection.FReceiveEnd - AConnection.FReceiveStart, Frame,
-      Consumed, True, MAX_MESSAGE_SIZE,
+      Consumed, True, MaxMessageSize,
       AllowRSV1);
     case DecodeResult of
       wsDecodeIncomplete:
@@ -785,8 +822,8 @@ begin
     begin
       AConnection.FReceiveStart := 0;
       AConnection.FReceiveEnd := 0;
-      if Length(AConnection.FReceiveBuffer) > INITIAL_BUFFER_SIZE then
-        SetLength(AConnection.FReceiveBuffer, INITIAL_BUFFER_SIZE);
+      if Length(AConnection.FReceiveBuffer) > InitialBufferSize then
+        SetLength(AConnection.FReceiveBuffer, InitialBufferSize);
     end;
   end;
 end;
@@ -795,8 +832,6 @@ function TWebSocketHubTransport.DispatchFrame(
   AConnection: TWebSocketHubConnection;
   const AWSConnection: IDextWebSocketConnection;
   const AFrame: TWebSocketFrame): Boolean;
-const
-  MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
 var
   OldLength: Integer;
   PayloadText: string;
@@ -844,7 +879,7 @@ begin
         end;
         OldLength := Length(AConnection.FFragmentPayload);
         if UInt64(OldLength) + UInt64(Length(AFrame.Payload)) >
-           MAX_MESSAGE_SIZE then
+           EffectiveMaxMessageSize then
         begin
           AWSConnection.Close(1009, 'Message too large');
           Exit(False);
