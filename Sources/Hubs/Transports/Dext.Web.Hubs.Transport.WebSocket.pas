@@ -297,8 +297,17 @@ var
   BytesConsumed: Integer;
   PayloadStr: string;
   KeepAliveTimer: TDateTime;
+  ServerConnection: IDextServerConnection;
 begin
-  WSConn := AContext.Connection.UpgradeToWebSocket;
+  // Engines without a raw server connection (Indy, DCS, WebBroker) return nil.
+  ServerConnection := AContext.Connection;
+  if ServerConnection = nil then
+  begin
+    AConnectionId := '';
+    Exit;
+  end;
+
+  WSConn := ServerConnection.UpgradeToWebSocket;
   if WSConn = nil then
   begin
     AConnectionId := '';
