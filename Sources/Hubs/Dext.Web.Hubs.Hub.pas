@@ -41,13 +41,16 @@ uses
 type
   /// <summary>
   /// Base class for Hub implementations.
-  /// Inherit from this class and add public methods that clients can invoke.
+  /// Inherit from this class and annotate client-invokable methods with
+  /// HubMethod. Other public methods remain server-side only.
   /// </summary>
   /// <example>
   /// <code>
   ///   TMyHub = class(THub)
   ///   public
+  ///     [HubMethod]
   ///     procedure SendMessage(const User, Message: string);
+  ///     [HubMethod]
   ///     procedure JoinGroup(const GroupName: string);
   ///   end;
   /// 

@@ -5,7 +5,7 @@
  * 
  * Usage:
  *   const connection = new DextHubConnection('/hubs/dashboard');
- *   connection.on('ReceiveMessage', (msg) => console.log(msg));
+ *   connection.on('ReceiveMessage', handleMessage);
  *   await connection.start();
  *   await connection.invoke('SendMessage', 'Hello!');
  * 
@@ -20,22 +20,29 @@ class DextHubConnection {
    * @param {Object} options - Connection options
    */
   constructor(hubUrl, options = {}) {
-    this.hubUrl = hubUrl;
+    // Drop a trailing slash so the derived URLs stay canonical: '/hubs/demo/'
+    // would otherwise produce '/hubs/demo//negotiate', which the server routes
+    // as a distinct path and rejects.
+    this.hubUrl = hubUrl.length > 1 ? hubUrl.replace(/\/+$/, '') : hubUrl;
     this.options = {
-      transport: 'serverSentEvents', // or 'longPolling'
+      transport: 'auto',
+      fallback: true,
+      withCredentials: true,
       reconnect: true,
       reconnectDelay: 3000,
       ...options
     };
-
+    
     this.connectionId = null;
     this.eventSource = null;
+    this.socket = null;
+    this.transport = null;
     this.handlers = new Map();
     this.state = 'disconnected'; // disconnected, connecting, connected, reconnecting
     this.invocationId = 0;
     this.pendingInvocations = new Map();
   }
-
+  
   /**
    * Registers a handler for a Hub method
    * @param {string} methodName - The method name to handle
@@ -48,7 +55,7 @@ class DextHubConnection {
     this.handlers.get(methodName).push(handler);
     return this;
   }
-
+  
   /**
    * Removes a handler for a Hub method
    * @param {string} methodName - The method name
@@ -66,7 +73,7 @@ class DextHubConnection {
     }
     return this;
   }
-
+  
   /**
    * Starts the Hub connection
    * @returns {Promise<void>}
@@ -75,47 +82,67 @@ class DextHubConnection {
     if (this.state === 'connected') {
       return;
     }
-
+    
     this.state = 'connecting';
-
+    // Clear the previous transport: a reconnect that finds no usable transport
+    // must fail closed instead of reporting 'connected' on a stale value.
+    this.transport = null;
+    
     try {
       // Step 1: Negotiate
       const negotiateResponse = await this._negotiate();
       this.connectionId = negotiateResponse.connectionId;
-
-      // Step 2: Connect transport
-      if (this.options.transport === 'serverSentEvents') {
-        await this._connectSSE();
-      } else {
-        await this._connectLongPolling();
+      
+      // Step 2: Connect the best advertised transport, with a real fallback.
+      const transports = this._getTransportCandidates(negotiateResponse);
+      let lastError = null;
+      for (const transport of transports) {
+        try {
+          if (transport === 'webSockets') {
+            await this._connectWebSocket();
+          } else if (transport === 'serverSentEvents') {
+            await this._connectSSE();
+          }
+          this.transport = transport;
+          lastError = null;
+          break;
+        } catch (error) {
+          lastError = error;
+          this._cleanupTransport();
+        }
       }
 
+      if (lastError || !this.transport) {
+        throw lastError || new Error('No compatible Hub transport is available');
+      }
+      
       this.state = 'connected';
       this._triggerHandlers('connected', { connectionId: this.connectionId });
-
+      
     } catch (error) {
       this.state = 'disconnected';
       throw error;
     }
   }
-
+  
   /**
    * Stops the Hub connection
    * @returns {Promise<void>}
    */
   async stop() {
-    this._stopPolling();
+    this._cleanupTransport();
 
-    if (this.eventSource) {
-      this.eventSource.close();
-      this.eventSource = null;
+    for (const pending of this.pendingInvocations.values()) {
+      pending.reject(new Error('Hub connection stopped'));
     }
-
+    this.pendingInvocations.clear();
+    
     this.state = 'disconnected';
     this.connectionId = null;
+    this.transport = null;
     this._triggerHandlers('disconnected', {});
   }
-
+  
   /**
    * Invokes a Hub method on the server
    * @param {string} methodName - The method to invoke
@@ -126,32 +153,45 @@ class DextHubConnection {
     if (this.state !== 'connected') {
       throw new Error('Cannot invoke: not connected');
     }
-
+    
     const invocationId = String(++this.invocationId);
-
+    
     const request = {
       type: 1, // Invocation
       invocationId: invocationId,
       target: methodName,
       arguments: args
     };
-
+    
+    if (this.transport === 'webSockets' && this.socket) {
+      return new Promise((resolve, reject) => {
+        this.pendingInvocations.set(invocationId, { resolve, reject });
+        try {
+          this.socket.send(JSON.stringify(request) + '\x1e');
+        } catch (error) {
+          this.pendingInvocations.delete(invocationId);
+          reject(error);
+        }
+      });
+    }
+    
     return new Promise(async (resolve, reject) => {
       this.pendingInvocations.set(invocationId, { resolve, reject });
-
+      
       try {
         const response = await fetch(`${this.hubUrl}?id=${this.connectionId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
+          credentials: this.options.withCredentials ? 'same-origin' : 'omit',
           body: JSON.stringify(request)
         });
-
+        
         const result = await response.json();
-
+        
         this.pendingInvocations.delete(invocationId);
-
+        
         if (result.error) {
           reject(new Error(result.error));
         } else {
@@ -163,7 +203,7 @@ class DextHubConnection {
       }
     });
   }
-
+  
   /**
    * Sends a message without waiting for result
    * @param {string} methodName - The method to invoke
@@ -173,22 +213,27 @@ class DextHubConnection {
     if (this.state !== 'connected') {
       throw new Error('Cannot send: not connected');
     }
-
+    
     const request = {
       type: 1, // Invocation
       target: methodName,
       arguments: args
     };
-
-    await fetch(`${this.hubUrl}?id=${this.connectionId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(request)
-    });
+    
+    if (this.transport === 'webSockets' && this.socket) {
+      this.socket.send(JSON.stringify(request) + '\x1e');
+    } else {
+      await fetch(`${this.hubUrl}?id=${this.connectionId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: this.options.withCredentials ? 'same-origin' : 'omit',
+        body: JSON.stringify(request)
+      });
+    }
   }
-
+  
   /**
    * Negotiate connection
    * @private
@@ -198,77 +243,168 @@ class DextHubConnection {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      credentials: this.options.withCredentials ? 'same-origin' : 'omit'
     });
-
+    
     if (!response.ok) {
       throw new Error(`Negotiate failed: ${response.status}`);
     }
-
+    
     return await response.json();
   }
 
   /**
-   * Connect using polling (SSE doesn't flush properly with Indy)
+   * Returns client/server compatible transports in connection priority order.
+   * @private
+   */
+  _getTransportCandidates(negotiateResponse) {
+    const advertised = new Set(
+      (negotiateResponse.availableTransports || []).map(item => item.transport)
+    );
+    const supported = [];
+    if (advertised.has('WebSockets') && typeof WebSocket !== 'undefined') {
+      supported.push('webSockets');
+    }
+    if (advertised.has('ServerSentEvents') && typeof EventSource !== 'undefined') {
+      supported.push('serverSentEvents');
+    }
+
+    const requested = String(this.options.transport || 'auto').toLowerCase();
+    if (requested === 'auto') {
+      return supported;
+    }
+
+    const normalized = requested === 'websockets'
+      ? 'webSockets'
+      : requested === 'serversentevents'
+        ? 'serverSentEvents'
+        : null;
+    if (!normalized) {
+      throw new Error(`Unsupported Hub transport: ${this.options.transport}`);
+    }
+
+    const selected = supported.filter(item => item === normalized);
+    if (this.options.fallback && normalized === 'webSockets') {
+      selected.push(...supported.filter(item => item !== normalized));
+    }
+    return selected;
+  }
+
+  /** @private */
+  _cleanupTransport() {
+    if (this.socket) {
+      this.socket.onopen = null;
+      this.socket.onerror = null;
+      this.socket.onclose = null;
+      this.socket.onmessage = null;
+      this.socket.close();
+      this.socket = null;
+    }
+    if (this.eventSource) {
+      this.eventSource.onopen = null;
+      this.eventSource.onerror = null;
+      this.eventSource.onmessage = null;
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+  }
+  
+  /**
+   * Connect using Server-Sent Events
    * @private
    */
   async _connectSSE() {
-    // Use polling instead of SSE - more reliable with Indy HTTP server
-    this._startPolling();
-    return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const url = `${this.hubUrl}?id=${this.connectionId}`;
+      let settled = false;
+      this.eventSource = new EventSource(url, {
+        withCredentials: this.options.withCredentials
+      });
+      
+      this.eventSource.onopen = () => {
+        settled = true;
+        resolve();
+      };
+      
+      this.eventSource.onerror = (event) => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('SSE connection failed'));
+        } else if (this.options.reconnect && this.state === 'connected') {
+          this._handleReconnect();
+        }
+      };
+      
+      // Handle default message event (Hub invocations)
+      this.eventSource.onmessage = (event) => {
+        this._handleMessage(event.data);
+      };
+    });
   }
-
+  
   /**
-   * Start polling for messages
+   * Connect using WebSockets
    * @private
    */
-  _startPolling() {
-    if (this._pollingInterval) {
-      clearInterval(this._pollingInterval);
-    }
-
-    this._pollingInterval = setInterval(async () => {
-      if (this.state !== 'connected') {
-        clearInterval(this._pollingInterval);
-        return;
+  async _connectWebSocket() {
+    return new Promise((resolve, reject) => {
+      let wsUrl;
+      let settled = false;
+      if (this.hubUrl.startsWith('http://') || this.hubUrl.startsWith('https://')) {
+        wsUrl = this.hubUrl.replace(/^http/, 'ws');
+      } else {
+        const loc = window.location;
+        const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = loc.host;
+        const path = this.hubUrl.startsWith('/') ? this.hubUrl : '/' + this.hubUrl;
+        wsUrl = `${protocol}//${host}${path}`;
       }
-
-      try {
-        const response = await fetch(`${this.hubUrl}/poll?id=${this.connectionId}`);
-        if (response.ok) {
-          const messages = await response.json();
-          if (Array.isArray(messages)) {
-            for (const msg of messages) {
-              this._handleMessage(msg);
-            }
+      
+      wsUrl += `?id=${this.connectionId}`;
+      
+      this.socket = new WebSocket(wsUrl);
+      
+      this.socket.onopen = () => {
+        settled = true;
+        resolve();
+      };
+      
+      this.socket.onerror = (error) => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('WebSocket connection failed'));
+        } else if (this.options.reconnect && this.state === 'connected') {
+          this._handleReconnect();
+        }
+      };
+      
+      this.socket.onclose = () => {
+        if (!settled) {
+          settled = true;
+          reject(new Error('WebSocket connection closed before opening'));
+          return;
+        }
+        if (this.state === 'connected') {
+          if (this.options.reconnect) {
+            this._handleReconnect();
+          } else {
+            this.stop();
           }
         }
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 500);
+      };
+      
+      this.socket.onmessage = (event) => {
+        const records = event.data.split('\x1e');
+        for (const record of records) {
+          if (record) {
+            this._handleMessage(record);
+          }
+        }
+      };
+    });
   }
-
-  /**
-   * Stop polling
-   * @private
-   */
-  _stopPolling() {
-    if (this._pollingInterval) {
-      clearInterval(this._pollingInterval);
-      this._pollingInterval = null;
-    }
-  }
-
-  /**
-   * Connect using Long Polling (fallback)
-   * @private
-   */
-  async _connectLongPolling() {
-    this._startPolling();
-    return Promise.resolve();
-  }
-
+  
   /**
    * Handle incoming message
    * @private
@@ -278,9 +414,9 @@ class DextHubConnection {
       // Remove record separator if present
       const cleanData = data.replace(/\x1e$/, '');
       if (!cleanData) return;
-
+      
       const message = JSON.parse(cleanData);
-
+      
       switch (message.type) {
         case 1: // Invocation
           this._handleInvocation(message);
@@ -299,7 +435,7 @@ class DextHubConnection {
       console.error('Error handling message:', error, data);
     }
   }
-
+  
   /**
    * Handle Hub method invocation from server
    * @private
@@ -308,7 +444,7 @@ class DextHubConnection {
     const { target, arguments: args } = message;
     this._triggerHandlers(target, ...(args || []));
   }
-
+  
   /**
    * Handle completion message
    * @private
@@ -324,42 +460,43 @@ class DextHubConnection {
       }
     }
   }
-
+  
   /**
    * Handle close message
    * @private
    */
   _handleClose(message) {
-    console.log('Hub connection closed:', message.error || 'No error');
     this.stop();
   }
-
+  
   /**
    * Handle reconnection
    * @private
    */
   async _handleReconnect() {
     if (this.state === 'reconnecting') return;
-
+    
     this.state = 'reconnecting';
-    console.log('Attempting to reconnect...');
-
+    if (this.socket) {
+      this.socket.close();
+      this.socket = null;
+    }
+    
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
     }
-
+    
     setTimeout(async () => {
       try {
         await this.start();
-        console.log('Reconnected successfully');
       } catch (error) {
         console.error('Reconnection failed:', error);
         this._handleReconnect(); // Try again
       }
     }, this.options.reconnectDelay);
   }
-
+  
   /**
    * Trigger handlers for a method
    * @private
@@ -376,7 +513,7 @@ class DextHubConnection {
       });
     }
   }
-
+  
   /**
    * Gets the current connection state
    */
