@@ -20,7 +20,8 @@ uses
   Dext.Web.Hubs.Context,
   Dext.Web.Hubs.Protocol.Json,
   Dext.Web.Hubs.Protocol.MessagePack,
-  Dext.Web.Hubs.Client.Tests;
+  Dext.Web.Hubs.Client.Tests,
+  Dext.Web.Hubs.Middleware.Tests;
 
 var
   TestsPassed: Integer = 0;
@@ -652,6 +653,9 @@ begin
     TestProtocolMultipleArguments;
     TestProtocolWithInvocationId;
     
+    // Hub middleware tests (engines without an upgradable connection)
+    RunMiddlewareTests(TestsPassed, TestsFailed);
+
     // Delphi Hub Client Tests
     RunClientTests(TestsPassed, TestsFailed);
     

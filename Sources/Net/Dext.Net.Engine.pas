@@ -28,7 +28,8 @@ interface
 uses
   System.Classes,
   System.SysUtils,
-  System.Generics.Collections;
+  System.Generics.Collections,
+  Dext.Net.Download;
 
 type
   TDextNetHeader = record
@@ -43,7 +44,8 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   System.Net.URLClient,
-  System.Net.HttpClient;
+  System.Net.HttpClient,
+  Dext.Net.Download;
 
 type
   TDextNetHeader = System.Net.URLClient.TNetHeader;
@@ -66,6 +68,26 @@ type
     procedure SetResponseTimeout(AMilliseconds: Integer);
     procedure SetIgnoreCertificateErrors(AValue: Boolean);
     function Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
+    /// <summary>
+    ///   Same as Execute, but the response body is written straight into
+    ///   ATarget as it arrives instead of being buffered in memory.
+    /// </summary>
+    /// <param name="ATarget">
+    ///   Destination for the body. Its current position is honoured, so a
+    ///   resumed download appends instead of overwriting.
+    /// </param>
+    /// <param name="AProgress">
+    ///   Called once per received chunk on the calling thread. Setting AAbort
+    ///   stops the transfer and raises EOperationCancelled.
+    /// </param>
+    /// <returns>
+    ///   A response whose ContentStream is nil on success -- the body went to
+    ///   ATarget -- and holds the (bounded) error payload when the status is
+    ///   400 or above. An error body never reaches ATarget.
+    /// </returns>
+    function ExecuteInto(const AMethod, AUrl: string; const ABody: TStream;
+      const AHeaders: TDextNetHeaders; const ATarget: TStream;
+      const AProgress: TDextReceiveProgress = nil): IDextHttpResponse;
   end;
 
 function CreateHttpEngine: IDextHttpEngine;
@@ -76,7 +98,9 @@ implementation
 uses
   IdHTTP,
   IdSSLOpenSSL,
-  IdSSL;
+  IdSSL,
+  IdComponent,
+  IdHeaderList;
 {$ENDIF}
 
 {$IF defined(DEXT_FORCE_INDY) or (CompilerVersion < 29.0)}
@@ -171,11 +195,30 @@ end;
 
 {$IF defined(DEXT_FORCE_INDY) or (CompilerVersion < 29.0)}
 type
+  /// <summary>
+  ///   Reaches TIdCustomHTTP.DoRequest, which is protected and has no public
+  ///   equivalent for an arbitrary verb (PATCH, QUERY, ...).
+  /// </summary>
+  TIdHTTPAccess = class(TIdHTTP);
+
   TDextIndyHttpEngine = class(TInterfacedObject, IDextHttpEngine)
   private
     FIdHttp: TIdHTTP;
     FIgnoreCertErrors: Boolean;
-    function VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
+    /// Streaming state, valid only while one ExecuteInto call is running. The
+    /// engine is lent out by a pool to one caller at a time, so fields are
+    /// enough -- but they must be cleared before it goes back to the pool.
+    FGate: TDextDownloadGate;
+    FProgress: TDextReceiveProgress;
+    FProgressMax: Int64;
+    FAborted: Boolean;
+    function VerifyPeer(ACertificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
+    procedure PrepareRequest(const AUrl: string; const AHeaders: TDextNetHeaders);
+    function CollectResponseHeaders: TDextNetHeaders;
+    procedure Perform(const AMethod, AUrl: string; const ABody, ATarget: TStream);
+    procedure HandleHeadersAvailable(Sender: TObject; AHeaders: TIdHeaderList; var VContinue: Boolean);
+    procedure HandleWorkBegin(ASender: TObject; AWorkMode: TWorkMode; AWorkCountMax: Int64);
+    procedure HandleWork(ASender: TObject; AWorkMode: TWorkMode; AWorkCount: Int64);
   public
     constructor Create;
     destructor Destroy; override;
@@ -184,6 +227,9 @@ type
     procedure SetResponseTimeout(AMilliseconds: Integer);
     procedure SetIgnoreCertificateErrors(AValue: Boolean);
     function Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
+    function ExecuteInto(const AMethod, AUrl: string; const ABody: TStream;
+      const AHeaders: TDextNetHeaders; const ATarget: TStream;
+      const AProgress: TDextReceiveProgress = nil): IDextHttpResponse;
   end;
 
 { TDextIndyHttpEngine }
@@ -222,19 +268,15 @@ begin
   FIgnoreCertErrors := AValue;
 end;
 
-function TDextIndyHttpEngine.VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
+function TDextIndyHttpEngine.VerifyPeer(ACertificate: TIdX509; AOk: Boolean;
+  ADepth, AError: Integer): Boolean;
 begin
   Result := True;
 end;
 
-function TDextIndyHttpEngine.Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
+procedure TDextIndyHttpEngine.PrepareRequest(const AUrl: string; const AHeaders: TDextNetHeaders);
 var
-  Header: TDextNetHeader;
-  HeadersList: TList<TDextNetHeader>;
   i: Integer;
-  Line: string;
-  Pos: Integer;
-  ResponseStream: TMemoryStream;
   SSLIOHandler: TIdSSLIOHandlerSocketOpenSSL;
 begin
   FIdHttp.Request.CustomHeaders.Clear;
@@ -262,55 +304,179 @@ begin
       FIdHttp.IOHandler := SSLIOHandler;
     end;
   end;
+end;
+
+function TDextIndyHttpEngine.CollectResponseHeaders: TDextNetHeaders;
+var
+  HeadersList: TList<TDextNetHeader>;
+  i, Pos: Integer;
+  Line: string;
+begin
+  HeadersList := TList<TDextNetHeader>.Create;
+  try
+    for i := 0 to FIdHttp.Response.RawHeaders.Count - 1 do
+    begin
+      Line := FIdHttp.Response.RawHeaders[i];
+      Pos := Line.IndexOf(':');
+      if Pos > 0 then
+        HeadersList.Add(TDextNetHeader.Create(
+          Line.Substring(0, Pos).Trim,
+          Line.Substring(Pos + 1).Trim
+        ));
+    end;
+    Result := HeadersList.ToArray;
+  finally
+    HeadersList.Free;
+  end;
+end;
+
+procedure TDextIndyHttpEngine.Perform(const AMethod, AUrl: string; const ABody, ATarget: TStream);
+begin
+  if SameText(AMethod, 'GET') then
+    FIdHttp.Get(AUrl, ATarget)
+  else if SameText(AMethod, 'POST') then
+    FIdHttp.Post(AUrl, ABody, ATarget)
+  else if SameText(AMethod, 'PUT') then
+    FIdHttp.Put(AUrl, ABody, ATarget)
+  else if SameText(AMethod, 'DELETE') then
+    FIdHttp.Delete(AUrl, ATarget)
+  else
+    TIdHTTPAccess(FIdHttp).DoRequest(AMethod, AUrl, ABody, ATarget, []);
+end;
+
+procedure TDextIndyHttpEngine.HandleHeadersAvailable(Sender: TObject;
+  AHeaders: TIdHeaderList; var VContinue: Boolean);
+begin
+  VContinue := True;
+  // The headers are in, so the status is known: this is the moment we learn
+  // whether the bytes about to arrive belong in the caller's stream or in the
+  // error buffer.
+  if (FGate <> nil) and (FIdHttp.ResponseCode < 300) then
+    FGate.Open;
+end;
+
+procedure TDextIndyHttpEngine.HandleWorkBegin(ASender: TObject; AWorkMode: TWorkMode;
+  AWorkCountMax: Int64);
+begin
+  if AWorkMode = wmRead then
+    // Zero when the server sent no Content-Length (chunked): the callback
+    // contract is that a zero total means "unknown".
+    FProgressMax := AWorkCountMax;
+end;
+
+procedure TDextIndyHttpEngine.HandleWork(ASender: TObject; AWorkMode: TWorkMode;
+  AWorkCount: Int64);
+var
+  Abort: Boolean;
+begin
+  if (AWorkMode <> wmRead) or not Assigned(FProgress) then
+    Exit;
+  // An error page is not progress, and Indy reports it through this same event.
+  if (FGate <> nil) and not FGate.IsOpen then
+    Exit;
+  Abort := False;
+  FProgress(FProgressMax, AWorkCount, Abort);
+  if Abort then
+  begin
+    FAborted := True;
+    // Indy has no "stop reading" flag: dropping the socket is the way out. It
+    // surfaces as a read failure, which ExecuteInto turns back into a cancel.
+    FIdHttp.Disconnect(False);
+  end;
+end;
+
+function TDextIndyHttpEngine.Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
+var
+  ResponseStream: TMemoryStream;
+begin
+  PrepareRequest(AUrl, AHeaders);
 
   ResponseStream := TMemoryStream.Create;
   try
+    Perform(AMethod, AUrl, ABody, ResponseStream);
+  except
+    ResponseStream.Free;
+    raise;
+  end;
+
+  try
+    // The response ADOPTS the stream (no copy, and we must not free it here).
+    Result := TDextHttpResponseImpl.Create(
+      FIdHttp.ResponseCode,
+      FIdHttp.ResponseText,
+      ResponseStream,
+      CollectResponseHeaders,
+      True { AOwnsStream }
+    );
+  except
+    ResponseStream.Free;
+    raise;
+  end;
+end;
+
+function TDextIndyHttpEngine.ExecuteInto(const AMethod, AUrl: string; const ABody: TStream;
+  const AHeaders: TDextNetHeaders; const ATarget: TStream;
+  const AProgress: TDextReceiveProgress): IDextHttpResponse;
+var
+  Gate: TDextDownloadGate;
+  SavedOptions: TIdHTTPOptions;
+  ErrorStream: TBytesStream;
+begin
+  Gate := TDextDownloadGate.Create(ATarget);
+  try
+    PrepareRequest(AUrl, AHeaders);
+    // Indy decompresses from a temporary buffer rather than as it reads, so a
+    // compressed body would defeat the point of streaming. Ask for the bytes
+    // as they are.
+    if FIdHttp.Request.AcceptEncoding = '' then
+      FIdHttp.Request.AcceptEncoding := 'identity';
+
+    FGate := Gate;
+    FProgress := AProgress;
+    FProgressMax := 0;
+    FAborted := False;
+    SavedOptions := FIdHttp.HTTPOptions;
+    // Let an error status come back as a response instead of an exception, so
+    // the caller can read what the server said. The payload is in the gate,
+    // never in ATarget.
+    FIdHttp.HTTPOptions := SavedOptions + [hoNoProtocolErrorException, hoWantProtocolErrorContent];
+    FIdHttp.OnHeadersAvailable := HandleHeadersAvailable;
+    FIdHttp.OnWorkBegin := HandleWorkBegin;
+    FIdHttp.OnWork := HandleWork;
     try
-      if SameText(AMethod, 'GET') then
-        FIdHttp.Get(AUrl, ResponseStream)
-      else if SameText(AMethod, 'POST') then
-        FIdHttp.Post(AUrl, ABody, ResponseStream)
-      else if SameText(AMethod, 'PUT') then
-        FIdHttp.Put(AUrl, ABody, ResponseStream)
-      else if SameText(AMethod, 'DELETE') then
-        FIdHttp.Delete(AUrl, ResponseStream)
-      else
-        FIdHttp.DoRequest(AMethod, AUrl, ABody, ResponseStream, []);
-    except
-      on E: Exception do
-      begin
-        ResponseStream.Free;
+      try
+        Perform(AMethod, AUrl, ABody, Gate);
+      except
+        if FAborted then
+          raise EOperationCancelled.Create('Download cancelled by the progress callback');
         raise;
       end;
+    finally
+      FIdHttp.OnHeadersAvailable := nil;
+      FIdHttp.OnWorkBegin := nil;
+      FIdHttp.OnWork := nil;
+      FIdHttp.HTTPOptions := SavedOptions;
+      FGate := nil;
+      FProgress := nil;
     end;
 
-    HeadersList := TList<TDextNetHeader>.Create;
-    try
-      for i := 0 to FIdHttp.Response.RawHeaders.Count - 1 do
-      begin
-        Line := FIdHttp.Response.RawHeaders[i];
-        Pos := Line.IndexOf(':');
-        if Pos > 0 then
-          HeadersList.Add(TDextNetHeader.Create(
-            Line.Substring(0, Pos).Trim,
-            Line.Substring(Pos + 1).Trim
-          ));
-      end;
-      // The response ADOPTS the stream (no copy, and we must not free it here).
-      Result := TDextHttpResponseImpl.Create(
-        FIdHttp.ResponseCode,
-        FIdHttp.ResponseText,
-        ResponseStream,
-        HeadersList.ToArray,
-        True { AOwnsStream }
-      );
-      ResponseStream := nil; // ownership transferred
-    finally
-      HeadersList.Free;
-      ResponseStream.Free; // only reached if the line above never ran
+    if FAborted then
+      raise EOperationCancelled.Create('Download cancelled by the progress callback');
+    // A success with an empty body never opens the gate on its own.
+    if FIdHttp.ResponseCode < 400 then
+      Gate.Open;
+
+    if Gate.IsOpen then
+      Result := TDextHttpResponseImpl.Create(FIdHttp.ResponseCode, FIdHttp.ResponseText,
+        nil, CollectResponseHeaders, False { AOwnsStream })
+    else
+    begin
+      ErrorStream := TBytesStream.Create(Gate.ErrorBytes);
+      Result := TDextHttpResponseImpl.Create(FIdHttp.ResponseCode, FIdHttp.ResponseText,
+        ErrorStream, CollectResponseHeaders, True { AOwnsStream });
     end;
-  except
-    raise;
+  finally
+    Gate.Free;
   end;
 end;
 
@@ -330,6 +496,9 @@ type
     procedure SetResponseTimeout(AMilliseconds: Integer);
     procedure SetIgnoreCertificateErrors(AValue: Boolean);
     function Execute(const AMethod, AUrl: string; const ABody: TStream; const AHeaders: TDextNetHeaders): IDextHttpResponse;
+    function ExecuteInto(const AMethod, AUrl: string; const ABody: TStream;
+      const AHeaders: TDextNetHeaders; const ATarget: TStream;
+      const AProgress: TDextReceiveProgress = nil): IDextHttpResponse;
   end;
 
 { TDextNetHttpEngine }
@@ -398,6 +567,80 @@ begin
     );
   finally
     NetHeadersList.Free;
+  end;
+end;
+
+function TDextNetHttpEngine.ExecuteInto(const AMethod, AUrl: string; const ABody: TStream;
+  const AHeaders: TDextNetHeaders; const ATarget: TStream;
+  const AProgress: TDextReceiveProgress): IDextHttpResponse;
+var
+  i: Integer;
+  LRequest: IHTTPRequest;
+  LResponse: IHTTPResponse;
+  Gate: TDextDownloadGate;
+  Aborted: Boolean;
+  ErrorStream: TBytesStream;
+  SavedDecompression: THTTPCompressionMethods;
+begin
+  Gate := TDextDownloadGate.Create(ATarget);
+  SavedDecompression := FClient.AutomaticDecompression;
+  try
+    Aborted := False;
+    // Decompression ON THE FLY -- which is the whole point here. With the body
+    // going straight into the caller's stream there is no later stage left to
+    // decode it, so a gzipped response would land on disk still gzipped. The RTL
+    // decodes as it reads and negotiates Accept-Encoding by itself. Saved and
+    // restored because engines come from a shared pool.
+    FClient.AutomaticDecompression := [THTTPCompressionMethod.GZip,
+      THTTPCompressionMethod.Deflate];
+    LRequest := FClient.GetRequest(AMethod, TURI.Create(AUrl));
+    for i := 0 to High(AHeaders) do
+      LRequest.AddHeader(AHeaders[i].Name, AHeaders[i].Value);
+    if Assigned(ABody) then
+      LRequest.SourceStream := ABody;
+
+    // On the REQUEST, not on the client: engines come from a shared pool, and a
+    // callback left behind on the client would fire for the next borrower.
+    LRequest.ReceiveDataCallback :=
+      procedure(const Sender: TObject; AContentLength, AReadCount: Int64; var AAbort: Boolean)
+      begin
+        // The RTL raises this only below status 300, so the first call is proof
+        // that these bytes belong in the caller's stream.
+        Gate.Open;
+        if Assigned(AProgress) then
+          AProgress(AContentLength, AReadCount, AAbort);
+        if AAbort then
+          Aborted := True;
+      end;
+
+    try
+      LResponse := FClient.Execute(LRequest, Gate);
+    except
+      // An abort surfaces as a socket or protocol failure. Say what it was.
+      if Aborted then
+        raise EOperationCancelled.Create('Download cancelled by the progress callback');
+      raise;
+    end;
+
+    if Aborted then
+      raise EOperationCancelled.Create('Download cancelled by the progress callback');
+    // A success with an empty body never fires the callback, so "no bytes" must
+    // not be mistaken for an error payload.
+    if LResponse.StatusCode < 400 then
+      Gate.Open;
+
+    if Gate.IsOpen then
+      Result := TDextHttpResponseImpl.Create(LResponse.StatusCode, LResponse.StatusText,
+        nil, LResponse.Headers, False { AOwnsStream })
+    else
+    begin
+      ErrorStream := TBytesStream.Create(Gate.ErrorBytes);
+      Result := TDextHttpResponseImpl.Create(LResponse.StatusCode, LResponse.StatusText,
+        ErrorStream, LResponse.Headers, True { AOwnsStream });
+    end;
+  finally
+    FClient.AutomaticDecompression := SavedDecompression;
+    Gate.Free;
   end;
 end;
 

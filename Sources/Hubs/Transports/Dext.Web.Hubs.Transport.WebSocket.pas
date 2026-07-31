@@ -523,6 +523,7 @@ var
   Frame: TWebSocketFrame;
   BytesConsumed: Integer;
   KeepAliveTimer: TDateTime;
+  ServerConnection: IDextServerConnection;
   DecodeResult: TWebSocketDecodeResult;
   NewCapacity: Integer;
   AsyncConnection: IDextAsyncWebSocketConnection;
@@ -532,7 +533,15 @@ const
   INITIAL_BUFFER_SIZE = 8 * 1024;
   MAX_MESSAGE_SIZE = 16 * 1024 * 1024;
 begin
-  WSConn := AContext.Connection.UpgradeToWebSocket;
+  // Engines without a raw server connection (Indy, DCS, WebBroker) return nil.
+  ServerConnection := AContext.Connection;
+  if ServerConnection = nil then
+  begin
+    AConnectionId := '';
+    Exit;
+  end;
+
+  WSConn := ServerConnection.UpgradeToWebSocket;
   if WSConn = nil then
   begin
     AConnectionId := '';
@@ -998,7 +1007,11 @@ begin
 end;
 
 initialization
+{$IF CompilerVersion >= 35.0}
   GStrictUtf8 := TUTF8Encoding.Create(False);
+{$ELSE}
+  GStrictUtf8 := TUTF8Encoding.Create;
+{$IFEND}
 
 finalization
   GStrictUtf8.Free;

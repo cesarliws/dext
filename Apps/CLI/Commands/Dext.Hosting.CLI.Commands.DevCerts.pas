@@ -460,6 +460,11 @@ var
   hMemStore: HCERTSTORE;
   PfxBlob: CRYPT_OBJID_BLOB;
   PfxBytes: TBytes;
+  SigAlg: CRYPT_ALGORITHM_IDENTIFIER;
+  HashBytes: array[0..19] of Byte;
+  HashLen: DWORD;
+  ThumbprintStr: string;
+  I: Integer;
 begin
   Result := False;
   KeyFilePath := ChangeFileExt(CertFilePath, '.key');
@@ -505,7 +510,6 @@ begin
     KeyProvInfo.dwKeySpec := 1; {AT_KEYEXCHANGE}
 
     // Prepara Algoritmo de Assinatura SHA-256 (exigido por Chrome, Edge, Firefox)
-    var SigAlg: CRYPT_ALGORITHM_IDENTIFIER;
     FillChar(SigAlg, SizeOf(SigAlg), 0);
     SigAlg.pszObjId := PAnsiChar('1.2.840.113549.1.1.11'); {szOID_RSA_SHA256RSA}
 
@@ -536,7 +540,7 @@ begin
       CertSetCertificateContextProperty(CertContext, 2 {CERT_KEY_PROV_INFO_PROP_ID}, 0, @KeyProvInfo);
 
       // 5. Grava o Certificado (.crt) em formato PEM de forma 100% síncrona
-      Base64Cert := TNetEncoding.Base64String.EncodeBytesToString(CertContext.pbCertEncoded, CertContext.cbCertEncoded);
+      Base64Cert := TNetEncoding.Base64.EncodeBytesToString(CertContext.pbCertEncoded, CertContext.cbCertEncoded);
       PemCertContent := '-----BEGIN CERTIFICATE-----' + sLineBreak +
                         Base64Cert + sLineBreak +
                         '-----END CERTIFICATE-----' + sLineBreak;
@@ -551,7 +555,7 @@ begin
         if CryptExportKey(hKey, 0, 7, 0, @KeyBlob[0], @KeyBlobLen) then
         begin
           Pkcs1Bytes := BuildRSAPrivateKeyPKCS1(KeyBlob);
-          Base64Key := TNetEncoding.Base64String.EncodeBytesToString(@Pkcs1Bytes[0], Length(Pkcs1Bytes));
+          Base64Key := TNetEncoding.Base64.EncodeBytesToString(@Pkcs1Bytes[0], Length(Pkcs1Bytes));
           PemKeyContent := '-----BEGIN RSA PRIVATE KEY-----' + sLineBreak +
                            Base64Key + sLineBreak +
                            '-----END RSA PRIVATE KEY-----' + sLineBreak;
@@ -608,14 +612,13 @@ begin
 
         // Provisioning is explicit because changing http.sys bindings requires
         // administrative ownership outside normal application startup.
-        var HashBytes: array[0..19] of Byte;
-        var HashLen: DWORD := SizeOf(HashBytes);
+        HashLen := SizeOf(HashBytes);
         if (BindingMode <> '') and
            CertGetCertificateContextProperty(CertContext,
              3 {CERT_SHA1_HASH_PROP_ID}, @HashBytes[0], @HashLen) then
         begin
-          var ThumbprintStr: string := '';
-          for var I: Integer := 0 to 19 do
+          ThumbprintStr := '';
+          for I := 0 to 19 do
             ThumbprintStr := ThumbprintStr + IntToHex(HashBytes[I], 2);
 
           if SameText(BindingMode, 'update') then

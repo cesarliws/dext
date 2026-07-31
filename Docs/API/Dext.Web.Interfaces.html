@@ -222,6 +222,7 @@
 <a href="Dext.MultiTenancy.html" class="nav-item">Dext.MultiTenancy</a>
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
+<a href="Dext.Net.Download.html" class="nav-item">Dext.Net.Download</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
@@ -896,7 +897,7 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-item">
 <div class="api-signature">procedure SetRouteParams(const const: TRouteValueDictionary)</div><div class="description">Injects the route parameters resolved by the router into the request.</div></div>
 <div class="api-item">
-<div class="api-signature">property Connection: </div><div class="description">Access to the underlying network connection.</div></div>
+<div class="api-signature">property Connection: </div><div class="description">Access to the underlying network connection. Can be nil: engines that do not expose a raw server connection (Indy, DCS, WebBroker) return nil, and so does the test double TMockHttpContext. Always check the result before dereferencing it.</div></div>
 <div class="api-item">
 <div class="api-signature">property Request: </div><div class="description">Access to the incoming request data.</div></div>
 <div class="api-item">

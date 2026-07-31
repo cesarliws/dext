@@ -54,6 +54,27 @@ type
     constructor Create(AClient: TRestClient; AMethod: TDextHttpMethod; const AEndpoint: string);
     function GetFullUrl: string;
 
+    // === Streaming download (S58) ===
+    /// <summary>
+    ///   Esegue la richiesta scrivendo il corpo della risposta DIRETTAMENTE in
+    ///   AResponseStream, mano a mano che arriva.
+    /// </summary>
+    /// <remarks>
+    ///   Andata bene, la risposta non ha corpo: `ContentStream` e' nil e
+    ///   `ContentString` e' vuota -- i byte sono nello stream del chiamante. Su
+    ///   uno stato di errore (>= 400) il corpo c'e' ed e' il messaggio del
+    ///   server, mentre lo stream di destinazione resta INTATTO.
+    /// </remarks>
+    function ExecuteInto(const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+    /// <summary>
+    ///   Avanzamento della ricezione per QUESTA richiesta. Se c'e', SOSTITUISCE
+    ///   quello impostato sul client. Gira sul thread di lavoro: una progress-bar
+    ///   VCL/FMX va marshallata.
+    /// </summary>
+    function OnReceive(const AHandler: TRestReceiveEvent): TRestRequest; overload;
+    /// <summary>Variante anonima di OnReceive.</summary>
+    function OnReceive(const AHandler: TRestReceiveAnonEvent): TRestRequest; overload;
+
     // Configuração
     /// <summary>Adds a custom HTTP header to the request.</summary>
     /// <param name="AName">The header name (e.g., 'Authorization').</param>
@@ -175,6 +196,8 @@ type
 
     procedure SetBody(ABody: TStream; AOwns: Boolean);
     procedure SetToken(AToken: ICancellationToken);
+    procedure SetReceiveHandler(const AHandler: TRestReceiveAnonEvent);
+    function GetReceiveHandler: TRestReceiveAnonEvent;
     procedure AddMultipartField(const AName, AValue: string; const AContentType: string = '');
     procedure AddMultipartFile(const AFieldName, AFileName: string; const AData: TBytes;
       const AContentType: string);
@@ -225,6 +248,7 @@ type
     FToken: ICancellationToken;
     FOwnsBody: Boolean;
     FMultipartBuilder: TMultipartFormDataBuilder;
+    FReceiveHandler: TRestReceiveAnonEvent;
   public
     constructor Create(AClient: TRestClient; AMethod: TDextHttpMethod; const AEndpoint: string);
     destructor Destroy; override;
@@ -243,6 +267,8 @@ type
 
     procedure SetBody(ABody: TStream; AOwns: Boolean);
     procedure SetToken(AToken: ICancellationToken);
+    procedure SetReceiveHandler(const AHandler: TRestReceiveAnonEvent);
+    function GetReceiveHandler: TRestReceiveAnonEvent;
     procedure AddMultipartField(const AName, AValue: string; const AContentType: string = '');
     procedure AddMultipartFile(const AFieldName, AFileName: string; const AData: TBytes;
       const AContentType: string);
@@ -393,6 +419,16 @@ end;
 function TRestRequestData.GetMethod: TDextHttpMethod;
 begin
   Result := FMethod;
+end;
+
+procedure TRestRequestData.SetReceiveHandler(const AHandler: TRestReceiveAnonEvent);
+begin
+  FReceiveHandler := AHandler;
+end;
+
+function TRestRequestData.GetReceiveHandler: TRestReceiveAnonEvent;
+begin
+  Result := FReceiveHandler;
 end;
 
 function TRestRequestData.GetOwnsBody: Boolean;
@@ -677,6 +713,62 @@ begin
 
   if Assigned(Data.GetToken) then
     Result := Result.WithCancellation(Data.GetToken);
+end;
+
+function TRestRequest.ExecuteInto(const AResponseStream: TStream): TAsyncBuilder<IRestResponse>;
+var
+  Data: IRestRequestData;
+  Client: TRestClient;
+  Body: TStream;
+  OwnsBody: Boolean;
+begin
+  Data := GetData;
+  Client := Data.GetClient;
+
+  if Data.HasMultipartData then
+  begin
+    Body := Data.BuildMultipartBody;
+    OwnsBody := True;
+    Data.GetHeaders.AddOrSetValue('Content-Type',
+      'multipart/form-data; boundary=' + Data.GetMultipartBoundary);
+  end
+  else
+  begin
+    OwnsBody := Data.GetOwnsBody;
+    if OwnsBody then
+      Body := Data.DetachBody
+    else
+      Body := Data.GetBody;
+  end;
+
+  // Handler di richiesta; se non c'e', ExecuteIntoAsync ricade su quello del client.
+  Result := Client.Instance.ExecuteIntoAsync(Data.GetMethod, GetFullUrl,
+    AResponseStream, Body, OwnsBody, Data.GetHeaders, Data.GetReceiveHandler);
+
+  if Assigned(Data.GetToken) then
+    Result := Result.WithCancellation(Data.GetToken);
+end;
+
+function TRestRequest.OnReceive(const AHandler: TRestReceiveEvent): TRestRequest;
+var
+  Local: TRestReceiveEvent;
+begin
+  Local := AHandler;
+  if Assigned(Local) then
+    GetData.SetReceiveHandler(
+      procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
+      begin
+        Local(AContentLength, AReadCount, AAbort);
+      end)
+  else
+    GetData.SetReceiveHandler(nil);
+  Result := Self;
+end;
+
+function TRestRequest.OnReceive(const AHandler: TRestReceiveAnonEvent): TRestRequest;
+begin
+  GetData.SetReceiveHandler(AHandler);
+  Result := Self;
 end;
 
 function TRestRequest.ExecuteAsString: TAsyncBuilder<string>;

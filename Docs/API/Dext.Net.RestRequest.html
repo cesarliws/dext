@@ -222,6 +222,7 @@
 <a href="Dext.MultiTenancy.html" class="nav-item">Dext.MultiTenancy</a>
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
+<a href="Dext.Net.Download.html" class="nav-item">Dext.Net.Download</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
@@ -403,6 +404,8 @@ classDiagram
 class TRestRequest {    +GetData()
     +Create()
     +GetFullUrl()
+    +ExecuteInto()
+    +OnReceive()
     +Header()
     +QueryParam()
     +QueryParamIfNotEmpty()
@@ -440,6 +443,8 @@ class IRestRequestData {    +GetClient()
     +GetMultipartBoundary()
     +SetBody()
     +SetToken()
+    +SetReceiveHandler()
+    +GetReceiveHandler()
     +AddMultipartField()
     +AddMultipartFile()
     +DetachBody()
@@ -454,6 +459,12 @@ class IRestRequestData {    +GetClient()
 <div class="api-signature">constructor Create(AClient: TRestClient; AMethod: TDextHttpMethod; const const: string)</div></div>
 <div class="api-item">
 <div class="api-signature">function GetFullUrl: string</div></div>
+<div class="api-item">
+<div class="api-signature">function ExecuteInto(const const: TStream): TAsyncBuilder</div><div class="description">Esegue la richiesta scrivendo il corpo della risposta DIRETTAMENTE in AResponseStream, mano a mano che arriva.</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveEvent): TRestRequest</div><div class="description">Avanzamento della ricezione per QUESTA richiesta. Se c'e', SOSTITUISCE quello impostato sul client. Gira sul thread di lavoro: una progress-bar VCL/FMX va marshallata.</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveAnonEvent): TRestRequest</div><div class="description">Variante anonima di OnReceive.</div></div>
 <div class="api-item">
 <div class="api-signature">function Header(const const: string; const const: string): TRestRequest</div><div class="description">Adds a custom HTTP header to the request.</div></div>
 <div class="api-item">
@@ -549,6 +560,10 @@ class IRestRequestData {    +GetClient()
 <div class="api-signature">procedure SetBody(ABody: TStream; AOwns: Boolean)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetToken(AToken: ICancellationToken)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetReceiveHandler(const const: TRestReceiveAnonEvent)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetReceiveHandler: TRestReceiveAnonEvent</div></div>
 <div class="api-item">
 <div class="api-signature">procedure AddMultipartField(const const: string; const const: string; const const: string)</div></div>
 <div class="api-item">

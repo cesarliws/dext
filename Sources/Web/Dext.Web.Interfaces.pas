@@ -372,7 +372,12 @@ type
     /// </summary>
     procedure SetRouteParams(const AParams: TRouteValueDictionary);
     
-    /// <summary>Access to the underlying network connection.</summary>
+    /// <summary>
+    ///   Access to the underlying network connection.
+    ///   Can be nil: engines that do not expose a raw server connection
+    ///   (Indy, DCS, WebBroker) return nil, and so does the test double
+    ///   TMockHttpContext. Always check the result before dereferencing it.
+    /// </summary>
     property Connection: IDextServerConnection read GetConnection;
     /// <summary>Access to the incoming request data.</summary>
     property Request: IHttpRequest read GetRequest;

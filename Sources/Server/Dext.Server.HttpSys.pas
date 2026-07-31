@@ -467,6 +467,23 @@ threadvar
   FLocalRequestPool: TList;
   FLocalResponsePool: TList;
 
+/// <summary>Frees the calling thread's lock-free pools.</summary>
+/// <remarks>
+///   These are threadvars, so only the owning thread can release them, and any
+///   thread that touches Acquire/Release creates them lazily. Worker threads do
+///   it when their loop ends -- but so must the thread that calls Start, which
+///   pre-posts the initial receives from there
+///   (PostReceiveRequest(AcquireContext)) and so ends up owning a pool nobody
+///   was freeing. The lists hold pointers to objects the engine owns, so
+///   freeing the list is all that belongs here.
+/// </remarks>
+procedure ReleaseThreadLocalPools;
+begin
+  FreeAndNil(FLocalContextPool);
+  FreeAndNil(FLocalRequestPool);
+  FreeAndNil(FLocalResponsePool);
+end;
+
 { TDextHttpSysContext }
 
 constructor TDextHttpSysContext.Create;
@@ -2646,12 +2663,7 @@ begin
     end;
   end;
   finally
-    FLocalContextPool.Free;
-    FLocalContextPool := nil;
-    FLocalRequestPool.Free;
-    FLocalRequestPool := nil;
-    FLocalResponsePool.Free;
-    FLocalResponsePool := nil;
+    ReleaseThreadLocalPools;
   end;
 end;
 
@@ -3028,6 +3040,10 @@ begin
 
   HttpTerminate(HTTP_INITIALIZE_SERVER, nil);
   FReqQueue := 0;
+
+  // Start pre-posted the first receives from THIS thread, which gave it a pool
+  // of its own. Only this thread can free it.
+  ReleaseThreadLocalPools;
 end;
 
 function TDextHttpSysEngine.GetActiveConnections: Integer;
