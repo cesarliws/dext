@@ -212,6 +212,7 @@ type
 
     // Negotiation
     procedure Negotiate;
+    function BuildTransportQueryParams: TArray<TClientQueryParam>;
     procedure InitializeHandshake;
     procedure StartPingLoop;
     procedure StopPingLoop;
@@ -851,6 +852,29 @@ begin
   Result := FConnectionId;
 end;
 
+/// <summary>
+/// Returns the configured query parameters plus the negotiated connection id,
+/// which the server requires on the transport request. A parameter named 'id'
+/// supplied by the caller wins, so an explicit override still works.
+/// </summary>
+function TDextHubConnection.BuildTransportQueryParams: TArray<TClientQueryParam>;
+var
+  LParam: TClientQueryParam;
+  LIndex: Integer;
+begin
+  Result := FQueryParams;
+  if FConnectionId = '' then
+    Exit;
+
+  for LIndex := 0 to High(Result) do
+    if SameText(Result[LIndex].Name, 'id') then
+      Exit;
+
+  LParam.Name := 'id';
+  LParam.Value := FConnectionId;
+  Result := Result + [LParam];
+end;
+
 procedure TDextHubConnection.Start;
 var
   LId: string;
@@ -873,8 +897,8 @@ begin
     FTransport.SetOnMessage(procedure(Msg: string) begin HandleIncomingMessage(Msg); end);
     FTransport.SetOnClose(procedure(E: Exception) begin HandleDisconnect(E); end);
 
-    // 3. Connect transport
-    FTransport.Connect(FUrl, FHeaders, FQueryParams);
+    // 3. Connect transport, carrying the negotiated connection id
+    FTransport.Connect(FUrl, FHeaders, BuildTransportQueryParams);
 
     FState := csConnected;
 

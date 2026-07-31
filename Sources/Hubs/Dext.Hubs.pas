@@ -28,11 +28,13 @@ type
   // Dext.Web.Hubs
   THubOptions = Dext.Web.Hubs.THubOptions;
   TNegotiateResponse = Dext.Web.Hubs.TNegotiateResponse;
+  HubMethodAttribute = Dext.Web.Hubs.HubMethodAttribute;
   TJsonHubProtocol = Dext.Web.Hubs.TJsonHubProtocol;
   EHubException = Dext.Web.Hubs.EHubException;
   EConnectionNotFoundException = Dext.Web.Hubs.EConnectionNotFoundException;
   EHubMethodNotFoundException = Dext.Web.Hubs.EHubMethodNotFoundException;
   EHubInvocationException = Dext.Web.Hubs.EHubInvocationException;
+  EHubPayloadTooLargeException = Dext.Web.Hubs.EHubPayloadTooLargeException;
 
   // Dext.Web.Hubs.Clients
   TClientProxy = Dext.Web.Hubs.Clients.TClientProxy;
