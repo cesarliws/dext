@@ -46,6 +46,8 @@ contains
   Dext.Net.Udp in '..\..\Sources\Net\Dext.Net.Udp.pas',
   Dext.Net.Mqtt.Parser in '..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas',
   Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas',
-  Dext.Net.Redis in '..\..\Sources\Net\Dext.Net.Redis.pas';
+  Dext.Net.Redis in '..\..\Sources\Net\Dext.Net.Redis.pas',
+  Dext.Net.Security in '..\..\Sources\Net\Dext.Net.Security.pas',
+  Dext.Net.Security.OpenSSL in '..\..\Sources\Net\Dext.Net.Security.OpenSSL.pas';
 
 end.

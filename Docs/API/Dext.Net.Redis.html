@@ -114,6 +114,7 @@
 <a href="Dext.EF.Design.Scaffolding.Preview.html" class="nav-item">Dext.EF.Design.Scaffolding.Preview</a>
 <a href="Dext.Entity.html" class="nav-item">Dext.Entity</a>
 <a href="Dext.Entity.Attributes.html" class="nav-item">Dext.Entity.Attributes</a>
+<a href="Dext.Entity.BatchStrategy.html" class="nav-item">Dext.Entity.BatchStrategy</a>
 <a href="Dext.Entity.Cache.html" class="nav-item">Dext.Entity.Cache</a>
 <a href="Dext.Entity.Collections.html" class="nav-item">Dext.Entity.Collections</a>
 <a href="Dext.Entity.Context.html" class="nav-item">Dext.Entity.Context</a>
@@ -227,6 +228,8 @@
 <a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Security.html" class="nav-item">Dext.Net.Security</a>
+<a href="Dext.Net.Security.OpenSSL.html" class="nav-item">Dext.Net.Security.OpenSSL</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
 <a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
@@ -339,6 +342,7 @@
 <a href="Dext.Web.Hubs.Interfaces.html" class="nav-item">Dext.Web.Hubs.Interfaces</a>
 <a href="Dext.Web.Hubs.Middleware.html" class="nav-item">Dext.Web.Hubs.Middleware</a>
 <a href="Dext.Web.Hubs.Protocol.Json.html" class="nav-item">Dext.Web.Hubs.Protocol.Json</a>
+<a href="Dext.Web.Hubs.Protocol.MessagePack.html" class="nav-item">Dext.Web.Hubs.Protocol.MessagePack</a>
 <a href="Dext.Web.Hubs.Transport.SSE.html" class="nav-item">Dext.Web.Hubs.Transport.SSE</a>
 <a href="Dext.Web.Hubs.Transport.WebSocket.html" class="nav-item">Dext.Web.Hubs.Transport.WebSocket</a>
 <a href="Dext.Web.Hubs.Types.html" class="nav-item">Dext.Web.Hubs.Types</a>
@@ -374,6 +378,7 @@
 <a href="Dext.Web.WebApplication.html" class="nav-item">Dext.Web.WebApplication</a>
 <a href="Dext.Web.WebBroker.html" class="nav-item">Dext.Web.WebBroker</a>
 <a href="Dext.WebHost.html" class="nav-item">Dext.WebHost</a>
+<a href="Dext.WebSocket.Compression.html" class="nav-item">Dext.WebSocket.Compression</a>
 <a href="Dext.WebSocket.Handshake.html" class="nav-item">Dext.WebSocket.Handshake</a>
 <a href="Dext.WebSocket.Protocol.html" class="nav-item">Dext.WebSocket.Protocol</a>
 <a href="Dext.Yaml.html" class="nav-item">Dext.Yaml</a>
@@ -416,7 +421,11 @@ class TDextRedisValue {    +CreateNull()
 }
 class TDextRedisParser {    +TryParse()
 }
-class TDextRedisConnection {    +AppendData()
+class TDextRedisConnection {    +PerformTlsHandshake()
+    +DrainTlsOutput()
+    +FeedTlsInput()
+    +WriteTlsPlaintext()
+    +AppendData()
     +ShiftBuffer()
     +Create()
     +Destroy()
@@ -515,13 +524,15 @@ TObject <|-- TDextRedisClient
 </div>
 <hr>
 <div class="class-header">
-<h3>class TDextRedisConnection</h3><a name="TDextRedisConnection"></a><div class="ancestor">Inherits from: TObject</div><div class="description">High-performance TCP wrapper for Redis socket connections.</div></div>
+<h3>class TDextRedisConnection</h3><a name="TDextRedisConnection"></a><div class="ancestor">Inherits from: TObject</div><div class="description">High-performance TCP wrapper for Redis socket connections with optional SSL/TLS support.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">procedure AppendData(const const: TByteSpan)</div><div class="description">Appends incoming bytes to the connection buffer.</div></div>
 <div class="api-item">
 <div class="api-signature">procedure ShiftBuffer(ACount: Integer)</div><div class="description">Shifts the connection buffer window after consuming bytes.</div></div>
 <div class="api-item">
 <div class="api-signature">constructor Create(const const: string; APort: Word)</div><div class="description">Initializes a connection with host and port details.</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create(const const: string; APort: Word; const const: TDextTLSOptions)</div><div class="description">Initializes a connection with host, port, and TLS configuration.</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Frees connection resources.</div></div>
 <div class="api-item">
@@ -535,11 +546,22 @@ TObject <|-- TDextRedisClient
 <div class="api-item">
 <div class="api-signature">function ExecuteCommandAsync(const const: string; const const: TArray): TAsyncBuilder</div><div class="description">Executes a Redis command asynchronously.</div></div>
 </div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure PerformTlsHandshake</div></div>
+<div class="api-item">
+<div class="api-signature">procedure DrainTlsOutput</div></div>
+<div class="api-item">
+<div class="api-signature">procedure FeedTlsInput</div></div>
+<div class="api-item">
+<div class="api-signature">procedure WriteTlsPlaintext(const const: TBytes)</div></div>
+</div>
 <hr>
 <div class="class-header">
 <h3>class TDextRedisConnectionPool</h3><a name="TDextRedisConnectionPool"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Connection pool manager for TDextRedisConnection instances.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(const const: string; APort: Word; AMaxPoolSize: Integer)</div><div class="description">Initializes a connection pool with size boundaries.</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create(const const: string; APort: Word; const const: TDextTLSOptions; AMaxPoolSize: Integer)</div><div class="description">Initializes a connection pool with TLS options and size boundaries.</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Cleans and destroys the connection pool.</div></div>
 <div class="api-item">
@@ -562,6 +584,8 @@ TObject <|-- TDextRedisClient
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(const const: string; APort: Word)</div><div class="description">Initializes Pub/Sub client connection.</div></div>
 <div class="api-item">
+<div class="api-signature">constructor Create(const const: string; APort: Word; const const: TDextTLSOptions)</div><div class="description">Initializes Pub/Sub client connection with TLS configuration.</div></div>
+<div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Cleans Pub/Sub client connection.</div></div>
 <div class="api-item">
 <div class="api-signature">function Subscribe(const const: string): IChannel</div><div class="description">Subscribes to a channel, returning a concurrent channel.</div></div>
@@ -576,6 +600,8 @@ TObject <|-- TDextRedisClient
 <h3>class TDextRedisClient</h3><a name="TDextRedisClient"></a><div class="ancestor">Inherits from: TObject</div><div class="description">The developer-facing native Redis client.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(const const: string; APort: Word; AMaxPoolSize: Integer)</div><div class="description">Initializes the client with connection parameters.</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create(const const: string; APort: Word; const const: TDextTLSOptions; AMaxPoolSize: Integer)</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div><div class="description">Cleans the client resources.</div></div>
 <div class="api-item">
