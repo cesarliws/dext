@@ -72,7 +72,9 @@ Examples/Hubs/
 type
   TDemoHub = class(THub)
   public
+    [HubMethod]
     procedure SendMessage(const User, Message: string);
+    [HubMethod]
     procedure JoinGroup(const GroupName: string);
   end;
 
@@ -125,23 +127,12 @@ await hub.start();
 await hub.invoke('SendMessage', 'John', 'Hello!');
 ```
 
-## Transport: Polling
+## Transports
 
-This example uses **Long Polling** for server-to-client communication:
-
-| Feature | Polling (Current) | SSE (Planned) | WebSocket (Future) |
-|---------|-------------------|---------------|-------------------|
-| Server → Client | Every 500ms | ✅ Real-time | ✅ Real-time |
-| Client → Server | HTTP POST | HTTP POST | ✅ Real-time |
-| Complexity | Simple | Simple | More complex |
-| Browser support | Universal | Universal | Universal |
-
-**Why Polling?**
-The Indy HTTP server doesn't support proper SSE flush semantics. Polling provides reliable communication with minimal latency (500ms).
-
-**Future Plans:**
-- SSE with proper flush support when HTTP server is upgraded
-- WebSocket support in Phase 4 for true bidirectional communication
+Negotiation advertises WebSockets only when the active HTTP engine supports
+upgrade, with Server-Sent Events as the automatic fallback. Long Polling is not
+advertised. Authentication credentials and the connection principal are kept
+across negotiation, connection, and invocation requests.
 
 ## See Also
 

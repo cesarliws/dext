@@ -154,6 +154,21 @@ begin
     Check(not NextCalled,
       'Plain GET on a mapped hub is not forwarded to Next');
 
+    // A trailing slash must resolve the same hub: MapHub trims it on the
+    // registered path, so the request path has to be trimmed as well.
+    Ctx := CreateContext('GET', '/hubs/probe/', '');
+    NextCalled := False;
+    Middleware.Handle(Ctx,
+      procedure(AContext: IHttpContext)
+      begin
+        NextCalled := True;
+      end);
+
+    Check(Ctx.Response.StatusCode = 400,
+      'Trailing slash still routes to the hub');
+    Check(not NextCalled,
+      'Trailing slash is not forwarded to Next');
+
     // Unmapped path keeps flowing through the pipeline.
     Ctx := CreateContext('GET', '/api/other', '');
     NextCalled := False;

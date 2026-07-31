@@ -46,10 +46,14 @@ type
     FConnectionId: string;
     FWSConnection: IDextWebSocketConnection;
     FState: TConnectionState;
+    FUser: IClaimsPrincipal;
     FItems: IDictionary<string, TValue>;
+    FAbortTokenSource: TCancellationTokenSource;
     FLock: TCriticalSection;
   public
-    constructor Create(const AConnectionId: string; const AWSConnection: IDextWebSocketConnection);
+    constructor Create(const AConnectionId: string;
+      const AWSConnection: IDextWebSocketConnection;
+      const AUser: IClaimsPrincipal = nil);
     destructor Destroy; override;
 
     // IHubConnection
@@ -79,8 +83,9 @@ type
     FOnConnected: TOnConnectionEvent;
     FOnDisconnected: TOnConnectionEvent;
     FShuttingDown: Boolean;
+    FMaximumReceiveMessageSize: Int64;
   public
-    constructor Create;
+    constructor Create(AMaximumReceiveMessageSize: Int64 = 32 * 1024);
     destructor Destroy; override;
 
     // IHubTransport
@@ -109,19 +114,24 @@ uses
 { TWebSocketHubConnection }
 
 constructor TWebSocketHubConnection.Create(const AConnectionId: string;
-  const AWSConnection: IDextWebSocketConnection);
+  const AWSConnection: IDextWebSocketConnection;
+  const AUser: IClaimsPrincipal);
 begin
   inherited Create;
   FConnectionId := AConnectionId;
   FWSConnection := AWSConnection;
   FState := csConnected;
+  FUser := AUser;
   FItems := TCollections.CreateDictionary<string, TValue>;
+  FAbortTokenSource := TCancellationTokenSource.Create;
   FLock := TCriticalSection.Create;
 end;
 
 destructor TWebSocketHubConnection.Destroy;
 begin
+  FAbortTokenSource.Free;
   FItems := nil;
+  FUser := nil;
   FWSConnection := nil;
   FLock.Free;
   inherited;
@@ -144,12 +154,15 @@ end;
 
 function TWebSocketHubConnection.GetUser: IClaimsPrincipal;
 begin
-  Result := nil;
+  Result := FUser;
 end;
 
 function TWebSocketHubConnection.GetUserIdentifier: string;
 begin
-  Result := '';
+  if FUser <> nil then
+    Result := FUser.FindClaim('sub').Value // Standard claim for user ID
+  else
+    Result := '';
 end;
 
 function TWebSocketHubConnection.GetItems: IDictionary<string, TValue>;
@@ -159,7 +172,7 @@ end;
 
 function TWebSocketHubConnection.GetAbortToken: ICancellationToken;
 begin
-  Result := nil;
+  Result := FAbortTokenSource.Token;
 end;
 
 procedure TWebSocketHubConnection.SendAsync(const Message: string);
@@ -180,6 +193,7 @@ begin
     if FState = csConnected then
     begin
       FState := csDisconnected;
+      FAbortTokenSource.Cancel;
       FWSConnection.Close(1000, Reason);
     end;
   finally
@@ -189,18 +203,26 @@ end;
 
 { TWebSocketHubTransport }
 
-constructor TWebSocketHubTransport.Create;
+constructor TWebSocketHubTransport.Create(AMaximumReceiveMessageSize: Int64);
 begin
   inherited Create;
+  // The receive buffer is MaximumReceiveMessageSize + 14 bytes of frame header,
+  // and SetLength takes an Integer, so the upper bound keeps that sum in range.
+  if (AMaximumReceiveMessageSize <= 0) or
+     (AMaximumReceiveMessageSize > High(Integer) - 14) then
+    raise EArgumentOutOfRangeException.Create(
+      'MaximumReceiveMessageSize is outside the supported range');
   FConnections := TCollections.CreateDictionary<string, TWebSocketHubConnection>;
   FLock := TCriticalSection.Create;
   FShuttingDown := False;
+  FMaximumReceiveMessageSize := AMaximumReceiveMessageSize;
 end;
 
 destructor TWebSocketHubTransport.Destroy;
 begin
-  CloseAllConnections;
-  FLock.Free;
+  if FLock <> nil then
+    CloseAllConnections;
+  FreeAndNil(FLock);
   inherited;
 end;
 
@@ -320,7 +342,8 @@ begin
     ConnectionId := AConnectionId;
     
   AConnectionId := ConnectionId;
-  HubConnection := TWebSocketHubConnection.Create(ConnectionId, WSConn);
+  HubConnection := TWebSocketHubConnection.Create(ConnectionId, WSConn,
+    AContext.User);
 
   FLock.Enter;
   try
@@ -332,13 +355,20 @@ begin
   if Assigned(FOnConnected) then
     FOnConnected(ConnectionId);
 
-  SetLength(Buffer, 65536);
+  // Payload limit plus the largest WebSocket frame header (2 bytes of opcode
+  // and length flags, 8 bytes of extended length, 4 bytes of masking key).
+  SetLength(Buffer, Integer(FMaximumReceiveMessageSize) + 14);
   BufferOffset := 0;
   KeepAliveTimer := Now;
 
   try
     while (not FShuttingDown) and (HubConnection.State = csConnected) do
     begin
+      if BufferOffset >= Length(Buffer) then
+      begin
+        HubConnection.Close('Message too large');
+        Break;
+      end;
       BytesRead := WSConn.Receive(Buffer, BufferOffset, Length(Buffer) - BufferOffset);
       if BytesRead <= 0 then
         Break;
@@ -350,6 +380,11 @@ begin
         BytesConsumed := 0;
         if TWebSocketFrameCodec.TryDecode(Buffer, 0, BufferOffset, Frame, BytesConsumed) then
         begin
+          if Length(Frame.Payload) > FMaximumReceiveMessageSize then
+          begin
+            HubConnection.Close('Message too large');
+            Break;
+          end;
           case Frame.Opcode of
             wsText:
             begin

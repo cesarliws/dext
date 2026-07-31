@@ -34,21 +34,25 @@ type
     /// <summary>
     /// Client invokes this to send a message to everyone
     /// </summary>
+    [HubMethod]
     procedure SendMessage(const User, Message: string);
     
     /// <summary>
     /// Client invokes this to join a group
     /// </summary>
+    [HubMethod]
     procedure JoinGroup(const GroupName: string);
     
     /// <summary>
     /// Client invokes this to leave a group
     /// </summary>
+    [HubMethod]
     procedure LeaveGroup(const GroupName: string);
     
     /// <summary>
     /// Client invokes this to send a message to a group
     /// </summary>
+    [HubMethod]
     procedure SendToGroup(const GroupName, User, Message: string);
   end;
 
@@ -153,7 +157,7 @@ begin
     
     WriteLn('Hub endpoints:');
     WriteLn('  POST /hubs/demo/negotiate - Get connection ID');
-    WriteLn('  GET  /hubs/demo/poll?id=xxx - Poll for messages');
+    WriteLn('  GET  /hubs/demo?id=xxx    - SSE stream');
     WriteLn('  POST /hubs/demo?id=xxx    - Invoke method');
     WriteLn;
     WriteLn('Static files: ./wwwroot');

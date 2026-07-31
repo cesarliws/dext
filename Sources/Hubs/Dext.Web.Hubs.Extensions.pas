@@ -69,7 +69,9 @@ type
     /// Adds Hub middleware to the application pipeline.
     /// Call this before MapHub if you need to configure options.
     /// </summary>
-    class procedure UseHubs(const App: IApplicationBuilder);
+    class procedure UseHubs(const App: IApplicationBuilder); overload;
+    class procedure UseHubs(const App: IApplicationBuilder;
+      const Options: THubOptions); overload;
     
     /// <summary>
     /// Registers Hub services in DI container.
@@ -125,9 +127,15 @@ end;
 
 class procedure THubExtensions.UseHubs(const App: IApplicationBuilder);
 begin
+  UseHubs(App, THubOptions.Default);
+end;
+
+class procedure THubExtensions.UseHubs(const App: IApplicationBuilder;
+  const Options: THubOptions);
+begin
   if FMiddleware = nil then
   begin
-    FMiddleware := THubMiddleware.Create;
+    FMiddleware := THubMiddleware.Create(Options);
     
     // Add middleware to pipeline
     App.Use(

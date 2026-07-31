@@ -86,7 +86,9 @@ uses
 type
   TMyHub = class(THub)
   public
+    [HubMethod]
     procedure SendMessage(const Text: string);
+    [HubMethod]
     procedure JoinGroup(const GroupName: string);
   end;
 
@@ -100,6 +102,9 @@ begin
   Groups.AddToGroupAsync(Context.ConnectionId, GroupName);
 end;
 ```
+
+Only methods explicitly annotated with `[HubMethod]` are remotely invokable.
+Other public methods remain server-side helpers and cannot be called by a client.
 
 ### 3. Register the Hub
 
