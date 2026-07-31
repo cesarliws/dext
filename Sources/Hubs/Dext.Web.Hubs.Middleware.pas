@@ -115,7 +115,14 @@ type
     procedure HandleInvoke(const HubPath: string; Ctx: IHttpContext; Dispatcher: THubDispatcher);
     procedure HandlePoll(const HubPath: string; Ctx: IHttpContext; Dispatcher: THubDispatcher);
     procedure HandleWebSocket(const HubPath: string; Ctx: IHttpContext; Dispatcher: THubDispatcher);
-    
+
+    /// <summary>
+    /// Returns True only when the active HTTP engine exposes an upgradable
+    /// connection. IHttpContext.Connection is nil on engines that do not
+    /// implement the raw server connection (Indy, DCS, WebBroker).
+    /// </summary>
+    function ConnectionSupportsUpgrade(const Ctx: IHttpContext): Boolean;
+
     function FindDispatcher(const Path: string; out HubPath: string): THubDispatcher;
   public
     constructor Create;
@@ -141,6 +148,7 @@ implementation
 
 uses
   System.TypInfo,
+  Dext.Server.Engine.Interfaces,
   Dext.Utils;
 
 function ReadStreamToString(AStream: TStream): string;
@@ -353,6 +361,17 @@ begin
   inherited;
 end;
 
+function THubMiddleware.ConnectionSupportsUpgrade(
+  const Ctx: IHttpContext): Boolean;
+var
+  LConnection: IDextServerConnection;
+begin
+  LConnection := Ctx.Connection;
+  Result := Assigned(LConnection);
+  if Result then
+    Result := LConnection.SupportsUpgrade;
+end;
+
 procedure THubMiddleware.Shutdown;
 begin
   if FSSETransport <> nil then
@@ -416,11 +435,22 @@ begin
   end;
   
   // Check for WebSocket upgrade request
-  if SameText(Ctx.Request.Method, 'GET') and 
-     SameText(Ctx.Request.GetHeader('Upgrade'), 'websocket') and
-     Ctx.Connection.SupportsUpgrade then
+  if SameText(Ctx.Request.Method, 'GET') and
+     SameText(Ctx.Request.GetHeader('Upgrade'), 'websocket') then
   begin
-    HandleWebSocket(HubPath, Ctx, Dispatcher);
+    if ConnectionSupportsUpgrade(Ctx) then
+      HandleWebSocket(HubPath, Ctx, Dispatcher)
+    else
+    begin
+      // No upgradable connection on this engine: answer 426 instead of
+      // dereferencing a nil Connection (RFC 7231 section 6.5.15).
+      Ctx.Response.StatusCode := 426;
+      Ctx.Response.AddHeader('Upgrade', 'websocket');
+      Ctx.Response.AddHeader('Connection', 'Upgrade');
+      Ctx.Response.SetContentType('application/json');
+      Ctx.Response.Write(
+        '{"error":"WebSocket upgrade is not supported by the active HTTP engine"}');
+    end;
     Exit;
   end;
   
