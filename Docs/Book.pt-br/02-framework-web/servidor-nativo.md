@@ -108,8 +108,103 @@ O motor de servidor nativo do Dext resolve esse gargalo implementando o **Agenda
 
 Isso garante linearidade de escalabilidade e 100% de uso de CPU em todos os grupos de processadores e nós NUMA da máquina.
 
-> [!WARNING]
-> No Windows, a execução do servidor através do `http.sys` exige permissões de reserva de URL adequadas. Se você vincular o servidor a todas as interfaces (`0.0.0.0`), o Dext registrará o prefixo curinga forte `http://+:porta/`, que exige a execução da aplicação como Administrador ou a reserva correspondente no namespace de URLs via:
-> ```cmd
-> netsh http add urlacl url=http://+:5000/ user=Everyone
+## Configuração de HTTPS/SSL no Kernel do Windows (`http.sys`)
+
+Ao utilizar o motor nativo `.UseNativeServer` no Windows (`http.sys`), o processamento de criptografia TLS/HTTPS é delegado diretamente para o Kernel do Windows (SChannel), garantindo zero-copy e performance máxima.
+
+No `http.sys`, o Kernel do Windows gerencia os certificados através da loja de certificados do sistema (`LocalMachine\My`).
+
+### Opção 1: Configuração Automatizada via Dext CLI (Recomendado)
+
+Execute a CLI do Dext como Administrador para gerar os certificados, importar as chaves e realizar o binding no Kernel de forma 100% automatizada:
+
+```bash
+dext dev-certs https --trust
+```
+
+### Opção 2: Configuração Manual via Terminal Administrador
+
+Caso deseje vincular um certificado manual existente à porta no Kernel:
+
+1. **Importar o pacote PKCS#12 (`.pfx`) com Chave Privada:**
+   ```powershell
+   Import-PfxCertificate -FilePath "server.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString "dba" -AsPlainText -Force)
+   ```
+
+2. **Vincular o Thumbprint do Certificado à Porta no Kernel via `netsh`:**
+   ```cmd
+   netsh http add sslcert ipport=0.0.0.0:8080 certhash=SEU_THUMBPRINT_SHA1 appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}
+   ```
+
+3. **Verificar os bindings ativos no Kernel:**
+   ```cmd
+   netsh http show sslcert ipport=0.0.0.0:8080
+   ```
+
+---
+
+> netsh http add urlacl url=https://+:8080/ user=Everyone
 > ```
+
+---
+
+## 🔒 HTTPS e TLS Nativo no Linux (`epoll` + OpenSSL)
+
+No Linux (WSL2, Ubuntu, Debian ou RHEL), o Dext utiliza o motor **`epoll`** combinado com o **OpenSSL 3.x Memory BIO Engine** de forma totalmente desacoplada, garantindo criptografia TLS zero-copy de alta performance sem depender de proxies reversos (Nginx/HAProxy).
+
+### 1. Pacotes Necessários no Linux
+
+Instale as bibliotecas de desenvolvimento do OpenSSL:
+
+```bash
+# Ubuntu / Debian / WSL2
+sudo apt update
+sudo apt install -y libssl-dev openssl
+
+# RHEL / AlmaLinux / Rocky Linux
+sudo dnf install -y openssl-devel openssl
+```
+
+### 2. Gerando Certificados de Desenvolvimento com OpenSSL
+
+```bash
+# 1. Gerar Chave Privada da CA e Certificado Raiz
+openssl req -x509 -newkey rsa:4096 -nodes -keyout ca.key -out ca.crt -days 365 -subj "/CN=Dext Test CA"
+
+# 2. Gerar Chave Privada do Servidor e CSR
+openssl req -newkey rsa:2048 -nodes -keyout server.key -out server.csr -subj "/CN=localhost"
+
+# 3. Assinar o Certificado com Extensão SAN (Subject Alternative Name)
+openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 365 \
+  -extfile <(printf "subjectAltName=DNS:localhost,IP:127.0.0.1")
+```
+
+### 3. Código em Pascal (Servidor Nativo Linux)
+
+```pascal
+var
+  App: IWebApplication;
+begin
+  App := TWebApplication.Create;
+
+  // No Linux, o Dext ativa automaticamente o epoll com OpenSSL 3.x Memory BIOs
+  App.UseNativeServer(
+    ServerEngineOptions
+      .WithHttps(True)
+  );
+
+  App.MapGet('/ping', function(Req: IHttpRequest; Res: IHttpResponse)
+  begin
+    Res.Send('PONG over HTTPS (Linux epoll)');
+  end);
+
+  App.Run(8443);
+end.
+```
+
+### 4. Testando a Conexão com `curl`
+
+```bash
+curl --cacert ca.crt https://localhost:8443/ping
+# Resposta esperada: PONG over HTTPS (Linux epoll)
+```

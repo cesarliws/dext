@@ -100,6 +100,7 @@
         <DCCReference Include="..\..\Sources\Hubs\Transports\Dext.Web.Hubs.Transport.WebSocket.pas"/>
         <DCCReference Include="..\..\Sources\Hubs\Dext.Web.Hubs.Client.Types.pas"/>
         <DCCReference Include="..\..\Sources\Hubs\Dext.Web.Hubs.Client.pas"/>
+        <DCCReference Include="..\..\Sources\Hubs\Dext.Web.Hubs.Protocol.MessagePack.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

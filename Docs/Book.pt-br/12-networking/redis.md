@@ -48,6 +48,40 @@ end;
 
 ---
 
+## Conexão Segura SSL/TLS (`TDextTLSOptions`)
+
+O `TDextRedisClient` suporta conexões criptografadas TLS/SSL para instâncias
+Redis gerenciadas em nuvem (ex: AWS ElastiCache, Azure Cache for Redis, Redis
+Cloud). Para ativar o SSL/TLS, forneça as opções `TDextTLSOptions`:
+
+```pascal
+uses
+  Dext.Net.Security,
+  Dext.Net.Redis;
+
+var
+  TLSOptions: TDextTLSOptions;
+  Client: TDextRedisClient;
+begin
+  TLSOptions := TDextTLSOptions.Create(
+    True,                 // UseSSL
+    'ca.crt',            // RootCertFile
+    'client.crt',        // CertFile
+    'client.key',        // KeyFile
+    ''                   // Hostname override
+  );
+
+  Client := TDextRedisClient.Create('redis.cloud.redislabs.com', 6380, TLSOptions, 16);
+  try
+    Client.SetVal('secure_key', 'dados_criptografados');
+  finally
+    Client.Free;
+  end;
+end;
+```
+
+---
+
 ## Comandos Assíncronos
 
 Execute comandos em segundo plano usando a integração com o `TAsyncTask`:

@@ -177,6 +177,7 @@
         <DCCReference Include="..\..\Sources\Server\Dext.Server.BoundedExecutor.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.ResponseWriter.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Utf8.pas"/>
+        <DCCReference Include="..\..\Sources\Server\Dext.WebSocket.Compression.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -6,6 +6,8 @@ program DextSidecar;
 uses
   Dext.MM,
   Vcl.Forms,
+  Vcl.Themes,
+  Vcl.Styles,
   Dext.Hosting.CLI.Config,
   Main.Form in 'Main.Form.pas' {MainForm},
   Dext.Classes in 'Lib\Dext.Classes.pas',
@@ -17,8 +19,6 @@ uses
   Dext.Vcl.TrayIcon in 'Lib\Dext.Vcl.TrayIcon.pas',
   Dext.Dashboard.TestScanner in '..\..\Sources\Dashboard\Dext.Dashboard.TestScanner.pas',
   Dext.Dashboard.TestRunner in '..\..\Sources\Dashboard\Dext.Dashboard.TestRunner.pas',
-  Vcl.Themes,
-  Vcl.Styles,
   Dext.Hosting.CLI.Hubs.Dashboard in '..\CLI\Hubs\Dext.Hosting.CLI.Hubs.Dashboard.pas';
 
 begin

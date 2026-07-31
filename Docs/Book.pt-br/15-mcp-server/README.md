@@ -203,6 +203,46 @@ end;
 
 ---
 
+## 🔒 Executando o MCP Server com HTTPS Nativo (`http.sys`)
+
+Para rodar o MCP Server com máxima performance sobre o driver Kernel do Windows (`http.sys`) criptografado com HTTPS:
+
+1. **Gere e vincule o certificado local com a CLI do Dext (como Administrador):**
+   ```bash
+   dext dev-certs https --trust
+   ```
+
+2. **Configure o `TMCPServerBuilder` com `UseHttpSys` e `UseHttps`:**
+   ```pascal
+   var
+     Options: TServerEngineOptions;
+   begin
+     Options := TServerEngineOptions.Default;
+     Options.UseHttps := True;
+     
+     Builder := TMCPServerBuilder.Create;
+     try
+       Builder
+         .Name('meu-mcp-server')
+         .Transport(mtStreamable)
+         .Url('https://localhost:3031')
+         .UseHttpSys(Options);
+         
+       // Register tools...
+       Server := Builder.Build;
+     finally
+       Builder.Free;
+     end;
+   end;
+   ```
+
+3. **Conecte seus assistentes de IA diretamente com o protocolo seguro HTTPS:**
+   ```bash
+   claude mcp add meu-mcp https://localhost:3031/mcp
+   ```
+
+---
+
 ## 🔌 Conectando Assistentes de IA
 
 ### 1. Claude Code (CLI)

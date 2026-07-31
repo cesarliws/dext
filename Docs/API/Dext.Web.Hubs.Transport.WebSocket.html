@@ -114,6 +114,7 @@
 <a href="Dext.EF.Design.Scaffolding.Preview.html" class="nav-item">Dext.EF.Design.Scaffolding.Preview</a>
 <a href="Dext.Entity.html" class="nav-item">Dext.Entity</a>
 <a href="Dext.Entity.Attributes.html" class="nav-item">Dext.Entity.Attributes</a>
+<a href="Dext.Entity.BatchStrategy.html" class="nav-item">Dext.Entity.BatchStrategy</a>
 <a href="Dext.Entity.Cache.html" class="nav-item">Dext.Entity.Cache</a>
 <a href="Dext.Entity.Collections.html" class="nav-item">Dext.Entity.Collections</a>
 <a href="Dext.Entity.Context.html" class="nav-item">Dext.Entity.Context</a>
@@ -221,12 +222,15 @@
 <a href="Dext.MultiTenancy.html" class="nav-item">Dext.MultiTenancy</a>
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
+<a href="Dext.Net.Download.html" class="nav-item">Dext.Net.Download</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Security.html" class="nav-item">Dext.Net.Security</a>
+<a href="Dext.Net.Security.OpenSSL.html" class="nav-item">Dext.Net.Security.OpenSSL</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
 <a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
@@ -339,6 +343,7 @@
 <a href="Dext.Web.Hubs.Interfaces.html" class="nav-item">Dext.Web.Hubs.Interfaces</a>
 <a href="Dext.Web.Hubs.Middleware.html" class="nav-item">Dext.Web.Hubs.Middleware</a>
 <a href="Dext.Web.Hubs.Protocol.Json.html" class="nav-item">Dext.Web.Hubs.Protocol.Json</a>
+<a href="Dext.Web.Hubs.Protocol.MessagePack.html" class="nav-item">Dext.Web.Hubs.Protocol.MessagePack</a>
 <a href="Dext.Web.Hubs.Transport.SSE.html" class="nav-item">Dext.Web.Hubs.Transport.SSE</a>
 <a href="Dext.Web.Hubs.Transport.WebSocket.html" class="nav-item">Dext.Web.Hubs.Transport.WebSocket</a>
 <a href="Dext.Web.Hubs.Types.html" class="nav-item">Dext.Web.Hubs.Types</a>
@@ -374,6 +379,7 @@
 <a href="Dext.Web.WebApplication.html" class="nav-item">Dext.Web.WebApplication</a>
 <a href="Dext.Web.WebBroker.html" class="nav-item">Dext.Web.WebBroker</a>
 <a href="Dext.WebHost.html" class="nav-item">Dext.WebHost</a>
+<a href="Dext.WebSocket.Compression.html" class="nav-item">Dext.WebSocket.Compression</a>
 <a href="Dext.WebSocket.Handshake.html" class="nav-item">Dext.WebSocket.Handshake</a>
 <a href="Dext.WebSocket.Protocol.html" class="nav-item">Dext.WebSocket.Protocol</a>
 <a href="Dext.Yaml.html" class="nav-item">Dext.Yaml</a>
@@ -395,6 +401,17 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
+class IWebSocketHubConnectionControl {    +Touch()
+    +SendKeepAlive()
+}
+class IWebSocketPreparedSender {    +SendPreparedFrame()
+    +GetProtocolName()
+    +IsCompressionEnabled()
+}
+class TWebSocketKeepAliveThread {    +Execute()
+    +Create()
+}
+TThread <|-- TWebSocketKeepAliveThread
 class TWebSocketHubConnection {    +Create()
     +Destroy()
     +GetConnectionId()
@@ -405,19 +422,31 @@ class TWebSocketHubConnection {    +Create()
     +GetItems()
     +GetAbortToken()
     +SendAsync()
+    +SendPreparedFrame()
+    +GetProtocolName()
+    +IsCompressionEnabled()
     +Close()
+    +Touch()
+    +SendKeepAlive()
     +ConnectionId
     +State
 }
 TInterfacedObject <|-- TWebSocketHubConnection
 IHubConnection <|.. TWebSocketHubConnection
-class TWebSocketHubTransport {    +Create()
+IWebSocketHubConnectionControl <|.. TWebSocketHubConnection
+IWebSocketPreparedSender <|.. TWebSocketHubConnection
+class TWebSocketHubTransport {    +SendKeepAlives()
+    +ProcessAsyncData()
+    +CompleteAsyncConnection()
+    +DispatchFrame()
+    +Create()
     +Destroy()
     +GetTransportType()
     +IsAvailable()
     +SendAsync()
     +CloseConnection()
     +SetOnMessageReceived()
+    +SetOnBinaryMessageReceived()
     +SetOnConnected()
     +SetOnDisconnected()
     +ProcessConnection()
@@ -431,6 +460,33 @@ IHubTransport <|.. TWebSocketHubTransport
 </div>
 </details>
 <h2>API Details</h2>
+<div class="class-header">
+<h3>interface IWebSocketHubConnectionControl</h3><a name="IWebSocketHubConnectionControl"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure Touch</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendKeepAlive(ANow: UInt64)</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>interface IWebSocketPreparedSender</h3><a name="IWebSocketPreparedSender"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure SendPreparedFrame(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetProtocolName: string</div></div>
+<div class="api-item">
+<div class="api-signature">function IsCompressionEnabled: Boolean</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TWebSocketKeepAliveThread</h3><a name="TWebSocketKeepAliveThread"></a><div class="ancestor">Inherits from: TThread</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(AOwner: TWebSocketHubTransport)</div></div>
+</div>
+<div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
+<div class="api-signature">procedure Execute</div></div>
+</div>
+<hr>
 <div class="class-header">
 <h3>class TWebSocketHubConnection</h3><a name="TWebSocketHubConnection"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">WebSocket connection wrapping the raw server upgrade connection.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
@@ -454,7 +510,17 @@ IHubTransport <|.. TWebSocketHubTransport
 <div class="api-item">
 <div class="api-signature">procedure SendAsync(const const: string)</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SendPreparedFrame(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetProtocolName: string</div></div>
+<div class="api-item">
+<div class="api-signature">function IsCompressionEnabled: Boolean</div></div>
+<div class="api-item">
 <div class="api-signature">procedure Close(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Touch</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendKeepAlive(ANow: UInt64)</div></div>
 <div class="api-item">
 <div class="api-signature">property ConnectionId: </div></div>
 <div class="api-item">
@@ -478,6 +544,8 @@ IHubTransport <|.. TWebSocketHubTransport
 <div class="api-item">
 <div class="api-signature">procedure SetOnMessageReceived(const const: TOnMessageReceived)</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SetOnBinaryMessageReceived(const const: TOnBinaryHubMessage)</div></div>
+<div class="api-item">
 <div class="api-signature">procedure SetOnConnected(const const: TOnConnectionEvent)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure SetOnDisconnected(const const: TOnConnectionEvent)</div></div>
@@ -488,9 +556,24 @@ IHubTransport <|.. TWebSocketHubTransport
 <div class="api-item">
 <div class="api-signature">function IsShuttingDown: Boolean</div></div>
 <div class="api-item">
-<div class="api-signature">function GetConnection(const const: string): TWebSocketHubConnection</div></div>
+<div class="api-signature">function GetConnection(const const: string): IHubConnection</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure SendKeepAlives</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ProcessAsyncData(AConnection: TWebSocketHubConnection; const const: IDextWebSocketConnection; const const: TBytes; ACount: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure CompleteAsyncConnection(AConnection: TWebSocketHubConnection; const const: IDextWebSocketConnection)</div></div>
+<div class="api-item">
+<div class="api-signature">function DispatchFrame(AConnection: TWebSocketHubConnection; const const: IDextWebSocketConnection; const const: TWebSocketFrame): Boolean</div></div>
 </div>
 <hr>
+<h2>Types</h2>
+<div class="visibility-group"><div class="api-item">
+<div class="api-signature">type TOnBinaryHubMessage = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TWebSocketHubTransport = Type</div></div>
+</div>
 
         </div>
     </div>

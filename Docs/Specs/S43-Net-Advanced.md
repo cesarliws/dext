@@ -1,100 +1,163 @@
-# 📑 S43: Net-Advanced (MessagePack, Permessage-Deflate & Native TLS)
+# 📑 S43: Net-Advanced (MessagePack, Permessage-Deflate & Native TLS Architecture)
 
-**Status:** 📝 Draft
+**Status:** ✅ 100% Validated (Core & Runtime Linux/Windows) | ⏳ SignalR .NET Interop Pending External .NET Env
 **Owner:** Cesar Romero & Engineering Team
 **Created:** 2026-06-18
+**Updated:** 2026-07-30
 **Dependencies:** S39 (Native Server Engine), S40 (WebSocket & SignalR Hubs), S41 (HTTP/2 Framing)
-**Enables:** Enterprise Native Security (WSS/HTTPS) without Reverse Proxies, High-efficiency low-bandwidth IoT real-time clients.
+**Enables:** Enterprise Native Security (WSS/HTTPS/TLS) across Web Servers (http.sys, epoll, IOCP, Indy), Redis Client (`TDextRedisClient`), REST Client (`TRestClient`), and Raw Sockets without requiring Reverse Proxies.
 
 ---
 
-## 1. Goal
+## 1. Goal & Vision
 
-Establish the architecture and specification for **Phase 2 Networking optimizations**, focusing on bandwidth reduction, binary serialization protocols, and native cross-platform transport security for raw sockets.
+Establish an abstraction layer and concrete provider implementation for **SSL/TLS Security across the entire Dext Framework**, enabling high-performance, zero-allocation, transparent encryption across all networking modules.
 
 Specifically, this spec covers:
-1. **MessagePack Hub Protocol**: A binary serialization protocol alternative to JSON for SignalR-compatible `Dext.Hubs`.
-2. **Permessage-Deflate Extension**: Native RFC 7692 WebSocket compression to minimize bandwidth in real-time streams.
-3. **Native OpenSSL TLS Engine**: Native OpenSSL integration for raw TCP Sockets (`IOCP` on Windows / `epoll` on Linux), enabling HTTPS/WSS/gRPC-TLS natively.
+1. **Unified SSL/TLS Abstraction Layer (`Dext.Net.Security.pas`)**: Interface-driven TLS engines (`IDextTLSEngine`, `IDextTLSContextProvider`, `IDextTLSStream`) decoupling transport logic from SSL implementations (OpenSSL 1.1/3.x, Windows Schannel / http.sys, Taurus TLS, Indy fallback).
+2. **Native OpenSSL Memory BIO Engine (`Dext.Net.Security.OpenSSL.pas`)**: Zero-copy/low-allocation TLS handshake and framing for raw asynchronous TCP Sockets (`IOCP` on Windows / `epoll` on Linux).
+3. **Windows `http.sys` Native SSL Binding**: Direct Windows Kernel SSL configuration and X.509 certificate store integration.
+4. **`TDextRedisClient` SSL/TLS Support (`rediss://`)**: Transparent TLS wrapping for raw TCP Redis connections.
+5. **`TRestClient` / `THttpClient` Transparent HTTPS**: Unified client SSL configuration.
+6. **Fluent DSL & `appsettings.json` Integration**: Uniform, declarative configuration across Web Apps, Redis Client, and HTTP Clients.
+7. **Native CLI Certificate Tooling (`dext dev-certs https`)**: 100% pure Pascal CryptoAPI implementation for generating self-signed development certificates with Subject Alternative Name (SAN - `localhost`, `127.0.0.1`), automatic root trust store registration, and zero PowerShell dependencies.
+8. **Taurus TLS / OpenSSL 3.x Support**: Modern TLS 1.3 / OpenSSL 3.x integration for Indy-based server engines.
+9. **WebSocket Permessage-Deflate & MessagePack Hub Protocol**: Bandwidth and payload optimizations for SignalR and WebSockets.
 
 ---
 
-## 2. Scope & Technical Architecture
-
-### 2.1 Component Architecture
+## 2. Component Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│  Dext.Web.Hubs (MessagePack Protocol & Payload Traversal)    │  <-- S43 Phase 1
-├──────────────────────────────────────────────────────────────┤
-│  Dext.WebSocket.Protocol (RFC 7692 Permessage-Deflate GZIP)  │  <-- S43 Phase 2
-├──────────────────────────────────────────────────────────────┤
-│  Dext.Server.TLS (Native OpenSSL Bio Sockets IOCP/epoll)     │  <-- S43 Phase 3
-└──────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                Dext Unified Fluent DSL                                 │
+│       App.UseHttps(...)  |  TDextRedisOptions.UseSsl(...)  |  TRestOptions.UseSsl(...) │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+                                            │
+                                            ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                        Dext.Net.Security Abstraction Layer                             │
+│       IDextTLSContextProvider  │  IDextTLSEngine  │  IDextTLSStream  │  TDextTLSOptions   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+            │                                 │                                │
+            ▼                                 ▼                                ▼
+┌───────────────────────┐         ┌───────────────────────┐        ┌───────────────────────┐
+│ OpenSSL Native Engine │         │ Windows Http.sys      │        │ Fallback / Indy /     │
+│ (BIO_s_mem IOCP/epoll)│         │ (Kernel X.509 Store)  │        │ Taurus SSL Providers  │
+└───────────────────────┘         └───────────────────────┘        └───────────────────────┘
+            │                                 │                                │
+            └─────────────────────────────────┼────────────────────────────────┘
+                                              ▼
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                     Consumer Framework Modules (HTTPS / WSS / TLS)                      │
+│   Web Application (http.sys / epoll)  │  TDextRedisClient  │  TRestClient  │ Raw TCP   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Detailed Features
+## 3. Core Abstraction Specification (`Dext.Net.Security`)
 
-### 3.1 MessagePack Hub Protocol
-SignalR allows negotiation of the binary MessagePack format, resulting in dramatically smaller frames than standard JSON.
+### 3.1 Data Types & Configurations
+```pascal
+type
+  TDextTLSVersion = (tls1_0, tls1_1, tls1_2, tls1_3);
+  TDextTLSVersions = set of TDextTLSVersion;
+  TDextTLSMode = (tlsmClient, tlsmServer);
 
-- **Protocol Identification**: Advertised as `messagepack` in the negotiate response.
-- **Handshake Exchange**:
-  ```
-  Client -> Server: {"protocol":"messagepack","version":1}\x1e
-  Server -> Client: {}\x1e (remains JSON for initial handshake frame)
-  ```
-- **Binary Wire Format**:
-  Subsequent messages are formatted as MessagePack arrays following the ASP.NET Core SignalR MessagePack Hub Protocol specifications. Payload layout:
-  ```
-  [Length (varint)] [Message Array]
-  ```
-  Items in the array correspond to `[MessageType, Headers, InvocationId/Result, Target, Arguments/Item, Errors]`.
-- **Implementation strategy**: Create `Dext.Web.Hubs.Protocol.MessagePack.pas` implementing `IHubProtocol` using the high-performance binary encoder of the Dext core.
+  TDextTLSOptions = record
+    Enabled: Boolean;
+    Mode: TDextTLSMode;
+    CertFile: string;
+    KeyFile: string;
+    RootCertFile: string;
+    CertHash: string;         // For Windows Cert Store / http.sys
+    StoreName: string;        // Default 'MY'
+    Protocols: TDextTLSVersions;
+    VerifyServerCertificate: Boolean;
+    ALPNProtocols: TArray<string>; // e.g. ['h2', 'http/1.1', 'redis']
+    Provider: string;         // 'Auto', 'OpenSSL', 'Taurus', 'HttpSys', 'Indy'
+  end;
+```
 
-### 3.2 WebSocket Permessage-Deflate (RFC 7692)
-Enables WebSocket connections to negotiate GZIP compression of frame payloads.
-
-- **Handshake Negotiation**:
-  The client requests the extension via HTTP upgrade header:
-  ```http
-  Sec-WebSocket-Extensions: permessage-deflate; client_max_window_bits
-  ```
-  If accepted, the server responds:
-  ```http
-  Sec-WebSocket-Extensions: permessage-deflate
-  ```
-- **Frame Compression**:
-  When active, compressed frames set the RSV1 bit to `1`. The payload is compressed using DEFLATE. The compression context (sliding LZ77 window) is maintained across frames unless `no_context_takeover` is negotiated.
-- **Memory footprint control**: Limit memory allocations by using pooled state structures for ZLib compression/decompression contexts.
-
-### 3.3 Native OpenSSL TLS Engine
-Exposes native encryption/decryption in the pipeline before data reaches the HTTP/1.1, HTTP/2, or WebSocket frame parsers.
-
-- **Asynchronous BIO Sockets**:
-  Integrate OpenSSL's memory BIOs (`BIO_s_mem`) with IOCP and epoll.
-  - Sockets receive encrypted data $\to$ write to incoming BIO $\to$ OpenSSL decrypts $\to$ framework reads plaintext.
-  - Framework writes plaintext $\to$ OpenSSL encrypts $\to$ write to outgoing BIO $\to$ Socket sends encrypted data.
-- **ALPN Negotiation**:
-  Ensure OpenSSL ALPN (Application-Layer Protocol Negotiation) callbacks are wired to negotiate `h2` (HTTP/2) or `http/1.1` dynamically.
-- **Certificate Handling**:
-  Declarative setup supporting `.pem` and `.pfx` certificate stores.
+### 3.2 Interfaces
+- **`IDextTLSContextProvider`**: Factory interface responsible for creating and configuring SSL contexts (loading keys, certificates, ALPN, and SSL methods).
+- **`IDextTLSEngine`**: Asynchronous/Memory-based TLS processing engine. Consumes encrypted incoming wire data and produces plaintext data (and vice-versa) using OpenSSL memory BIOs (`BIO_s_mem`).
+- **`IDextTLSStream`**: Synchronous or Task-based wrapper stream over standard `TStream` or raw socket file descriptors.
 
 ---
 
-## 4. Verification Plan
+## 4. Specific Implementations & Integrations
 
-### Automated Tests
-- MessagePack serialization/deserialization compliance testing against .NET SignalR client outputs.
-- Permessage-deflate roundtrip test (fragmented compressed payloads).
-- TLS Handshake validation & stress testing using raw TCP client with OpenSSL.
+### 4.1 Native OpenSSL Engine (Epoll / IOCP / Raw Sockets / Redis)
+- **File**: `Dext.Net.Security.OpenSSL.pas`
+- Encapsulates dynamic loading of OpenSSL (`libssl` / `libcrypto`, supporting 1.1.1 and 3.x).
+- Uses `BIO_s_mem` pairs (`rbio`, `wbio`) so network IO reads encrypted data into `rbio`, `SSL_read` extracts plaintext, `SSL_write` puts plaintext into `wbio`, and `BIO_read` extracts encrypted data for socket transmission.
 
-### Manual Verification
-- Testing native Delphi Hub Client connecting to Dext Hubs over WSS (with native OpenSSL TLS) under Linux.
-- Profiling memory allocations during high concurrent connections with Permessage-Deflate active.
+### 4.2 Windows `http.sys` Native Security
+- **File**: `Dext.Server.HttpSys.pas`
+- Configures SSL bindings using Windows HTTPS HTTP API parameters (`HTTP_SERVICE_CONFIG_SSL_SET`) or binds port to certificate thumbprints in the Windows Certificate Store.
+
+### 4.3 Taurus TLS / OpenSSL 3.x Integration
+- **Files**: `Dext.Web.Indy.SSL.Taurus.pas`, `Dext.inc` (`{$DEFINE DEXT_ENABLE_TAURUS_TLS}`)
+- Provides modern TLS 1.3 / OpenSSL 3.x support for Indy web servers using Taurus TLS wrappers.
+
+### 4.4 Development Certificates CLI Tooling (`dext dev-certs https`)
+- **File**: `Dext.Hosting.CLI.Commands.DevCerts.pas`
+- Pure Pascal CryptoAPI implementation for self-signed X.509 certificate generation with PKCS#1 RSA private key formatting and custom ASN.1 Subject Alternative Name (SAN - `localhost`, `127.0.0.1`) extension encoding.
+- Automatic registration in Windows Root Certificate Store (`Root`) for zero-warning browser development.
+
+### 4.5 Redis Client SSL (`TDextRedisClient`)
+- **File**: `Dext.Net.Redis.pas`
+- Updates `TDextRedisOptions` with `.UseSsl(True)` and `.SslOptions(...)`.
+- When SSL is enabled, `TDextRedisClient` wraps its underlying TCP socket stream with `IDextTLSStream` during initial connection prior to issuing `AUTH` / `PING`.
+
+### 4.6 REST Client HTTPS (`TRestClient`)
+- **File**: `Dext.Net.RestClient.pas`
+- Provides unified SSL certificate validation callbacks, TLS options, and automatic handling of `https://` URLs using the default system or OpenSSL TLS engine.
 
 ---
 
-*Created by Cesar Romero & Antigravity AI — June 2026*
+## 5. Implementation Phases & Milestones
+
+- [x] **Phase 1: Architecture & Abstraction (`Dext.Net.Security.pas`)**
+  - Define `IDextTLSContextProvider`, `IDextTLSEngine`, `IDextTLSStream`, `TDextTLSOptions`.
+  - Add unified configuration integration into `IConfiguration` / `appsettings.json`.
+- [x] **Phase 2: OpenSSL Engine & Taurus TLS Integration**
+  - Implement `Dext.Net.Security.OpenSSL.pas` (OpenSSL 1.1/3.x Memory BIOs).
+  - Implement `Dext.Web.Indy.SSL.Taurus.pas` (Taurus TLS / OpenSSL 3.x / TLS 1.3).
+- [x] **Phase 3: Native CLI Certificate Tooling (`dext dev-certs https`)**
+  - Implement 100% pure Pascal Windows CryptoAPI RSA key generator and X.509 cert encoder.
+  - Implement native ASN.1 encoder for Subject Alternative Name (SAN) extension (`localhost`, `127.0.0.1`).
+  - Implement automatic Windows Root Store trust installer with `certutil`.
+  - Update `Web.SslDemo` example with dual OpenSSL 1.0.2 & Taurus TLS 1.3 verification.
+- [x] **Phase 4: Web Server Testing & Linux/WSL Runtime Validation**
+  - Test `http.sys` and `epoll` engines with HTTP/HTTPS (`Web.SslDemo`).
+  - Validate native Linux `epoll` server runtime live inside WSL with 100% route success.
+  - Validate native Linux test runner (`Dext.Web.UnitTests`) with **133/133 unit tests passed (100% pass rate)**.
+  - Validate native OpenSSL 3.x Memory BIO engine and TLS tests on Linux (`Dext.Net.Socket.Tests`).
+- [x] **Phase 5: Clients SSL Integration**
+  - Test `TRestClient` / `THttpClient` with SSL/HTTPS and explicit `IgnoreCertificateErrors` / `AllowSelfSigned` fluent API.
+  - Test `TDextRedisClient` SSL connection capability (`rediss://`) against Memurai on port 6380 (20/20 unit tests passed).
+- [x] **Phase 6: Optimization, Permessage-Deflate, MessagePack & High-Load Benchmarking**
+  - Implement MessagePack Hub Protocol (`Dext.Web.Hubs.Protocol.MessagePack.pas`).
+  - Implement WebSocket Permessage-Deflate (RFC 7692).
+  - Execute high-concurrency `bombardier` HTTP load tests (32,338+ RPS, 32 connections, 986µs latency, 11MB RAM working set).
+
+---
+
+## 6. Validation & Current Pending Status
+
+| Component / Feature | Environment | Validation Status | Evidence |
+| :--- | :--- | :--- | :--- |
+| **OpenSSL 3.x Native Engine** | Windows / Linux (WSL) | ✅ 100% Passed | `Dext.Net.Socket.Tests` (14/14 SSL/TLS tests passed on Linux & Win) |
+| **Linux Epoll Engine Runtime** | Linux (WSL2) | ✅ 100% Passed | Live `curl` to `Dext.ServerTest` (`/`, `/hello`, `/time`, `/users/42`) |
+| **Dext Web Framework Suite** | Linux (WSL2) | ✅ 100% Passed | `Dext.Web.UnitTests` (133/133 tests passed in 2.58s) |
+| **Redis SSL/TLS (`rediss://`)** | Windows (Memurai) | ✅ 100% Passed | Tested with Memurai SSL on port 6380 |
+| **HTTPS Enforced Server Demo** | Windows / Linux | ✅ 100% Passed | `Web.SslDemo` (OpenSSL 3.x & http.sys) |
+| **High Concurrency Load Test** | Windows / Linux | ✅ 32.3k+ RPS | `bombardier` load test (32 conc, 10s, 0 errors, 11MB RAM) |
+| **SignalR .NET Client Interop** | External .NET SDK | ⏳ Pending .NET Env | Unit tests & MessagePack protocol valid; pending `dotnet` CLI setup |
+
+---
+
+*Updated by Cesar Romero & Antigravity AI — July 30, 2026*

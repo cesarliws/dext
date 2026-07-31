@@ -1,82 +1,93 @@
 # Dext SSL/HTTPS Example
 
-This example demonstrates how to enable and configure SSL (HTTPS) in a Dext Web application.
+This example demonstrates how to enable and configure SSL (HTTPS) in a Dext Web application using either the **Native Windows Kernel (`http.sys`)** or **Socket-based Engines (Indy/OpenSSL/Taurus)**.
 
-## Prerequisites
+---
 
-1.  **Dext.inc**: Ensure `DEXT_ENABLE_SSL` is defined in `Sources\Dext.inc`.
-2.  **Libraries**:
-    *   For **OpenSSL (Default)**: You need `libeay32.dll` and `ssleay32.dll` (OpenSSL 1.0.2u or compatible) in your application's folder.
-    *   For **Taurus TLS**: You need the Taurus TLS libraries and correct OpenSSL 1.1.x/3.x DLLs as specified by the Taurus project. Ensure `DEXT_ENABLE_TAURUS_TLS` is defined in `Dext.inc`.
-3.  **Certificates**: You need a certificate file (`.crt` or `.pem`) and a private key file (`.key`). For local testing, you can generate self-signed ones.
+## 🚀 Engine Options: HttpSys vs Socket Engines
 
-## Configuration
+| Feature | Windows `http.sys` Native Server | Socket Engines (Indy / OpenSSL / Taurus) |
+|---|---|---|
+| **TLS Processing** | Processed natively inside **Windows Kernel (SChannel)** | Processed inside **User-Mode Application** |
+| **Performance** | Ultra High (Zero-Copy Kernel mode) | High |
+| **Certificates** | Managed by Windows Certificate Store | Specified via `.crt` / `.key` file paths |
+| **HTTPS Setup** | Requires port binding (`dext dev-certs` or `netsh`) | Managed directly inside `appsettings.json` |
 
-SSL is configured via the `Server` section in `appsettings.json`:
+---
+
+## 1. Native Windows Kernel Server (`http.sys`) Setup
+
+When running with `.UseNativeServer` on Windows, `http.sys` delegates TLS decryption directly to the OS Kernel (SChannel).
+
+### Option A: Automated Setup via Dext CLI (Recommended)
+
+Run the Dext CLI in your terminal as Administrator to generate certificates, trust them in Windows, and bind the HTTPS port in the Kernel automatically:
+
+```bash
+dext dev-certs https --trust
+```
+
+Output:
+```text
+Generating 100% native development HTTPS certificate via Windows CryptoAPI...
+[SUCCESS] Native Certificate X.509 generated at: server.crt
+[SUCCESS] Native Private Key generated at: server.key
+[SUCCESS] Native PKCS#12 Bundle generated at: server.pfx
+[SUCCESS] Certificate trusted in Windows Root & My Store!
+[SUCCESS] http.sys Kernel SSL binding completed for port 8080!
+[COMPLETED] Local HTTPS Certificate is ready for development!
+```
+
+---
+
+### Option B: Manual Setup (Windows Admin Command Prompt)
+
+If you prefer to configure the Kernel binding manually:
+
+1. **Import the PKCS#12 (`.pfx`) Bundle with Private Key into `LocalMachine\My`:**
+   ```powershell
+   Import-PfxCertificate -FilePath "server.pfx" -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString "dba" -AsPlainText -Force)
+   ```
+
+2. **Bind the Certificate Hash to your Port in Windows Kernel via `netsh`:**
+   ```cmd
+   netsh http add sslcert ipport=0.0.0.0:8080 certhash=YOUR_SHA1_THUMBPRINT appid={4f3b2c10-8a9b-4d7e-8f12-3456789abcde}
+   ```
+   *Replace `YOUR_SHA1_THUMBPRINT` with your 40-character certificate thumbprint (without spaces).*
+
+3. **Verify the Kernel binding:**
+   ```cmd
+   netsh http show sslcert ipport=0.0.0.0:8080
+   ```
+
+---
+
+## 2. Configuration (`appsettings.json`)
 
 ```json
 {
   "Server": {
     "Port": 8080,
     "UseHttps": "true",
-    "SslProvider": "OpenSSL",
+    "SslProvider": "HttpSys",
+    "SslCertHash": "3CBD4DEA9E9415FA7D3A24A380F6964CE38B83EA",
     "SslCert": "server.crt",
-    "SslKey": "server.key",
-    "SslRootCert": ""
+    "SslKey": "server.key"
   }
 }
 ```
 
-### Settings Description
-*   `UseHttps`: `true` to enable SSL, `false` for HTTP only.
-*   `SslProvider`: 
-    *   `OpenSSL` (Default): Uses Indy's native OpenSSL 1.0.x implementation.
-    *   `Taurus`: Uses the Taurus TLS implementation (supports OpenSSL 1.1x / 3.x).
-*   `SslCert`: Path to your certificate file.
-*   `SslKey`: Path to your private key file.
-*   `SslRootCert`: (Optional) Path to the root certificate/bundle.
+---
 
-## Self-Signed Certificate Generation (Quick Tip)
+## 3. Running the Example
 
-You can use OpenSSL to generate a self-signed certificate for testing:
+1. Open your terminal as **Administrator** (required by Windows for `http.sys` HTTPS listeners).
+2. Execute `Web.SslDemo.exe`.
+3. Open `https://localhost:8080` in your web browser!
 
-```bash
-openssl req -x509 -newkey rsa:4096 -keyout server.key -out server.crt -days 365 -nodes
-```
+---
 
-## Running the Example
-
-1.  Build the project.
-2.  Ensure the DLLs and `.crt`/`.key` files are in the same directory as the executable.
-3.  Run the application.
-4.  Access `https://localhost:8080`.
-
-## Troubleshooting
-
-### ERR_CONNECTION_CLOSED
-- Means the server closed connection during handshake.
-- Check if you have valid certificates.
-- Check if `server.crt` and `server.key` match.
-
-### ERR_TIMED_OUT (Indy/OpenSSL)
-- Common issue with OpenSSL DLL incompatibility.
-- **Solution**: Ensure you are using OpenSSL **1.0.2u** DLLs (`libeay32.dll`, `ssleay32.dll`) in the same folder as the executable.
-- Note: Standard Indy does NOT support OpenSSL 1.1.x or 3.x.
-
-### Taurus TLS (OpenSSL 1.1+/3.0+)
-To use modern OpenSSL versions, switch to Taurus TLS provider:
-1. Ensure `DEXT_ENABLE_TAURUS_TLS` is defined in `Dext.inc`.
-2. Install Taurus TLS library in Delphi.
-3. Update `appsettings.json`:
-   ```json
-   "SslProvider": "Taurus"
-   ```
-4. Use OpenSSL 1.1.x or 3.x DLLs (`libcrypto-*.dll`, `libssl-*.dll`).
-
-## Known Issues
-
-- **ERR_SSL_PROTOCOL_ERROR / ERR_TIMED_OUT**: Some combinations of Windows/Indy/OpenSSL DLLs may fail the handshake even with correct configuration. This is often due to strict TLS version mismatch or DLL architecture mismatch (32 vs 64 bit). 
-- If you encounter persistent issues, try testing with the **Taurus TLS** provider which allows using modern, supported OpenSSL versions.
+## References & Further Reading
 
 - [Dext Framework Documentation](../../README.md)
-- [Web.JwtAuthDemo](../Web.JwtAuthDemo) - JWT Authentication example
+- [Microsoft Windows Http.sys Kernel Architecture](https://learn.microsoft.com/en-us/windows/win32/http/http-server-api-portal)

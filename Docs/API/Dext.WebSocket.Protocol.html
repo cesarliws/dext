@@ -114,6 +114,7 @@
 <a href="Dext.EF.Design.Scaffolding.Preview.html" class="nav-item">Dext.EF.Design.Scaffolding.Preview</a>
 <a href="Dext.Entity.html" class="nav-item">Dext.Entity</a>
 <a href="Dext.Entity.Attributes.html" class="nav-item">Dext.Entity.Attributes</a>
+<a href="Dext.Entity.BatchStrategy.html" class="nav-item">Dext.Entity.BatchStrategy</a>
 <a href="Dext.Entity.Cache.html" class="nav-item">Dext.Entity.Cache</a>
 <a href="Dext.Entity.Collections.html" class="nav-item">Dext.Entity.Collections</a>
 <a href="Dext.Entity.Context.html" class="nav-item">Dext.Entity.Context</a>
@@ -221,12 +222,15 @@
 <a href="Dext.MultiTenancy.html" class="nav-item">Dext.MultiTenancy</a>
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
+<a href="Dext.Net.Download.html" class="nav-item">Dext.Net.Download</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Security.html" class="nav-item">Dext.Net.Security</a>
+<a href="Dext.Net.Security.OpenSSL.html" class="nav-item">Dext.Net.Security.OpenSSL</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
 <a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
@@ -339,6 +343,7 @@
 <a href="Dext.Web.Hubs.Interfaces.html" class="nav-item">Dext.Web.Hubs.Interfaces</a>
 <a href="Dext.Web.Hubs.Middleware.html" class="nav-item">Dext.Web.Hubs.Middleware</a>
 <a href="Dext.Web.Hubs.Protocol.Json.html" class="nav-item">Dext.Web.Hubs.Protocol.Json</a>
+<a href="Dext.Web.Hubs.Protocol.MessagePack.html" class="nav-item">Dext.Web.Hubs.Protocol.MessagePack</a>
 <a href="Dext.Web.Hubs.Transport.SSE.html" class="nav-item">Dext.Web.Hubs.Transport.SSE</a>
 <a href="Dext.Web.Hubs.Transport.WebSocket.html" class="nav-item">Dext.Web.Hubs.Transport.WebSocket</a>
 <a href="Dext.Web.Hubs.Types.html" class="nav-item">Dext.Web.Hubs.Types</a>
@@ -374,6 +379,7 @@
 <a href="Dext.Web.WebApplication.html" class="nav-item">Dext.Web.WebApplication</a>
 <a href="Dext.Web.WebBroker.html" class="nav-item">Dext.Web.WebBroker</a>
 <a href="Dext.WebHost.html" class="nav-item">Dext.WebHost</a>
+<a href="Dext.WebSocket.Compression.html" class="nav-item">Dext.WebSocket.Compression</a>
 <a href="Dext.WebSocket.Handshake.html" class="nav-item">Dext.WebSocket.Handshake</a>
 <a href="Dext.WebSocket.Protocol.html" class="nav-item">Dext.WebSocket.Protocol</a>
 <a href="Dext.Yaml.html" class="nav-item">Dext.Yaml</a>
@@ -407,6 +413,7 @@ class TWebSocketFrameCodec {    +WriteWordBE()
     +EncodePing()
     +EncodePong()
     +TryDecode()
+    +Decode()
     +Unmask()
 }
 TObject <|-- TWebSocketFrameCodec
@@ -434,6 +441,8 @@ TObject <|-- TWebSocketFrameCodec
 <div class="api-item">
 <div class="api-signature">function TryDecode(const const: TBytes; AOffset: Integer; ALength: Integer; out out: TWebSocketFrame; out out: Integer): Boolean</div><div class="description">Decodes a frame from a byte buffer (incremental).</div></div>
 <div class="api-item">
+<div class="api-signature">function Decode(const const: TBytes; AOffset: Integer; ALength: Integer; out out: TWebSocketFrame; out out: Integer; ARequireMask: Boolean; AMaxPayloadLength: UInt64; AAllowRSV1: Boolean): TWebSocketDecodeResult</div></div>
+<div class="api-item">
 <div class="api-signature">procedure Unmask(var var: TBytes; const const: array)</div><div class="description">Unmasks payload in-place.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
@@ -451,6 +460,8 @@ TObject <|-- TWebSocketFrameCodec
 <div class="api-signature">type TWebSocketOpcode = enumeration</div><div class="enum-values">Values: wsContinuation, wsText, wsBinary, wsClose, wsPing, wsPong</div></div>
 <div class="api-item">
 <div class="api-signature">type TWebSocketCloseCode = enumeration</div><div class="enum-values">Values: wsCloseNormal, wsCloseGoingAway, wsCloseProtocolError, wsCloseUnsupportedData, wsCloseNoStatus, wsCloseAbnormal, wsCloseInvalidPayload, wsClosePolicyViolation, wsCloseMessageTooBig, wsCloseMandatoryExtension, wsCloseInternalServerError</div></div>
+<div class="api-item">
+<div class="api-signature">type TWebSocketDecodeResult = enumeration</div><div class="enum-values">Values: wsDecodeIncomplete, wsDecodeComplete, wsDecodeProtocolError, wsDecodeMessageTooBig</div></div>
 </div>
 
         </div>

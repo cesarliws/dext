@@ -106,6 +106,9 @@
         <DCCReference Include="..\..\Sources\Net\Dext.Net.Mqtt.Parser.pas"/>
         <DCCReference Include="..\..\Sources\Net\Dext.Net.Mqtt.pas"/>
         <DCCReference Include="..\..\Sources\Net\Dext.Net.Redis.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Security.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Security.OpenSSL.pas"/>
+        <DCCReference Include="..\..\Sources\Net\Dext.Net.Download.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

@@ -91,6 +91,7 @@ $(PostBuildEvent)]]></PostBuildEvent>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.MigrateUp.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Scaffold.pas"/>
         <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.Test.pas"/>
+        <DCCReference Include="Commands\Dext.Hosting.CLI.Commands.DevCerts.pas"/>
         <DCCReference Include="Tools\Dext.Hosting.CLI.Tools.DocGen.pas"/>
         <DCCReference Include="Tools\Dext.Hosting.CLI.Tools.IndexGen.pas"/>
         <BuildConfiguration Include="Base">

@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -29,7 +29,7 @@ unit Dext.Web.Indy.Server;
 interface
 
 uses
-  System.Classes, System.SysUtils, System.SyncObjs,IdHTTPServer, IdContext, IdCustomHTTPServer, IdServerIOHandler,
+  System.Classes, System.SysUtils, System.SyncObjs, IdHTTPServer, IdContext, IdCustomHTTPServer, IdCustomTCPServer, IdThread, IdServerIOHandler, IdException,
   Dext.Web.Interfaces, Dext.DI.Interfaces, Dext.Web.Indy.SSL.Interfaces, Dext.Hosting.ApplicationLifetime;
 
 type
@@ -49,6 +49,9 @@ type
       ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
     procedure HandleParseAuthentication(AContext: TIdContext;
       const AAuthType, AAuthData: string; var VUsername, VPassword: string; var Handled: Boolean);
+    procedure HandleQuerySSLPort(APort: Word; var VUseSSL: Boolean);
+    procedure HandleListenException(AThread: TIdListenerThread; AException: Exception);
+    procedure HandleConnectException(AContext: TIdContext; AException: Exception);
   public
     constructor Create(APort: Integer; APipeline: TRequestDelegate; const AServices: IServiceProvider;
       const ASSLHandler: IIndySSLHandler = nil);
@@ -113,6 +116,8 @@ begin
   FHTTPServer.OnCommandOther := HandleCommandGet;
   FHTTPServer.OnCommandGet := HandleCommandGet;
   FHTTPServer.OnParseAuthentication := HandleParseAuthentication;
+  FHTTPServer.OnListenException := HandleListenException;
+  FHTTPServer.OnException := HandleConnectException;
   FHTTPServer.ParseParams := True;
   FHTTPServer.KeepAlive := True;
   FHTTPServer.ServerSoftware := 'Dext Web Server/1.0';
@@ -134,6 +139,7 @@ begin
       if SSLIOHandler <> nil then
       begin
         FHTTPServer.IOHandler := SSLIOHandler;
+        FHTTPServer.OnQuerySSLPort := HandleQuerySSLPort;
         FSSLEnabled := True; // Mark SSL as successfully configured
       end
       else
@@ -155,6 +161,22 @@ begin
   // Ignorar autenticação do Indy para permitir que o Middleware do Dext trate (ex: Bearer Token)
   // Se não fizermos isso, o Indy levanta uma exceção "Unsupported authorization scheme" para esquemas desconhecidos
   Handled := True;
+end;
+
+procedure TDextIndyWebServer.HandleQuerySSLPort(APort: Word; var VUseSSL: Boolean);
+begin
+  VUseSSL := FSSLEnabled;
+end;
+
+procedure TDextIndyWebServer.HandleListenException(AThread: TIdListenerThread; AException: Exception);
+begin
+  SafeWriteLn('[HTTPS Error] SSL/TLS Listen Exception: ' + AException.Message);
+end;
+
+procedure TDextIndyWebServer.HandleConnectException(AContext: TIdContext; AException: Exception);
+begin
+  if not (AException is EIdConnClosedGracefully) then
+    SafeWriteLn('[HTTPS Error] SSL Handshake/Connection Exception: ' + AException.ClassName + ': ' + AException.Message);
 end;
 
 destructor TDextIndyWebServer.Destroy;

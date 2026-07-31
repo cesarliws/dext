@@ -1,6 +1,25 @@
-﻿program Web.SslDemo;
+program Web.SslDemo;
 
 {$APPTYPE CONSOLE}
+
+{ ==============================================================================
+  CONFIGURAÇÃO DO DEMO DE SSL/HTTPS
+  Descomente uma opção para Server Engine e uma opção para SSL Provider
+  ============================================================================== }
+
+// --- 1. SELEÇÃO DO SERVER ENGINE ---
+{$DEFINE USE_NATIVE_SERVER}  // Usar Server Engine Nativo (.UseNativeServer: http.sys no Windows / epoll no Linux)
+{.$DEFINE USE_INDY_SERVER}     // Usar Indy Server Engine (Padrão para Demo sem registro admin no http.sys)
+
+// --- 2. SELEÇÃO DO PROVEDOR SSL / TLS ---
+{$DEFINE SSL_PROVIDER_OPENSSL}  // OpenSSL 3.x / 1.1.x
+{.$DEFINE SSL_PROVIDER_TAURUS}
+{.$DEFINE SSL_PROVIDER_OPENSSL}  // OpenSSL 1.0.2 / 1.1.x
+{$IFDEF MSWINDOWS}
+  {$DEFINE SSL_PROVIDER_HTTPSYS} // Windows Kernel Schannel (http.sys)
+{$ELSE}
+  {$DEFINE SSL_PROVIDER_OPENSSL} // Linux native OpenSSL (epoll)
+{$ENDIF}
 
 uses
   Dext.MM,
@@ -14,12 +33,23 @@ uses
 
 procedure EnsureAppSettings;
 const
+  {$IFDEF SSL_PROVIDER_HTTPSYS}
+  SELECTED_PROVIDER = 'HttpSys';
+  {$ELSE}
+    {$IFDEF SSL_PROVIDER_OPENSSL}
+    SELECTED_PROVIDER = 'OpenSSL';
+    {$ELSE}
+    SELECTED_PROVIDER = 'Taurus';
+    {$ENDIF}
+  {$ENDIF}
+
   DEFAULT_SETTINGS =
     '{' + sLineBreak +
     '    "Server": {' + sLineBreak +
     '        "Port": 8080,' + sLineBreak +
     '        "UseHttps": "true",' + sLineBreak +
-    '        "SslProvider": "OpenSSL",' + sLineBreak +
+    '        "SslProvider": "' + SELECTED_PROVIDER + '",' + sLineBreak +
+    '        "SslCertHash": "450D882D8080B6F92B6F2512ABE6FAB9768035C6",' + sLineBreak +
     '        "SslCert": "server.crt",' + sLineBreak +
     '        "SslKey": "server.key",' + sLineBreak +
     '        "SslRootCert": ""' + sLineBreak +
@@ -29,6 +59,8 @@ const
     '    }' + sLineBreak +
     '}';
 begin
+  if FileExists('appsettings.json') then
+    Exit;
   Writeln('Creating/Updating default appsettings.json...');
   TFile.WriteAllText('appsettings.json', DEFAULT_SETTINGS);
 end;
@@ -40,17 +72,11 @@ var
   Path: string;
   CheckPath: string;
 begin
-  // Se os certificados já existem, ok
   if FileExists('server.crt') and FileExists('server.key') then
     Exit;
 
   Writeln('Certificates not found in output directory.');
 
-  // Tentar encontrar na pasta raiz do exemplo (Source)
-  // Assumindo estrutura Output\Platform\Config -> ..\..\..\Examples\Web.SslDemo
-  // Vou procurar recursivamente para simplificar
-
-  // Try common relative paths
   Paths := [
     '..\02-Web\Web.SslDemo',
     '..\..\02-Web\Web.SslDemo',
@@ -79,30 +105,7 @@ begin
     Exit;
   end;
 
-  Writeln('[WARNING] Certificates not found! Please run generate_certs.bat in the example folder.');
-end;
-
-procedure EnsureOpenSSLDlls;
-const
-  DLL_SSL = 'ssleay32.dll';
-  DLL_LIB = 'libeay32.dll';
-begin
-  if (not FileExists(DLL_SSL)) or (not FileExists(DLL_LIB)) then
-  begin
-    Writeln('');
-    Writeln('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    Writeln('[WARNING] OpenSSL DLLs not found in application directory!');
-    Writeln('To avoid "ERR_SSL_PROTOCOL_ERROR" / "TIMED_OUT":');
-    Writeln('You MUST use OpenSSL 1.0.2 compatible DLLs.');
-    Writeln('');
-    Writeln('DOWNLOAD INSTRUCTIONS:');
-    Writeln('1. Go to: https://indy.fulgan.com/SSL/');
-    Writeln('2. Download: "openssl-1.0.2u-i386-win32.zip" (for 32-bit app)');
-    Writeln('   OR "openssl-1.0.2u-x64_86-win64.zip" (for 64-bit app)');
-    Writeln('3. Extract "libeay32.dll" and "ssleay32.dll" to this folder.');
-    Writeln('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    Writeln('');
-  end;
+  Writeln('[WARNING] Certificates not found! Run "dext dev-certs https" to generate.');
 end;
 
 var
@@ -116,50 +119,72 @@ begin
     Writeln('🔒 Dext SSL/HTTPS Enforced Demo');
     Writeln('-------------------------------');
 
-    // 1. Ensure configuration, certificates and DLLs
     EnsureAppSettings;
     EnsureCertificates;
-    EnsureOpenSSLDlls;
 
     App := TDextApplication.Create;
 
-    // 2. Report Configuration Status
     Config := App.Configuration.GetSection('Server');
     Port := 8080;
-    UseHttps := False;
+    UseHttps := True;
 
-    if Config <> nil then
-    begin
+    if (Config <> nil) and (Config['Port'] <> '') then
       Port := StrToIntDef(Config['Port'], 8080);
-      UseHttps := SameText(Config['UseHttps'], 'true');
-    end;
 
-    // Enforce SSL
+    if (Config <> nil) and (Config['UseHttps'] <> '') then
+      UseHttps := SameText(Config['UseHttps'], 'true');
+
+    {$IFDEF USE_NATIVE_SERVER}
+    App.UseNativeServer;
+    Writeln('⚙️ Server Engine: NATIVE (.UseNativeServer -> http.sys on Windows / epoll on Linux)');
+    {$ELSE}
+    Writeln('⚙️ Server Engine: INDY (Default)');
+    {$ENDIF}
+
     if not UseHttps then
       raise Exception.Create('SSL is REQUIRED for this demo. Please set "UseHttps": "true" in appsettings.json.');
 
     Writeln('🚀 Configuration Loaded (HTTPS Enforced):');
     Writeln('   Port:     ', Port);
-    Writeln('   Provider: ', Config['SslProvider']);
-    Writeln('   Cert:     ', Config['SslCert']);
-    Writeln('   Key:      ', Config['SslKey']);
+    if (Config <> nil) and (Config['SslProvider'] <> '') then
+      Writeln('   Provider: ', Config['SslProvider'])
+    else
+      Writeln('   Provider: Taurus');
 
-    if not FileExists(Config['SslCert']) then
-      raise Exception.Create('Certificate file not found: ' + Config['SslCert']);
-    if not FileExists(Config['SslKey']) then
-      raise Exception.Create('Key file not found: ' + Config['SslKey']);
+    if (Config <> nil) and (Config['SslCert'] <> '') then
+      Writeln('   Cert:     ', Config['SslCert'])
+    else
+      Writeln('   Cert:     server.crt');
+
+    if (Config <> nil) and (Config['SslKey'] <> '') then
+      Writeln('   Key:      ', Config['SslKey'])
+    else
+      Writeln('   Key:      server.key');
+
+    if not SameText(Config['SslProvider'], 'HttpSys') then
+    begin
+      if not FileExists(Config['SslCert']) then
+        raise Exception.Create('Certificate file not found: ' + Config['SslCert']);
+      if not FileExists(Config['SslKey']) then
+        raise Exception.Create('Key file not found: ' + Config['SslKey']);
+    end;
 
     Writeln('');
 
+    App.Builder.UseHttpLogging;
+    App.Builder.UseDeveloperExceptionPage;
     App.Builder
-      .MapGet('/', procedure(Context: IHttpContext)
-      begin
-        Context.Response.SetStatusCode(200);
-        Context.Response.SetContentType('text/html');
-        Context.Response.Write('<h1>🔒 Dext SSL Demo</h1>' +
-          '<p>This server is strictly enforced to run over HTTPS.</p>' +
-          '<p>Address: <a href="https://localhost:' + Port.ToString + '">https://localhost:' + Port.ToString + '</a></p>');
-      end);
+      .MapGet('/',
+        procedure(Context: IHttpContext)
+        begin
+          Context.Response.SetStatusCode(200);
+          Context.Response.SetContentType('text/html; charset=utf-8');
+          Context.Response.Write('<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' +
+            '<h1>🔒 Dext SSL Demo</h1>' +
+            '<p>This server is strictly enforced to run over HTTPS.</p>' +
+            '<p>Address: <a href="https://localhost:' + Port.ToString + '">https://localhost:' + Port.ToString + '</a></p>' +
+            '</body></html>');
+        end);
 
     App.Run(Port);
   except

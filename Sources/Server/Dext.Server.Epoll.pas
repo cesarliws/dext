@@ -42,6 +42,8 @@ uses
   Dext.Server.Engine.Interfaces,
   Dext.Server.Engine.Types,
   Dext.Server.Iocp.HttpParser,
+  Dext.Net.Security,
+  Dext.Net.Security.OpenSSL,
   Dext.Web.ResponseWriter;
 
 type
@@ -108,6 +110,16 @@ type
     FHandlerEndTime: Int64;
     FKeepAlive: Boolean;
     FConsumedBytes: Integer;
+    FTLS: IDextTLSEngine;
+    FTLSNetworkBuffer: TBytes;
+    FTLSOutputBuffer: TBytes;
+    FTLSOutputStart: Integer;
+    FTLSOutputEnd: Integer;
+    FTLSHandshakeComplete: Boolean;
+    procedure InitializeTLS(const AProvider: IDextTLSContextProvider);
+    function FeedTLS(const ABuffer: Pointer; ACount: Integer): Integer;
+    procedure DrainTLSOutput;
+    procedure FlushTLSOutput;
     
     constructor Create(AFd: Integer; AEpollFd: Integer);
   end;
@@ -349,6 +361,7 @@ type
     FTotalSweepTicks: Int64;
     FSweepCount: Int64;
     FProfiledRequestCount: Int64;
+    FTLSProvider: IDextTLSContextProvider;
   protected
     procedure ReportMetrics(const AContext: TDextEpollContext);
   public
@@ -530,10 +543,98 @@ begin
   FWriteSegIndex := 0;
   FWriteSegOffset := 0;
   FWriteSegmentsCount := 0;
+  FTLS := nil;
+  SetLength(FTLSNetworkBuffer, 16 * 1024);
+  FTLSOutputBuffer := nil;
+  FTLSOutputStart := 0;
+  FTLSOutputEnd := 0;
+  FTLSHandshakeComplete := False;
   FSendFileFd := -1;
   FSendFileOffset := 0;
   FSendFileLen := 0;
   FLastActive := GetTickCount64;
+end;
+
+procedure TDextEpollContext.InitializeTLS(
+  const AProvider: IDextTLSContextProvider);
+begin
+  if AProvider = nil then
+    raise EInvalidOperation.Create('TLS provider is not configured for epoll');
+  FTLS := AProvider.CreateEngine(tlsmServer);
+  if FTLS = nil then
+    raise EInvalidOperation.Create('TLS provider returned no epoll engine');
+  FTLSHandshakeComplete := False;
+end;
+
+procedure TDextEpollContext.DrainTLSOutput;
+var
+  Temp: array[0..8191] of Byte;
+  Written, OldLength: Integer;
+begin
+  if FTLS = nil then Exit;
+  repeat
+    Written := FTLS.EncryptedOutgoing(@Temp[0], Length(Temp));
+    if Written <= 0 then Break;
+
+    OldLength := FTLSOutputEnd - FTLSOutputStart;
+    if (FTLSOutputStart > 0) and (OldLength > 0) then
+      Move(FTLSOutputBuffer[FTLSOutputStart], FTLSOutputBuffer[0], OldLength);
+    FTLSOutputStart := 0;
+    FTLSOutputEnd := OldLength;
+    SetLength(FTLSOutputBuffer, FTLSOutputEnd + Written);
+    Move(Temp[0], FTLSOutputBuffer[FTLSOutputEnd], Written);
+    Inc(FTLSOutputEnd, Written);
+  until Written < Length(Temp);
+end;
+
+procedure TDextEpollContext.FlushTLSOutput;
+var
+  SentBytes: Integer;
+begin
+  while (FTLSOutputEnd > FTLSOutputStart) and (FFd >= 0) do
+  begin
+    SentBytes := Posix.SysSocket.send(FFd, FTLSOutputBuffer[FTLSOutputStart],
+      FTLSOutputEnd - FTLSOutputStart, 0);
+    if SentBytes > 0 then
+      Inc(FTLSOutputStart, SentBytes)
+    else
+      Break;
+  end;
+  if FTLSOutputStart = FTLSOutputEnd then
+  begin
+    FTLSOutputBuffer := nil;
+    FTLSOutputStart := 0;
+    FTLSOutputEnd := 0;
+  end;
+end;
+
+function TDextEpollContext.FeedTLS(const ABuffer: Pointer;
+  ACount: Integer): Integer;
+var
+  Status: TDextTLSEngineStatus;
+  ReadCount, Total: Integer;
+begin
+  Result := 0;
+  if (FTLS = nil) or (ACount <= 0) then Exit;
+  Result := FTLS.EncryptedIncoming(ABuffer, ACount);
+  if Result < 0 then Exit;
+  Status := FTLS.DoHandshake;
+  DrainTLSOutput;
+  FlushTLSOutput;
+  if Status = tlsError then Exit(-1);
+  FTLSHandshakeComplete := FTLS.IsHandshakeCompleted;
+  if not FTLSHandshakeComplete then Exit;
+  Total := 0;
+  repeat
+    if FReadLen >= Length(FReadBuffer) then
+      SetLength(FReadBuffer, Length(FReadBuffer) * 2);
+    ReadCount := FTLS.PlaintextRead(@FReadBuffer[FReadLen],
+      Length(FReadBuffer) - FReadLen);
+    if ReadCount > 0 then
+      Inc(FReadLen, ReadCount);
+    Inc(Total, Max(0, ReadCount));
+  until ReadCount <= 0;
+  Result := Total;
 end;
  
 { TDextEpollHttpParser }
@@ -1028,9 +1129,15 @@ var
   I: Integer;
   HasPendingWrite: Boolean;
   StartSend: Int64;
+  Plaintext: TBytes;
+  PlainLength: Integer;
+  PlainOffset: Integer;
+  WrittenPlain: Integer;
 begin
   HasPendingWrite := False;
   if FContext.FGeneration <> FGeneration then Exit;
+  if (FContext.FTLS <> nil) and (FSendFileFd >= 0) then
+    raise EInvalidOp.Create('sendfile is not available over epoll OpenSSL TLS');
   if FSendFileFd >= 0 then
   begin
     FContext.FSendFileFd := FSendFileFd;
@@ -1049,6 +1156,48 @@ begin
 
   if not FHeadersSent then
     SendHeaders;
+
+  if FContext.FTLS <> nil then
+  begin
+    SegCount := FResponseWriter.SegmentCount;
+    PlainLength := 0;
+    for I := 0 to SegCount - 1 do
+      Inc(PlainLength, FResponseWriter.Segments[I].Length);
+    if PlainLength > 0 then
+    begin
+      SetLength(Plaintext, PlainLength);
+      PlainOffset := 0;
+      for I := 0 to SegCount - 1 do
+      begin
+        Move(FResponseWriter.Segments[I].Data^, Plaintext[PlainOffset],
+          FResponseWriter.Segments[I].Length);
+        Inc(PlainOffset, FResponseWriter.Segments[I].Length);
+        if Assigned(FResponseWriter.Segments[I].ReleaseProc) then
+          FResponseWriter.Segments[I].ReleaseProc(
+            FResponseWriter.Segments[I].Owner);
+        FResponseWriter.DetachSegment(I);
+      end;
+      FResponseWriter.Reset;
+      PlainOffset := 0;
+      while PlainOffset < PlainLength do
+      begin
+        WrittenPlain := FContext.FTLS.PlaintextWrite(
+          @Plaintext[PlainOffset], PlainLength - PlainOffset);
+        if WrittenPlain <= 0 then
+          raise EInOutError.Create('OpenSSL TLS failed to encrypt epoll response');
+        Inc(PlainOffset, WrittenPlain);
+        FContext.DrainTLSOutput;
+      end;
+      FContext.FlushTLSOutput;
+    end;
+    FillChar(Event, SizeOf(Event), 0);
+    Event.events := EPOLLIN or EPOLLONESHOT;
+    if FContext.FTLSOutputEnd > FContext.FTLSOutputStart then
+      Event.events := Event.events or EPOLLOUT;
+    Event.data.ptr := FContext;
+    epoll_ctl(FContext.FEpollFd, EPOLL_CTL_MOD, FSocket, @Event);
+    Exit;
+  end;
 
   SegCount := FResponseWriter.SegmentCount;
   if SegCount <= 0 then
@@ -1525,6 +1674,12 @@ begin
     AContext.FWriteSegmentsCount := 0;
   end;
 
+  AContext.FTLS := nil;
+  AContext.FTLSOutputBuffer := nil;
+  AContext.FTLSOutputStart := 0;
+  AContext.FTLSOutputEnd := 0;
+  AContext.FTLSHandshakeComplete := False;
+
   if FContextPool.Count < 1024 then
     FContextPool.Add(AContext)
   else
@@ -1823,6 +1978,21 @@ begin
       TInterlocked.Increment(FEngine.FTotalRequests);
       AContext.FConsumedBytes := BodyOffset + ContentLength;
 
+      Connection := TDextEpollConnection.Create(AContext.FFd);
+      RawRequest := TDextEpollRequest.Create(
+        Method,
+        HeaderSegments,
+        AContext.FReadBuffer,
+        BodyOffset,
+        Max(0, AContext.FReadLen - BodyOffset),
+        ContentLength,
+        PathOffset,
+        PathLen,
+        QueryOffset,
+        QueryLen
+      );
+      RawResponse := TDextEpollResponse.Create(AContext);
+
       if (AContext.FConsumedBytes > 0) and (AContext.FConsumedBytes < AContext.FReadLen) then
       begin
         var Remaining: Integer := AContext.FReadLen - AContext.FConsumedBytes;
@@ -1832,21 +2002,6 @@ begin
       else
         AContext.FReadLen := 0;
       AContext.FConsumedBytes := 0;
-
-      Connection := TDextEpollConnection.Create(AContext.FFd);
-      RawRequest := TDextEpollRequest.Create(
-        Method,
-        HeaderSegments,
-        AContext.FReadBuffer,
-        BodyOffset,
-        AContext.FReadLen - BodyOffset,
-        ContentLength,
-        PathOffset,
-        PathLen,
-        QueryOffset,
-        QueryLen
-      );
-      RawResponse := TDextEpollResponse.Create(AContext);
 
       if FEngine.FProfileEnabled then
         FWorkerTotalReadParseTicks := FWorkerTotalReadParseTicks +
@@ -1871,6 +2026,8 @@ begin
   // Se incompleto, rearma no Epoll para leitura
   FillChar(Event, SizeOf(Event), 0);
   Event.events := EPOLLIN or EPOLLONESHOT;
+  if AContext.FTLSOutputEnd > AContext.FTLSOutputStart then
+    Event.events := Event.events or EPOLLOUT;
   Event.data.ptr := AContext;
   epoll_ctl(FEpollFd, EPOLL_CTL_MOD, AContext.FFd, @Event);
 end;
@@ -1900,6 +2057,7 @@ var
   ReadByte: Byte;
   ReadFailedOrClosed: Boolean;
   RecvRet: Integer;
+  RawRecvRet: Integer;
   SentBytes: Integer;
   SentFileBytes: NativeInt;
 begin
@@ -1993,12 +2151,20 @@ begin
               Context.FSendFileOffset := 0;
               Context.FSendFileLen := 0;
               Context.FLastActive := GetTickCount64;
+              Context.FTLS := nil;
+              Context.FTLSOutputBuffer := nil;
+              Context.FTLSOutputStart := 0;
+              Context.FTLSOutputEnd := 0;
+              Context.FTLSHandshakeComplete := False;
             end
             else
             begin
               Context := TDextEpollContext.Create(ClientFd, FEpollFd);
               Context.FEngine := FEngine;
             end;
+
+            if FEngine.FTLSProvider <> nil then
+              Context.InitializeTLS(FEngine.FTLSProvider);
 
             FActiveContexts.Add(Context);
 
@@ -2014,6 +2180,8 @@ begin
             end;
 
             Event.events := EPOLLIN or EPOLLONESHOT;
+            if Context.FTLSOutputEnd > Context.FTLSOutputStart then
+              Event.events := Event.events or EPOLLOUT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_ADD, ClientFd, @Event);
 
@@ -2040,6 +2208,34 @@ begin
           if (Event.events and EPOLLOUT) <> 0 then
           begin
             var WriteWouldBlock: Boolean := False;
+            while (Context.FTLSOutputEnd > Context.FTLSOutputStart) do
+            begin
+              Iov[0].iov_base := @Context.FTLSOutputBuffer[
+                Context.FTLSOutputStart];
+              Iov[0].iov_len := Context.FTLSOutputEnd -
+                Context.FTLSOutputStart;
+              SentBytes := writev(Context.FFd, @Iov[0], 1);
+              if SentBytes > 0 then
+                Inc(Context.FTLSOutputStart, SentBytes)
+              else if (SentBytes < 0) and
+                ((errno = EAGAIN) or (errno = EWOULDBLOCK)) then
+              begin
+                WriteWouldBlock := True;
+                Break;
+              end
+              else
+              begin
+                WriteWouldBlock := True;
+                Context.FFd := -1;
+                Break;
+              end;
+            end;
+            if Context.FTLSOutputStart = Context.FTLSOutputEnd then
+            begin
+              Context.FTLSOutputBuffer := nil;
+              Context.FTLSOutputStart := 0;
+              Context.FTLSOutputEnd := 0;
+            end;
             while (not WriteWouldBlock) and ((Context.FWriteSegmentsCount > 0) or (Context.FSendFileLen > 0)) do
             begin
               if Context.FWriteSegmentsCount > 0 then
@@ -2161,7 +2357,22 @@ begin
             ReadFailedOrClosed := False;
             while True do
             begin
-              RecvRet := recv(Context.FFd, Context.FReadBuffer[0], Length(Context.FReadBuffer), 0);
+              if Context.FTLS <> nil then
+              begin
+                RawRecvRet := recv(Context.FFd, Context.FTLSNetworkBuffer[0],
+                  Length(Context.FTLSNetworkBuffer), 0);
+                RecvRet := RawRecvRet;
+                if RawRecvRet > 0 then
+                begin
+                  RecvRet := Context.FeedTLS(
+                    @Context.FTLSNetworkBuffer[0], RawRecvRet);
+                  if RecvRet = 0 then
+                    Continue;
+                end;
+              end
+              else
+                RecvRet := recv(Context.FFd, Context.FReadBuffer[0],
+                  Length(Context.FReadBuffer), 0);
               if RecvRet > 0 then
               begin
                 try
@@ -2173,6 +2384,8 @@ begin
               end
               else if RecvRet = 0 then
               begin
+                if (Context.FTLS <> nil) and (RawRecvRet > 0) then
+                  Continue;
                 ReadFailedOrClosed := True;
                 Break;
               end
@@ -2205,6 +2418,8 @@ begin
             // Se incompleto, rearma no Epoll para leitura
             FillChar(Event, SizeOf(Event), 0);
             Event.events := EPOLLIN or EPOLLONESHOT;
+            if Context.FTLSOutputEnd > Context.FTLSOutputStart then
+              Event.events := Event.events or EPOLLOUT;
             Event.data.ptr := Context;
             epoll_ctl(FEpollFd, EPOLL_CTL_MOD, Context.FFd, @Event);
             Continue;
@@ -2216,13 +2431,27 @@ begin
             if Context.FReadLen + 4096 > Length(Context.FReadBuffer) then
               SetLength(Context.FReadBuffer, Length(Context.FReadBuffer) + 4096);
 
-            RecvRet := recv(Context.FFd, Context.FReadBuffer[Context.FReadLen], 4096, 0);
+            if Context.FTLS <> nil then
+            begin
+              RawRecvRet := recv(Context.FFd, Context.FTLSNetworkBuffer[0],
+                Length(Context.FTLSNetworkBuffer), 0);
+              RecvRet := RawRecvRet;
+              if RawRecvRet > 0 then
+                RecvRet := Context.FeedTLS(
+                  @Context.FTLSNetworkBuffer[0], RawRecvRet);
+            end
+            else
+              RecvRet := recv(Context.FFd,
+                Context.FReadBuffer[Context.FReadLen], 4096, 0);
             if RecvRet > 0 then
             begin
-              Context.FReadLen := Context.FReadLen + RecvRet;
+              if Context.FTLS = nil then
+                Context.FReadLen := Context.FReadLen + RecvRet;
             end
             else if RecvRet = 0 then
             begin
+              if (Context.FTLS <> nil) and (RawRecvRet > 0) then
+                Continue;
               ReadFailedOrClosed := True;
               Break;
             end
@@ -2292,11 +2521,24 @@ begin
 end;
 
 constructor TDextEpollEngine.Create(const AOptions: TServerEngineOptions);
+var
+  TLSOptions: TDextTLSOptions;
 begin
   inherited Create;
   FOptions := AOptions;
   FRunning := False;
   FWorkers := TList.Create;
+  FTLSProvider := nil;
+  if FOptions.UseHttps then
+  begin
+    TLSOptions := TDextTLSOptions.DefaultServer(
+      FOptions.SslCertFile, FOptions.SslKeyFile);
+    TLSOptions.RootCertFile := FOptions.SslRootCertFile;
+    TLSOptions.Provider := 'OpenSSL';
+    TLSOptions.ALPNProtocols := ['h2', 'http/1.1'];
+    FTLSProvider := TDextOpenSSLContextProvider.Create(TLSOptions);
+  end;
+
   FProfileEnabled := SameText(
     GetEnvironmentVariable('DEXT_PROFILE_EPOLL'), 'true');
   if FOptions.MaxExecutorThreads > 0 then

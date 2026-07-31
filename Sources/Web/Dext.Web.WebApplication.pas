@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -448,7 +448,6 @@ begin
   RequestHandler := GetApplicationBuilder.Build;
 
   // Create WebHost
-  SSLHandler := nil;
   ServerSection := FConfiguration.GetSection('Server');
   if (ServerSection <> nil) and (SameText(ServerSection['UseHttps'], 'true')) then
   begin
@@ -456,11 +455,11 @@ begin
     KeyFile := ServerSection['SslKey'];
     RootFile := ServerSection['SslRootCert'];
     
-    // Only enable SSL if certificate files exist
-    if (CertFile <> '') and (KeyFile <> '') and 
-       FileExists(CertFile) and FileExists(KeyFile) then
+    // Only enable SSL if certificate files exist or if ProviderName is HttpSys
+    ProviderName := ServerSection['SslProvider'];
+    if SameText(ProviderName, 'HttpSys') or 
+       ((CertFile <> '') and (KeyFile <> '') and FileExists(CertFile) and FileExists(KeyFile)) then
     begin
-      ProviderName := ServerSection['SslProvider'];
       if SameText(ProviderName, 'Taurus') then
         SSLHandler := TDextIndyTaurusSSLHandler.Create(CertFile, KeyFile, RootFile)
       else
@@ -652,10 +651,38 @@ begin
 end;
 
 procedure TWebApplication.UseNativeServer(const AOptions: TServerEngineOptions);
+var
+  Opts: TServerEngineOptions;
+  ServerSec: IConfigurationSection;
 begin
+  Opts := AOptions;
+  ServerSec := FConfiguration.GetSection('Server');
+  if ServerSec <> nil then
+  begin
+    if SameText(ServerSec['UseHttps'], 'true') then
+      Opts.UseHttps := True;
+    if ServerSec['SslCertHash'] <> '' then
+      Opts.SslCertHash := ServerSec['SslCertHash'];
+    Opts.SslCertFile := ServerSec['SslCert'];
+    Opts.SslKeyFile := ServerSec['SslKey'];
+    Opts.SslRootCertFile := ServerSec['SslRootCert'];
+    if ServerSec['SslProvider'] <> '' then
+      Opts.SslProvider := ServerSec['SslProvider'];
+    if ServerSec['SslCertStore'] <> '' then
+      Opts.SslCertStoreName := ServerSec['SslCertStore'];
+    if ServerSec['HttpSysAppId'] <> '' then
+      try
+        Opts.HttpSysAppId := StringToGUID(ServerSec['HttpSysAppId']);
+      except
+        on E: EConvertError do
+        raise EArgumentException.Create(
+          'Server:HttpSysAppId must be a valid GUID');
+      end;
+  end;
+
   FServerFactory := function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost
     begin
-      Result := TDextNativeWebServer.Create(Port, Pipeline, Services, AOptions);
+      Result := TDextNativeWebServer.Create(Port, Pipeline, Services, Opts);
     end;
 end;
 

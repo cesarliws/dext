@@ -63,6 +63,22 @@ type
     MaxRequestHeaderSize: Integer;
     /// <summary>Maximum accepted request body size.</summary>
     MaxRequestBodySize: Int64;
+    /// <summary>Enable HTTPS/SSL on the server engine (default: False).</summary>
+    UseHttps: Boolean;
+    /// <summary>SSL Certificate Hash (Thumbprint) for Windows Schannel / http.sys.</summary>
+    SslCertHash: string;
+    /// <summary>PEM certificate chain used by user-mode TLS providers.</summary>
+    SslCertFile: string;
+    /// <summary>PEM private key used by user-mode TLS providers.</summary>
+    SslKeyFile: string;
+    /// <summary>Optional CA bundle used by user-mode TLS providers.</summary>
+    SslRootCertFile: string;
+    /// <summary>Configured TLS provider name.</summary>
+    SslProvider: string;
+    /// <summary>Windows certificate store used by the http.sys binding.</summary>
+    SslCertStoreName: string;
+    /// <summary>Administrative owner of an http.sys SSL binding.</summary>
+    HttpSysAppId: TGUID;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -72,6 +88,10 @@ type
   ///   Fluent helper for TServerEngineOptions to chain configurations.
   /// </summary>
   TServerEngineOptionsHelper = record helper for TServerEngineOptions
+    /// <summary>Enables or disables HTTPS/SSL on the server engine.</summary>
+    function WithHttps(AValue: Boolean = True): TServerEngineOptions;
+    /// <summary>Configures the SSL Certificate Hash (Thumbprint) for Windows Schannel / http.sys.</summary>
+    function WithSslCertHash(const AHash: string): TServerEngineOptions;
     /// <summary>Configures the number of worker I/O threads.</summary>
     /// <param name="ACount">Number of threads (0 for CPU count auto-detection).</param>
     function WithIoThreads(ACount: Integer): TServerEngineOptions;
@@ -113,6 +133,11 @@ type
     class function CompareBytesCI(const ABuffer: TBytes; AStart, ALen: Integer; const AStr: string): Boolean; static; inline;
   end;
 
+/// <summary>
+///   Global entry point for fluently configuring TServerEngineOptions.
+/// </summary>
+function ServerEngineOptions: TServerEngineOptions; inline;
+
 implementation
 
 { TServerEngineOptions }
@@ -131,9 +156,30 @@ begin
   Result.OutstandingReceiveDepth := 2;
   Result.MaxRequestHeaderSize := 64 * 1024;
   Result.MaxRequestBodySize := 16 * 1024 * 1024;
+  Result.UseHttps := False;
+  Result.SslCertStoreName := 'MY';
+  Result.SslProvider := 'Auto';
+  Result.HttpSysAppId := TGUID.Empty;
+end;
+
+function ServerEngineOptions: TServerEngineOptions;
+begin
+  Result := TServerEngineOptions.Default;
 end;
 
 { TServerEngineOptionsHelper }
+
+function TServerEngineOptionsHelper.WithHttps(AValue: Boolean): TServerEngineOptions;
+begin
+  Self.UseHttps := AValue;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithSslCertHash(const AHash: string): TServerEngineOptions;
+begin
+  Self.SslCertHash := AHash;
+  Result := Self;
+end;
 
 function TServerEngineOptionsHelper.WithIoThreads(ACount: Integer): TServerEngineOptions;
 begin

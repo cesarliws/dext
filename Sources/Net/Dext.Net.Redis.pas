@@ -33,7 +33,9 @@ uses
   Dext.Threading.Async,
   Dext.Collections.Channels,
   Dext.Json,
-  Dext.DI.Interfaces;
+  Dext.DI.Interfaces,
+  Dext.Net.Security,
+  Dext.Net.Security.OpenSSL;
 
 type
   /// <summary>
@@ -113,7 +115,7 @@ type
   end;
 
   /// <summary>
-  ///   High-performance TCP wrapper for Redis socket connections.
+  ///   High-performance TCP wrapper for Redis socket connections with optional SSL/TLS support.
   /// </summary>
   TDextRedisConnection = class
   private
@@ -121,6 +123,14 @@ type
     FHost: string;
     FPort: Word;
     FLock: TCriticalSection;
+    FTLSOptions: TDextTLSOptions;
+    FTLSEngine: IDextTLSEngine;
+    FTLSNetworkBuffer: TBytes;
+    FReceiveBuffer: TBytes;
+    procedure PerformTlsHandshake;
+    procedure DrainTlsOutput;
+    procedure FeedTlsInput;
+    procedure WriteTlsPlaintext(const AData: TBytes);
   public
     FBuffer: TBytes;
     FBufferLen: Integer;
@@ -130,7 +140,9 @@ type
     procedure ShiftBuffer(ACount: Integer);
   public
     /// <summary>Initializes a connection with host and port details.</summary>
-    constructor Create(const AHost: string; APort: Word);
+    constructor Create(const AHost: string; APort: Word); overload;
+    /// <summary>Initializes a connection with host, port, and TLS configuration.</summary>
+    constructor Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions); overload;
     /// <summary>Frees connection resources.</summary>
     destructor Destroy; override;
 
@@ -158,9 +170,12 @@ type
     FPool: IStack<TDextRedisConnection>;
     FLock: TCriticalSection;
     FCount: Integer;
+    FTLSOptions: TDextTLSOptions;
   public
     /// <summary>Initializes a connection pool with size boundaries.</summary>
-    constructor Create(const AHost: string; APort: Word; AMaxPoolSize: Integer = 16);
+    constructor Create(const AHost: string; APort: Word; AMaxPoolSize: Integer = 16); overload;
+    /// <summary>Initializes a connection pool with TLS options and size boundaries.</summary>
+    constructor Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions; AMaxPoolSize: Integer = 16); overload;
     /// <summary>Cleans and destroys the connection pool.</summary>
     destructor Destroy; override;
 
@@ -200,7 +215,9 @@ type
     procedure ReaderLoop;
   public
     /// <summary>Initializes Pub/Sub client connection.</summary>
-    constructor Create(const AHost: string; APort: Word);
+    constructor Create(const AHost: string; APort: Word); overload;
+    /// <summary>Initializes Pub/Sub client connection with TLS configuration.</summary>
+    constructor Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions); overload;
     /// <summary>Cleans Pub/Sub client connection.</summary>
     destructor Destroy; override;
 
@@ -219,7 +236,8 @@ type
     FPubSub: TDextRedisPubSub;
   public
     /// <summary>Initializes the client with connection parameters.</summary>
-    constructor Create(const AHost: string = 'localhost'; APort: Word = 6379; AMaxPoolSize: Integer = 16);
+    constructor Create(const AHost: string = 'localhost'; APort: Word = 6379; AMaxPoolSize: Integer = 16); overload;
+    constructor Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions; AMaxPoolSize: Integer = 16); overload;
     /// <summary>Cleans the client resources.</summary>
     destructor Destroy; override;
 
@@ -540,12 +558,21 @@ end;
 
 constructor TDextRedisConnection.Create(const AHost: string; APort: Word);
 begin
+  Create(AHost, APort, Default(TDextTLSOptions));
+end;
+
+constructor TDextRedisConnection.Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions);
+begin
   inherited Create;
   FHost := AHost;
   FPort := APort;
+  FTLSOptions := ATLSOptions;
+  FTLSOptions.Host := AHost;
   FTcpClient := TDextTcpClient.Create;
   FLock := TCriticalSection.Create;
   FBufferLen := 0;
+  SetLength(FTLSNetworkBuffer, 16 * 1024);
+  SetLength(FReceiveBuffer, 16 * 1024);
 end;
 
 destructor TDextRedisConnection.Destroy;
@@ -556,13 +583,105 @@ begin
   inherited;
 end;
 
+procedure TDextRedisConnection.PerformTlsHandshake;
+var
+  Provider: IDextTLSContextProvider;
+  Status: TDextTLSEngineStatus;
+  LoopCount: Integer;
+begin
+  Provider := TDextOpenSSLContextProvider.Create(FTLSOptions);
+  FTLSEngine := Provider.CreateEngine(tlsmClient);
+
+  LoopCount := 0;
+  while not FTLSEngine.IsHandshakeCompleted do
+  begin
+    Inc(LoopCount);
+    if LoopCount > 50 then
+      raise EDextRedisException.Create('TLS handshake timeout: exceeded 50 iterations');
+
+    Status := FTLSEngine.DoHandshake;
+    DrainTlsOutput;
+
+    if FTLSEngine.IsHandshakeCompleted or (Status = tlsHandshakeCompleted) then
+      Break;
+
+    if Status = tlsHandshakeNeedRead then
+      FeedTlsInput
+    else if Status = tlsError then
+      raise EDextRedisException.CreateFmt(
+        'TLS handshake failed at loop %d (OpenSSL error %d).',
+        [LoopCount, FTLSEngine.GetLastErrorCode]);
+  end;
+end;
+
+procedure TDextRedisConnection.DrainTlsOutput;
+var
+  BytesWritten: Integer;
+begin
+  repeat
+    BytesWritten := FTLSEngine.EncryptedOutgoing(
+      @FTLSNetworkBuffer[0], Length(FTLSNetworkBuffer));
+    if BytesWritten > 0 then
+      FTcpClient.Send(TByteSpan.Create(@FTLSNetworkBuffer[0], BytesWritten));
+  until BytesWritten = 0;
+end;
+
+procedure TDextRedisConnection.FeedTlsInput;
+var
+  BytesRead: Integer;
+begin
+  BytesRead := FTcpClient.Receive(
+    TByteSpan.Create(@FTLSNetworkBuffer[0], Length(FTLSNetworkBuffer)), 5000);
+  if BytesRead <= 0 then
+    raise EDextRedisException.Create(
+      'Redis server closed the TLS connection unexpectedly');
+  if FTLSEngine.EncryptedIncoming(
+    @FTLSNetworkBuffer[0], BytesRead) <> BytesRead then
+    raise EDextRedisException.Create(
+      'OpenSSL input BIO did not accept all encrypted bytes');
+end;
+
+procedure TDextRedisConnection.WriteTlsPlaintext(const AData: TBytes);
+var
+  Offset: Integer;
+  Written: Integer;
+begin
+  Offset := 0;
+  while Offset < Length(AData) do
+  begin
+    Written := FTLSEngine.PlaintextWrite(
+      @AData[Offset], Length(AData) - Offset);
+    DrainTlsOutput;
+    if Written > 0 then
+      Inc(Offset, Written)
+    else
+      case FTLSEngine.GetLastIOStatus of
+        tlsIONeedRead:
+          FeedTlsInput;
+        tlsIONeedWrite:
+          Continue;
+        tlsIOClosed:
+          raise EDextRedisException.Create(
+            'TLS connection closed while writing Redis command');
+      else
+        raise EDextRedisException.CreateFmt(
+          'TLS write failed (OpenSSL error %d)',
+          [FTLSEngine.GetLastErrorCode]);
+      end;
+  end;
+  DrainTlsOutput;
+end;
+
 procedure TDextRedisConnection.Connect;
 begin
   FTcpClient.Connect(FHost, FPort);
+  if FTLSOptions.Enabled then
+    PerformTlsHandshake;
 end;
 
 procedure TDextRedisConnection.Disconnect;
 begin
+  FTLSEngine := nil;
   FTcpClient.Disconnect;
   FBufferLen := 0;
 end;
@@ -601,8 +720,7 @@ var
   ParsedValue: TDextRedisValue;
   BytesConsumed: Integer;
   ReadSpan: TByteSpan;
-  RecvBuf: TBytes;
-  RecvCount: Integer;
+  PlainCount: Integer;
 begin
   FLock.Enter;
   try
@@ -610,9 +728,14 @@ begin
       Connect;
 
     ReqBytes := BuildRedisCommand(ACommand, AArgs);
-    FTcpClient.Send(ReqBytes);
+    if FTLSOptions.Enabled and Assigned(FTLSEngine) then
+      WriteTlsPlaintext(ReqBytes)
+    else
+    begin
+      // Plain TCP Send
+      FTcpClient.Send(ReqBytes);
+    end;
 
-    SetLength(RecvBuf, 65536);
     while True do
     begin
       if FBufferLen > 0 then
@@ -627,10 +750,29 @@ begin
         end;
       end;
 
-      RecvCount := FTcpClient.Receive(RecvBuf, 5000);
-      if RecvCount <= 0 then
-        raise EDextRedisException.Create('Redis connection closed or timed out');
-      AppendData(TByteSpan.Create(@RecvBuf[0], RecvCount));
+      if FTLSOptions.Enabled and Assigned(FTLSEngine) then
+      begin
+        FeedTlsInput;
+        repeat
+          PlainCount := FTLSEngine.PlaintextRead(
+            @FReceiveBuffer[0], Length(FReceiveBuffer));
+          if PlainCount > 0 then
+            AppendData(TByteSpan.Create(@FReceiveBuffer[0], PlainCount));
+        until PlainCount = 0;
+        if FTLSEngine.GetLastIOStatus = tlsIOError then
+          raise EDextRedisException.CreateFmt(
+            'TLS read failed (OpenSSL error %d)',
+            [FTLSEngine.GetLastErrorCode]);
+      end
+      else
+      begin
+        // Plain TCP Recv
+        PlainCount := FTcpClient.Receive(
+          TByteSpan.Create(@FReceiveBuffer[0], Length(FReceiveBuffer)), 5000);
+        if PlainCount <= 0 then
+          raise EDextRedisException.Create('Redis server closed connection unexpectedly');
+        AppendData(TByteSpan.Create(@FReceiveBuffer[0], PlainCount));
+      end;
     end;
   finally
     FLock.Leave;
@@ -652,9 +794,15 @@ end;
 
 constructor TDextRedisConnectionPool.Create(const AHost: string; APort: Word; AMaxPoolSize: Integer);
 begin
+  Create(AHost, APort, Default(TDextTLSOptions), AMaxPoolSize);
+end;
+
+constructor TDextRedisConnectionPool.Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions; AMaxPoolSize: Integer);
+begin
   inherited Create;
   FHost := AHost;
   FPort := APort;
+  FTLSOptions := ATLSOptions;
   FMaxPoolSize := AMaxPoolSize;
   FPool := TCollections.CreateStack<TDextRedisConnection>;
   FLock := TCriticalSection.Create;
@@ -679,7 +827,7 @@ begin
     end
     else
     begin
-      Result := TDextRedisConnection.Create(FHost, FPort);
+      Result := TDextRedisConnection.Create(FHost, FPort, FTLSOptions);
       Result.Connect;
       Inc(FCount);
     end;
@@ -708,11 +856,16 @@ begin
 end;
 
 procedure TDextRedisConnectionPool.Clear;
+var
+  Conn: TDextRedisConnection;
 begin
   FLock.Enter;
   try
     while FPool.Count > 0 do
-      FPool.Pop.Free;
+    begin
+      Conn := FPool.Pop;
+      Conn.Free;
+    end;
     FCount := 0;
   finally
     FLock.Leave;
@@ -723,8 +876,13 @@ end;
 
 constructor TDextRedisPubSub.Create(const AHost: string; APort: Word);
 begin
+  Create(AHost, APort, Default(TDextTLSOptions));
+end;
+
+constructor TDextRedisPubSub.Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions);
+begin
   inherited Create;
-  FConnection := TDextRedisConnection.Create(AHost, APort);
+  FConnection := TDextRedisConnection.Create(AHost, APort, ATLSOptions);
   FChannelMap := TCollections.CreateDictionary<string, IChannel<TDextRedisMessage>>;
   FMapLock := TCriticalSection.Create;
   FActive := False;
@@ -851,9 +1009,14 @@ end;
 
 constructor TDextRedisClient.Create(const AHost: string; APort: Word; AMaxPoolSize: Integer);
 begin
+  Create(AHost, APort, Default(TDextTLSOptions), AMaxPoolSize);
+end;
+
+constructor TDextRedisClient.Create(const AHost: string; APort: Word; const ATLSOptions: TDextTLSOptions; AMaxPoolSize: Integer);
+begin
   inherited Create;
-  FPool := TDextRedisConnectionPool.Create(AHost, APort, AMaxPoolSize);
-  FPubSub := TDextRedisPubSub.Create(AHost, APort);
+  FPool := TDextRedisConnectionPool.Create(AHost, APort, ATLSOptions, AMaxPoolSize);
+  FPubSub := TDextRedisPubSub.Create(AHost, APort, ATLSOptions);
 end;
 
 destructor TDextRedisClient.Destroy;

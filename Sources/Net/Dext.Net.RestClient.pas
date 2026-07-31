@@ -180,6 +180,10 @@ uses
     function Timeout(AValue: Integer): IRestClient;
     /// <summary>Configures the maximum number of automatic retries in case of network failure.</summary>
     function Retry(AValue: Integer): IRestClient;
+    /// <summary>Configures whether to ignore SSL certificate validation errors (default: True).</summary>
+    function IgnoreCertificateErrors(AValue: Boolean = True): IRestClient;
+    /// <summary>Alias for IgnoreCertificateErrors to allow self-signed certificates.</summary>
+    function AllowSelfSigned(AValue: Boolean = True): IRestClient;
     /// <summary>Associates an authentication provider (Bearer, Basic, API Key).</summary>
     function Auth(AProvider: IAuthenticationProvider): IRestClient;
     /// <summary>Adds a fixed HTTP header to the client.</summary>
@@ -337,6 +341,7 @@ uses
     FBaseUrl: string;
     FTimeout: Integer;
     FMaxRetries: Integer;
+    FIgnoreCertErrors: Boolean;
     FHeaders: IDictionary<string, string>;
     FContentType: TDextContentType;
     FAuthProvider: IAuthenticationProvider;
@@ -358,6 +363,8 @@ uses
     /// Chiude il giro: 304 lascia tutto com'e', successo rinomina, errore no.
     class procedure FinishDownload(const AResponse: IRestResponse;
       const APartPath, ATargetPath: string; AOptions: TRestDownloadOptions); static;
+    /// Retorna o tamanho do arquivo de forma compativel com Delphi 10.4 Sydney+.
+    class function GetFileSize(const APath: string): Int64; static;
   public
     constructor Create(const ABaseUrl: string = '');
 
@@ -366,6 +373,8 @@ uses
     function BaseUrl(const AValue: string): IRestClient;
     function Timeout(AValue: Integer): IRestClient;
     function Retry(AValue: Integer): IRestClient;
+    function IgnoreCertificateErrors(AValue: Boolean = True): IRestClient;
+    function AllowSelfSigned(AValue: Boolean = True): IRestClient;
     function Auth(AProvider: IAuthenticationProvider): IRestClient;
     function Header(const AName, AValue: string): IRestClient;
     function ContentType(AValue: TDextContentType): IRestClient;
@@ -424,6 +433,10 @@ uses
     function Timeout(AValue: Integer): TRestClient;
     /// <summary>Sets the maximum number of retry attempts for failed requests.</summary>
     function Retry(AValue: Integer): TRestClient;
+    /// <summary>Configures whether to ignore SSL certificate validation errors.</summary>
+    function IgnoreCertificateErrors(AValue: Boolean = True): TRestClient;
+    /// <summary>Alias for IgnoreCertificateErrors to allow self-signed certificates.</summary>
+    function AllowSelfSigned(AValue: Boolean = True): TRestClient;
     /// <summary>Configures Bearer (JWT) authentication for requests.</summary>
     function BearerToken(const AToken: string): TRestClient;
     /// <summary>Configures basic authentication (Username/Password).</summary>
@@ -774,6 +787,7 @@ begin
   FTimeout := 30000;
   FHeaders := TCollections.CreateDictionary<string, string>;
   FContentType := ctJson;
+  FIgnoreCertErrors := True;
   FPool := TConnectionPool(TRestClient.FSharedPool);
   FLock := TCriticalSection.Create;
 end;
@@ -783,6 +797,17 @@ begin
   // FHeaders is ARC
   FLock.Free;
   inherited;
+end;
+
+function TRestClientImpl.IgnoreCertificateErrors(AValue: Boolean): IRestClient;
+begin
+  FIgnoreCertErrors := AValue;
+  Result := Self;
+end;
+
+function TRestClientImpl.AllowSelfSigned(AValue: Boolean): IRestClient;
+begin
+  Result := IgnoreCertificateErrors(AValue);
 end;
 
 function TRestClientImpl.GetFullUrl(const AEndpoint: string): string;
@@ -1096,6 +1121,7 @@ begin
                   HttpClient := TConnectionPool(TRestClient.FSharedPool).Acquire;
                   try
                     HttpClient.SetConnectionTimeout(Timeout);
+                    HttpClient.SetIgnoreCertificateErrors(FIgnoreCertErrors);
                     HttpClient.SetSendTimeout(Timeout);
                     HttpClient.SetResponseTimeout(Timeout);
 
@@ -1233,6 +1259,30 @@ begin
   Result := SanitizeFileName(Result);
 end;
 
+class function TRestClientImpl.GetFileSize(const APath: string): Int64;
+{$IF CompilerVersion >= 35.0}
+begin
+  Result := TFile.GetSize(APath);
+end;
+{$ELSE}
+var
+  Stream: TFileStream;
+begin
+  if not TFile.Exists(APath) then
+    Exit(0);
+  try
+    Stream := TFileStream.Create(APath, fmOpenRead or fmShareDenyNone);
+    try
+      Result := Stream.Size;
+    finally
+      Stream.Free;
+    end;
+  except
+    Result := 0;
+  end;
+end;
+{$IFEND}
+
 class procedure TRestClientImpl.FinishDownload(const AResponse: IRestResponse;
   const APartPath, ATargetPath: string; AOptions: TRestDownloadOptions);
 var
@@ -1242,7 +1292,7 @@ begin
   // che era stato aperto se ne va.
   if AResponse.GetStatusCode = 304 then
   begin
-    if TFile.Exists(APartPath) and (TFile.GetSize(APartPath) = 0) then
+    if TFile.Exists(APartPath) and (GetFileSize(APartPath) = 0) then
       TFile.Delete(APartPath);
     Exit;
   end;
@@ -1283,6 +1333,7 @@ var
   Handler: TRestReceiveAnonEvent;
   Existing: Int64;
   Opts: TRestDownloadOptions;
+  NextProc: TProc<IRestResponse>;
 begin
   TargetPath := TPath.GetFullPath(ATargetFilePath);
   Opts := AOptions;
@@ -1303,7 +1354,7 @@ begin
   Existing := 0;
   if (doResume in Opts) and TFile.Exists(PartPath) then
   begin
-    Existing := TFile.GetSize(PartPath);
+    Existing := GetFileSize(PartPath);
     if Existing > 0 then
       // "Dammi il resto": se il server sta al gioco risponde 206 e si accoda.
       Headers.AddOrSetValue('Range', Format('bytes=%d-', [Existing]));
@@ -1323,22 +1374,24 @@ begin
   if not Assigned(Handler) then
     Handler := FOnReceive;
 
+  NextProc :=
+    procedure(AResponse: IRestResponse)
+    var
+      ETag: string;
+    begin
+      FinishDownload(AResponse, PartPath, TargetPath, Opts);
+      if AResponse.GetIsSuccess then
+      begin
+        ETag := AResponse.GetHeader('ETag');
+        if ETag <> '' then
+          TFile.WriteAllText(ETagPath, ETag);
+      end;
+    end;
+
   // ExecuteCore possiede il .part e lo chiude dentro il task; il rename avviene
   // dopo, a file gia' rilasciato.
   Result := ExecuteCore(hmGET, AEndpoint, nil, False, Headers, Part, Handler, True)
-    .ThenBy(
-      procedure(AResponse: IRestResponse)
-      var
-        ETag: string;
-      begin
-        FinishDownload(AResponse, PartPath, TargetPath, Opts);
-        if AResponse.GetIsSuccess then
-        begin
-          ETag := AResponse.GetHeader('ETag');
-          if ETag <> '' then
-            TFile.WriteAllText(ETagPath, ETag);
-        end;
-      end);
+    .ThenBy(NextProc);
 end;
 
 function TRestClientImpl.OnReceive(const AHandler: TRestReceiveEvent): IRestClient;
@@ -1389,6 +1442,18 @@ end;
 function TRestClient.BaseUrl(const AValue: string): TRestClient;
 begin
   FInstance.BaseUrl(AValue);
+  Result := Self;
+end;
+
+function TRestClient.IgnoreCertificateErrors(AValue: Boolean): TRestClient;
+begin
+  FInstance.IgnoreCertificateErrors(AValue);
+  Result := Self;
+end;
+
+function TRestClient.AllowSelfSigned(AValue: Boolean): TRestClient;
+begin
+  FInstance.AllowSelfSigned(AValue);
   Result := Self;
 end;
 

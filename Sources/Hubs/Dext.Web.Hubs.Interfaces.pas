@@ -378,9 +378,19 @@ type
     
     /// <summary>Deserializes a string to Hub message.</summary>
     function Deserialize(const Data: string): THubMessage;
+
+    /// <summary>Serializes a Hub message to its native wire representation.</summary>
+    function SerializeBinary(const Message: THubMessage): TBytes;
+
+    /// <summary>Deserializes one native wire message.</summary>
+    function DeserializeBinary(const Data: TBytes; AOffset, ACount: Integer;
+      out AConsumed: Integer): THubMessage;
     
     /// <summary>Checks if data is a complete message (for streaming).</summary>
     function IsCompleteMessage(const Data: string): Boolean;
+
+    /// <summary>Checks if a complete native wire message is available.</summary>
+    function IsCompleteBinary(const Data: TBytes; AOffset, ACount: Integer): Boolean;
   end;
 
   {$ENDREGION}  /// <summary>

@@ -1,4 +1,5 @@
 unit Dext.Web.Indy.SSL.OpenSSL;
+
 {$I Dext.inc}
 
 interface
@@ -19,6 +20,7 @@ type
     FCertFile: string;
     FKeyFile: string;
     FRootFile: string;
+    procedure OnGetSSLPassword(var APassword: {$IF CompilerVersion < 27}AnsiString{$ELSE}string{$ENDIF});
   public
     constructor Create(const ACertFile, AKeyFile, ARootFile: string); reintroduce;
     function CreateIOHandler(AServer: TIdCustomHTTPServer): TIdServerIOHandler;
@@ -26,10 +28,8 @@ type
 
 implementation
 
-{$IFNDEF DEXT_ENABLE_SSL}
 uses
   Dext.Utils;
-{$ENDIF}
 
 { TDextIndyOpenSSLHandler }
 
@@ -39,6 +39,11 @@ begin
   FCertFile := ACertFile;
   FKeyFile := AKeyFile;
   FRootFile := ARootFile;
+end;
+
+procedure TDextIndyOpenSSLHandler.OnGetSSLPassword(var APassword: {$IF CompilerVersion < 27}AnsiString{$ELSE}string{$ENDIF});
+begin
+  APassword := '';
 end;
 
 function TDextIndyOpenSSLHandler.CreateIOHandler(AServer: TIdCustomHTTPServer): TIdServerIOHandler;
@@ -55,9 +60,12 @@ begin
     LIOHandler.SSLOptions.RootCertFile := FRootFile;
 
   LIOHandler.SSLOptions.Mode := sslmServer;
-  LIOHandler.SSLOptions.Method := sslvTLSv1_2; // Strict TLS 1.2
-  LIOHandler.SSLOptions.SSLVersions := [sslvTLSv1_2];
+  LIOHandler.SSLOptions.Method := sslvSSLv23;
+  LIOHandler.SSLOptions.SSLVersions := [sslvSSLv23, sslvSSLv3, sslvTLSv1, sslvTLSv1_1, sslvTLSv1_2];
+  LIOHandler.SSLOptions.CipherList := '';
+  LIOHandler.OnGetPassword := OnGetSSLPassword;
 
+  SafeWriteLn('[HTTPS] Indy OpenSSL IOHandler initialized with Cert: ' + FCertFile + ' Key: ' + FKeyFile);
   Result := LIOHandler;
   {$ELSE}
   SafeWriteLn('[WARN] SSL requested but DEXT_ENABLE_SSL is not defined in Dext.inc, using HTTP.');

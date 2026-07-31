@@ -58,7 +58,11 @@ type
     
     function Serialize(const Message: THubMessage): string;
     function Deserialize(const Data: string): THubMessage;
+    function SerializeBinary(const Message: THubMessage): TBytes;
+    function DeserializeBinary(const Data: TBytes; AOffset, ACount: Integer;
+      out AConsumed: Integer): THubMessage;
     function IsCompleteMessage(const Data: string): Boolean;
+    function IsCompleteBinary(const Data: TBytes; AOffset, ACount: Integer): Boolean;
     
     // Helpers
     class function SerializeInvocation(const Target: string; const Args: TArray<TValue>): string;
@@ -88,6 +92,42 @@ end;
 function TJsonHubProtocol.GetTransferFormat: string;
 begin
   Result := 'Text';
+end;
+
+function TJsonHubProtocol.SerializeBinary(const Message: THubMessage): TBytes;
+begin
+  Result := TEncoding.UTF8.GetBytes(Serialize(Message));
+end;
+
+function TJsonHubProtocol.DeserializeBinary(const Data: TBytes; AOffset,
+  ACount: Integer; out AConsumed: Integer): THubMessage;
+var
+  Text: string;
+  Separator: Integer;
+begin
+  if (AOffset < 0) or (ACount < 0) or (AOffset > Length(Data) - ACount) then
+    raise EArgumentOutOfRangeException.Create('Invalid JSON Hub buffer range');
+  Separator := AOffset;
+  while (Separator < AOffset + ACount) and (Data[Separator] <> $1E) do
+    Inc(Separator);
+  if Separator = AOffset + ACount then
+    raise EConvertError.Create('Incomplete JSON Hub message');
+  Text := TEncoding.UTF8.GetString(Data, AOffset, Separator - AOffset + 1);
+  AConsumed := Separator - AOffset + 1;
+  Result := Deserialize(Text);
+end;
+
+function TJsonHubProtocol.IsCompleteBinary(const Data: TBytes; AOffset,
+  ACount: Integer): Boolean;
+var
+  I: Integer;
+begin
+  Result := False;
+  if (AOffset < 0) or (ACount < 0) or (AOffset > Length(Data) - ACount) then
+    Exit;
+  for I := AOffset to AOffset + ACount - 1 do
+    if Data[I] = $1E then
+      Exit(True);
 end;
 
 function TJsonHubProtocol.Serialize(const Message: THubMessage): string;

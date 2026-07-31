@@ -354,3 +354,19 @@ For gRPC/protobuf DTOs, prefer the S54 codec tiers:
 - Generated Pascal codecs via `dext codecs generate` and `.proto` export via `dext codecs export-proto`.
 
 Supported generated shapes include native scalars, `string`, `TBytes`, `TGUID`, `TUUID`, nested `[GrpcMessage]` classes, `IList<T>`, `Nullable<T>`, `Prop<T>`, `Nullable<IList<T>>`, `IList<Nullable<T>>`, and `IList<Prop<T>>`. Keep unsupported wrappers, unclear ownership, custom accessors, and `Lazy<T>` out of generated paths until diagnostics explicitly allow them.
+
+---
+
+## Native TLS/SSL Architecture (`Dext.Net.Security`)
+
+Unified SSL/TLS security subsystem across servers and clients.
+
+```pascal
+uses
+  Dext.Net.Security,
+  Dext.Net.Security.OpenSSL;
+
+// Configure OpenSSL or HTTP.sys TLS in appsettings.json or Fluent API
+// App.UseNativeServer automatically binds SSL/TLS on epoll (Linux) and http.sys (Windows).
+// CLI dev certs generation: `dext dev-certs https`
+```

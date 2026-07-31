@@ -9,21 +9,21 @@
 {$EXTENDEDSYNTAX ON}
 {$IMPORTEDDATA ON}
 {$IOCHECKS ON}
-{$LOCALSYMBOLS ON}
+{$LOCALSYMBOLS OFF}
 {$LONGSTRINGS ON}
 {$OPENSTRINGS ON}
-{$OPTIMIZATION OFF}
-{$OVERFLOWCHECKS ON}
-{$RANGECHECKS ON}
-{$REFERENCEINFO ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
 {$SAFEDIVIDE OFF}
-{$STACKFRAMES ON}
+{$STACKFRAMES OFF}
 {$TYPEDADDRESS OFF}
 {$VARSTRINGCHECKS ON}
 {$WRITEABLECONST OFF}
 {$MINENUMSIZE 1}
 {$IMAGEBASE $400000}
-{$DEFINE DEBUG}
+{$DEFINE RELEASE}
 {$ENDIF IMPLICITBUILDING}
 {$DESCRIPTION 'Dext Framework - Web & HTTP'}
 {$LIBSUFFIX '250'}
@@ -127,7 +127,8 @@ contains
   Dext.Server.Epoll in '..\..\Sources\Server\Dext.Server.Epoll.pas',
   Dext.Server.BoundedExecutor in '..\..\Sources\Server\Dext.Server.BoundedExecutor.pas',
   Dext.Web.ResponseWriter in '..\..\Sources\Web\Dext.Web.ResponseWriter.pas',
-  Dext.Web.Utf8 in '..\..\Sources\Web\Dext.Web.Utf8.pas';
+  Dext.Web.Utf8 in '..\..\Sources\Web\Dext.Web.Utf8.pas',
+  Dext.WebSocket.Compression in '..\..\Sources\Server\Dext.WebSocket.Compression.pas';
 
 end.
 

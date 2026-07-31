@@ -114,6 +114,7 @@
 <a href="Dext.EF.Design.Scaffolding.Preview.html" class="nav-item">Dext.EF.Design.Scaffolding.Preview</a>
 <a href="Dext.Entity.html" class="nav-item">Dext.Entity</a>
 <a href="Dext.Entity.Attributes.html" class="nav-item">Dext.Entity.Attributes</a>
+<a href="Dext.Entity.BatchStrategy.html" class="nav-item">Dext.Entity.BatchStrategy</a>
 <a href="Dext.Entity.Cache.html" class="nav-item">Dext.Entity.Cache</a>
 <a href="Dext.Entity.Collections.html" class="nav-item">Dext.Entity.Collections</a>
 <a href="Dext.Entity.Context.html" class="nav-item">Dext.Entity.Context</a>
@@ -221,12 +222,15 @@
 <a href="Dext.MultiTenancy.html" class="nav-item">Dext.MultiTenancy</a>
 <a href="Dext.Net.Authentication.html" class="nav-item">Dext.Net.Authentication</a>
 <a href="Dext.Net.ConnectionPool.html" class="nav-item">Dext.Net.ConnectionPool</a>
+<a href="Dext.Net.Download.html" class="nav-item">Dext.Net.Download</a>
 <a href="Dext.Net.Engine.html" class="nav-item">Dext.Net.Engine</a>
 <a href="Dext.Net.Mqtt.html" class="nav-item">Dext.Net.Mqtt</a>
 <a href="Dext.Net.Mqtt.Parser.html" class="nav-item">Dext.Net.Mqtt.Parser</a>
 <a href="Dext.Net.Redis.html" class="nav-item">Dext.Net.Redis</a>
 <a href="Dext.Net.RestClient.html" class="nav-item">Dext.Net.RestClient</a>
 <a href="Dext.Net.RestRequest.html" class="nav-item">Dext.Net.RestRequest</a>
+<a href="Dext.Net.Security.html" class="nav-item">Dext.Net.Security</a>
+<a href="Dext.Net.Security.OpenSSL.html" class="nav-item">Dext.Net.Security.OpenSSL</a>
 <a href="Dext.Net.Tcp.html" class="nav-item">Dext.Net.Tcp</a>
 <a href="Dext.Net.Udp.html" class="nav-item">Dext.Net.Udp</a>
 <a href="Dext.OpenAPI.Attributes.html" class="nav-item">Dext.OpenAPI.Attributes</a>
@@ -339,6 +343,7 @@
 <a href="Dext.Web.Hubs.Interfaces.html" class="nav-item">Dext.Web.Hubs.Interfaces</a>
 <a href="Dext.Web.Hubs.Middleware.html" class="nav-item">Dext.Web.Hubs.Middleware</a>
 <a href="Dext.Web.Hubs.Protocol.Json.html" class="nav-item">Dext.Web.Hubs.Protocol.Json</a>
+<a href="Dext.Web.Hubs.Protocol.MessagePack.html" class="nav-item">Dext.Web.Hubs.Protocol.MessagePack</a>
 <a href="Dext.Web.Hubs.Transport.SSE.html" class="nav-item">Dext.Web.Hubs.Transport.SSE</a>
 <a href="Dext.Web.Hubs.Transport.WebSocket.html" class="nav-item">Dext.Web.Hubs.Transport.WebSocket</a>
 <a href="Dext.Web.Hubs.Types.html" class="nav-item">Dext.Web.Hubs.Types</a>
@@ -374,6 +379,7 @@
 <a href="Dext.Web.WebApplication.html" class="nav-item">Dext.Web.WebApplication</a>
 <a href="Dext.Web.WebBroker.html" class="nav-item">Dext.Web.WebBroker</a>
 <a href="Dext.WebHost.html" class="nav-item">Dext.WebHost</a>
+<a href="Dext.WebSocket.Compression.html" class="nav-item">Dext.WebSocket.Compression</a>
 <a href="Dext.WebSocket.Handshake.html" class="nav-item">Dext.WebSocket.Handshake</a>
 <a href="Dext.WebSocket.Protocol.html" class="nav-item">Dext.WebSocket.Protocol</a>
 <a href="Dext.Yaml.html" class="nav-item">Dext.Yaml</a>
@@ -423,6 +429,7 @@ class TRestResponse {    +GetStatusCode()
     +GetHeaders()
     +GetIsSuccess()
     +Create()
+    +CreateStreamed()
     +Destroy()
 }
 TInterfacedObject <|-- TRestResponse
@@ -436,6 +443,8 @@ IRestResponse <|.. TRestResponse~T~
 class IRestClient {    +BaseUrl()
     +Timeout()
     +Retry()
+    +IgnoreCertificateErrors()
+    +AllowSelfSigned()
     +Auth()
     +Header()
     +ContentType()
@@ -449,14 +458,29 @@ class IRestClient {    +BaseUrl()
     +PostJson()
     +PutJson()
     +QueryJson()
+    +GetInto()
+    +PostInto()
+    +PutInto()
+    +PatchInto()
+    +QueryInto()
+    +DownloadToFile()
+    +OnReceive()
+    +ReceiveHandler()
+    +ExecuteIntoAsync()
     +ExecuteAsync()
 }
 class TRestClientImpl {    +GetFullUrl()
+    +ExecuteCore()
+    +SanitizeFileName()
+    +DispositionFileName()
+    +FinishDownload()
     +Create()
     +Destroy()
     +BaseUrl()
     +Timeout()
     +Retry()
+    +IgnoreCertificateErrors()
+    +AllowSelfSigned()
     +Auth()
     +Header()
     +ContentType()
@@ -470,6 +494,15 @@ class TRestClientImpl {    +GetFullUrl()
     +PostJson()
     +PutJson()
     +QueryJson()
+    +GetInto()
+    +PostInto()
+    +PutInto()
+    +PatchInto()
+    +QueryInto()
+    +DownloadToFile()
+    +OnReceive()
+    +ReceiveHandler()
+    +ExecuteIntoAsync()
     +ExecuteAsync()
 }
 TInterfacedObject <|-- TRestClientImpl
@@ -479,6 +512,8 @@ class TRestClient {    +Destroy()
     +BaseUrl()
     +Timeout()
     +Retry()
+    +IgnoreCertificateErrors()
+    +AllowSelfSigned()
     +BearerToken()
     +BasicAuth()
     +ApiKey()
@@ -509,6 +544,13 @@ class TRestClient {    +Destroy()
     +Query~T~()
     +QueryJson()
     +ExecuteAsync()
+    +GetInto()
+    +PostInto()
+    +PutInto()
+    +PatchInto()
+    +QueryInto()
+    +DownloadToFile()
+    +OnReceive()
     +Execute()
     +Instance
 }
@@ -563,6 +605,8 @@ Exception <|-- EDextRestException
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(AStatusCode: Integer; const const: string; AStream: TStream; const const: TDextNetHeaders)</div></div>
 <div class="api-item">
+<div class="api-signature">constructor CreateStreamed(AStatusCode: Integer; const const: string; const const: TDextNetHeaders; AErrorPayload: TStream)</div><div class="description">Response of a streamed call: the body went to the caller's stream.</div></div>
+<div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
@@ -603,6 +647,10 @@ Exception <|-- EDextRestException
 <div class="api-item">
 <div class="api-signature">function Retry(AValue: Integer): IRestClient</div><div class="description">Configures the maximum number of automatic retries in case of network failure.</div></div>
 <div class="api-item">
+<div class="api-signature">function IgnoreCertificateErrors(AValue: Boolean): IRestClient</div><div class="description">Configures whether to ignore SSL certificate validation errors (default: True).</div></div>
+<div class="api-item">
+<div class="api-signature">function AllowSelfSigned(AValue: Boolean): IRestClient</div><div class="description">Alias for IgnoreCertificateErrors to allow self-signed certificates.</div></div>
+<div class="api-item">
 <div class="api-signature">function Auth(AProvider: IAuthenticationProvider): IRestClient</div><div class="description">Associates an authentication provider (Bearer, Basic, API Key).</div></div>
 <div class="api-item">
 <div class="api-signature">function Header(const const: string; const const: string): IRestClient</div><div class="description">Adds a fixed HTTP header to the client.</div></div>
@@ -635,6 +683,26 @@ Exception <|-- EDextRestException
 <div class="api-item">
 <div class="api-signature">function QueryJson(const const: string; const const: string): TAsyncBuilder</div><div class="description">Executes an asynchronous QUERY to AEndpoint sending a raw JSON string. Encapsulates stream creation and UTF-8 encoding internally.</div></div>
 <div class="api-item">
+<div class="api-signature">function GetInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">GET whose body is written straight into AResponseStream as it arrives, instead of being buffered in memory first.</div></div>
+<div class="api-item">
+<div class="api-signature">function PostInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">POST whose response body is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function PutInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">PUT whose response body is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function PatchInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">PATCH whose response body is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">QUERY whose response body is streamed into AResponseStream. This is the one that earns its keep: QUERY is how large reads with a request body are done.</div></div>
+<div class="api-item">
+<div class="api-signature">function DownloadToFile(const const: string; const const: string; const const: TRestReceiveAnonEvent; const const: TRestDownloadOptions): TAsyncBuilder</div><div class="description">Downloads AEndpoint to a file, streaming it: memory stays flat whatever the size.</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveEvent): IRestClient</div><div class="description">Progress handler for every streaming call of this client. A handler set on the request REPLACES this one for that request.</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveAnonEvent): IRestClient</div><div class="description">Anonymous flavour of OnReceive.</div></div>
+<div class="api-item">
+<div class="api-signature">function ReceiveHandler: TRestReceiveAnonEvent</div><div class="description">The client-level handler, or nil. Used by the request builder.</div></div>
+<div class="api-item">
+<div class="api-signature">function ExecuteIntoAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary; const const: TRestReceiveAnonEvent): TAsyncBuilder</div><div class="description">Executes any verb streaming the response body into ATarget.</div></div>
+<div class="api-item">
 <div class="api-signature">function ExecuteAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary): TAsyncBuilder</div><div class="description">Executes an asynchronous HTTP request.</div></div>
 </div>
 <hr>
@@ -650,6 +718,10 @@ Exception <|-- EDextRestException
 <div class="api-signature">function Timeout(AValue: Integer): IRestClient</div></div>
 <div class="api-item">
 <div class="api-signature">function Retry(AValue: Integer): IRestClient</div></div>
+<div class="api-item">
+<div class="api-signature">function IgnoreCertificateErrors(AValue: Boolean): IRestClient</div></div>
+<div class="api-item">
+<div class="api-signature">function AllowSelfSigned(AValue: Boolean): IRestClient</div></div>
 <div class="api-item">
 <div class="api-signature">function Auth(AProvider: IAuthenticationProvider): IRestClient</div></div>
 <div class="api-item">
@@ -683,10 +755,38 @@ Exception <|-- EDextRestException
 <div class="api-item">
 <div class="api-signature">function QueryJson(const const: string; const const: string): TAsyncBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function GetInto(const const: string; const const: TStream): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function PostInto(const const: string; const const: TStream): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function PutInto(const const: string; const const: TStream): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function PatchInto(const const: string; const const: TStream): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryInto(const const: string; const const: TStream): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function DownloadToFile(const const: string; const const: string; const const: TRestReceiveAnonEvent; const const: TRestDownloadOptions): TAsyncBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveEvent): IRestClient</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveAnonEvent): IRestClient</div></div>
+<div class="api-item">
+<div class="api-signature">function ReceiveHandler: TRestReceiveAnonEvent</div></div>
+<div class="api-item">
+<div class="api-signature">function ExecuteIntoAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary; const const: TRestReceiveAnonEvent): TAsyncBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function ExecuteAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary): TAsyncBuilder</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function GetFullUrl(const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function ExecuteCore(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary; const const: TStream; const const: TRestReceiveAnonEvent; AOwnsTarget: Boolean): TAsyncBuilder</div><div class="description">Unico punto di esecuzione: ExecuteAsync e ExecuteIntoAsync passano di qui.</div></div>
+<div class="api-item">
+<div class="api-signature">function SanitizeFileName(const const: string): string</div><div class="description">Nome di file sicuro a partire da cio' che dice il server.</div></div>
+<div class="api-item">
+<div class="api-signature">function DispositionFileName(const const: IRestResponse): string</div><div class="description">Il filename dichiarato in Content-Disposition, gia' ripulito ('' se non c'e').</div></div>
+<div class="api-item">
+<div class="api-signature">procedure FinishDownload(const const: IRestResponse; const const: string; const const: string; AOptions: TRestDownloadOptions)</div><div class="description">Chiude il giro: 304 lascia tutto com'e', successo rinomina, errore no.</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -699,6 +799,10 @@ Exception <|-- EDextRestException
 <div class="api-signature">function Timeout(AValue: Integer): TRestClient</div><div class="description">Sets the connection/request timeout in milliseconds.</div></div>
 <div class="api-item">
 <div class="api-signature">function Retry(AValue: Integer): TRestClient</div><div class="description">Sets the maximum number of retry attempts for failed requests.</div></div>
+<div class="api-item">
+<div class="api-signature">function IgnoreCertificateErrors(AValue: Boolean): TRestClient</div><div class="description">Configures whether to ignore SSL certificate validation errors.</div></div>
+<div class="api-item">
+<div class="api-signature">function AllowSelfSigned(AValue: Boolean): TRestClient</div><div class="description">Alias for IgnoreCertificateErrors to allow self-signed certificates.</div></div>
 <div class="api-item">
 <div class="api-signature">function BearerToken(const const: string): TRestClient</div><div class="description">Configures Bearer (JWT) authentication for requests.</div></div>
 <div class="api-item">
@@ -772,6 +876,22 @@ Exception <|-- EDextRestException
 <div class="api-item">
 <div class="api-signature">function ExecuteAsync(AMethod: TDextHttpMethod; const const: string; const const: TStream; AOwnsBody: Boolean; AHeaders: IDictionary): TAsyncBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function GetInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">GET streamed straight into AResponseStream (no memory buffering).</div></div>
+<div class="api-item">
+<div class="api-signature">function PostInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">POST whose response is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function PutInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">PUT whose response is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function PatchInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">PATCH whose response is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function QueryInto(const const: string; const const: TStream): TAsyncBuilder</div><div class="description">QUERY whose response is streamed into AResponseStream.</div></div>
+<div class="api-item">
+<div class="api-signature">function DownloadToFile(const const: string; const const: string; const const: TRestReceiveAnonEvent; const const: TRestDownloadOptions): TAsyncBuilder</div><div class="description">Downloads to a file, streaming (memory flat) with atomic rename.</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveEvent): TRestClient</div><div class="description">Progress handler for every streaming call of this client.</div></div>
+<div class="api-item">
+<div class="api-signature">function OnReceive(const const: TRestReceiveAnonEvent): TRestClient</div><div class="description">Anonymous flavour of OnReceive.</div></div>
+<div class="api-item">
 <div class="api-signature">function Execute(RequestInfo: THttpRequestInfo): TAsyncBuilder</div><div class="description">Executes a request defined by a THttpRequestInfo object (compatible with .http parsers).</div></div>
 <div class="api-item">
 <div class="api-signature">property Instance: </div></div>
@@ -792,6 +912,14 @@ Exception <|-- EDextRestException
 <div class="api-signature">type TDextHttpMethod = enumeration</div><div class="enum-values">Values: hmGET, hmPOST, hmPUT, hmDELETE, hmPATCH, hmHEAD, hmOPTIONS, hmQUERY</div><div class="description">Supported HTTP methods for the REST client.</div></div>
 <div class="api-item">
 <div class="api-signature">type TDextContentType = enumeration</div><div class="enum-values">Values: ctJson, ctXml, ctFormUrlEncoded, ctMultipartFormData, ctBinary, ctText</div><div class="description">Common MIME content types for requests and responses.</div></div>
+<div class="api-item">
+<div class="api-signature">type TRestReceiveEvent = Type</div><div class="description">Raised once per received chunk while the response body is streaming.</div></div>
+<div class="api-item">
+<div class="api-signature">type TRestReceiveAnonEvent = Type</div><div class="description">Anonymous flavour of <see cref="TRestReceiveEvent"/>.</div></div>
+<div class="api-item">
+<div class="api-signature">type TRestDownloadOption = enumeration</div><div class="enum-values">Values: doResume, doValidateETag, doUseContentDisposition, doOverwrite</div><div class="description">Options for the DownloadToFile helper.</div></div>
+<div class="api-item">
+<div class="api-signature">type TRestDownloadOptions = set</div></div>
 </div>
 
         </div>

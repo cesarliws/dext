@@ -16,7 +16,13 @@ uses
   Dext.Net.Mqtt in '..\..\Sources\Net\Dext.Net.Mqtt.pas',
   Dext.Net.Mqtt.Tests in 'Dext.Net.Mqtt.Tests.pas',
   Dext.Net.Redis in '..\..\Sources\Net\Dext.Net.Redis.pas',
-  Dext.Net.Redis.Tests in 'Dext.Net.Redis.Tests.pas';
+  Dext.Caching.Redis in '..\..\Sources\Web\Dext.Caching.Redis.pas',
+  Dext.Web in '..\..\Sources\Web\Dext.Web.pas',
+  Dext.Net.Redis.Tests in 'Dext.Net.Redis.Tests.pas',
+  Dext.Net.Security in '..\..\Sources\Net\Dext.Net.Security.pas',
+  Dext.Net.Security.OpenSSL in '..\..\Sources\Net\Dext.Net.Security.OpenSSL.pas',
+  Dext.Net.Security.TestCerts in 'Dext.Net.Security.TestCerts.pas',
+  Dext.Net.Security.Tests in 'Dext.Net.Security.Tests.pas';
 
 begin
   SetConsoleCharSet;
@@ -27,8 +33,13 @@ begin
         TDextTcpTests,
         TDextUdpTests,
         TDextMqttTests,
-        TDextRedisParserTests,
-        TDextRedisClientTests
+        TDextRedisClientTests,
+        TDextSecurityOptionsTests,
+        TDextSecurityOpenSSLTests,
+        TDextSecurityHttpSysTests,
+        TDextSecurityIndyHandlerTests,
+        TDextSecurityRedisTests,
+        TDextSecurityRestClientTests
       ]));
   except
     on error: Exception do

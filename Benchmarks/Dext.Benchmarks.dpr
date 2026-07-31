@@ -19,7 +19,8 @@ uses
   Dext.Performance.Allocator in '..\Sources\Performance\Dext.Performance.Allocator.pas',
   BM.Http in 'Sources\BM.Http.pas',
   BM.Orm in 'Sources\BM.Orm.pas',
-  BM.S54 in 'Sources\BM.S54.pas';
+  BM.S54 in 'Sources\BM.S54.pas',
+  BM.S43 in 'Sources\BM.S43.pas';
 
 function HasCommandLineSwitch(const SwitchName: string): Boolean;
 var

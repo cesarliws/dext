@@ -67,7 +67,6 @@ end;
 
 var
   Builder: TMCPServerBuilder;
-  Options: TServerEngineOptions;
   Port, Url: string;
   Server: TMCPServer;
   Transport: TMCPTransport;
@@ -77,8 +76,15 @@ begin
   ReportMemoryLeaksOnShutdown := True;
   Randomize;
 
-  Port       := GetParam('--port', '3031');
-  Url        := 'http://localhost:' + Port;
+  Port := GetParam('--port', '3031');
+  var UseHttps: Boolean := HasFlag('--https');
+  var CertHash: string := GetParam('--cert-hash', '');
+
+  if UseHttps then
+    Url := 'https://localhost:' + Port
+  else
+    Url := 'http://localhost:' + Port;
+
   Transport  := mtStreamable;
   UseHttpSys := HasFlag('--httpsys');
 
@@ -97,8 +103,14 @@ begin
 
     if UseHttpSys then
     begin
-      Options := TServerEngineOptions.Default.WithBindAddress('localhost');
-      Builder.UseHttpSys(Options);
+      var Opts := ServerEngineOptions;
+      if UseHttps then
+      begin
+        Opts := Opts.WithHttps(True);
+        if CertHash <> '' then
+          Opts := Opts.WithSslCertHash(CertHash);
+      end;
+      Builder.UseHttpSys(Opts);
     end
     else
       Builder.UseIndy;

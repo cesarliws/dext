@@ -29,9 +29,9 @@ interface
 
 uses
   System.SysUtils,
+  Dext.Auth.JWT,
   Dext.Collections,
-  Dext.Collections.Dict,
-  Dext.Auth.JWT;
+  Dext.Collections.Dict;
 
 type
   /// <summary>

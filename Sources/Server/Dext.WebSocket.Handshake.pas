@@ -25,6 +25,7 @@ unit Dext.WebSocket.Handshake;
 interface
 
 uses
+  System.Generics.Collections,
   System.SysUtils,
   System.Hash,
   System.NetEncoding,
@@ -42,6 +43,8 @@ type
     /// <summary>Builds the 101 Switching Protocols response message.</summary>
     class function BuildUpgradeResponse(const ASecWebSocketKey: string;
       const AProtocol: string = ''): string; static;
+    class function TryNegotiatePermessageDeflate(const AExtensions: string;
+      out AResponse: string): Boolean; static;
   end;
 
 implementation
@@ -158,6 +161,74 @@ begin
   if AProtocol <> '' then
     Result := Result + 'Sec-WebSocket-Protocol: ' + AProtocol + #13#10;
   Result := Result + #13#10;
+end;
+
+class function TWebSocketHandshake.TryNegotiatePermessageDeflate(
+  const AExtensions: string; out AResponse: string): Boolean;
+var
+  Offers, Parts: TArray<string>;
+  Offer, Part, Name, Value: string;
+  Seen: TDictionary<string, Boolean>;
+  Separator: Integer;
+  Valid: Boolean;
+  WindowBits: Integer;
+begin
+  Result := False;
+  AResponse := '';
+  Offers := AExtensions.Split([',']);
+  for Offer in Offers do
+  begin
+    Parts := Offer.Split([';']);
+    if (Length(Parts) = 0) or
+       not SameText(Trim(Parts[0]), 'permessage-deflate') then
+      Continue;
+    Seen := TDictionary<string, Boolean>.Create;
+    try
+      Valid := True;
+      for var I := 1 to High(Parts) do
+      begin
+        Part := Trim(Parts[I]);
+        Separator := Pos('=', Part);
+        if Separator > 0 then
+        begin
+          Name := LowerCase(Trim(Copy(Part, 1, Separator - 1)));
+          Value := Trim(Copy(Part, Separator + 1, MaxInt)).Trim(['"']);
+        end
+        else
+        begin
+          Name := LowerCase(Part);
+          Value := '';
+        end;
+        if (Name = '') or Seen.ContainsKey(Name) then
+        begin
+          Valid := False;
+          Break;
+        end;
+        Seen.Add(Name, True);
+        if (Name = 'client_no_context_takeover') or
+           (Name = 'server_no_context_takeover') then
+          Valid := Value = ''
+        else if Name = 'client_max_window_bits' then
+          Valid := (Value = '') or
+            (TryStrToInt(Value, WindowBits) and
+             (WindowBits >= 8) and (WindowBits <= 15))
+        else if Name = 'server_max_window_bits' then
+          Valid := TryStrToInt(Value, WindowBits) and
+            (WindowBits >= 8) and (WindowBits <= 15)
+        else
+          Valid := False;
+        if not Valid then Break;
+      end;
+      if Valid then
+      begin
+        AResponse :=
+          'permessage-deflate; server_no_context_takeover; client_no_context_takeover';
+        Exit(True);
+      end;
+    finally
+      Seen.Free;
+    end;
+  end;
 end;
 
 end.

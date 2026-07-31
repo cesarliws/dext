@@ -1,4 +1,4 @@
-{***************************************************************************}
+﻿{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -33,12 +33,16 @@ uses
   System.Classes,
   System.SysUtils,
   System.SyncObjs,
-  Dext.Collections.Dict,
+  System.NetEncoding,
   Winapi.Windows,
+  Winapi.Winsock2,
+  Dext.Collections.Dict,
+  Dext.Collections,
   Dext.Threading.ProcessorGroups,
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces,
   Dext.Server.HttpSys.Api,
+  Dext.WebSocket.Compression,
   Dext.Web.Interfaces,
   Dext.DI.Interfaces,
   Dext.Web.ResponseWriter;
@@ -55,7 +59,9 @@ type
     hokReceiveRequest,
     hokReceiveBody,
     hokSendHeaders,
-    hokSendBody
+    hokSendBody,
+    hokWebSocketReceive,
+    hokWebSocketSend
   );
 
   TDextHttpSysOperation = record
@@ -241,21 +247,61 @@ type
     procedure Release(AResponse: TDextHttpSysResponse);
   end;
 
-  TDextHttpSysWebSocketConnection = class(TInterfacedObject, IDextWebSocketConnection)
+  TDextHttpSysWebSocketConnection = class(TInterfacedObject,
+    IDextWebSocketConnection, IDextAsyncWebSocketConnection,
+    IDextWebSocketQueueMetrics, IDextCompressedWebSocketConnection)
   private
+    FEngine: TDextHttpSysEngine;
     FConnectionId: UInt64;
     FReqQueue: THandle;
     FRequestId: HTTP_REQUEST_ID;
     FClosed: Boolean;
+    FClosing: Boolean;
+    FClosedNotified: Boolean;
+    FAsyncMode: Boolean;
+    FReceiveActive: Boolean;
+    FSendActive: Boolean;
+    FReceiveOp: TDextHttpSysOperation;
+    FSendOp: TDextHttpSysOperation;
+    FReceiveBuffer: TBytes;
+    FCurrentSend: TBytes;
+    FSendChunk: HTTP_DATA_CHUNK_INMEMORY;
+    FCurrentDisconnect: Boolean;
+    FSendQueue: IQueue<TBytes>;
+    FQueuedBytes: NativeInt;
+    FPeakQueuedBytes: NativeInt;
+    FRejectedSendCount: Int64;
+    FCompressionEnabled: Boolean;
+    FLock: TCriticalSection;
+    FOnData: TWebSocketDataEvent;
+    FOnClosed: TWebSocketClosedEvent;
+    procedure SendFrameSync(const AFrame: TBytes);
+    procedure PostReceive;
+    procedure PostNextSend;
+    procedure CompleteReceive(ATransferred, AError: DWORD);
+    procedure CompleteSend(ATransferred, AError: DWORD);
+    procedure NotifyClosed;
   public
-    constructor Create(AConnectionId: UInt64; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID; const ASecWebSocketKey: string);
+    constructor Create(AEngine: TDextHttpSysEngine; AConnectionId: UInt64;
+      AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID;
+      const ASecWebSocketKey, ASecWebSocketExtensions: string);
     destructor Destroy; override;
     
     function GetConnectionId: UInt64;
     procedure SendText(const AText: string);
     procedure SendBinary(const AData: TBytes);
+    procedure SendFrame(const AFrame: TBytes);
     procedure Close(AStatusCode: Word = 1000; const AReason: string = '');
     function Receive(var ABuffer: TBytes; AOffset, ACount: Integer): Integer;
+    procedure SetOnData(const AHandler: TWebSocketDataEvent);
+    procedure SetOnClosed(const AHandler: TWebSocketClosedEvent);
+    procedure StartReceive;
+    function GetPendingSendBytes: NativeInt;
+    function GetPeakPendingSendBytes: NativeInt;
+    function GetRejectedSendCount: Int64;
+    function IsCompressionEnabled: Boolean;
+    function CompressMessage(const AData: TBytes): TBytes;
+    function DecompressMessage(const AData: TBytes): TBytes;
   end;
 
   /// <summary>
@@ -271,11 +317,15 @@ type
     FReqQueue: THandle;
     FRequestId: HTTP_REQUEST_ID;
     FSecWebSocketKey: string;
+    FSecWebSocketExtensions: string;
+    FEngine: TDextHttpSysEngine;
   public
     /// <summary>Initializes a new http.sys connection wrapper.</summary>
     /// <param name="ARequest">The native HTTP_REQUEST structure of the connection.</param>
-    constructor Create(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
-    procedure Init(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
+    constructor Create(AEngine: TDextHttpSysEngine;
+      const ARequest: HTTP_REQUEST; AReqQueue: THandle);
+    procedure Init(AEngine: TDextHttpSysEngine;
+      const ARequest: HTTP_REQUEST; AReqQueue: THandle);
     
     /// <summary>Returns the unique connection identifier.</summary>
     function GetConnectionId: UInt64;
@@ -348,6 +398,7 @@ type
     FBufferPool: TDextHttpSysBufferPool;
     FRequestPool: TDextHttpSysRequestPool;
     FResponsePool: TDextHttpSysResponsePool;
+    procedure RegisterSslBinding;
     procedure InitializeHttpSys;
     procedure ConfigureTimeouts;
     procedure ConfigureLimits;
@@ -1549,7 +1600,9 @@ end;
 
 { TDextHttpSysWebSocketConnection }
 
-constructor TDextHttpSysWebSocketConnection.Create(AConnectionId: UInt64; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID; const ASecWebSocketKey: string);
+constructor TDextHttpSysWebSocketConnection.Create(AEngine: TDextHttpSysEngine;
+  AConnectionId: UInt64; AReqQueue: THandle; ARequestId: HTTP_REQUEST_ID;
+  const ASecWebSocketKey, ASecWebSocketExtensions: string);
 var
   Response: HTTP_RESPONSE;
   AcceptKey: string;
@@ -1557,16 +1610,37 @@ var
   UpgradeAnsi: AnsiString;
   ConnectionAnsi: AnsiString;
   SecWebSocketAcceptNameAnsi: AnsiString;
-  UnknownHeader: HTTP_UNKNOWN_HEADER;
+  SecWebSocketExtensionsNameAnsi: AnsiString;
+  SecWebSocketExtensionsValueAnsi: AnsiString;
+  UnknownHeaders: array[0..1] of HTTP_UNKNOWN_HEADER;
+  UnknownHeaderCount: Integer;
   BytesSent: ULONG;
   Ret: ULONG;
   ReasonStrAnsi: AnsiString;
+  NegotiatedExtensions: string;
 begin
   inherited Create;
+  FEngine := AEngine;
   FConnectionId := AConnectionId;
   FReqQueue := AReqQueue;
   FRequestId := ARequestId;
   FClosed := False;
+  FClosing := False;
+  FClosedNotified := False;
+  FAsyncMode := False;
+  FReceiveActive := False;
+  FSendActive := False;
+  FLock := TCriticalSection.Create;
+  FCompressionEnabled := TWebSocketHandshake.TryNegotiatePermessageDeflate(
+    ASecWebSocketExtensions, NegotiatedExtensions);
+  FSendQueue := TCollections.CreateQueue<TBytes>;
+  SetLength(FReceiveBuffer, 8 * 1024);
+  FillChar(FReceiveOp, SizeOf(FReceiveOp), 0);
+  FReceiveOp.Kind := hokWebSocketReceive;
+  FReceiveOp.Context := Self;
+  FillChar(FSendOp, SizeOf(FSendOp), 0);
+  FSendOp.Kind := hokWebSocketSend;
+  FSendOp.Context := Self;
 
   if ASecWebSocketKey <> '' then
   begin
@@ -1575,6 +1649,8 @@ begin
     UpgradeAnsi := 'websocket';
     ConnectionAnsi := 'Upgrade';
     SecWebSocketAcceptNameAnsi := 'Sec-WebSocket-Accept';
+    SecWebSocketExtensionsNameAnsi := 'Sec-WebSocket-Extensions';
+    SecWebSocketExtensionsValueAnsi := AnsiString(NegotiatedExtensions);
     ReasonStrAnsi := 'Switching Protocols';
 
     FillChar(Response, SizeOf(Response), 0);
@@ -1593,13 +1669,23 @@ begin
     Response.Headers.KnownHeaders[1].RawValueLength := Length(ConnectionAnsi);
 
     // Set unknown header 'Sec-WebSocket-Accept'
-    UnknownHeader.NameLength := Length(SecWebSocketAcceptNameAnsi);
-    UnknownHeader.RawValueLength := Length(AcceptKeyAnsi);
-    UnknownHeader.pName := PAnsiChar(SecWebSocketAcceptNameAnsi);
-    UnknownHeader.pRawValue := PAnsiChar(AcceptKeyAnsi);
+    FillChar(UnknownHeaders, SizeOf(UnknownHeaders), 0);
+    UnknownHeaders[0].NameLength := Length(SecWebSocketAcceptNameAnsi);
+    UnknownHeaders[0].RawValueLength := Length(AcceptKeyAnsi);
+    UnknownHeaders[0].pName := PAnsiChar(SecWebSocketAcceptNameAnsi);
+    UnknownHeaders[0].pRawValue := PAnsiChar(AcceptKeyAnsi);
+    UnknownHeaderCount := 1;
+    if FCompressionEnabled then
+    begin
+      UnknownHeaders[1].NameLength := Length(SecWebSocketExtensionsNameAnsi);
+      UnknownHeaders[1].RawValueLength := Length(SecWebSocketExtensionsValueAnsi);
+      UnknownHeaders[1].pName := PAnsiChar(SecWebSocketExtensionsNameAnsi);
+      UnknownHeaders[1].pRawValue := PAnsiChar(SecWebSocketExtensionsValueAnsi);
+      Inc(UnknownHeaderCount);
+    end;
 
-    Response.Headers.UnknownHeaderCount := 1;
-    Response.Headers.pUnknownHeaders := @UnknownHeader;
+    Response.Headers.UnknownHeaderCount := UnknownHeaderCount;
+    Response.Headers.pUnknownHeaders := @UnknownHeaders[0];
 
     Ret := HttpSendHttpResponse(
       FReqQueue,
@@ -1620,7 +1706,10 @@ end;
 
 destructor TDextHttpSysWebSocketConnection.Destroy;
 begin
-  Close(1000);
+  if not FClosed then
+    Close(1000);
+  FSendQueue := nil;
+  FLock.Free;
   inherited;
 end;
 
@@ -1631,19 +1720,162 @@ end;
 
 procedure TDextHttpSysWebSocketConnection.SendText(const AText: string);
 var
+  Payload: TBytes;
   FrameBytes: TBytes;
+  Frame: TWebSocketFrame;
+begin
+  if FClosed then Exit;
+  Payload := TEncoding.UTF8.GetBytes(AText);
+  Frame := Default(TWebSocketFrame);
+  Frame.FIN := True;
+  Frame.Opcode := wsText;
+  Frame.RSV1 := FCompressionEnabled;
+  if Frame.RSV1 then
+    Frame.Payload := CompressMessage(Payload)
+  else
+    Frame.Payload := Payload;
+  FrameBytes := TWebSocketFrameCodec.Encode(Frame);
+  SendFrame(FrameBytes);
+end;
+
+procedure TDextHttpSysWebSocketConnection.SendBinary(const AData: TBytes);
+var
+  Payload: TBytes;
+  FrameBytes: TBytes;
+  Frame: TWebSocketFrame;
+begin
+  Frame := Default(TWebSocketFrame);
+  Frame.FIN := True;
+  Frame.Opcode := wsBinary;
+  Frame.RSV1 := FCompressionEnabled;
+  if Frame.RSV1 then
+    Payload := CompressMessage(AData)
+  else
+    Payload := AData;
+  Frame.Payload := Payload;
+  FrameBytes := TWebSocketFrameCodec.Encode(Frame);
+  SendFrame(FrameBytes);
+end;
+
+function TDextHttpSysWebSocketConnection.IsCompressionEnabled: Boolean;
+begin
+  Result := FCompressionEnabled;
+end;
+
+function TDextHttpSysWebSocketConnection.CompressMessage(
+  const AData: TBytes): TBytes;
+begin
+  if not FCompressionEnabled then Exit(AData);
+  var Context := TWebSocketDeflatePool.Acquire;
+  try
+    Result := Context.Compress(AData);
+  finally
+    TWebSocketDeflatePool.Release(Context);
+  end;
+end;
+
+function TDextHttpSysWebSocketConnection.DecompressMessage(
+  const AData: TBytes): TBytes;
+begin
+  if not FCompressionEnabled then Exit(AData);
+  var Context := TWebSocketDeflatePool.Acquire;
+  try
+    Result := Context.Decompress(AData);
+  finally
+    TWebSocketDeflatePool.Release(Context);
+  end;
+end;
+
+procedure TDextHttpSysWebSocketConnection.SendFrame(const AFrame: TBytes);
+const
+  MAX_QUEUED_BYTES = 16 * 1024 * 1024;
+var
+  StartSend: Boolean;
+  QueueOverflow: Boolean;
+begin
+  if Length(AFrame) = 0 then Exit;
+  if not FAsyncMode then
+  begin
+    SendFrameSync(AFrame);
+    Exit;
+  end;
+
+  StartSend := False;
+  QueueOverflow := False;
+  FLock.Enter;
+  try
+    if FClosed then Exit;
+    if FQueuedBytes + Length(AFrame) > MAX_QUEUED_BYTES then
+    begin
+      FClosed := True;
+      Inc(FRejectedSendCount);
+      QueueOverflow := True;
+    end;
+    if not QueueOverflow then
+    begin
+      FSendQueue.Enqueue(AFrame);
+      Inc(FQueuedBytes, Length(AFrame));
+      if FQueuedBytes > FPeakQueuedBytes then
+        FPeakQueuedBytes := FQueuedBytes;
+      if not FSendActive then
+      begin
+        FSendActive := True;
+        StartSend := True;
+      end;
+    end;
+  finally
+    FLock.Leave;
+  end;
+  if QueueOverflow then
+    NotifyClosed
+  else if StartSend then
+    PostNextSend;
+end;
+
+function TDextHttpSysWebSocketConnection.GetPendingSendBytes: NativeInt;
+begin
+  FLock.Enter;
+  try
+    Result := FQueuedBytes;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TDextHttpSysWebSocketConnection.GetPeakPendingSendBytes: NativeInt;
+begin
+  FLock.Enter;
+  try
+    Result := FPeakQueuedBytes;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+function TDextHttpSysWebSocketConnection.GetRejectedSendCount: Int64;
+begin
+  FLock.Enter;
+  try
+    Result := FRejectedSendCount;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TDextHttpSysWebSocketConnection.SendFrameSync(
+  const AFrame: TBytes);
+var
   Chunk: HTTP_DATA_CHUNK_INMEMORY;
   BytesSent: ULONG;
   Ret: ULONG;
 begin
   if FClosed then Exit;
-  FrameBytes := TWebSocketFrameCodec.EncodeText(AText);
-  if Length(FrameBytes) = 0 then Exit;
+  if Length(AFrame) = 0 then Exit;
 
   FillChar(Chunk, SizeOf(Chunk), 0);
   Chunk.DataChunkType := hctFromMemory;
-  Chunk.pBuffer := @FrameBytes[0];
-  Chunk.BufferLength := Length(FrameBytes);
+  Chunk.pBuffer := @AFrame[0];
+  Chunk.BufferLength := Length(AFrame);
 
   Ret := HttpSendResponseEntityBody(
     FReqQueue,
@@ -1661,36 +1893,219 @@ begin
     raise EOSError.Create('HttpSendResponseEntityBody failed with error: ' + IntToStr(Ret));
 end;
 
-procedure TDextHttpSysWebSocketConnection.SendBinary(const AData: TBytes);
+procedure TDextHttpSysWebSocketConnection.SetOnData(
+  const AHandler: TWebSocketDataEvent);
+begin
+  FLock.Enter;
+  try
+    FOnData := AHandler;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TDextHttpSysWebSocketConnection.SetOnClosed(
+  const AHandler: TWebSocketClosedEvent);
+begin
+  FLock.Enter;
+  try
+    FOnClosed := AHandler;
+  finally
+    FLock.Leave;
+  end;
+end;
+
+procedure TDextHttpSysWebSocketConnection.StartReceive;
 var
-  FrameBytes: TBytes;
-  Chunk: HTTP_DATA_CHUNK_INMEMORY;
-  BytesSent: ULONG;
+  ShouldPost: Boolean;
+begin
+  ShouldPost := False;
+  FLock.Enter;
+  try
+    FAsyncMode := True;
+    if not FClosed and not FReceiveActive then
+    begin
+      FReceiveActive := True;
+      ShouldPost := True;
+    end;
+  finally
+    FLock.Leave;
+  end;
+  if ShouldPost then
+    PostReceive;
+end;
+
+procedure TDextHttpSysWebSocketConnection.PostReceive;
+var
+  BytesReceived: ULONG;
   Ret: ULONG;
 begin
-  if FClosed then Exit;
-  FrameBytes := TWebSocketFrameCodec.EncodeBinary(AData);
-  if Length(FrameBytes) = 0 then Exit;
+  FillChar(FReceiveOp.Overlapped, SizeOf(TOverlapped), 0);
+  FReceiveOp.Kind := hokWebSocketReceive;
+  FReceiveOp.Context := Self;
+  BytesReceived := 0;
+  _AddRef;
+  Ret := HttpReceiveRequestEntityBody(
+    FReqQueue,
+    FRequestId,
+    0,
+    @FReceiveBuffer[0],
+    Length(FReceiveBuffer),
+    BytesReceived,
+    @FReceiveOp.Overlapped
+  );
+  if (Ret <> ERROR_SUCCESS) and (Ret <> ERROR_IO_PENDING) then
+  begin
+    FLock.Enter;
+    try
+      FReceiveActive := False;
+    finally
+      FLock.Leave;
+    end;
+    _Release;
+    NotifyClosed;
+  end;
+end;
 
-  FillChar(Chunk, SizeOf(Chunk), 0);
-  Chunk.DataChunkType := hctFromMemory;
-  Chunk.pBuffer := @FrameBytes[0];
-  Chunk.BufferLength := Length(FrameBytes);
+procedure TDextHttpSysWebSocketConnection.CompleteReceive(
+  ATransferred, AError: DWORD);
+var
+  Handler: TWebSocketDataEvent;
+  ContinueReceive: Boolean;
+begin
+  Handler := nil;
+  ContinueReceive := False;
+  FLock.Enter;
+  try
+    FReceiveActive := False;
+    if not FClosed and (AError = ERROR_SUCCESS) and
+       (ATransferred > 0) then
+      Handler := FOnData;
+  finally
+    FLock.Leave;
+  end;
 
+  if (AError <> ERROR_SUCCESS) or (ATransferred = 0) then
+  begin
+    NotifyClosed;
+    Exit;
+  end;
+
+  if Assigned(Handler) then
+    Handler(FReceiveBuffer, ATransferred);
+
+  FLock.Enter;
+  try
+    if not FClosed and not FClosing and not FReceiveActive then
+    begin
+      FReceiveActive := True;
+      ContinueReceive := True;
+    end;
+  finally
+    FLock.Leave;
+  end;
+  if ContinueReceive then
+    PostReceive;
+end;
+
+procedure TDextHttpSysWebSocketConnection.PostNextSend;
+var
+  BytesSent: ULONG;
+  Ret: ULONG;
+  Flags: ULONG;
+begin
+  FLock.Enter;
+  try
+    if FSendQueue.Count = 0 then
+    begin
+      FSendActive := False;
+      Exit;
+    end;
+    FCurrentSend := FSendQueue.Dequeue;
+    Dec(FQueuedBytes, Length(FCurrentSend));
+    FCurrentDisconnect := FClosing and (FSendQueue.Count = 0);
+  finally
+    FLock.Leave;
+  end;
+
+  FillChar(FSendChunk, SizeOf(FSendChunk), 0);
+  FSendChunk.DataChunkType := hctFromMemory;
+  FSendChunk.pBuffer := @FCurrentSend[0];
+  FSendChunk.BufferLength := Length(FCurrentSend);
+  FillChar(FSendOp.Overlapped, SizeOf(TOverlapped), 0);
+  FSendOp.Kind := hokWebSocketSend;
+  FSendOp.Context := Self;
+  if FCurrentDisconnect then
+    Flags := HTTP_SEND_RESPONSE_FLAG_DISCONNECT
+  else
+    Flags := HTTP_SEND_RESPONSE_FLAG_MORE_DATA;
+  BytesSent := 0;
+  _AddRef;
   Ret := HttpSendResponseEntityBody(
     FReqQueue,
     FRequestId,
-    HTTP_SEND_RESPONSE_FLAG_MORE_DATA,
+    Flags,
     1,
-    @Chunk,
+    @FSendChunk,
     BytesSent,
     nil,
     nil,
-    nil,
+    @FSendOp.Overlapped,
     nil
   );
-  if Ret <> ERROR_SUCCESS then
-    raise EOSError.Create('HttpSendResponseEntityBody failed with error: ' + IntToStr(Ret));
+  if (Ret <> ERROR_SUCCESS) and (Ret <> ERROR_IO_PENDING) then
+  begin
+    _Release;
+    NotifyClosed;
+  end;
+end;
+
+procedure TDextHttpSysWebSocketConnection.CompleteSend(
+  ATransferred, AError: DWORD);
+var
+  WasDisconnect: Boolean;
+  WasClosed: Boolean;
+begin
+  WasDisconnect := FCurrentDisconnect;
+  FCurrentSend := nil;
+  FLock.Enter;
+  try
+    WasClosed := FClosed;
+  finally
+    FLock.Leave;
+  end;
+  if (AError <> ERROR_SUCCESS) or WasDisconnect or WasClosed then
+  begin
+    NotifyClosed;
+    Exit;
+  end;
+  PostNextSend;
+end;
+
+procedure TDextHttpSysWebSocketConnection.NotifyClosed;
+var
+  Handler: TWebSocketClosedEvent;
+begin
+  Handler := nil;
+  FLock.Enter;
+  try
+    FClosed := True;
+    FReceiveActive := False;
+    FSendActive := False;
+    FSendQueue.Clear;
+    FQueuedBytes := 0;
+    if not FClosedNotified then
+    begin
+      FClosedNotified := True;
+      Handler := FOnClosed;
+      FOnData := nil;
+      FOnClosed := nil;
+    end;
+  finally
+    FLock.Leave;
+  end;
+  if Assigned(Handler) then
+    Handler;
 end;
 
 procedure TDextHttpSysWebSocketConnection.Close(AStatusCode: Word; const AReason: string);
@@ -1700,6 +2115,19 @@ var
   BytesSent: ULONG;
 begin
   if FClosed then Exit;
+  if FAsyncMode then
+  begin
+    FrameBytes := TWebSocketFrameCodec.EncodeClose(AStatusCode, AReason);
+    FLock.Enter;
+    try
+      if FClosed or FClosing then Exit;
+      FClosing := True;
+    finally
+      FLock.Leave;
+    end;
+    SendFrame(FrameBytes);
+    Exit;
+  end;
   FClosed := True;
 
   FrameBytes := TWebSocketFrameCodec.EncodeClose(AStatusCode, AReason);
@@ -1752,17 +2180,20 @@ end;
 
 { TDextHttpSysConnection }
 
-constructor TDextHttpSysConnection.Create(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
+constructor TDextHttpSysConnection.Create(AEngine: TDextHttpSysEngine;
+  const ARequest: HTTP_REQUEST; AReqQueue: THandle);
 begin
   inherited Create;
-  Init(ARequest, AReqQueue);
+  Init(AEngine, ARequest, AReqQueue);
 end;
 
-procedure TDextHttpSysConnection.Init(const ARequest: HTTP_REQUEST; AReqQueue: THandle);
+procedure TDextHttpSysConnection.Init(AEngine: TDextHttpSysEngine;
+  const ARequest: HTTP_REQUEST; AReqQueue: THandle);
 var
   I: Integer;
   UnknownName: string;
 begin
+  FEngine := AEngine;
   FConnectionId := ARequest.ConnectionId;
   FSecure := ARequest.pSslInfo <> nil;
   FLocalPort := 80;
@@ -1772,6 +2203,7 @@ begin
   FRequestId := ARequest.RequestId;
 
   FSecWebSocketKey := '';
+  FSecWebSocketExtensions := '';
   if (ARequest.Headers.UnknownHeaderCount > 0) and (ARequest.Headers.pUnknownHeaders <> nil) then
   begin
     for I := 0 to ARequest.Headers.UnknownHeaderCount - 1 do
@@ -1780,8 +2212,11 @@ begin
       if SameText(UnknownName, 'Sec-WebSocket-Key') then
       begin
         SetString(FSecWebSocketKey, PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].pRawValue), PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].RawValueLength);
-        Break;
       end;
+      if SameText(UnknownName, 'Sec-WebSocket-Extensions') then
+        SetString(FSecWebSocketExtensions,
+          PAnsiChar(PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].pRawValue),
+          PHTTP_UNKNOWN_HEADER_ARRAY(ARequest.Headers.pUnknownHeaders)^[I].RawValueLength);
     end;
   end;
 end;
@@ -1823,7 +2258,9 @@ end;
 
 function TDextHttpSysConnection.UpgradeToWebSocket: IDextWebSocketConnection;
 begin
-  Result := TDextHttpSysWebSocketConnection.Create(FConnectionId, FReqQueue, FRequestId, FSecWebSocketKey);
+  Result := TDextHttpSysWebSocketConnection.Create(
+    FEngine, FConnectionId, FReqQueue, FRequestId, FSecWebSocketKey,
+    FSecWebSocketExtensions);
 end;
 
 { TDextHttpSysRequestPool }
@@ -2040,7 +2477,7 @@ var
 begin
   AContext.FPrefetchedBody.Position := 0;
   AContext.FConnection := TDextHttpSysConnection.Create(
-    PHTTP_REQUEST(@AContext.FBuffer[0])^, FReqQueue);
+    FEngine, PHTTP_REQUEST(@AContext.FBuffer[0])^, FReqQueue);
   AContext.FRequest := FEngine.FRequestPool.Acquire(FEngine,
     PHTTP_REQUEST(@AContext.FBuffer[0]), AContext);
   AContext.FResponse := FEngine.FResponsePool.Acquire(FEngine,
@@ -2081,6 +2518,7 @@ var
   Overlapped: POverlapped;
   Op: PDextHttpSysOperation;
   Context: TDextHttpSysContext;
+  WebSocket: TDextHttpSysWebSocketConnection;
   Ret: DWORD;
   BodyChunk: PHTTP_DATA_CHUNK_INMEMORY;
   BodyChunkIndex: Integer;
@@ -2106,11 +2544,11 @@ begin
     if Overlapped <> nil then
     begin
       Op := PDextHttpSysOperation(Overlapped);
-      Context := TDextHttpSysContext(Op^.Context);
 
       case Op^.Kind of
         hokReceiveRequest:
         begin
+          Context := TDextHttpSysContext(Op^.Context);
           if Op^.Generation <> Context.FGeneration then
             Continue;
           if Ret = ERROR_MORE_DATA then
@@ -2164,6 +2602,7 @@ begin
 
         hokReceiveBody:
         begin
+          Context := TDextHttpSysContext(Op^.Context);
           if Op^.Generation <> Context.FGeneration then
             Continue;
           if Transferred > 0 then
@@ -2192,12 +2631,33 @@ begin
 
         hokSendHeaders, hokSendBody:
         begin
+          Context := TDextHttpSysContext(Op^.Context);
           if Op^.Generation <> Context.FGeneration then
             Continue;
           if Context.FResponse <> nil then
             Context.FResponse.FResponseWriter.Reset;
           Context.FResponseIntf := nil;
           Context.FRequestIntf := nil;
+        end;
+
+        hokWebSocketReceive:
+        begin
+          WebSocket := TDextHttpSysWebSocketConnection(Op^.Context);
+          try
+            WebSocket.CompleteReceive(Transferred, Ret);
+          finally
+            WebSocket._Release;
+          end;
+        end;
+
+        hokWebSocketSend:
+        begin
+          WebSocket := TDextHttpSysWebSocketConnection(Op^.Context);
+          try
+            WebSocket.CompleteSend(Transferred, Ret);
+          finally
+            WebSocket._Release;
+          end;
         end;
       end;
     end;
@@ -2315,6 +2775,116 @@ begin
   // Set configuration timeouts if specified in Options
 end;
 
+procedure TDextHttpSysEngine.RegisterSslBinding;
+const
+  ERROR_FILE_NOT_FOUND = 2;
+  ERROR_INSUFFICIENT_BUFFER = 122;
+var
+  Address: SOCKADDR_IN;
+  Query: HTTP_SERVICE_CONFIG_SSL_QUERY;
+  Binding: PHTTP_SERVICE_CONFIG_SSL_SET;
+  Buffer: TBytes;
+  Required: ULONG;
+  Ret: ULONG;
+  ActualHash: string;
+  ExpectedHash: string;
+  ActualStore: string;
+  I: Integer;
+
+  function NormalizeHash(const Value: string): string;
+  var
+    Ch: Char;
+  begin
+    Result := '';
+    for Ch in Value do
+      if CharInSet(Ch, ['0'..'9', 'a'..'f', 'A'..'F']) then
+        Result := Result + UpCase(Ch);
+  end;
+
+  function IsEmptyGuid(const Value: TGUID): Boolean;
+  begin
+    Result := IsEqualGUID(Value, TGUID.Empty);
+  end;
+begin
+  if not FOptions.UseHttps then Exit;
+
+  Ret := HttpInitialize(HTTPAPI_VERSION_2, HTTP_INITIALIZE_CONFIG, nil);
+  if Ret <> ERROR_SUCCESS then
+    raise EOSError.CreateFmt(
+      'HttpInitialize(CONFIG) failed while validating HTTPS binding (error %d)', [Ret]);
+  try
+    FillChar(Address, SizeOf(Address), 0);
+    Address.sin_family := AF_INET;
+    Address.sin_port := htons(FListeningPort);
+    if (FAddress <> '') and (FAddress <> '+') and (FAddress <> '0.0.0.0') then
+    begin
+      Address.sin_addr := inet_addr(PAnsiChar(AnsiString(FAddress)));
+      if Address.sin_addr = INADDR_NONE then
+        raise EArgumentException.CreateFmt(
+          'http.sys HTTPS binding validation requires an IPv4 address; received "%s"',
+          [FAddress]);
+    end;
+
+    FillChar(Query, SizeOf(Query), 0);
+    Query.QueryDesc := HttpServiceConfigQueryExact;
+    Query.KeyDesc.pIpPort := @Address;
+    Required := 0;
+    Ret := HttpQueryServiceConfiguration(0, Ord(HttpServiceConfigSslCertInfo),
+      @Query, SizeOf(Query), nil, 0, Required, nil);
+    if Ret = ERROR_FILE_NOT_FOUND then
+      raise EInvalidOperation.CreateFmt(
+        'No http.sys SSL binding exists for %s:%d. Inspect or provision it with: netsh http show sslcert ipport=%s:%d',
+        [FAddress, FListeningPort, FAddress, FListeningPort]);
+    if (Ret <> ERROR_INSUFFICIENT_BUFFER) or (Required = 0) then
+      raise EOSError.CreateFmt(
+        'Unable to query http.sys SSL binding for %s:%d (error %d)',
+        [FAddress, FListeningPort, Ret]);
+
+    SetLength(Buffer, Required);
+    Ret := HttpQueryServiceConfiguration(0, Ord(HttpServiceConfigSslCertInfo),
+      @Query, SizeOf(Query), Pointer(Buffer), Length(Buffer), Required, nil);
+    if Ret <> ERROR_SUCCESS then
+      raise EOSError.CreateFmt(
+        'Unable to read http.sys SSL binding for %s:%d (error %d)',
+        [FAddress, FListeningPort, Ret]);
+
+    Binding := PHTTP_SERVICE_CONFIG_SSL_SET(Pointer(Buffer));
+    ActualHash := '';
+    for I := 0 to Integer(Binding.ParamDesc.CertHashLength) - 1 do
+      ActualHash := ActualHash +
+        IntToHex(PByte(NativeUInt(Binding.ParamDesc.pCertHash) + NativeUInt(I))^, 2);
+    ExpectedHash := NormalizeHash(FOptions.SslCertHash);
+    if (ExpectedHash <> '') and not SameText(ExpectedHash, ActualHash) then
+      raise EInvalidOperation.CreateFmt(
+        'http.sys SSL binding certificate mismatch for %s:%d. Expected %s, found %s',
+        [FAddress, FListeningPort, ExpectedHash, ActualHash]);
+
+    if Binding.ParamDesc.pCertStoreName <> nil then
+      ActualStore := Binding.ParamDesc.pCertStoreName
+    else
+      ActualStore := '';
+    if (FOptions.SslCertStoreName <> '') and
+       not SameText(FOptions.SslCertStoreName, ActualStore) then
+      raise EInvalidOperation.CreateFmt(
+        'http.sys SSL binding store mismatch for %s:%d. Expected %s, found %s',
+        [FAddress, FListeningPort, FOptions.SslCertStoreName, ActualStore]);
+
+    if not IsEmptyGuid(FOptions.HttpSysAppId) and
+       not IsEqualGUID(FOptions.HttpSysAppId, Binding.ParamDesc.AppId) then
+      raise EInvalidOperation.CreateFmt(
+        'http.sys SSL binding AppId mismatch for %s:%d. Expected %s, found %s',
+        [FAddress, FListeningPort, GUIDToString(FOptions.HttpSysAppId),
+         GUIDToString(Binding.ParamDesc.AppId)]);
+
+    SafeWriteLn(Format(
+      '[http.sys] Validated HTTPS binding %s:%d (certificate %s, store %s, AppId %s)',
+      [FAddress, FListeningPort, ActualHash, ActualStore,
+       GUIDToString(Binding.ParamDesc.AppId)]));
+  finally
+    HttpTerminate(HTTP_INITIALIZE_CONFIG, nil);
+  end;
+end;
+
 procedure TDextHttpSysEngine.Start;
 var
   UrlPrefix: string;
@@ -2327,24 +2897,48 @@ var
 begin
   if FRunning then Exit;
 
+  var Scheme: string := 'http';
+  if FOptions.UseHttps then
+  begin
+    Scheme := 'https';
+    RegisterSslBinding;
+  end;
+
   // Register prefix
   if (FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '') then
-    UrlPrefix := Format('http://+:%d/', [FListeningPort])
+    UrlPrefix := Format('%s://+:%d/', [Scheme, FListeningPort])
   else
-    UrlPrefix := Format('http://%s:%d/', [FAddress, FListeningPort]);
+    UrlPrefix := Format('%s://%s:%d/', [Scheme, FAddress, FListeningPort]);
     
+  SafeWriteLn('[http.sys] Registering URL Prefix in Kernel: ' + UrlPrefix);
   Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
+
+  if Ret = ERROR_SUCCESS then
+    SafeWriteLn('[http.sys] URL Prefix successfully registered in Kernel: ' + UrlPrefix)
+  else if Ret = 183 {ERROR_ALREADY_EXISTS} then
+    SafeWriteLn('[http.sys] URL Prefix is already active in Kernel: ' + UrlPrefix);
+
   if (Ret = 5) and ((FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '')) then
   begin
-    UrlPrefix := Format('http://127.0.0.1:%d/', [FListeningPort]);
+    UrlPrefix := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
     Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
-    if Ret = ERROR_SUCCESS then
+    if (Ret = ERROR_SUCCESS) or (Ret = 183 {ERROR_ALREADY_EXISTS}) then
     begin
-      var LocalhostPrefix: string := Format('http://localhost:%d/', [FListeningPort]);
+      var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
       HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
     end;
+  end
+  else if (Ret = ERROR_SUCCESS) or (Ret = 183 {ERROR_ALREADY_EXISTS}) then
+  begin
+    // Garante escuta nos aliases locais caso escutando via + ou 0.0.0.0
+    var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
+    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
+    var LocalIpPrefix: string := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
+    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalIpPrefix)), 0, 0);
   end;
-  if Ret <> ERROR_SUCCESS then
+
+  // 183 (ERROR_ALREADY_EXISTS) é tolerado pois o prefixo já se encontra registrado no Kernel
+  if (Ret <> ERROR_SUCCESS) and (Ret <> 183 {ERROR_ALREADY_EXISTS}) then
   begin
     if Ret = 5 then
     begin

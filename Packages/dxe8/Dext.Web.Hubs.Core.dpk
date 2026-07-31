@@ -50,7 +50,8 @@ contains
   Dext.Web.Hubs.Transport.SSE in '..\..\Sources\Hubs\Transports\Dext.Web.Hubs.Transport.SSE.pas',
   Dext.Web.Hubs.Transport.WebSocket in '..\..\Sources\Hubs\Transports\Dext.Web.Hubs.Transport.WebSocket.pas',
   Dext.Web.Hubs.Client.Types in '..\..\Sources\Hubs\Dext.Web.Hubs.Client.Types.pas',
-  Dext.Web.Hubs.Client in '..\..\Sources\Hubs\Dext.Web.Hubs.Client.pas';
+  Dext.Web.Hubs.Client in '..\..\Sources\Hubs\Dext.Web.Hubs.Client.pas',
+  Dext.Web.Hubs.Protocol.MessagePack in '..\..\Sources\Hubs\Dext.Web.Hubs.Protocol.MessagePack.pas';
 
 end.
 

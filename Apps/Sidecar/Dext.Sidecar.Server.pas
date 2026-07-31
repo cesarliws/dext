@@ -25,7 +25,6 @@ uses
   Dext.Sidecar.LogStreamer,
   Dext.Sidecar.TestCompat;
 
-
 type
   TSidecarServer = class
   private
@@ -46,8 +45,6 @@ type
   end;
 
 implementation
-
-
 
 { TSidecarServer }
 

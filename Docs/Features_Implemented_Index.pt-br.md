@@ -175,6 +175,10 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Timeout Policy** (`TTimeoutPolicy`) — Lança `ETimeoutException` caso operações excedam a duração máxima permitida através de cancelamento cooperativo e futures assíncronas.
 - **RestClient Integration** — O `TRestClient` integra-se nativamente com o motor de resiliência, permitindo o uso retrocompatível dos métodos `.Retry()` e `.Timeout()`, além de configuração de pipelines customizados.
 
+### 1.19 Fluent ServerEngineOptions & TRestClient SSL/TLS Controls
+- **`ServerEngineOptions`** (`Dext.Server.Engine.Types.pas`) — Função de entrada global e helpers fluentes (`WithHttps`, `WithSslCertHash`, `WithIoThreads`, `WithReceiveBufferSize`) para configuração elegante de servidores HTTPS sem burocracia.
+- **`TRestClient.IgnoreCertificateErrors / AllowSelfSigned`** (`Dext.Net.RestClient.pas`) — Interface fluente para controle explícito de validação de certificados SSL/TLS em clientes REST, permitindo conexões HTTPS com certificados auto-assinados de ambiente de desenvolvimento.
+
 ### 1.18 Persistent Background Jobs (`Dext.BackgroundJobs.*`)
 - **`IJobStorage`** — Abstração de armazenamento desacoplada com suporte a múltiplos provedores.
 - **`IJobClient` / `TDextJobs`** — Cliente thread-safe para enfileiramento e fachada utilitária estática (`TDextJobs.Enqueue<T>`, `TDextJobs.Schedule<T>`).
@@ -449,6 +453,14 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 - **Connection Pooling** — `TDextRedisConnectionPool` integrado para compartilhamento gerenciado de conexões entre threads.
 - **Pub/Sub Reativo** — Pipeline de mensagens através de canais concorrentes (`IChannel<TDextRedisMessage>`).
 - **Integração RedisJSON e Dext.Json** — Serialização direta e type-safe de classes Delphi para valores JSON no Redis usando o motor JSON principal.
+
+### 5.4 Arquitetura TLS/SSL Nativa (`Dext.Net.Security` & `Dext.Net.Security.OpenSSL`)
+- **Abstração Unificada de TLS** — Definições de `IDextTLSEngine`, `IDextTLSContextProvider` e `IDextTLSStream` para desacoplamento de transporte.
+- **Motor OpenSSL 3.x Memory BIO** — Zero-copy/lock-free TLS handshake e framing criptografado em memória para sockets TCP assíncronos (`epoll` no Linux e `IOCP` no Windows).
+- **Integração HTTP.sys & Windows Schannel** — Suporte nativo a bindings HTTPS e certificados do Windows Certificate Store sem DLLs externas.
+- **Taurus TLS & Indy SSL** — Provedor de TLS 1.3 / OpenSSL 3.x (`TDextTaurusTLSContext`) para servidores Indy.
+- **Suporte SSL no TDextRedisClient (`rediss://`)** — Envoltório TLS transparente para o cliente Redis nativo.
+- **Ferramenta CLI dev-certs (`dext dev-certs https`)** — Gerador CryptoAPI nativo em Pascal para certificados RSA X.509 de desenvolvimento com extensão SAN (`localhost`, `127.0.0.1`) e registro automático no Root Certificate Store.
 
 ---
 
