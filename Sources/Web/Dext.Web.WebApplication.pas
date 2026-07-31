@@ -117,6 +117,7 @@ implementation
 
 uses
   System.SysUtils,
+  System.Classes, // EInvalidOperation (single-use lifecycle guard)
   System.SyncObjs, // TInterlocked (single-run teardown guard)
   Dext.Utils,
   Dext.DI.Core,
@@ -370,6 +371,19 @@ var
   RootFile: string;
   ProviderName: string;
 begin
+  // Single-use lifecycle: once the application has been stopped, Teardown has
+  // released the service collection and the configuration to break the circular
+  // references held by closures. Setup would then rebuild the provider from
+  // FServices, which no longer exists -- a read of address 0.
+  //
+  // Refusing here turns that access violation into a sentence that says what to
+  // do instead. The flag is the one Teardown sets, so this covers every way of
+  // getting back in: Start, Run, or Setup called directly.
+  if TInterlocked.CompareExchange(FTeardownFlag, 0, 0) <> 0 then
+    raise EInvalidOperation.Create
+      ('This WebApplication instance has been stopped and cannot be restarted. ' +
+      'Create a new instance instead: App := WebApplication;');
+
   FDefaultPort := Port;
 
   // Build ServiceProvider now if not already built via BuildServices()

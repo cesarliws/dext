@@ -1,4 +1,4 @@
-﻿program Dext.Web.UnitTests;
+program Dext.Web.UnitTests;
 
 {$OVERFLOWCHECKS OFF}
 {$RANGECHECKS OFF}
@@ -22,6 +22,7 @@ uses
   Dext.Web.Features.Tests in 'Dext.Web.Features.Tests.pas',
   Dext.Web.DataApi.Utils.Tests in 'Dext.Web.DataApi.Utils.Tests.pas',
   Dext.Web.Hosting.Tests in 'Dext.Web.Hosting.Tests.pas',
+  Dext.Web.Lifecycle.Tests in 'Dext.Web.Lifecycle.Tests.pas',
   Dext.Web.Htmx.Tests in 'Dext.Web.Htmx.Tests.pas',
   Dext.Logging.Sinks.APM.Tests in 'Dext.Logging.Sinks.APM.Tests.pas',
   Dext.WebSocket.Tests in 'Dext.WebSocket.Tests.pas',
@@ -49,6 +50,7 @@ begin
         TWebFeaturesTests,
         TDataApiNamingTests,
         TWebHostingTests,
+        TWebApplicationLifecycleTests,
         TDataApiConventionTests,
         TDataApiSerializationTests,
         THtmxResponseTests,
