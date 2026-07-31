@@ -53,6 +53,11 @@ type
     FDefaultPort: Integer;
     FActiveHost: IWebHost; // ? Track active host
     FServerFactory: TServerFactory;
+    /// Guards Teardown so it runs exactly once per Setup. When Run is hosted on
+    /// a background thread, Stop and Run's own finally block can both reach
+    /// Teardown at the same time. Interlocked, because the state check inside
+    /// Teardown is check-then-act and cannot close that window on its own.
+    FTeardownFlag: Integer;
 
     procedure Setup(Port: Integer);
     procedure Teardown;
@@ -112,6 +117,7 @@ implementation
 
 uses
   System.SysUtils,
+  System.SyncObjs, // TInterlocked (single-run teardown guard)
   Dext.Utils,
   Dext.DI.Core,
   Dext.Logging.Global,
@@ -365,7 +371,7 @@ var
   ProviderName: string;
 begin
   FDefaultPort := Port;
-  
+
   // Build ServiceProvider now if not already built via BuildServices()
   // This is the correct place to do it, AFTER all services have been registered
   if FServiceProvider = nil then
@@ -487,6 +493,14 @@ var
   LifetimeIntf: IInterface;
   ManagerIntf: IInterface;
 begin
+  // Exactly one teardown per Setup, whichever thread gets here first.
+  // CompareExchange returns the PREVIOUS value: 0 for the winner, 1 for anyone
+  // arriving afterwards. This has to be the very first statement -- the state
+  // checks below are check-then-act and both threads would pass them, because
+  // the state only becomes asStopped after the whole body has run.
+  if TInterlocked.CompareExchange(FTeardownFlag, 1, 0) <> 0 then
+    Exit;
+
   if FServiceProvider = nil then Exit;
 
   // Resolve services
@@ -610,6 +624,7 @@ end;
 procedure TWebApplication.Stop;
 var
   LifetimeIntf: IInterface;
+  LHost: IWebHost;
 begin
   if FServiceProvider <> nil then
   begin
@@ -618,12 +633,17 @@ begin
       (LifetimeIntf as IHostApplicationLifetime).StopApplication;
   end;
 
-  if FActiveHost <> nil then
+  // Snapshot into a local interface reference. StopApplication above can wake
+  // the Run loop on another thread, whose Teardown sets FActiveHost to nil --
+  // testing the field and then calling through it would dereference nil right
+  // in that window. The local reference also keeps the host alive for the call.
+  LHost := FActiveHost;
+  if LHost <> nil then
   begin
     LogInfo('Stopping active host...');
-    FActiveHost.Stop;
+    LHost.Stop;
   end;
-  
+
   Teardown;
 end;
 
