@@ -170,10 +170,16 @@ end;
 
 {$IF defined(DEXT_FORCE_INDY) or (CompilerVersion < 29.0)}
 type
+  /// <summary>
+  ///   Reaches TIdCustomHTTP.DoRequest, which is protected and has no public
+  ///   equivalent for an arbitrary verb (PATCH, QUERY, ...).
+  /// </summary>
+  TIdHTTPAccess = class(TIdHTTP);
+
   TDextIndyHttpEngine = class(TInterfacedObject, IDextHttpEngine)
   private
     FIdHttp: TIdHTTP;
-    function VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
+    function VerifyPeer(ACertificate: TIdX509; AOk: Boolean; ADepth, AError: Integer): Boolean;
   public
     constructor Create;
     destructor Destroy; override;
@@ -214,7 +220,8 @@ begin
   FIdHttp.ReadTimeout := AMilliseconds;
 end;
 
-function TDextIndyHttpEngine.VerifyPeer(ADb: TIdSSLContext; AHandshake: TIdSSLHandShake; ACert: TIdSSLCertificate): Boolean;
+function TDextIndyHttpEngine.VerifyPeer(ACertificate: TIdX509; AOk: Boolean;
+  ADepth, AError: Integer): Boolean;
 begin
   Result := True;
 end;
@@ -267,7 +274,7 @@ begin
       else if SameText(AMethod, 'DELETE') then
         FIdHttp.Delete(AUrl, ResponseStream)
       else
-        FIdHttp.DoRequest(AMethod, AUrl, ABody, ResponseStream, []);
+        TIdHTTPAccess(FIdHttp).DoRequest(AMethod, AUrl, ABody, ResponseStream, []);
     except
       on E: Exception do
       begin
