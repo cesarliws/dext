@@ -126,7 +126,8 @@ type
 implementation
 
 uses
-  System.JSON;
+  System.JSON,
+  System.Generics.Collections;
 
 { TTransportInfo }
 

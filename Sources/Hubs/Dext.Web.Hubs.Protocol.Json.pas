@@ -36,6 +36,7 @@ uses
   System.JSON,
   System.Rtti,
   System.SysUtils,
+  System.Generics.Collections,
   System.TypInfo,
   Dext.Web.Hubs.Interfaces,
   Dext.Core.Reflection,
