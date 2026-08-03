@@ -121,6 +121,9 @@ type
     FHeaders: IStringDictionary;
     FCookies: IStringDictionary;
     FFiles: IFormFileCollection;
+    FPath: string;
+    FPathBase: string;
+    FHasCustomPath: Boolean;
     function ParseQueryString(const AQuery: string): IStringDictionary;
     function ParseHeaders(AHeaderList: TIdHeaderList): IStringDictionary;
     procedure ParseMultipart;
@@ -130,6 +133,10 @@ type
 
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -141,6 +148,7 @@ type
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
+    property PathBase: string read GetPathBase write SetPathBase;
     property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TRouteValueDictionary read GetRouteParams;
@@ -305,10 +313,40 @@ end;
 
 function TDextIndyHttpRequest.GetPath: string;
 begin
+  if FHasCustomPath then
+    Exit(FPath);
   Result := FRequestInfo.Document;
   // Ensure empty paths are '/'
   if Result = '' then
     Result := '/';
+end;
+
+procedure TDextIndyHttpRequest.SetPath(const AValue: string);
+begin
+  FPath := AValue;
+  FHasCustomPath := True;
+end;
+
+function TDextIndyHttpRequest.GetPathBase: string;
+begin
+  Result := FPathBase;
+end;
+
+procedure TDextIndyHttpRequest.SetPathBase(const AValue: string);
+begin
+  FPathBase := AValue;
+end;
+
+function TDextIndyHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  BasePath, RelPath: string;
+begin
+  BasePath := GetPathBase;
+  RelPath := ARelativePath;
+  if BasePath = '/' then BasePath := '';
+  if (RelPath <> '') and not RelPath.StartsWith('/') then RelPath := '/' + RelPath;
+  Result := BasePath + RelPath;
+  if Result = '' then Result := '/';
 end;
 
 function TDextIndyHttpRequest.GetQuery: IStringDictionary;

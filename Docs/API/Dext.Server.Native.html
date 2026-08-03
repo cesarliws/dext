@@ -363,6 +363,7 @@
 <a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.PathBase.html" class="nav-item">Dext.Web.PathBase</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
 <a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
@@ -417,6 +418,10 @@ class TDextNativeHttpRequest {    +ParseQueryString()
     +Destroy()
     +GetMethod()
     +GetPath()
+    +SetPath()
+    +GetPathBase()
+    +SetPathBase()
+    +ToAppUrl()
     +GetQuery()
     +GetBody()
     +GetRouteParams()
@@ -428,6 +433,7 @@ class TDextNativeHttpRequest {    +ParseQueryString()
     +GetFiles()
     +Method
     +Path
+    +PathBase
     +Query
     +Body
     +RouteParams
@@ -535,6 +541,14 @@ IWebHost <|.. TDextNativeWebServer
 <div class="api-item">
 <div class="api-signature">function GetPath: string</div><div class="description">Gets the request URL path.</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SetPath(const const: string)</div><div class="description">Sets a custom request URL path.</div></div>
+<div class="api-item">
+<div class="api-signature">function GetPathBase: string</div><div class="description">Gets the base path prefix.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetPathBase(const const: string)</div><div class="description">Sets the base path prefix.</div></div>
+<div class="api-item">
+<div class="api-signature">function ToAppUrl(const const: string): string</div><div class="description">Builds an absolute application URL using PathBase.</div></div>
+<div class="api-item">
 <div class="api-signature">function GetQuery: IStringDictionary</div><div class="description">Gets the collection of parsed query parameters.</div></div>
 <div class="api-item">
 <div class="api-signature">function GetBody: TStream</div><div class="description">Gets the body data stream.</div></div>
@@ -556,6 +570,8 @@ IWebHost <|.. TDextNativeWebServer
 <div class="api-signature">property Method: </div></div>
 <div class="api-item">
 <div class="api-signature">property Path: </div></div>
+<div class="api-item">
+<div class="api-signature">property PathBase: </div></div>
 <div class="api-item">
 <div class="api-signature">property Query: </div></div>
 <div class="api-item">

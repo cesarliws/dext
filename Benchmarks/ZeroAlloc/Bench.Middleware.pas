@@ -33,6 +33,7 @@ type
   private
     FMethod: string;
     FPath: string;
+    FPathBase: string;
     FQuery: IStringDictionary;
     FHeaders: IStringDictionary;
   public
@@ -41,6 +42,10 @@ type
 
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -52,6 +57,7 @@ type
     function GetProtocol: string;
     function GetCookies: IStringDictionary;
     function GetFiles: IFormFileCollection;
+    property PathBase: string read GetPathBase write SetPathBase;
   end;
 
   TMockHttpContext = class(TInterfacedObject, IHttpContext)
@@ -131,6 +137,20 @@ function TMockHttpRequest.GetHeader(const AName: string): string; begin Result :
 function TMockHttpRequest.GetHeaders: IStringDictionary; begin Result := FHeaders; end;
 function TMockHttpRequest.GetMethod: string; begin Result := FMethod; end;
 function TMockHttpRequest.GetPath: string; begin Result := FPath; end;
+procedure TMockHttpRequest.SetPath(const AValue: string); begin FPath := AValue; end;
+function TMockHttpRequest.GetPathBase: string; begin Result := FPathBase; end;
+procedure TMockHttpRequest.SetPathBase(const AValue: string); begin FPathBase := AValue; end;
+function TMockHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  LBase, LRel: string;
+begin
+  LBase := GetPathBase;
+  LRel := ARelativePath;
+  if LBase = '/' then LBase := '';
+  if (LRel <> '') and not LRel.StartsWith('/') then LRel := '/' + LRel;
+  Result := LBase + LRel;
+  if Result = '' then Result := '/';
+end;
 function TMockHttpRequest.GetProtocol: string; begin Result := 'HTTP/1.1'; end;
 function TMockHttpRequest.GetQuery: IStringDictionary; begin Result := FQuery; end;
 function TMockHttpRequest.GetQueryParam(const AName: string): string; begin Result := ''; end;

@@ -79,6 +79,8 @@ type
     SslCertStoreName: string;
     /// <summary>Administrative owner of an http.sys SSL binding.</summary>
     HttpSysAppId: TGUID;
+    /// <summary>Base path prefix (e.g. '/myapp').</summary>
+    PathBase: string;
 
     /// <summary>Creates a default configuration options record.</summary>
     class function Default: TServerEngineOptions; static;
@@ -121,6 +123,8 @@ type
     /// <summary>Configures native request header and body size limits.</summary>
     function WithRequestSizeLimits(AHeaderBytes: Integer;
       ABodyBytes: Int64): TServerEngineOptions;
+    /// <summary>Configures the base path prefix (e.g. '/myapp').</summary>
+    function WithPathBase(const APathBase: string): TServerEngineOptions;
   end;
 
   /// <summary>
@@ -160,6 +164,7 @@ begin
   Result.SslCertStoreName := 'MY';
   Result.SslProvider := 'Auto';
   Result.HttpSysAppId := TGUID.Empty;
+  Result.PathBase := '';
 end;
 
 function ServerEngineOptions: TServerEngineOptions;
@@ -249,6 +254,13 @@ function TServerEngineOptionsHelper.WithRequestSizeLimits(
 begin
   Self.MaxRequestHeaderSize := AHeaderBytes;
   Self.MaxRequestBodySize := ABodyBytes;
+  Result := Self;
+end;
+
+function TServerEngineOptionsHelper.WithPathBase(
+  const APathBase: string): TServerEngineOptions;
+begin
+  Self.PathBase := APathBase;
   Result := Self;
 end;
 

@@ -105,6 +105,9 @@ type
     FCookies: IStringDictionary;
     FRouteParams: TRouteValueDictionary;
     FFiles: IFormFileCollection;
+    FPath: string;
+    FPathBase: string;
+    FHasCustomPath: Boolean;
     procedure BuildFiles;
   public
     constructor Create(ARequest: ICrossHttpRequest);
@@ -112,6 +115,10 @@ type
 
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -123,6 +130,7 @@ type
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
+    property PathBase: string read GetPathBase write SetPathBase;
     property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TRouteValueDictionary read GetRouteParams;
@@ -377,9 +385,39 @@ end;
 
 function TDextDCSRequest.GetPath: string;
 begin
+  if FHasCustomPath then
+    Exit(FPath);
   Result := FRequest.Path;
   if Result = '' then
     Result := '/';
+end;
+
+procedure TDextDCSRequest.SetPath(const AValue: string);
+begin
+  FPath := AValue;
+  FHasCustomPath := True;
+end;
+
+function TDextDCSRequest.GetPathBase: string;
+begin
+  Result := FPathBase;
+end;
+
+procedure TDextDCSRequest.SetPathBase(const AValue: string);
+begin
+  FPathBase := AValue;
+end;
+
+function TDextDCSRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  BasePath, RelPath: string;
+begin
+  BasePath := GetPathBase;
+  RelPath := ARelativePath;
+  if BasePath = '/' then BasePath := '';
+  if (RelPath <> '') and not RelPath.StartsWith('/') then RelPath := '/' + RelPath;
+  Result := BasePath + RelPath;
+  if Result = '' then Result := '/';
 end;
 
 function TDextDCSRequest.GetQuery: IStringDictionary;

@@ -406,6 +406,7 @@ When binding to `0.0.0.0` or empty interfaces under `http.sys`, Dext registers `
   ```cmd
   netsh http add urlacl url=http://+:5000/ user=Everyone
   ```
+- When using `UsePathBase('/myapp')`, HTTP.sys kernel binding includes the path prefix (`http://+:5000/myapp/`). If running non-elevated, Dext automatically falls back to `http://127.0.0.1:5000/myapp/`.
 
 
 ## HTTP/2 Camada de Transporte (S41)

@@ -33,11 +33,17 @@ type
     FHeaders: IStringDictionary;
     FRouteParams: TRouteValueDictionary;
     FBody: TStream;
+    FPath: string;
+    FPathBase: string;
   public
     constructor Create;
     destructor Destroy; override;
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -47,6 +53,7 @@ type
     function GetQueryParam(const AName: string): string;
     function GetCookies: IStringDictionary;
     function GetFiles: IFormFileCollection;
+    property PathBase: string read GetPathBase write SetPathBase;
   end;
 
   TMockHttpContext = class(TInterfacedObject, IHttpContext)
@@ -173,7 +180,21 @@ function TMockHttpRequest.GetFiles: IFormFileCollection; begin Result := nil; en
 function TMockHttpRequest.GetHeader(const AName: string): string; begin if not FHeaders.TryGetValue(AName, Result) then Result := ''; end;
 function TMockHttpRequest.GetHeaders: IStringDictionary; begin Result := FHeaders; end;
 function TMockHttpRequest.GetMethod: string; begin Result := 'GET'; end;
-function TMockHttpRequest.GetPath: string; begin Result := '/'; end;
+function TMockHttpRequest.GetPath: string; begin if FPath <> '' then Result := FPath else Result := '/'; end;
+procedure TMockHttpRequest.SetPath(const AValue: string); begin FPath := AValue; end;
+function TMockHttpRequest.GetPathBase: string; begin Result := FPathBase; end;
+procedure TMockHttpRequest.SetPathBase(const AValue: string); begin FPathBase := AValue; end;
+function TMockHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  LBase, LRel: string;
+begin
+  LBase := GetPathBase;
+  LRel := ARelativePath;
+  if LBase = '/' then LBase := '';
+  if (LRel <> '') and not LRel.StartsWith('/') then LRel := '/' + LRel;
+  Result := LBase + LRel;
+  if Result = '' then Result := '/';
+end;
 function TMockHttpRequest.GetQuery: IStringDictionary; begin Result := FQuery; end;
 function TMockHttpRequest.GetQueryParam(const AName: string): string; begin if not FQuery.TryGetValue(AName, Result) then Result := ''; end;
 function TMockHttpRequest.GetRemoteIpAddress: string; begin Result := '127.0.0.1'; end;

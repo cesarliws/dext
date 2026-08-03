@@ -36,9 +36,29 @@ App.Configure(procedure(App: IApplicationBuilder)
     // Compression
     App.UseCompression;
     
+    // Base Path
+    App.UsePathBase('/myapp');
+
     // Endpoints go last
     App.MapGet('/api', Handler);
   end);
+```
+
+## Base Path Hosting (`UsePathBase`)
+
+Serve applications under a path prefix (e.g. `https://example.com/myapp/`):
+
+```pascal
+App := WebApplication;
+App.UsePathBase('/myapp');
+App.MapGet('/ping', procedure(Ctx: IHttpContext)
+  begin
+    // Ctx.Request.PathBase -> '/myapp'
+    // Ctx.Request.Path -> '/ping'
+    // Ctx.Request.ToAppUrl('/ping') -> '/myapp/ping'
+    Ctx.Response.Write('OK');
+  end);
+App.Run(8080);
 ```
 
 ## Custom Middleware

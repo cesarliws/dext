@@ -363,6 +363,7 @@
 <a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.PathBase.html" class="nav-item">Dext.Web.PathBase</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
 <a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
@@ -441,6 +442,10 @@ class IResult {    +Execute()
 }
 class IHttpRequest {    +GetMethod()
     +GetPath()
+    +SetPath()
+    +GetPathBase()
+    +SetPathBase()
+    +ToAppUrl()
     +GetQuery()
     +GetBody()
     +GetRouteParams()
@@ -452,6 +457,7 @@ class IHttpRequest {    +GetMethod()
     +GetFiles()
     +Method
     +Path
+    +PathBase
     +Query
     +Body
     +RouteParams
@@ -574,6 +580,7 @@ class IStartup {    +ConfigureServices()
 class IWebApplication {    +GetServices()
     +GetBuilder()
     +UseMiddleware()
+    +UsePathBase()
     +UseStartup()
     +MapControllers()
     +GetApplicationBuilder()
@@ -707,6 +714,14 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-item">
 <div class="api-signature">function GetPath: string</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SetPath(const const: string)</div><div class="description">Updates the request path (used by path base stripping).</div></div>
+<div class="api-item">
+<div class="api-signature">function GetPathBase: string</div><div class="description">Returns the base path prefix under which the application is served.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetPathBase(const const: string)</div><div class="description">Sets the base path prefix under which the application is served.</div></div>
+<div class="api-item">
+<div class="api-signature">function ToAppUrl(const const: string): string</div><div class="description">Combines the application PathBase with a relative path into an app-relative URL.</div></div>
+<div class="api-item">
 <div class="api-signature">function GetQuery: IStringDictionary</div></div>
 <div class="api-item">
 <div class="api-signature">function GetBody: TStream</div></div>
@@ -728,6 +743,8 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">property Method: </div><div class="description">HTTP Verb (GET, POST, etc.).</div></div>
 <div class="api-item">
 <div class="api-signature">property Path: </div><div class="description">Request path (e.g., /api/v1/users).</div></div>
+<div class="api-item">
+<div class="api-signature">property PathBase: </div><div class="description">Request base path prefix (e.g., /myapp).</div></div>
 <div class="api-item">
 <div class="api-signature">property Query: </div><div class="description">Dictionary of query string parameters.</div></div>
 <div class="api-item">
@@ -1014,6 +1031,8 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">function GetBuilder: TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseMiddleware(Middleware: TClass): IWebApplication</div></div>
+<div class="api-item">
+<div class="api-signature">function UsePathBase(const const: string): IWebApplication</div><div class="description">Configures the application to run under a base path prefix.</div></div>
 <div class="api-item">
 <div class="api-signature">function UseStartup(Startup: IStartup): IWebApplication</div></div>
 <div class="api-item">

@@ -239,6 +239,7 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 ### 3.2 Middleware Pipeline
 - **Chain of Responsibility** — Functional (anonymous delegates) and class-based middlewares with DI constructor injection.
 - **Built-in Middlewares** — Logger, Compression (GZip/Brotli), Exception Handling (**ProblemDetails** RFC 9457), **DeveloperExceptionPage**, CORS, StartupLock.
+- **Base Path Hosting (`UsePathBase`)** — Support for serving under path prefixes (`app.UsePathBase('/myapp')`), engine-agnostic path stripping (`TDextPathBaseMiddleware`), `Request.PathBase` population, and app-relative URL builder (`Request.ToAppUrl('/route')`). Native HTTP.sys kernel prefix registration (`http://+:8080/myapp/`).
 
 ### 3.3 Routing Engine
 - **Dynamic Parameters** — Routes with `{id}`, `{slug}`, and type constraints.

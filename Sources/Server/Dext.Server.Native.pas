@@ -84,6 +84,9 @@ type
     FCookies: IStringDictionary;
     FFiles: IFormFileCollection;
     FRemoteIp: string;
+    FPath: string;
+    FPathBase: string;
+    FHasCustomPath: Boolean;
     function ParseQueryString(const AQuery: string): IStringDictionary;
     function ParseHeaders: IStringDictionary;
   public
@@ -96,6 +99,14 @@ type
     function GetMethod: string;
     /// <summary>Gets the request URL path.</summary>
     function GetPath: string;
+    /// <summary>Sets a custom request URL path.</summary>
+    procedure SetPath(const AValue: string);
+    /// <summary>Gets the base path prefix.</summary>
+    function GetPathBase: string;
+    /// <summary>Sets the base path prefix.</summary>
+    procedure SetPathBase(const AValue: string);
+    /// <summary>Builds an absolute application URL using PathBase.</summary>
+    function ToAppUrl(const ARelativePath: string): string;
     /// <summary>Gets the collection of parsed query parameters.</summary>
     function GetQuery: IStringDictionary;
     /// <summary>Gets the body data stream.</summary>
@@ -117,6 +128,7 @@ type
 
     property Method: string read GetMethod;
     property Path: string read GetPath;
+    property PathBase: string read GetPathBase write SetPathBase;
     property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TRouteValueDictionary read GetRouteParams;
@@ -394,7 +406,37 @@ end;
 function TDextNativeHttpRequest.GetMethod: string; begin Result := FRawRequest.Method; end;
 function TDextNativeHttpRequest.GetPath: string;
 begin
+  if FHasCustomPath then
+    Exit(FPath);
   Result := FRawRequest.Path;
+  if Result = '' then Result := '/';
+end;
+
+procedure TDextNativeHttpRequest.SetPath(const AValue: string);
+begin
+  FPath := AValue;
+  FHasCustomPath := True;
+end;
+
+function TDextNativeHttpRequest.GetPathBase: string;
+begin
+  Result := FPathBase;
+end;
+
+procedure TDextNativeHttpRequest.SetPathBase(const AValue: string);
+begin
+  FPathBase := AValue;
+end;
+
+function TDextNativeHttpRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  BasePath, RelPath: string;
+begin
+  BasePath := GetPathBase;
+  RelPath := ARelativePath;
+  if BasePath = '/' then BasePath := '';
+  if (RelPath <> '') and not RelPath.StartsWith('/') then RelPath := '/' + RelPath;
+  Result := BasePath + RelPath;
   if Result = '' then Result := '/';
 end;
 

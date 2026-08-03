@@ -58,6 +58,9 @@ type
     FCookies: IStringDictionary;
     FRouteParams: TRouteValueDictionary;
     FFiles: IFormFileCollection;
+    FPath: string;
+    FPathBase: string;
+    FHasCustomPath: Boolean;
     function ParseQueryString(const AQuery: string): IStringDictionary;
     function BuildHeaders: IStringDictionary;
     function BuildCookies: IStringDictionary;
@@ -67,6 +70,10 @@ type
 
     function GetMethod: string;
     function GetPath: string;
+    procedure SetPath(const AValue: string);
+    function GetPathBase: string;
+    procedure SetPathBase(const AValue: string);
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -78,6 +85,7 @@ type
     function GetFiles: IFormFileCollection;
     property Method: string read GetMethod;
     property Path: string read GetPath;
+    property PathBase: string read GetPathBase write SetPathBase;
     property Query: IStringDictionary read GetQuery;
     property Body: TStream read GetBody;
     property RouteParams: TRouteValueDictionary read GetRouteParams;
@@ -436,9 +444,39 @@ end;
 
 function TDextWebBrokerRequest.GetPath: string;
 begin
+  if FHasCustomPath then
+    Exit(FPath);
   Result := FWebRequest.PathInfo;
   if Result = '' then
     Result := '/';
+end;
+
+procedure TDextWebBrokerRequest.SetPath(const AValue: string);
+begin
+  FPath := AValue;
+  FHasCustomPath := True;
+end;
+
+function TDextWebBrokerRequest.GetPathBase: string;
+begin
+  Result := FPathBase;
+end;
+
+procedure TDextWebBrokerRequest.SetPathBase(const AValue: string);
+begin
+  FPathBase := AValue;
+end;
+
+function TDextWebBrokerRequest.ToAppUrl(const ARelativePath: string): string;
+var
+  BasePath, RelPath: string;
+begin
+  BasePath := GetPathBase;
+  RelPath := ARelativePath;
+  if BasePath = '/' then BasePath := '';
+  if (RelPath <> '') and not RelPath.StartsWith('/') then RelPath := '/' + RelPath;
+  Result := BasePath + RelPath;
+  if Result = '' then Result := '/';
 end;
 
 function TDextWebBrokerRequest.GetQuery: IStringDictionary;

@@ -26,6 +26,7 @@ uses
   Dext.Web.Htmx.Tests in 'Dext.Web.Htmx.Tests.pas',
   Dext.Logging.Sinks.APM.Tests in 'Dext.Logging.Sinks.APM.Tests.pas',
   Dext.WebSocket.Tests in 'Dext.WebSocket.Tests.pas',
+  Dext.Web.PathBase.Tests in 'Dext.Web.PathBase.Tests.pas',
   Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas',
   Test_Dext.Http2.Connection in 'Test_Dext.Http2.Connection.pas',
   Test_Dext.Http2.Framing in 'Test_Dext.Http2.Framing.pas',
@@ -56,6 +57,7 @@ begin
         THtmxResponseTests,
         TAPMSinksTests,
         TWebSocketTests,
+        TPathBaseTests,
         // HTTP/2 and HPACK Tests
         THpackStaticTableTests,
         THpackDynTableTests,

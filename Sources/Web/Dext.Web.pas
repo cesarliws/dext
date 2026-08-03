@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -76,6 +76,7 @@ uses
   Dext.Web.Middleware,
   Dext.Web.MultiTenancy,
   Dext.Web.Pipeline,
+  Dext.Web.PathBase,
   Dext.Web.Results,
   Dext.Web.View,
   Dext.Web.View.Native,
@@ -115,8 +116,11 @@ type
   // 🌐 Aliases for Common Web Types
   // ===========================================================================
   
-  // {BEGIN_DEXT_ALIASES}
-  // Generated Aliases
+  // Dext.Web.PathBase
+  /// <summary> Middleware that strips base path from requests. </summary>
+  TDextPathBaseMiddleware = Dext.Web.PathBase.TDextPathBaseMiddleware;
+  /// <summary> Type alias for TDextPathBaseMiddleware. </summary>
+  TPathBaseMiddleware = Dext.Web.PathBase.TPathBaseMiddleware;
 
   // Dext.Auth.Attributes
   /// <summary> Attribute to require authentication or a specific policy. </summary>
@@ -829,6 +833,8 @@ type
     // -------------------------------------------------------------------------
     // ⛓️ Middleware
     // -------------------------------------------------------------------------
+    /// <summary>Adds base path middleware to strip prefix and populate Request.PathBase.</summary>
+    function UsePathBase(const APathBase: string): AppBuilder;
     function UseStaticFiles: AppBuilder; overload;
     function UseStartupLock: AppBuilder;
     function UseExceptionHandler: AppBuilder; overload;
@@ -1291,6 +1297,12 @@ end;
 function THttpAppBuilderHelper.UseRateLimiting(const APolicy: TRateLimitPolicy): AppBuilder;
 begin
   TApplicationBuilderRateLimitExtensions.UseRateLimiting(Self.Unwrap, APolicy);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UsePathBase(const APathBase: string): AppBuilder;
+begin
+  Self.Unwrap.UseMiddleware(TDextPathBaseMiddleware.Create(APathBase));
   Result := Self;
 end;
 

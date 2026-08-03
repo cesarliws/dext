@@ -363,6 +363,7 @@
 <a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.PathBase.html" class="nav-item">Dext.Web.PathBase</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
 <a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
@@ -415,7 +416,7 @@ IHubLifecycle <|.. THub
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>class THub</h3><a name="THub"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Base class for Hub implementations. Inherit from this class and add public methods that clients can invoke.</div></div>
+<h3>class THub</h3><a name="THub"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Base class for Hub implementations. Inherit from this class and annotate client-invokable methods with HubMethod. Other public methods remain server-side only.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">procedure OnConnectedAsync</div><div class="description">Called when a client connects to this Hub. Override to implement custom connection logic.</div></div>
 <div class="api-item">

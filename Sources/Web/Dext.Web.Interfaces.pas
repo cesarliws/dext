@@ -175,6 +175,14 @@ type
     ['{C3E8F1A2-4B7D-4A9C-9E2B-8F6D5A1C3E7F}']
     function GetMethod: string;
     function GetPath: string;
+    /// <summary>Updates the request path (used by path base stripping).</summary>
+    procedure SetPath(const AValue: string);
+    /// <summary>Returns the base path prefix under which the application is served.</summary>
+    function GetPathBase: string;
+    /// <summary>Sets the base path prefix under which the application is served.</summary>
+    procedure SetPathBase(const AValue: string);
+    /// <summary>Combines the application PathBase with a relative path into an app-relative URL.</summary>
+    function ToAppUrl(const ARelativePath: string): string;
     function GetQuery: IStringDictionary;
     function GetBody: TStream;
     function GetRouteParams: TRouteValueDictionary;
@@ -191,6 +199,8 @@ type
     property Method: string read GetMethod;
     /// <summary>Request path (e.g., /api/v1/users).</summary>
     property Path: string read GetPath;
+    /// <summary>Request base path prefix (e.g., /myapp).</summary>
+    property PathBase: string read GetPathBase write SetPathBase;
     /// <summary>Dictionary of query string parameters.</summary>
     property Query: IStringDictionary read GetQuery;
     /// <summary>Stream containing the request body.</summary>
@@ -491,6 +501,8 @@ type
     function GetServices: TDextServices;
     function GetBuilder: TAppBuilder;
     function UseMiddleware(Middleware: TClass): IWebApplication;
+    /// <summary>Configures the application to run under a base path prefix.</summary>
+    function UsePathBase(const APathBase: string): IWebApplication;
     function UseStartup(Startup: IStartup): IWebApplication; // ? Non-generic
     function MapControllers: IWebApplication;
     function GetApplicationBuilder: IApplicationBuilder;

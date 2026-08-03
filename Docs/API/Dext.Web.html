@@ -363,6 +363,7 @@
 <a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.PathBase.html" class="nav-item">Dext.Web.PathBase</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
 <a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
@@ -427,6 +428,7 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
     +Build()
     +UseViewEngine()
     +UseStreamableSessions()
+    +UsePathBase()
     +UseStartupLock()
     +UseExceptionHandler()
     +UseDeveloperExceptionPage()
@@ -579,6 +581,8 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-signature">function UseViewEngine: AppBuilder</div><div class="description">Enables Server-Side Surface Rendering (SSR) view support.</div></div>
 <div class="api-item">
 <div class="api-signature">function UseStreamableSessions(AIntervalSeconds: Integer; ATimeoutMinutes: Integer): AppBuilder</div><div class="description">Starts the Streamable Session Scavenger thread (background GC for idle sessions). Requires `Services.AddStreamableSessions` to be called first. Default: checks every 60s, evicts sessions idle for 30min.</div></div>
+<div class="api-item">
+<div class="api-signature">function UsePathBase(const const: string): AppBuilder</div><div class="description">Adds base path middleware to strip prefix and populate Request.PathBase.</div></div>
 <div class="api-item">
 <div class="api-signature">function UseStaticFiles: AppBuilder</div></div>
 <div class="api-item">
@@ -747,6 +751,10 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 </div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
+<div class="api-signature">type TDextPathBaseMiddleware = Type</div><div class="description">Middleware that strips base path from requests.</div></div>
+<div class="api-item">
+<div class="api-signature">type TPathBaseMiddleware = Type</div><div class="description">Type alias for TDextPathBaseMiddleware.</div></div>
+<div class="api-item">
 <div class="api-signature">type AuthorizeAttribute = Type</div><div class="description">Attribute to require authentication or a specific policy.</div></div>
 <div class="api-item">
 <div class="api-signature">type AllowAnonymousAttribute = Type</div><div class="description">Attribute to skip authentication for a controller or method.</div></div>

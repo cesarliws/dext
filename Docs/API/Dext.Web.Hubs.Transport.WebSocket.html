@@ -363,6 +363,7 @@
 <a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.PathBase.html" class="nav-item">Dext.Web.PathBase</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
 <a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
@@ -435,7 +436,8 @@ TInterfacedObject <|-- TWebSocketHubConnection
 IHubConnection <|.. TWebSocketHubConnection
 IWebSocketHubConnectionControl <|.. TWebSocketHubConnection
 IWebSocketPreparedSender <|.. TWebSocketHubConnection
-class TWebSocketHubTransport {    +SendKeepAlives()
+class TWebSocketHubTransport {    +EffectiveMaxMessageSize()
+    +SendKeepAlives()
     +ProcessAsyncData()
     +CompleteAsyncConnection()
     +DispatchFrame()
@@ -490,7 +492,7 @@ IHubTransport <|.. TWebSocketHubTransport
 <div class="class-header">
 <h3>class TWebSocketHubConnection</h3><a name="TWebSocketHubConnection"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">WebSocket connection wrapping the raw server upgrade connection.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(const const: string; const const: IDextWebSocketConnection)</div></div>
+<div class="api-signature">constructor Create(const const: string; const const: IDextWebSocketConnection; const const: IClaimsPrincipal)</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
@@ -530,7 +532,7 @@ IHubTransport <|.. TWebSocketHubTransport
 <div class="class-header">
 <h3>class TWebSocketHubTransport</h3><a name="TWebSocketHubTransport"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">WebSocket Transport manager implementing IHubTransport.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create</div></div>
+<div class="api-signature">constructor Create(AMaximumReceiveMessageSize: Int64)</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
@@ -559,6 +561,8 @@ IHubTransport <|.. TWebSocketHubTransport
 <div class="api-signature">function GetConnection(const const: string): IHubConnection</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">function EffectiveMaxMessageSize: Integer</div><div class="description">Receive ceiling actually applied to WebSocket frames: the configured MaximumReceiveMessageSize, never above ABSOLUTE_MAX_MESSAGE_SIZE. The constructor already rejects values outside the supported range, so the clamp here only guards the absolute cap.</div></div>
+<div class="api-item">
 <div class="api-signature">procedure SendKeepAlives</div></div>
 <div class="api-item">
 <div class="api-signature">procedure ProcessAsyncData(AConnection: TWebSocketHubConnection; const const: IDextWebSocketConnection; const const: TBytes; ACount: Integer)</div></div>

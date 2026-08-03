@@ -2357,6 +2357,7 @@ begin
             ReadFailedOrClosed := False;
             while True do
             begin
+              RawRecvRet := 0;
               if Context.FTLS <> nil then
               begin
                 RawRecvRet := recv(Context.FFd, Context.FTLSNetworkBuffer[0],
@@ -2428,6 +2429,7 @@ begin
           ReadFailedOrClosed := False;
           while True do
           begin
+            RawRecvRet := 0;
             if Context.FReadLen + 4096 > Length(Context.FReadBuffer) then
               SetLength(Context.FReadBuffer, Length(Context.FReadBuffer) + 4096);
 

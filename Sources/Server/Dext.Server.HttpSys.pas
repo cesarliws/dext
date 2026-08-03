@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -2894,47 +2894,76 @@ var
   Worker: TDextHttpSysWorker;
   Err: EOSError;
   Affinity: TDextProcessorGroupAffinity;
+  Scheme: string;
+  FormattedPathBase: string;
+  LocalhostPrefix: string;
+  LocalIpPrefix: string;
 begin
   if FRunning then Exit;
 
-  var Scheme: string := 'http';
+  Scheme := 'http';
   if FOptions.UseHttps then
   begin
     Scheme := 'https';
     RegisterSslBinding;
   end;
 
+  FormattedPathBase := '';
+  if FOptions.PathBase <> '' then
+  begin
+    FormattedPathBase := FOptions.PathBase;
+    if not FormattedPathBase.StartsWith('/') then
+      FormattedPathBase := '/' + FormattedPathBase;
+    if FormattedPathBase.EndsWith('/') then
+      FormattedPathBase := Copy(FormattedPathBase, 1,
+        Length(FormattedPathBase) - 1);
+  end;
+
   // Register prefix
   if (FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '') then
-    UrlPrefix := Format('%s://+:%d/', [Scheme, FListeningPort])
+    UrlPrefix := Format('%s://+:%d%s/', [Scheme, FListeningPort,
+      FormattedPathBase])
   else
-    UrlPrefix := Format('%s://%s:%d/', [Scheme, FAddress, FListeningPort]);
+    UrlPrefix := Format('%s://%s:%d%s/', [Scheme, FAddress, FListeningPort,
+      FormattedPathBase]);
     
   SafeWriteLn('[http.sys] Registering URL Prefix in Kernel: ' + UrlPrefix);
-  Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
+  Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)),
+    0, 0);
 
   if Ret = ERROR_SUCCESS then
-    SafeWriteLn('[http.sys] URL Prefix successfully registered in Kernel: ' + UrlPrefix)
+    SafeWriteLn('[http.sys] URL Prefix successfully registered in Kernel: ' +
+      UrlPrefix)
   else if Ret = 183 {ERROR_ALREADY_EXISTS} then
-    SafeWriteLn('[http.sys] URL Prefix is already active in Kernel: ' + UrlPrefix);
+    SafeWriteLn('[http.sys] URL Prefix is already active in Kernel: ' +
+      UrlPrefix);
 
-  if (Ret = 5) and ((FAddress = '0.0.0.0') or (FAddress = '+') or (FAddress = '')) then
+  if (Ret = 5) and ((FAddress = '0.0.0.0') or (FAddress = '+') or
+    (FAddress = '')) then
   begin
-    UrlPrefix := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
-    Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)), 0, 0);
+    UrlPrefix := Format('%s://127.0.0.1:%d%s/', [Scheme, FListeningPort,
+      FormattedPathBase]);
+    Ret := HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(UrlPrefix)),
+      0, 0);
     if (Ret = ERROR_SUCCESS) or (Ret = 183 {ERROR_ALREADY_EXISTS}) then
     begin
-      var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
-      HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
+      LocalhostPrefix := Format('%s://localhost:%d%s/',
+        [Scheme, FListeningPort, FormattedPathBase]);
+      HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)),
+        0, 0);
     end;
   end
   else if (Ret = ERROR_SUCCESS) or (Ret = 183 {ERROR_ALREADY_EXISTS}) then
   begin
     // Garante escuta nos aliases locais caso escutando via + ou 0.0.0.0
-    var LocalhostPrefix: string := Format('%s://localhost:%d/', [Scheme, FListeningPort]);
-    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)), 0, 0);
-    var LocalIpPrefix: string := Format('%s://127.0.0.1:%d/', [Scheme, FListeningPort]);
-    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalIpPrefix)), 0, 0);
+    LocalhostPrefix := Format('%s://localhost:%d%s/',
+      [Scheme, FListeningPort, FormattedPathBase]);
+    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalhostPrefix)),
+      0, 0);
+    LocalIpPrefix := Format('%s://127.0.0.1:%d%s/',
+      [Scheme, FListeningPort, FormattedPathBase]);
+    HttpAddUrlToUrlGroup(FUrlGroupId, PWideChar(WideString(LocalIpPrefix)),
+      0, 0);
   end;
 
   // 183 (ERROR_ALREADY_EXISTS) é tolerado pois o prefixo já se encontra registrado no Kernel

@@ -363,6 +363,7 @@
 <a href="Dext.Web.ModelBinding.html" class="nav-item">Dext.Web.ModelBinding</a>
 <a href="Dext.Web.ModelBinding.Extensions.html" class="nav-item">Dext.Web.ModelBinding.Extensions</a>
 <a href="Dext.Web.MultiTenancy.html" class="nav-item">Dext.Web.MultiTenancy</a>
+<a href="Dext.Web.PathBase.html" class="nav-item">Dext.Web.PathBase</a>
 <a href="Dext.Web.Pipeline.html" class="nav-item">Dext.Web.Pipeline</a>
 <a href="Dext.Web.ResponseWriter.html" class="nav-item">Dext.Web.ResponseWriter</a>
 <a href="Dext.Web.Results.html" class="nav-item">Dext.Web.Results</a>
@@ -402,7 +403,9 @@
 <div class="mermaid">
 classDiagram
 class THubEndpoint {}
-class THubDispatcher {    +Create()
+class THubDispatcher {    +CreateCallerContext()
+    +IsClientInvokableMethod()
+    +Create()
     +Destroy()
     +InvokeMethod()
     +OnConnected()
@@ -413,11 +416,17 @@ class THubDispatcher {    +Create()
     +SSETransport
 }
 TObject <|-- THubDispatcher
-class THubMiddleware {    +HandleNegotiate()
+class THubMiddleware {    +Initialize()
+    +HandleNegotiate()
     +HandleSSEStream()
     +HandleInvoke()
     +HandlePoll()
     +HandleWebSocket()
+    +TryReserveConnection()
+    +TryGetConnectionDispatcher()
+    +ReleaseConnection()
+    +ClientError()
+    +IsTransportEnabled()
     +ConnectionSupportsUpgrade()
     +FindDispatcher()
     +Create()
@@ -440,7 +449,7 @@ TObject <|-- THubMiddleware
 <div class="class-header">
 <h3>class THubDispatcher</h3><a name="THubDispatcher"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Hub dispatcher that routes requests to Hub methods.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(AHubClass: THubClass; const const: IConnectionManager; const const: IGroupManager; ASSETransport: TSSETransport)</div></div>
+<div class="api-signature">constructor Create(AHubClass: THubClass; const const: IConnectionManager; const const: IGroupManager; ASSETransport: TSSETransport; ARequireHubMethodAttribute: Boolean)</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
@@ -458,11 +467,18 @@ TObject <|-- THubMiddleware
 <div class="api-item">
 <div class="api-signature">property SSETransport: </div></div>
 </div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">function CreateCallerContext(const const: string): IHubCallerContext</div></div>
+<div class="api-item">
+<div class="api-signature">function IsClientInvokableMethod(const const: TRttiMethod): Boolean</div></div>
+</div>
 <hr>
 <div class="class-header">
 <h3>class THubMiddleware</h3><a name="THubMiddleware"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Middleware that handles Hub HTTP endpoints. Endpoints: POST /hubs/{hubName}/negotiate - Returns connectionId GET  /hubs/{hubName} - SSE stream POST /hubs/{hubName} - Invoke Hub method</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create(const const: THubOptions)</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
@@ -479,6 +495,8 @@ TObject <|-- THubMiddleware
 <div class="api-signature">property GroupManager: </div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure Initialize(const const: THubOptions)</div></div>
+<div class="api-item">
 <div class="api-signature">procedure HandleNegotiate(const const: string; Ctx: IHttpContext)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure HandleSSEStream(const const: string; Ctx: IHttpContext; Dispatcher: THubDispatcher)</div></div>
@@ -488,6 +506,16 @@ TObject <|-- THubMiddleware
 <div class="api-signature">procedure HandlePoll(const const: string; Ctx: IHttpContext; Dispatcher: THubDispatcher)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure HandleWebSocket(const const: string; Ctx: IHttpContext; Dispatcher: THubDispatcher)</div></div>
+<div class="api-item">
+<div class="api-signature">function TryReserveConnection(const const: string; Dispatcher: THubDispatcher): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function TryGetConnectionDispatcher(const const: string; out out: THubDispatcher): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ReleaseConnection(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">function ClientError(const const: string; const const: string): string</div></div>
+<div class="api-item">
+<div class="api-signature">function IsTransportEnabled(const const: string): Boolean</div></div>
 <div class="api-item">
 <div class="api-signature">function ConnectionSupportsUpgrade(const const: IHttpContext): Boolean</div><div class="description">Returns True only when the active HTTP engine exposes an upgradable connection. IHttpContext.Connection is nil on engines that do not implement the raw server connection (Indy, DCS, WebBroker).</div></div>
 <div class="api-item">

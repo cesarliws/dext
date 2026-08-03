@@ -35,6 +35,7 @@ uses
   Dext.Logging,
   Dext.Web.ControllerScanner,
   Dext.Web.Interfaces,
+  Dext.Web.PathBase,
   Dext.Server.Engine.Types;
 
 type
@@ -53,6 +54,7 @@ type
     FDefaultPort: Integer;
     FActiveHost: IWebHost; // ? Track active host
     FServerFactory: TServerFactory;
+    FPathBase: string;
     /// Guards Teardown so it runs exactly once per Setup. When Run is hosted on
     /// a background thread, Stop and Run's own finally block can both reach
     /// Teardown at the same time. Interlocked, because the state check inside
@@ -82,6 +84,8 @@ type
     function BuildServices: IServiceProvider; // ?
     /// <summary>Registers a class-based middleware in the pipeline.</summary>
     function UseMiddleware(Middleware: TClass): IWebApplication;
+    /// <summary>Configures the base path prefix (e.g. /myapp).</summary>
+    function UsePathBase(const APathBase: string): IWebApplication;
     /// <summary>Applies a Startup class configured in the classic .NET pattern.</summary>
     function UseStartup(Startup: IStartup): IWebApplication; // ? Non-generic
     /// <summary>Allows swapping the server factory (e.g., Indy for CrossSockets).</summary>
@@ -624,6 +628,14 @@ begin
   Result := Self;
 end;
 
+function TWebApplication.UsePathBase(const APathBase: string): IWebApplication;
+begin
+  FPathBase := APathBase;
+  GetApplicationBuilder.UseMiddleware(
+    TDextPathBaseMiddleware.Create(APathBase));
+  Result := Self;
+end;
+
 function TWebApplication.UseStartup(Startup: IStartup): IWebApplication;
 begin
   // 1. Configure Services
@@ -712,7 +724,12 @@ begin
         raise EArgumentException.Create(
           'Server:HttpSysAppId must be a valid GUID');
       end;
+    if (ServerSec['PathBase'] <> '') and (Opts.PathBase = '') then
+      Opts.PathBase := ServerSec['PathBase'];
   end;
+
+  if (FPathBase <> '') and (Opts.PathBase = '') then
+    Opts.PathBase := FPathBase;
 
   FServerFactory := function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost
     begin

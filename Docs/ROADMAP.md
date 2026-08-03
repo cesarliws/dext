@@ -132,6 +132,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Método HTTP QUERY** | [S49](Specs/S49-Http-Query-Method.md) | Suporte ao método HTTP QUERY padronizado (RFC 10008) no cliente e no servidor.
 ✅ | **Evolução do Epoll Linux** | [S50](Specs/S50-Linux-Epoll-Evolution.md) | CPU Pinning, TCP_DEFER_ACCEPT, TFO, zero-copy sendfile, buffer pools lock-free e keep-alive timing wheels.
 ✅ | **Codecs Diretos & Geração Estática** | [S54](Specs/S54-Codegen-Direct-Codecs.md) | Runtime finalizado: codecs compartilhados por offset direto e geração estática para gRPC, REST/JSON, hidratação ORM e sync do EntityDataSet. Expert DX adiado.
+✅ | **Suporte a Base Path (#182)** | [S55](Specs/S55-Base-Path-Support.md) | Suporte a hospedagem sob prefixo de caminho (HTTP.sys prefix, TDextPathBaseMiddleware e Request.ToAppUrl).
 ✅ | **Model Context Protocol (MCP)** | [S23](Specs/S23-Http-Streamable-HTMX.md) | Integração nativa do servidor MCP v2025-03-26 com API builder e suporte a HTTP.sys.
 
 ## 🔮 Futuro / Pós-V1

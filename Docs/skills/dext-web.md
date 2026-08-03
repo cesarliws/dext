@@ -312,6 +312,7 @@ begin
   App.Builder
     .UseExceptionHandler
     .UseHttpLogging
+    .UsePathBase('/myapp')     // Serve application under /myapp prefix
     .MapControllers            // Map routes BEFORE Swagger
     .UseSwagger(Swagger.Title('My API').Version('v1'));
 end;
