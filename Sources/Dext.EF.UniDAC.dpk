@@ -1,0 +1,43 @@
+package Dext.EF.UniDAC;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WEAKPACKAGEUNIT}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Dext Framework - UniDAC Driver Backend'}
+{$LIBSUFFIX AUTO}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  rtl,
+  vcl,
+  // UniDAC runtime package — adjust name to your UniDAC version
+  // e.g., UniDac_D12 or similar depending on your installation
+  dbrtl;
+
+contains
+  Dext.Entity.Drivers.UniDAC.Links in 'Data\Dext.Entity.Drivers.UniDAC.Links.pas',
+  Dext.Entity.Drivers.UniDAC.Manager in 'Data\Dext.Entity.Drivers.UniDAC.Manager.pas',
+  Dext.Entity.Drivers.UniDAC in 'Data\Dext.Entity.Drivers.UniDAC.pas';
+
+end.
+

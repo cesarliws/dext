@@ -2,6 +2,8 @@ unit Dext.Entity.Setup;
 
 interface
 
+{$I Dext.inc}
+
 uses
   System.SysUtils,
   System.Classes,
@@ -11,13 +13,20 @@ uses
   Dext.Entity.Drivers.Interfaces,
   Dext.Entity.Dialects,
   Dext.Entity.Naming,
+  {$IFDEF DEXT_USE_UNIDAC}
+  Dext.Entity.Drivers.UniDAC,
+  Dext.Entity.Drivers.UniDAC.Manager,
+  Uni,                               // TUniConnection
+  {$ELSE}
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Drivers.FireDAC.Manager,
-  FireDAC.Comp.Client;
+  FireDAC.Comp.Client;              // TFDConnection
+  {$ENDIF}
 
 type
   /// <summary>
   ///   Configuration options for a DbContext.
+  ///   Supports both FireDAC (default) and UniDAC (when DEXT_USE_UNIDAC is defined).
   /// </summary>
   TDbContextOptions = class
   private
@@ -28,7 +37,9 @@ type
     FParams: IDictionary<string, string>;
     FPooling: Boolean;
     FPoolMax: Integer;
-    FOptimizations: TFireDACOptimizations; // Connect Optimizations
+    {$IFNDEF DEXT_USE_UNIDAC}
+    FOptimizations: TFireDACOptimizations; // FireDAC-specific optimizations
+    {$ENDIF}
     FDialect: ISQLDialect;
     FCustomConnection: IDbConnection;
     FNamingStrategy: INamingStrategy;
@@ -36,6 +47,11 @@ type
     FOnLog: TProc<string>;
     FBulkBatchSize: Integer;
     procedure SetConnectionString(const AValue: string);
+    {$IFDEF DEXT_USE_UNIDAC}
+    function BuildUniDACConnection: IDbConnection;
+    {$ELSE}
+    function BuildFireDACConnection: IDbConnection;
+    {$ENDIF}
   public
     constructor Create;
     destructor Destroy; override;
@@ -47,7 +63,9 @@ type
     property Params: IDictionary<string, string> read FParams;
     property Pooling: Boolean read FPooling write FPooling;
     property PoolMax: Integer read FPoolMax write FPoolMax;
+    {$IFNDEF DEXT_USE_UNIDAC}
     property Optimizations: TFireDACOptimizations read FOptimizations write FOptimizations;
+    {$ENDIF}
     property Dialect: ISQLDialect read FDialect write FDialect;
     property CustomConnection: IDbConnection read FCustomConnection write FCustomConnection;
     property NamingStrategy: INamingStrategy read FNamingStrategy write FNamingStrategy;
@@ -69,7 +87,9 @@ type
     function UseDriver(const ADriverName: string): TDbContextOptions;
     function UseConnectionDef(const ADefName: string): TDbContextOptions;
     function WithPooling(Enable: Boolean = True; MaxSize: Integer = 50): TDbContextOptions;
+    {$IFNDEF DEXT_USE_UNIDAC}
     function ConfigureOptimizations(AOpts: TFireDACOptimizations): TDbContextOptions;
+    {$ENDIF}
     function UseCustomDialect(const ADialect: ISQLDialect): TDbContextOptions;
     function UseDialect(ADialect: TDatabaseDialect): TDbContextOptions;
     function UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptions;
@@ -100,8 +120,10 @@ begin
   FPooling := False;
   FPoolMax := 50;
   FBulkBatchSize := 100;
+  {$IFNDEF DEXT_USE_UNIDAC}
   // Default legacy optimization behavior (Matches original hardcoded logic)
   FOptimizations := [optDisableMacros, optDisableEscapes, optDirectExecute];
+  {$ENDIF}
 end;
 
 destructor TDbContextOptions.Destroy;
@@ -192,11 +214,13 @@ begin
   Result := Self;
 end;
 
+{$IFNDEF DEXT_USE_UNIDAC}
 function TDbContextOptions.ConfigureOptimizations(AOpts: TFireDACOptimizations): TDbContextOptions;
 begin
   FOptimizations := AOpts;
   Result := Self;
 end;
+{$ENDIF}
 
 function TDbContextOptions.UseCustomDialect(const ADialect: ISQLDialect): TDbContextOptions;
 begin
@@ -223,6 +247,70 @@ begin
 end;
 
 function TDbContextOptions.BuildConnection: IDbConnection;
+begin
+  if FCustomConnection <> nil then
+    Exit(FCustomConnection);
+
+  {$IFDEF DEXT_USE_UNIDAC}
+  Result := BuildUniDACConnection;
+  {$ELSE}
+  Result := BuildFireDACConnection;
+  {$ENDIF}
+end;
+
+{$IFDEF DEXT_USE_UNIDAC}
+function TDbContextOptions.BuildUniDACConnection: IDbConnection;
+var
+  UniConn: TUniConnection;
+  SL: TStringList;
+  Pair: TPair<string, string>;
+  Conn: TUniDACConnection;
+  ProviderName: string;
+begin
+  ProviderName := TDextUniDACManager.MapDriverToProvider(FDriverName);
+
+  if FPooling then
+  begin
+    SL := TStringList.Create;
+    try
+      for Pair in FParams do
+        SL.Values[Pair.Key] := Pair.Value;
+      UniConn := TDextUniDACManager.Instance.CreatePooledConnection(
+        ProviderName, TStrings(SL), FPoolMax);
+    finally
+      SL.Free;
+    end;
+  end
+  else
+  begin
+    UniConn := TUniConnection.Create(nil);
+    try
+      UniConn.ProviderName := ProviderName;
+
+      // Apply connection string if provided
+      if FConnectionString <> '' then
+        UniConn.ConnectionString := FConnectionString
+      else
+      begin
+        // Apply individual params
+        for Pair in FParams do
+          UniConn.SpecificOptions.Values[Pair.Key] := Pair.Value;
+      end;
+    except
+      UniConn.Free;
+      raise;
+    end;
+  end;
+
+  // Apply Unicode and other sensible defaults
+  TDextUniDACManager.Instance.ApplyOptions(UniConn, []);
+
+  Conn := TUniDACConnection.Create(UniConn, True);
+  Conn.OnLog := FOnLog;
+  Result := Conn;
+end;
+{$ELSE}
+function TDbContextOptions.BuildFireDACConnection: IDbConnection;
 var
   FDConn: TFDConnection;
   DefName: string;
@@ -230,9 +318,6 @@ var
   Pair: TPair<string, string>;
   Conn: TFireDACConnection;
 begin
-  if FCustomConnection <> nil then
-    Exit(FCustomConnection);
-
   FDConn := TFDConnection.Create(nil);
   try
     if FConnectionString <> '' then
@@ -278,6 +363,7 @@ begin
     raise;
   end;
 end;
+{$ENDIF}
 
 function TDbContextOptions.BuildDialect: ISQLDialect;
 begin
