@@ -28,7 +28,6 @@ unit Dext.Entity.Drivers.UniDAC.Links;
 /// <summary>
 ///   Links UniDAC providers by referencing their units, controlled by the
 ///   same {$DEFINE} flags as Dext.Entity.Drivers.FireDAC.Links.
-///   Only include DEXT_USE_UNIDAC in your project when UniDAC is installed.
 /// </summary>
 
 interface
@@ -52,4 +51,3 @@ uses
 implementation
 
 end.
-

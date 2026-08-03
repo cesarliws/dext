@@ -38,8 +38,6 @@ uses
 type
   /// <summary>
   ///   Optimization hints that can be applied to UniDAC connections.
-  ///   Many FireDAC-specific flags (MacroCreate, EscapeExpand, DirectExecute)
-  ///   have no direct UniDAC equivalent and are silently ignored.
   /// </summary>
   TUniDACOptimization = (
     uoptUseUnicode,         // Force Unicode string mode (important for SQLite)
@@ -49,10 +47,6 @@ type
 
   /// <summary>
   ///   Manages UniDAC connection creation and pooling configuration.
-  ///   Unlike the FireDAC equivalent (TDextFireDACManager), UniDAC does not
-  ///   require a global manager component: pooling is configured directly on
-  ///   each TUniConnection via Pooling=True and PoolingOptions.MaxPoolSize.
-  ///   This class is therefore a lightweight factory/configurator singleton.
   /// </summary>
   TDextUniDACManager = class
   private
@@ -76,25 +70,18 @@ type
 
     /// <summary>
     ///   Creates a TUniConnection configured with connection pooling.
-    ///   The caller is responsible for freeing the connection (or wrapping
-    ///   it in TUniDACConnection with AOwnsConnection=True).
-    ///   ProviderName must be the UniDAC provider string (e.g., 'SQLite',
-    ///   'PostgreSQL', 'MySQL', 'SQL Server', 'Oracle', 'Interbase').
     /// </summary>
     function CreatePooledConnection(const AProviderName: string;
       const AParams: TStrings; APoolMax: Integer = 50): TUniConnection;
 
     /// <summary>
     ///   Applies UniDAC-specific optimizations to a connection.
-    ///   Called after creation, before Connect.
     /// </summary>
     procedure ApplyOptions(AConnection: TUniConnection;
       const AOptimizations: TUniDACOptimizations);
 
     /// <summary>
     ///   Maps a Dext/FireDAC driver name to a UniDAC ProviderName string.
-    ///   FireDAC names: SQLite, PG, MySQL, MSSQL, Oracle, FB, IB, DB2, ODBC
-    ///   UniDAC names:  SQLite, PostgreSQL, MySQL, SQL Server, Oracle, Interbase, ...
     /// </summary>
     class function MapDriverToProvider(const ADriverName: string): string;
   end;
@@ -149,45 +136,45 @@ begin
   Result := FInstance;
 end;
 
-class function TDextUniDACManager.MapDriverToProvider(const ADriverName: string): string;
-var
-  Lower: string;
-begin
-  Lower := LowerCase(ADriverName);
-  // FireDAC DriverID → UniDAC ProviderName
-  if (Lower = 'sqlite') or (Lower = 'lite')                then Result := 'SQLite'
-  else if (Lower = 'pg') or (Lower = 'postgresql')         then Result := 'PostgreSQL'
-  else if (Lower = 'mysql')                                  then Result := 'MySQL'
-  else if (Lower = 'mssql') or (Lower = 'sql server')      then Result := 'SQL Server'
-  else if (Lower = 'oracle') or (Lower = 'ora')            then Result := 'Oracle'
-  else if (Lower = 'fb') or (Lower = 'firebird')           then Result := 'Interbase'
-  else if (Lower = 'ib') or (Lower = 'interbase')          then Result := 'Interbase'
-  else if (Lower = 'db2')                                    then Result := 'DB2'
-  else if (Lower = 'odbc')                                   then Result := 'ODBC'
-  else
-    Result := ADriverName; // pass through as-is and let UniDAC raise its own error
-end;
-
 function TDextUniDACManager.CreatePooledConnection(const AProviderName: string;
   const AParams: TStrings; APoolMax: Integer): TUniConnection;
 var
   i: Integer;
+  Key, Val: string;
 begin
   Result := TUniConnection.Create(nil);
   try
     Result.ProviderName := AProviderName;
 
-    // Copy all key=value params
     if AParams <> nil then
+    begin
       for i := 0 to AParams.Count - 1 do
-        Result.SpecificOptions.Values[AParams.Names[i]] := AParams.ValueFromIndex[i];
+      begin
+        Key := AParams.Names[i];
+        Val := AParams.ValueFromIndex[i];
+        if Key <> '' then
+        begin
+          if SameText(Key, 'Database') then
+            Result.Database := Val
+          else if SameText(Key, 'Server') or SameText(Key, 'Host') or SameText(Key, 'HostName') then
+            Result.Server := Val
+          else if SameText(Key, 'Port') then
+            Result.Port := StrToIntDef(Val, 0)
+          else if SameText(Key, 'User_Name') or SameText(Key, 'Username') or SameText(Key, 'User ID') or SameText(Key, 'User') then
+            Result.Username := Val
+          else if SameText(Key, 'Password') then
+            Result.Password := Val
+          else
+            Result.SpecificOptions.Values[Key] := Val;
+        end;
+      end;
+    end;
 
-    // Enable UniDAC built-in connection pooling
-    Result.Pooling := True;
-    Result.PoolingOptions.MaxPoolSize := APoolMax;
-    Result.PoolingOptions.MinPoolSize := 1;
-    Result.PoolingOptions.ConnectionLifetime := 0; // 0 = unlimited
-    Result.PoolingOptions.Validate := True;        // validate before reuse
+    if APoolMax > 0 then
+    begin
+      Result.SpecificOptions.Values['Pooling'] := 'True';
+      Result.SpecificOptions.Values['MaxPoolSize'] := IntToStr(APoolMax);
+    end;
   except
     Result.Free;
     raise;
@@ -196,19 +183,39 @@ end;
 
 procedure TDextUniDACManager.ApplyOptions(AConnection: TUniConnection;
   const AOptimizations: TUniDACOptimizations);
-var
-  LProvider: string;
 begin
-  LProvider := LowerCase(AConnection.ProviderName);
+  if AConnection = nil then Exit;
 
-  // Unicode mode — especially important for SQLite
-  if (uoptUseUnicode in AOptimizations) or (LProvider = 'sqlite') then
+  if uoptUseUnicode in AOptimizations then
     AConnection.SpecificOptions.Values['UseUnicode'] := 'True';
 
-  // Auto-commit control
   if uoptDisableAutoCommit in AOptimizations then
-    AConnection.AutoCommit := False;
+    AConnection.SpecificOptions.Values['AutoCommit'] := 'False';
+end;
+
+class function TDextUniDACManager.MapDriverToProvider(const ADriverName: string): string;
+var
+  Upper: string;
+begin
+  Upper := UpperCase(Trim(ADriverName));
+  if (Upper = 'SQLITE') then
+    Result := 'SQLite'
+  else if (Upper = 'PG') or (Upper = 'POSTGRES') or (Upper = 'POSTGRESQL') then
+    Result := 'PostgreSQL'
+  else if (Upper = 'MYSQL') or (Upper = 'MARIADB') then
+    Result := 'MySQL'
+  else if (Upper = 'MSSQL') or (Upper = 'SQLSERVER') then
+    Result := 'SQL Server'
+  else if (Upper = 'ORACLE') or (Upper = 'ORA') then
+    Result := 'Oracle'
+  else if (Upper = 'FB') or (Upper = 'FIREBIRD') or (Upper = 'IB') or (Upper = 'INTERBASE') then
+    Result := 'InterBase'
+  else if (Upper = 'DB2') then
+    Result := 'DB2'
+  else if (Upper = 'ODBC') then
+    Result := 'ODBC'
+  else
+    Result := ADriverName;
 end;
 
 end.
-
