@@ -41,6 +41,7 @@ Status | Task | Spec | Description
 ✅ | **Public Symbol Indexing** | [dext index] | Extract and generate public symbol maps (Markdown, JSON, CSV) with line numbers for AI agents and NotebookLM.
 ✅ | **Performance Benchmarks** | [S18](Specs/S18-Performance-Benchmarks.md) | Benchmark suite for core Reflection, JSON, FastPath, and ORM components.
 📝 | **FastPath ORM Hydration** | [S57](Specs/S57-FastPath-Orm-Hydration-Optimization.md) | Zero-alloc struct/record hydration, DbSet `ExecuteToUtf8Proc` streaming, and pre-compiled RTTI mappers.
+📝 | **Generic Object Pooling** | [S58](Specs/S58-Generic-Object-Pooling.md) | High-performance lock-free generic object pool with TActivator, automatic TDbContext recycling, TRestClient pooling, and FastPath integration.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
 
