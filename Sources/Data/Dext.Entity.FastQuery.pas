@@ -31,34 +31,35 @@ uses
   System.SysUtils,
   System.Classes,
   Data.DB,
-  Dext.Entity.Drivers.Interfaces;
+  Dext.Entity.Drivers.Interfaces,
+  Dext.Json.Utf8;
 
 type
   /// <summary>
-  /// Interface para execução de consultas de alta performance com serialização direta em UTF-8.
+  /// Interface for high-performance raw SQL query execution with direct UTF-8 JSON streaming.
   /// </summary>
   IDextFastQuery = interface
     ['{7C1A8B9D-3E2F-4F5A-9C8B-1A2B3C4D5E6F}']
     /// <summary>
-    /// Executa a consulta e grava o resultado serializado em JSON UTF-8 diretamente no Stream fornecido.
+    /// Executes the query and streams UTF-8 encoded JSON results directly into the provided Stream.
     /// </summary>
     procedure ExecuteToUtf8Stream(AStream: TStream);
     /// <summary>
-    /// Executa a consulta e grava o resultado serializado em JSON UTF-8 diretamente no procedimento de escrita UTF-8 fornecido.
+    /// Executes the query and emits UTF-8 encoded JSON memory chunks via a callback procedure.
     /// </summary>
     procedure ExecuteToUtf8Proc(AWriteProc: TProc<Pointer, Integer>);
     /// <summary>
-    /// Executa a consulta e retorna o resultado em um array de bytes UTF-8.
+    /// Executes the query and returns the UTF-8 JSON result as a byte array.
     /// </summary>
     function ExecuteToUtf8Bytes: TBytes;
     /// <summary>
-    /// Executa a consulta e retorna a string bruta formatada em JSON UTF-8.
+    /// Executes the query and returns the raw UTF-8 JSON string.
     /// </summary>
     function ExecuteToUtf8String: RawByteString;
   end;
 
   /// <summary>
-  /// Classe responsável pela execução e serialização de consultas SQL brutas em formato JSON UTF-8 sem alocação de AST.
+  /// Executes raw SQL queries and serializes dataset rows to UTF-8 JSON using TUtf8JsonWriter.
   /// </summary>
   TDextFastQuery = class(TInterfacedObject, IDextFastQuery)
   private
@@ -66,23 +67,23 @@ type
     FSql: string;
   public
     /// <summary>
-    /// Cria uma nova instância de TDextFastQuery com a conexão ativa e a instrução SQL fornecida.
+    /// Initializes a new instance of TDextFastQuery with active connection and SQL statement.
     /// </summary>
     constructor Create(AConnection: IDbConnection; const ASql: string);
     /// <summary>
-    /// Executa a consulta e grava os registros diretamente no stream no formato JSON.
+    /// Executes the query and writes JSON records directly to a Stream.
     /// </summary>
     procedure ExecuteToUtf8Stream(AStream: TStream);
     /// <summary>
-    /// Executa a consulta e grava os registros via procedimento callback UTF-8.
+    /// Executes the query and streams JSON records via UTF-8 write callback.
     /// </summary>
     procedure ExecuteToUtf8Proc(AWriteProc: TProc<Pointer, Integer>);
     /// <summary>
-    /// Executa a consulta e retorna os bytes em UTF-8.
+    /// Executes the query and returns UTF-8 byte payload.
     /// </summary>
     function ExecuteToUtf8Bytes: TBytes;
     /// <summary>
-    /// Executa a consulta e retorna o valor serializado como RawByteString.
+    /// Executes the query and returns RawByteString UTF-8 payload.
     /// </summary>
     function ExecuteToUtf8String: RawByteString;
   end;
@@ -100,25 +101,10 @@ procedure TDextFastQuery.ExecuteToUtf8Stream(AStream: TStream);
 var
   Cmd: IDbCommand;
   Reader: IDbReader;
+  Writer: TUtf8JsonWriter;
   i, ColCount: Integer;
-  ColNames: array of RawByteString;
+  ColNames: array of string;
   ColTypes: array of TFieldType;
-  FirstRow, FirstCol: Boolean;
-
-  procedure WriteStr(const S: RawByteString);
-  begin
-    if Length(S) > 0 then
-      AStream.WriteBuffer(S[1], Length(S));
-  end;
-
-  function EscapeJsonStr(const S: string): RawByteString;
-  var
-    U: RawByteString;
-  begin
-    U := UTF8Encode(S);
-    Result := '"' + U + '"';
-  end;
-
 begin
   if (FConnection = nil) or (not FConnection.IsConnected) then
     raise Exception.Create('Database connection is not active');
@@ -129,90 +115,63 @@ begin
     ColCount := Reader.GetColumnCount;
     SetLength(ColNames, ColCount);
     SetLength(ColTypes, ColCount);
-
     for i := 0 to ColCount - 1 do
     begin
-      ColNames[i] := UTF8Encode('"' + Reader.GetColumnName(i) + '":');
+      ColNames[i] := Reader.GetColumnName(i);
       ColTypes[i] := Reader.GetColumnType(i);
     end;
 
-    WriteStr('[');
-    FirstRow := True;
-
+    Writer := TUtf8JsonWriter.Create(AStream);
+    Writer.WriteStartArray;
     while Reader.Next do
     begin
-      if not FirstRow then
-        WriteStr(',')
-      else
-        FirstRow := False;
-
-      WriteStr('{');
-      FirstCol := True;
-
+      Writer.WriteStartObject;
       for i := 0 to ColCount - 1 do
       begin
-        if not FirstCol then
-          WriteStr(',')
-        else
-          FirstCol := False;
-
-        WriteStr(ColNames[i]);
-
+        Writer.WritePropertyName(ColNames[i]);
         if Reader.IsNull(i) then
         begin
-          WriteStr('null');
+          Writer.WriteNull;
           Continue;
         end;
 
         case ColTypes[i] of
           ftSmallint, ftInteger, ftWord, ftAutoInc, ftLargeint:
-            WriteStr(RawByteString(IntToStr(Reader.GetInt64(i))));
-
+            Writer.WriteNumber(Reader.GetInt64(i));
           ftFloat, ftCurrency, ftBCD, ftFMTBcd:
-            WriteStr(RawByteString(FloatToStrF(Reader.GetDouble(i), ffGeneral, 15, 0, TFormatSettings.Invariant)));
-
+            Writer.WriteNumber(Reader.GetDouble(i));
           ftBoolean:
-            if Reader.GetBoolean(i) then
-              WriteStr('true')
-            else
-              WriteStr('false');
-
+            Writer.WriteBoolean(Reader.GetBoolean(i));
         else
-          WriteStr(EscapeJsonStr(Reader.GetString(i)));
+          Writer.WriteString(Reader.GetString(i));
         end;
       end;
-      WriteStr('}');
+      Writer.WriteEndObject;
     end;
-
-    WriteStr(']');
+    Writer.WriteEndArray;
   finally
     Reader.Close;
   end;
+end;
+
+type
+  TUtf8ProcCallback = TProc<Pointer, Integer>;
+  PUtf8ProcCallback = ^TUtf8ProcCallback;
+
+procedure FastQuerySinkWrite(AContext, AData: Pointer; ALength: Integer);
+begin
+  if (ALength > 0) and (AContext <> nil) then
+    PUtf8ProcCallback(AContext)^(AData, ALength);
 end;
 
 procedure TDextFastQuery.ExecuteToUtf8Proc(AWriteProc: TProc<Pointer, Integer>);
 var
   Cmd: IDbCommand;
   Reader: IDbReader;
+  Writer: TUtf8JsonWriter;
   i, ColCount: Integer;
-  ColNames: array of RawByteString;
+  ColNames: array of string;
   ColTypes: array of TFieldType;
-  FirstRow, FirstCol: Boolean;
-
-  procedure WriteStr(const S: RawByteString);
-  begin
-    if (Length(S) > 0) and Assigned(AWriteProc) then
-      AWriteProc(@S[1], Length(S));
-  end;
-
-  function EscapeJsonStr(const S: string): RawByteString;
-  var
-    U: RawByteString;
-  begin
-    U := UTF8Encode(S);
-    Result := '"' + U + '"';
-  end;
-
 begin
   if (FConnection = nil) or (not FConnection.IsConnected) then
     raise Exception.Create('Database connection is not active');
@@ -223,62 +182,40 @@ begin
     ColCount := Reader.GetColumnCount;
     SetLength(ColNames, ColCount);
     SetLength(ColTypes, ColCount);
-
     for i := 0 to ColCount - 1 do
     begin
-      ColNames[i] := UTF8Encode('"' + Reader.GetColumnName(i) + '":');
+      ColNames[i] := Reader.GetColumnName(i);
       ColTypes[i] := Reader.GetColumnType(i);
     end;
 
-    WriteStr('[');
-    FirstRow := True;
-
+    Writer := TUtf8JsonWriter.Create(@AWriteProc, FastQuerySinkWrite);
+    Writer.WriteStartArray;
     while Reader.Next do
     begin
-      if not FirstRow then
-        WriteStr(',')
-      else
-        FirstRow := False;
-
-      WriteStr('{');
-      FirstCol := True;
-
+      Writer.WriteStartObject;
       for i := 0 to ColCount - 1 do
       begin
-        if not FirstCol then
-          WriteStr(',')
-        else
-          FirstCol := False;
-
-        WriteStr(ColNames[i]);
-
+        Writer.WritePropertyName(ColNames[i]);
         if Reader.IsNull(i) then
         begin
-          WriteStr('null');
+          Writer.WriteNull;
           Continue;
         end;
 
         case ColTypes[i] of
           ftSmallint, ftInteger, ftWord, ftAutoInc, ftLargeint:
-            WriteStr(RawByteString(IntToStr(Reader.GetInt64(i))));
-
+            Writer.WriteNumber(Reader.GetInt64(i));
           ftFloat, ftCurrency, ftBCD, ftFMTBcd:
-            WriteStr(RawByteString(FloatToStrF(Reader.GetDouble(i), ffGeneral, 15, 0, TFormatSettings.Invariant)));
-
+            Writer.WriteNumber(Reader.GetDouble(i));
           ftBoolean:
-            if Reader.GetBoolean(i) then
-              WriteStr('true')
-            else
-              WriteStr('false');
-
+            Writer.WriteBoolean(Reader.GetBoolean(i));
         else
-          WriteStr(EscapeJsonStr(Reader.GetString(i)));
+          Writer.WriteString(Reader.GetString(i));
         end;
       end;
-      WriteStr('}');
+      Writer.WriteEndObject;
     end;
-
-    WriteStr(']');
+    Writer.WriteEndArray;
   finally
     Reader.Close;
   end;

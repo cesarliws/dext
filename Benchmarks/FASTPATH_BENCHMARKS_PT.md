@@ -37,15 +37,27 @@ Testes executados no `http.sys` (Porta 8086) com 125 conexões concorrentes:
 
 ---
 
-### 3. Consulta ao Banco de Dados com 5.000 Registros (`/dicities` vs `/cities` vs `/fastcities`)
+### 3. Consulta ao Banco de Dados com 5.000 Registros (`/cities` vs `/fastcities`)
 
-Massa de teste: Tabela `BenchmarkUsers` com **5.000 registros** em **SQLite em Arquivo (`benchmark_test.db`)** com **`TDbContext` isolado por requisição + Connection Pooling (PoolMax=150 + Warmup)** rodando em `http.sys`:
+Massa de teste: Tabela `"BenchmarkUsers"` com **5.000 registros** em banco de dados **PostgreSQL 64-bit (`dext_test`)** via driver nativo FireDAC (`libpq.dll`), rodando em `http.sys` sob 10 conexões concorrentes (`bombardier -c 10`):
 
 | Endpoint / Cenário | Reqs/sec (Média) | Latência Média | Banda Passante (Throughput) | Descrição |
 | :--- | :--- | :--- | :--- | :--- |
-| **`/dicities`** (DI Scoped) | `12,02 req/s` | `1,78 s` | `1,92 MB/s` | Modelo Padrão: `TDbContext` injetado via DI Scoped (`AddScoped<TDbContext>`) + ORM Tradicional (`Entities<T>.ToList`). |
-| **`/cities`** (Manual ORM) | `6,44 req/s` | `1,44 s` | `2,45 MB/s` | Instanciação Manual do `TDbContext` por requisição + ORM Tradicional (`Entities<T>.ToList`). |
-| **`/fastcities`** (**FastPath Data API**) | **`57,08 req/s`** | **`184,94 ms`** | **`20,35 MB/s`** | **FastPath Data API**: `UseSql` + Streaming direto UTF-8 (`IUtf8ResponseSink`). (**9,6x menor latência / +374% req/s & +10,6x vazão de dados que DI**) |
+| **`/cities`** (ORM Tradicional) | `2,34 req/s` | `2,77 s` | `1,22 MB/s` | Modelo Padrão: ORM Tradicional (`Entities<T>.ToList`) + Inspecção RTTI + Serialização JSON por entidade no heap. |
+| **`/fastcities`** (**FastPath Data API**) | **`43,47 req/s`** | **`223,87 ms`** | **`16,74 MB/s`** | **FastPath Data API**: `UseSql` + Streaming direto UTF-8 inlinado via motor nativo **`TUtf8JsonWriter`** (`Dext.Json.Utf8.pas`). (**12,3x menor latência / +1.757% req/s & +13,7x vazão de dados**) |
+
+---
+
+> 💡 **Decomposição do Tempo de Execução (Server Tracing Log)**:
+> - **ORM Tradicional (`/cities`)**:
+>   - `Execução SQL (Query)`: ~1.100 ms a 2.400 ms
+>   - `Serialização JSON + RTTI`: ~55 ms a 250 ms
+>   - `Desalocação do Heap (FreeCtx)`: ~25 ms a 108 ms
+>   - **Total por requisição**: **~2,77 s**
+> - **FastPath Data API (`/fastcities` com `TUtf8JsonWriter` Inlinado)**:
+>   - `Query + Streaming Direto UTF-8`: **~94 ms a 200 ms** (gravando blocos UTF-8 diretamente no socket à medida que o `IDbReader` avança)
+>   - `Alocações no Heap / GC Overhead`: **0 ms**
+>   - **Total por requisição**: **~223 ms**
 
 ---
 
@@ -72,10 +84,10 @@ begin
   Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(BM.Orm.GCtx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray));
 end);
 
-// Rota FastPath Data API (UseSql + Streaming UTF-8 Direct)
+// Rota FastPath Data API (UseSql + Motor Nativo TUtf8JsonWriter + Streaming UTF-8 Direct)
 App.MapFast('GET', '/fastcities', procedure(const Req: IHttpRequest; const Res: IHttpResponse)
 begin
-  BM.Orm.GCtx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
+  BM.Orm.GCtx.UseSql('SELECT "Id", "Name", "Email", "Age" FROM "BenchmarkUsers"')
     .ExecuteToUtf8Stream(Res.GetOutputStream);
 end);
 ```
