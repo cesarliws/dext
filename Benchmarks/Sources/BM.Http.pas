@@ -17,10 +17,12 @@ uses
   System.SysUtils,
   System.Classes,
   System.Rtti,
+  System.Diagnostics,
   System.Net.HttpClient,
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
+  Dext.Entity.Context,
   Dext.Server.Engine.Interfaces,
   Dext.Server.Engine.Types,
   Dext.WebHost,
@@ -452,7 +454,19 @@ var
   Port: Integer;
   ExplicitPort: Boolean;
 begin
+  BM.Orm.SetupDatabase;
   Builder := TDextWebHost.CreateDefaultBuilder;
+  Builder.ConfigureServices(
+    procedure(Services: IServiceCollection)
+    begin
+      Services.AddScoped(
+        TServiceType.FromClass(TDbContext),
+        TDbContext,
+        function(Provider: IServiceProvider): TObject
+        begin
+          Result := TDbContext.Create(BM.Orm.GOptions, nil);
+        end);
+    end);
   Builder.Configure(
     procedure(App: IApplicationBuilder)
     begin
@@ -466,16 +480,79 @@ begin
         begin
           Res.SendJsonUtf8('{"message":"pong"}');
         end);
+      App.MapGet('/dicities',
+        procedure(Context: IHttpContext)
+        var
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TResolve, TConnect, TFetch, TJson: Int64;
+          Arr: TArray<BM.Orm.TBenchmarkUser>;
+        begin
+          SW := TStopwatch.StartNew;
+          Ctx := TDextServices.GetServiceObject<TDbContext>(Context.Services);
+          TResolve := SW.ElapsedMilliseconds;
+
+          Ctx.Connection.Connect;
+          TConnect := SW.ElapsedMilliseconds;
+
+          Arr := Ctx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray;
+          TFetch := SW.ElapsedMilliseconds;
+
+          Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Arr));
+          TJson := SW.ElapsedMilliseconds;
+
+          if TJson > 100 then
+            Writeln(Format('[Trace /dicities] Total: %d ms | DI: %d ms | Connect: %d ms | Query: %d ms | JSON: %d ms',
+              [TJson, TResolve, TConnect - TResolve, TFetch - TConnect, TJson - TFetch]));
+        end);
       App.MapGet('/cities',
         procedure(Context: IHttpContext)
+        var
+          Ctx: TDbContext;
+          SW: TStopwatch;
         begin
-          Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(BM.Orm.GCtx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray));
+          SW := TStopwatch.StartNew;
+          Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          try
+            Ctx.Connection.Connect;
+            Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Ctx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray));
+          finally
+            Ctx.Free;
+          end;
+          SW.Stop;
+          if SW.ElapsedMilliseconds > 100 then
+            Writeln(Format('[Trace /cities] Slow request: %d ms', [SW.ElapsedMilliseconds]));
         end);
       App.MapFast('GET', '/fastcities',
         procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        var
+          Sink: IUtf8ResponseSink;
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TConnect, TQuery: Int64;
         begin
-          BM.Orm.GCtx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
-            .ExecuteToUtf8Stream(Res.GetOutputStream);
+          SW := TStopwatch.StartNew;
+          Res.SetContentType('application/json; charset=utf-8');
+          Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          try
+            Ctx.Connection.Connect;
+            TConnect := SW.ElapsedMilliseconds;
+            if Supports(Res, IUtf8ResponseSink, Sink) then
+            begin
+              Ctx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
+                .ExecuteToUtf8Proc(
+                  procedure(Data: Pointer; Len: Integer)
+                  begin
+                    Sink.WriteUtf8(Data, Len);
+                  end);
+            end;
+            TQuery := SW.ElapsedMilliseconds;
+          finally
+            Ctx.Free;
+          end;
+          if TQuery > 50 then
+            Writeln(Format('[Trace /fastcities] Total: %d ms | Connect: %d ms | Query+Stream: %d ms',
+              [TQuery, TConnect, TQuery - TConnect]));
         end);
     end);
 

@@ -55,32 +55,55 @@ var
   i: Integer;
   Tx: IDbTransaction;
   Cmd: IDbCommand;
+  DbFile: string;
+  NeedSeed: Boolean;
+  WarmPool: array of TDbContext;
 begin
+  DbFile := ExtractFilePath(ParamStr(0)) + 'benchmark_test.db';
+  NeedSeed := not FileExists(DbFile);
+
   GOptions := TDbContextOptions.Create;
-  GOptions.UseSQLite(':memory:');
+  GOptions.UseSQLite(DbFile);
+  GOptions.Pooling := True;
+  GOptions.PoolMax := 150;
+  GOptions.Params.AddOrSetValue('JournalMode', 'WAL');
+  GOptions.Params.AddOrSetValue('Synchronous', 'Normal');
+  GOptions.Params.AddOrSetValue('LockingMode', 'Normal');
+
   GCtx := TDbContext.Create(GOptions, nil);
   GCtx.ModelBuilder.Entity<TBenchmarkUser>();
   GCtx.EnsureCreated;
 
-  // Insert 5,000 mock users inside a transaction for maximum speed
-  Tx := GCtx.Connection.BeginTransaction;
-  try
-    for i := 1 to 5000 do
-    begin
-      Cmd := GCtx.Connection.CreateCommand(
-        'INSERT INTO BenchmarkUsers (Id, Name, Email, Age) VALUES (:Id, :Name, :Email, :Age)'
-      );
-      Cmd.AddParam('Id', i);
-      Cmd.AddParam('Name', 'User Name ' + IntToStr(i));
-      Cmd.AddParam('Email', 'username' + IntToStr(i) + '@example.com');
-      Cmd.AddParam('Age', 20 + (i mod 50));
-      Cmd.Execute;
+  if NeedSeed then
+  begin
+    Tx := GCtx.Connection.BeginTransaction;
+    try
+      for i := 1 to 5000 do
+      begin
+        Cmd := GCtx.Connection.CreateCommand(
+          'INSERT INTO BenchmarkUsers (Id, Name, Email, Age) VALUES (:Id, :Name, :Email, :Age)'
+        );
+        Cmd.AddParam('Id', i);
+        Cmd.AddParam('Name', 'User Name ' + IntToStr(i));
+        Cmd.AddParam('Email', 'username' + IntToStr(i) + '@example.com');
+        Cmd.AddParam('Age', 20 + (i mod 50));
+        Cmd.Execute;
+      end;
+      Tx.Commit;
+    except
+      Tx.Rollback;
     end;
-    Tx.Commit;
-  except
-    Tx.Rollback;
-    raise;
   end;
+
+  // Warmup do Pool: Abre conexões no pool antecipadamente para evitar I/O no primeiro pico
+  SetLength(WarmPool, 30);
+  for i := 0 to 29 do
+  begin
+    WarmPool[i] := TDbContext.Create(GOptions, nil);
+    WarmPool[i].Connection.Connect;
+  end;
+  for i := 0 to 29 do
+    WarmPool[i].Free;
 end;
 
 procedure CleanupDatabase;

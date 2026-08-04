@@ -44,6 +44,10 @@ type
     /// </summary>
     procedure ExecuteToUtf8Stream(AStream: TStream);
     /// <summary>
+    /// Executa a consulta e grava o resultado serializado em JSON UTF-8 diretamente no procedimento de escrita UTF-8 fornecido.
+    /// </summary>
+    procedure ExecuteToUtf8Proc(AWriteProc: TProc<Pointer, Integer>);
+    /// <summary>
     /// Executa a consulta e retorna o resultado em um array de bytes UTF-8.
     /// </summary>
     function ExecuteToUtf8Bytes: TBytes;
@@ -69,6 +73,10 @@ type
     /// Executa a consulta e grava os registros diretamente no stream no formato JSON.
     /// </summary>
     procedure ExecuteToUtf8Stream(AStream: TStream);
+    /// <summary>
+    /// Executa a consulta e grava os registros via procedimento callback UTF-8.
+    /// </summary>
+    procedure ExecuteToUtf8Proc(AWriteProc: TProc<Pointer, Integer>);
     /// <summary>
     /// Executa a consulta e retorna os bytes em UTF-8.
     /// </summary>
@@ -101,6 +109,100 @@ var
   begin
     if Length(S) > 0 then
       AStream.WriteBuffer(S[1], Length(S));
+  end;
+
+  function EscapeJsonStr(const S: string): RawByteString;
+  var
+    U: RawByteString;
+  begin
+    U := UTF8Encode(S);
+    Result := '"' + U + '"';
+  end;
+
+begin
+  if (FConnection = nil) or (not FConnection.IsConnected) then
+    raise Exception.Create('Database connection is not active');
+
+  Cmd := FConnection.CreateCommand(FSql);
+  Reader := Cmd.ExecuteQuery;
+  try
+    ColCount := Reader.GetColumnCount;
+    SetLength(ColNames, ColCount);
+    SetLength(ColTypes, ColCount);
+
+    for i := 0 to ColCount - 1 do
+    begin
+      ColNames[i] := UTF8Encode('"' + Reader.GetColumnName(i) + '":');
+      ColTypes[i] := Reader.GetColumnType(i);
+    end;
+
+    WriteStr('[');
+    FirstRow := True;
+
+    while Reader.Next do
+    begin
+      if not FirstRow then
+        WriteStr(',')
+      else
+        FirstRow := False;
+
+      WriteStr('{');
+      FirstCol := True;
+
+      for i := 0 to ColCount - 1 do
+      begin
+        if not FirstCol then
+          WriteStr(',')
+        else
+          FirstCol := False;
+
+        WriteStr(ColNames[i]);
+
+        if Reader.IsNull(i) then
+        begin
+          WriteStr('null');
+          Continue;
+        end;
+
+        case ColTypes[i] of
+          ftSmallint, ftInteger, ftWord, ftAutoInc, ftLargeint:
+            WriteStr(RawByteString(IntToStr(Reader.GetInt64(i))));
+
+          ftFloat, ftCurrency, ftBCD, ftFMTBcd:
+            WriteStr(RawByteString(FloatToStrF(Reader.GetDouble(i), ffGeneral, 15, 0, TFormatSettings.Invariant)));
+
+          ftBoolean:
+            if Reader.GetBoolean(i) then
+              WriteStr('true')
+            else
+              WriteStr('false');
+
+        else
+          WriteStr(EscapeJsonStr(Reader.GetString(i)));
+        end;
+      end;
+      WriteStr('}');
+    end;
+
+    WriteStr(']');
+  finally
+    Reader.Close;
+  end;
+end;
+
+procedure TDextFastQuery.ExecuteToUtf8Proc(AWriteProc: TProc<Pointer, Integer>);
+var
+  Cmd: IDbCommand;
+  Reader: IDbReader;
+  i, ColCount: Integer;
+  ColNames: array of RawByteString;
+  ColTypes: array of TFieldType;
+  FirstRow, FirstCol: Boolean;
+
+  procedure WriteStr(const S: RawByteString);
+  begin
+    if (Length(S) > 0) and Assigned(AWriteProc) then
+      AWriteProc(@S[1], Length(S));
   end;
 
   function EscapeJsonStr(const S: string): RawByteString;

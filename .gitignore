@@ -45,3 +45,5 @@ dext-symbols.*
 *.user
 /Temp
 /Tests/Core/*.vrc
+*.db-shm
+/Benchmarks/*.db-wal
