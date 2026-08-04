@@ -128,6 +128,7 @@
 <a href="Dext.Entity.Drivers.FireDAC.Manager.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Manager</a>
 <a href="Dext.Entity.Drivers.FireDAC.Phys.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Phys</a>
 <a href="Dext.Entity.Drivers.Interfaces.html" class="nav-item">Dext.Entity.Drivers.Interfaces</a>
+<a href="Dext.Entity.FastQuery.html" class="nav-item">Dext.Entity.FastQuery</a>
 <a href="Dext.Entity.Grouping.html" class="nav-item">Dext.Entity.Grouping</a>
 <a href="Dext.Entity.GrpcProvider.html" class="nav-item">Dext.Entity.GrpcProvider</a>
 <a href="Dext.Entity.Joining.html" class="nav-item">Dext.Entity.Joining</a>
@@ -484,6 +485,8 @@ class IHttpResponse {    +GetStatusCode()
     +SetContentLength()
     +Flush()
     +Write()
+    +SendJsonUtf8()
+    +GetOutputStream()
     +Json()
     +AddHeader()
     +AppendCookie()
@@ -550,6 +553,7 @@ class IApplicationBuilder {    +GetServiceProvider()
     +MapEndpoint()
     +MapPost()
     +MapGet()
+    +MapFast()
     +MapPut()
     +MapDelete()
     +MapQuery()
@@ -808,6 +812,12 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-item">
 <div class="api-signature">procedure Write(const const: TStream)</div><div class="description">Writes a stream content directly to the transport (Streaming).</div></div>
 <div class="api-item">
+<div class="api-signature">procedure SendJsonUtf8(const const: RawByteString)</div><div class="description">Sends a raw UTF-8 string directly as response with application/json header.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendJsonUtf8(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetOutputStream: TStream</div><div class="description">Returns the underlying response OutputStream for direct UTF-8 writing.</div></div>
+<div class="api-item">
 <div class="api-signature">procedure Json(const const: string)</div><div class="description">Sends a formatted JSON string as response (sets Content-Type).</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Json(const const: TValue)</div><div class="description">Serializes a TValue (Object, Array, Primitive) to JSON and sends it.</div></div>
@@ -962,6 +972,10 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-item">
 <div class="api-signature">function MapGet(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function MapFast(const const: string; const const: string; AHandler: TDextFastRouteHandler): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function MapFast(const const: string; AHandler: TDextFastRouteHandler): IApplicationBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function MapPut(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function MapDelete(const const: string; Handler: TStaticHandler): IApplicationBuilder</div></div>
@@ -1110,6 +1124,8 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">type IWebHostBuilder = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type TRequestDelegate = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextFastRouteHandler = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type TStaticHandler = Type</div></div>
 <div class="api-item">

@@ -394,6 +394,7 @@ type
   IWebHost = Dext.Web.Interfaces.IWebHost;
   IWebHostBuilder = Dext.Web.Interfaces.IWebHostBuilder;
   TRequestDelegate = Dext.Web.Interfaces.TRequestDelegate;
+  TDextFastRouteHandler = Dext.Web.Interfaces.TDextFastRouteHandler;
   TStaticHandler = Dext.Web.Interfaces.TStaticHandler;
   TMiddlewareDelegate = Dext.Web.Interfaces.TMiddlewareDelegate;
   TOpenAPIResponseMetadata = Dext.Web.Interfaces.TOpenAPIResponseMetadata;
@@ -811,6 +812,12 @@ type
     ///   Maps a QUERY request to a static handler.
     /// </summary>
     function MapQuery(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+
+    /// <summary>
+    ///   Maps a fast route bypassing DI and controller RTTI overhead.
+    /// </summary>
+    function MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): AppBuilder; overload;
+    function MapFast(const APath: string; AHandler: TDextFastRouteHandler): AppBuilder; overload;
 
     /// <summary>
     ///   Builds the request pipeline and returns the main RequestDelegate.
@@ -1267,6 +1274,18 @@ end;
 function THttpAppBuilderHelper.MapQuery(const Path: string; Handler: TStaticHandler): AppBuilder;
 begin
   Self.Unwrap.MapQuery(Path, Handler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): AppBuilder;
+begin
+  Self.Unwrap.MapFast(AMethod, APath, AHandler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapFast(const APath: string; AHandler: TDextFastRouteHandler): AppBuilder;
+begin
+  Self.Unwrap.MapFast('GET', APath, AHandler);
   Result := Self;
 end;
 

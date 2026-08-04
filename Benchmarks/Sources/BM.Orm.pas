@@ -3,19 +3,7 @@ unit BM.Orm;
 interface
 
 uses
-  Spring.Benchmark;
-
-procedure BM_Orm_RawDataset_Loop(const state: TState);
-procedure BM_Orm_DextHydration_Loop(const state: TState);
-procedure BM_Orm_Micro_Allocations(const state: TState);
-procedure BM_Orm_Micro_ReaderGetValue(const state: TState);
-procedure BM_Orm_Micro_RttiSetValue(const state: TState);
-procedure BM_Orm_ProjectToJson(const state: TState);
-
-implementation
-
-uses
-  System.SysUtils,
+  Spring.Benchmark,
   System.Classes,
   System.Rtti,
   Data.DB,
@@ -46,6 +34,21 @@ type
 var
   GOptions: TDbContextOptions;
   GCtx: TDbContext;
+
+procedure SetupDatabase;
+procedure CleanupDatabase;
+procedure BM_Orm_RawDataset_Loop(const state: TState);
+procedure BM_Orm_DextHydration_Loop(const state: TState);
+procedure BM_Orm_Micro_Allocations(const state: TState);
+procedure BM_Orm_Micro_ReaderGetValue(const state: TState);
+procedure BM_Orm_Micro_RttiSetValue(const state: TState);
+procedure BM_Orm_ProjectToJson(const state: TState);
+procedure BM_Orm_UseSql_DirectUtf8(const state: TState);
+
+implementation
+
+uses
+  System.SysUtils;
 
 procedure SetupDatabase;
 var
@@ -222,6 +225,23 @@ begin
   end;
 end;
 
+procedure BM_Orm_UseSql_DirectUtf8(const state: TState);
+var
+  Stream: TMemoryStream;
+begin
+  Stream := TMemoryStream.Create;
+  try
+    while state.KeepRunning do
+    begin
+      Stream.Position := 0;
+      GCtx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
+        .ExecuteToUtf8Stream(Stream);
+    end;
+  finally
+    Stream.Free;
+  end;
+end;
+
 initialization
   SetupDatabase;
   Benchmark(BM_Orm_RawDataset_Loop, 'BM_Orm_RawDataset_Loop');
@@ -230,6 +250,7 @@ initialization
   Benchmark(BM_Orm_Micro_ReaderGetValue, 'BM_Orm_Micro_ReaderGetValue');
   Benchmark(BM_Orm_Micro_RttiSetValue, 'BM_Orm_Micro_RttiSetValue');
   Benchmark(BM_Orm_ProjectToJson, 'BM_Orm_ProjectToJson');
+  Benchmark(BM_Orm_UseSql_DirectUtf8, 'BM_Orm_UseSql_DirectUtf8');
 
 finalization
   CleanupDatabase;

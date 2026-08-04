@@ -23,7 +23,7 @@ ID | Title | Status | Goal
 **S15** | [Dext Studio & Visual Scaffolding](S15-Dext-Studio-IDE-Expert.md) | 📝 Draft | Visual IDE Expert for schema mapping, GitOps (YAML), and continuous DB syncing.
 **S16** | [Simd Quad Search](S16-Simd_Quad_Search.md) | 📝 Reserved | Reserved for the Future (Idea / Study).
 **S17** | [Design-Time Scaffolding](S17-Design-Time-Scaffolding.md) | ✅ Finalized | DB integration and IDE scaffolding support.
-**S18** | [Performance Benchmarks](S18-Performance-Benchmarks.md) | 📝 Draft | Benchmark suite for core Reflection, JSON, and ORM components.
+**S18** | [Performance Benchmarks](S18-Performance-Benchmarks.md) | ✅ Finalized | Benchmark suite for core Reflection, JSON, FastPath, and ORM components.
 **S19** | [FluentQuery Join Evolution](S19-FluentQuery-Join-Evolution.md) | ✅ Finalized | Unified DSL for complex SQL Joins via Managed Records.
 **S20** | [Fluent REST Evolution](S20-Fluent-Rest-Evolution.md) | ✅ Finalized | Enhanced TRestClient factories and native record/array payload support.
 **S21** | [Soft Delete: Timestamp-based Audit](S21-SoftDelete-Timestamp-Audit.md) | ✅ Finalized | Soft Delete based on nullable timestamps for audit trails.

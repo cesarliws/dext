@@ -128,6 +128,7 @@
 <a href="Dext.Entity.Drivers.FireDAC.Manager.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Manager</a>
 <a href="Dext.Entity.Drivers.FireDAC.Phys.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Phys</a>
 <a href="Dext.Entity.Drivers.Interfaces.html" class="nav-item">Dext.Entity.Drivers.Interfaces</a>
+<a href="Dext.Entity.FastQuery.html" class="nav-item">Dext.Entity.FastQuery</a>
 <a href="Dext.Entity.Grouping.html" class="nav-item">Dext.Entity.Grouping</a>
 <a href="Dext.Entity.GrpcProvider.html" class="nav-item">Dext.Entity.GrpcProvider</a>
 <a href="Dext.Entity.Joining.html" class="nav-item">Dext.Entity.Joining</a>
@@ -454,6 +455,8 @@ class TDextNativeHttpResponse {    +Create()
     +SetContentLength()
     +Flush()
     +Write()
+    +SendJsonUtf8()
+    +GetOutputStream()
     +WriteUtf8()
     +Json()
     +AddHeader()
@@ -616,9 +619,15 @@ IWebHost <|.. TDextNativeWebServer
 <div class="api-item">
 <div class="api-signature">procedure Write(const const: string)</div><div class="description">Writes a UTF-8 string to the response body.</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Write(const const: TBytes)</div><div class="description">Writes raw bytes to the response body.</div></div>
+<div class="api-signature">procedure Write(const const: TBytes)</div></div>
 <div class="api-item">
-<div class="api-signature">procedure Write(const const: TStream)</div><div class="description">Writes a stream contents directly to the response body.</div></div>
+<div class="api-signature">procedure Write(const const: TStream)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendJsonUtf8(const const: RawByteString)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendJsonUtf8(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetOutputStream: TStream</div></div>
 <div class="api-item">
 <div class="api-signature">procedure WriteUtf8(AData: Pointer; ALength: Integer)</div><div class="description">Writes UTF-8 bytes directly to a native response sink.</div></div>
 <div class="api-item">

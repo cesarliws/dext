@@ -93,6 +93,9 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
     procedure AddHeader(const AName, AValue: string);
@@ -1074,6 +1077,50 @@ begin
     FResponseInfo.ContentStream := MemStream;
     FResponseInfo.FreeContentStream := True;
   end;
+end;
+
+procedure TDextIndyHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+var
+  Stream: TMemoryStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(AUtf8Json) > 0 then
+  begin
+    Stream := TMemoryStream.Create;
+    Stream.WriteBuffer(AUtf8Json[1], Length(AUtf8Json));
+    Stream.Position := 0;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+end;
+
+procedure TDextIndyHttpResponse.SendJsonUtf8(const ABuffer: TBytes);
+var
+  Stream: TMemoryStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(ABuffer) > 0 then
+  begin
+    Stream := TMemoryStream.Create;
+    Stream.WriteBuffer(ABuffer[0], Length(ABuffer));
+    Stream.Position := 0;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+end;
+
+function TDextIndyHttpResponse.GetOutputStream: TStream;
+var
+  Stream: TMemoryStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if not Assigned(FResponseInfo.ContentStream) then
+  begin
+    Stream := TMemoryStream.Create;
+    FResponseInfo.ContentStream := Stream;
+    FResponseInfo.FreeContentStream := True;
+  end;
+  Result := FResponseInfo.ContentStream;
 end;
 
 procedure TDextIndyHttpResponse.Json(const AJson: string);

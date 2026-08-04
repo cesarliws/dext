@@ -155,6 +155,9 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
     procedure AddHeader(const AName, AValue: string);
@@ -282,6 +285,23 @@ end;
 procedure TMockHttpResponse.Write(const AStream: TStream);
 begin
   FBody.CopyFrom(AStream, AStream.Size - AStream.Position);
+end;
+procedure TMockHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+begin
+  SetContentType('application/json');
+  if Length(AUtf8Json) > 0 then
+    FBody.Write(AUtf8Json[1], Length(AUtf8Json));
+end;
+procedure TMockHttpResponse.SendJsonUtf8(const ABuffer: TBytes);
+begin
+  SetContentType('application/json');
+  if Length(ABuffer) > 0 then
+    FBody.Write(ABuffer[0], Length(ABuffer));
+end;
+function TMockHttpResponse.GetOutputStream: TStream;
+begin
+  SetContentType('application/json');
+  Result := FBody;
 end;
 procedure TMockHttpResponse.Json(const AJson: string); begin end;
 procedure TMockHttpResponse.Json(const AValue: TValue); begin end;

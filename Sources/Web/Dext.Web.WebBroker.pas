@@ -135,6 +135,9 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
     procedure AddHeader(const AName, AValue: string);
@@ -660,6 +663,26 @@ end;
 procedure TDextWebBrokerResponse.Write(const AStream: TStream);
 begin
   FBuffer.CopyFrom(AStream, 0);
+end;
+
+procedure TDextWebBrokerResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+begin
+  FContentType := 'application/json; charset=utf-8';
+  if Length(AUtf8Json) > 0 then
+    FBuffer.WriteBuffer(AUtf8Json[1], Length(AUtf8Json));
+end;
+
+procedure TDextWebBrokerResponse.SendJsonUtf8(const ABuffer: TBytes);
+begin
+  FContentType := 'application/json; charset=utf-8';
+  if Length(ABuffer) > 0 then
+    FBuffer.WriteBuffer(ABuffer[0], Length(ABuffer));
+end;
+
+function TDextWebBrokerResponse.GetOutputStream: TStream;
+begin
+  FContentType := 'application/json; charset=utf-8';
+  Result := FBuffer;
 end;
 
 procedure TDextWebBrokerResponse.Json(const AJson: string);

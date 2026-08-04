@@ -141,6 +141,7 @@
         <DCCReference Include="..\..\Sources\Data\Dext.Scaffolding.Models.pas"/>
         <DCCReference Include="..\..\Sources\Data\Dext.Entity.Scaffolding.Processor.pas"/>
         <DCCReference Include="..\..\Sources\Data\Dext.Entity.Sequences.pas"/>
+        <DCCReference Include="..\..\Sources\Data\Dext.Entity.FastQuery.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

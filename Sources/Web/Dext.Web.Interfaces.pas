@@ -58,6 +58,7 @@ type
   IWebHostBuilder = interface;
 
   TRequestDelegate = reference to procedure(AContext: IHttpContext);
+  TDextFastRouteHandler = reference to procedure(const Req: IHttpRequest; const Res: IHttpResponse);
   TStaticHandler = reference to procedure(AContext: IHttpContext);
   TMiddlewareDelegate = reference to procedure(AContext: IHttpContext; ANext: TRequestDelegate);
   TServerFactory = reference to function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost;
@@ -268,6 +269,11 @@ type
     procedure Write(const ABuffer: TBytes); overload;
     /// <summary>Writes a stream content directly to the transport (Streaming).</summary>
     procedure Write(const AStream: TStream); overload;
+    /// <summary>Sends a raw UTF-8 string directly as response with application/json header.</summary>
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    /// <summary>Returns the underlying response OutputStream for direct UTF-8 writing.</summary>
+    function GetOutputStream: TStream;
     /// <summary>Sends a formatted JSON string as response (sets Content-Type).</summary>
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue (Object, Array, Primitive) to JSON and sends it.</summary>
@@ -430,6 +436,8 @@ type
     function MapEndpoint(const AMethod, APath: string; ADelegate: TRequestDelegate): IApplicationBuilder;
     function MapPost(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function MapGet(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
+    function MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder; overload;
+    function MapFast(const APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder; overload;
     function MapPut(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     function MapDelete(const Path: string; Handler: TStaticHandler): IApplicationBuilder;
     /// <summary>

@@ -39,7 +39,7 @@ Status | Task | Spec | Description
 ✅ | **DbSet Batch UPDATE & DELETE** | [S59](../../Docs/Specs/S59-DbSet-Batch-Update-Delete.md) | Single-statement dialect-aware batching for PostgreSQL (`unnest`/`VALUES`), MySQL (`CASE-WHEN`), and Tuple-IN deletes.
 ✅ | **Native Delphi IDE Test Runner** | [S36](Specs/S36-IDE-Test-Runner.md) | Native IDE Test Runner expert with decoupled DUnitX, DUnit, DUnit2, and TestInsight integrations and rich reporting.
 ✅ | **Public Symbol Indexing** | [dext index] | Extract and generate public symbol maps (Markdown, JSON, CSV) with line numbers for AI agents and NotebookLM.
-🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Initial visual tool for Migrations inside the IDE (Only TFDConnection scaffolding implemented).
+✅ | **Performance Benchmarks** | [S18](Specs/S18-Performance-Benchmarks.md) | Benchmark suite for core Reflection, JSON, FastPath, and ORM components.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
 

@@ -234,6 +234,8 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 ### 3.1 Bootstrapping & Minimal API
 - **TWebApplication** — Fluent facade for initialization: automatically loads `appsettings.json`, `appsettings.yaml`, Environment Variables, registers services, and builds the pipeline in a single chain.
 - **Minimal API** — Direct handler registration via delegates without controllers (`app.MapGet`, `app.MapPost`, `app.MapQuery`).
+- **FastPath** (`app.MapFast`) — High-throughput route handler bypassing DI Scope creation and RTTI activation for minimal latency and maximum RPS.
+- **Data API Direct UTF-8 Streaming** (`Db.UseSql`) — Execution of native SQL queries with direct UTF-8 serialization and socket stream writing (`Res.GetOutputStream`) without intermediate `TJsonObject` heap allocations.
 - **HTTP QUERY Mapping** — Safe, idempotent data retrieval endpoints utilizing structured request bodies.
 
 ### 3.2 Middleware Pipeline

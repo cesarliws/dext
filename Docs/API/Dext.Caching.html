@@ -128,6 +128,7 @@
 <a href="Dext.Entity.Drivers.FireDAC.Manager.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Manager</a>
 <a href="Dext.Entity.Drivers.FireDAC.Phys.html" class="nav-item">Dext.Entity.Drivers.FireDAC.Phys</a>
 <a href="Dext.Entity.Drivers.Interfaces.html" class="nav-item">Dext.Entity.Drivers.Interfaces</a>
+<a href="Dext.Entity.FastQuery.html" class="nav-item">Dext.Entity.FastQuery</a>
 <a href="Dext.Entity.Grouping.html" class="nav-item">Dext.Entity.Grouping</a>
 <a href="Dext.Entity.GrpcProvider.html" class="nav-item">Dext.Entity.GrpcProvider</a>
 <a href="Dext.Entity.Joining.html" class="nav-item">Dext.Entity.Joining</a>
@@ -434,6 +435,8 @@ class TResponseCaptureWrapper {    +Create()
     +SetContentType()
     +SetContentLength()
     +Write()
+    +SendJsonUtf8()
+    +GetOutputStream()
     +Json()
     +AddHeader()
     +AppendCookie()
@@ -554,6 +557,12 @@ class TResponseCacheOptionsHelper {    +Implicit()
 <div class="api-signature">procedure Write(const const: TBytes)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Write(const const: TStream)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendJsonUtf8(const const: RawByteString)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendJsonUtf8(const const: TBytes)</div></div>
+<div class="api-item">
+<div class="api-signature">function GetOutputStream: TStream</div></div>
 <div class="api-item">
 <div class="api-signature">procedure Json(const const: string)</div></div>
 <div class="api-item">

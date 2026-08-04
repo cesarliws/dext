@@ -202,6 +202,28 @@ Builder.MapPost<TCreateOrderDto, IResult>('/api/orders',
   end);
 ```
 
+## FastPath & Data API (`MapFast` & `UseSql`)
+
+For **performance-critical** endpoints (ping/pong, high-frequency webhooks, or massive Data APIs), Dext provides the **`MapFast`** route handler:
+
+```pascal
+// Ultra-fast route (bypasses DI Scope and RTTI activation)
+App.MapFast('GET', '/fastping', procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+begin
+  Res.SendJsonUtf8('{"message":"pong"}');
+end);
+
+// FastPath Data API with UseSql (Direct UTF-8 Streaming to Socket)
+App.MapFast('GET', '/api/cities/fast', procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+begin
+  Db.UseSql('SELECT Id, Name, State FROM Cities')
+    .ExecuteToUtf8Stream(Res.GetOutputStream);
+end);
+```
+
+> [!TIP]
+> The `Db.UseSql` method combined with `Res.GetOutputStream` streams response data directly to the HTTP socket in UTF-8 without intermediate `TJsonObject` allocations, achieving **up to +123% throughput** under extreme load.
+
 ## Endpoints Module Pattern
 
 Move all route definitions to a dedicated unit:

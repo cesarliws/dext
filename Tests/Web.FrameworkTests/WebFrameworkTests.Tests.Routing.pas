@@ -1,4 +1,4 @@
-﻿unit WebFrameworkTests.Tests.Routing;
+unit WebFrameworkTests.Tests.Routing;
 
 interface
 
@@ -67,6 +67,12 @@ begin
           '/test/param/{value}',
           ParamHandler
         );
+
+      App.MapFast('/test/fast',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        begin
+          Res.SendJsonUtf8('{"status":"fast"}');
+        end);
     end);
 end;
 
@@ -91,6 +97,11 @@ begin
   Resp := FClient.Get(GetBaseUrl + '/test/param/hello');
   AssertTrue(Resp.StatusCode = 200, 'GET /test/param/hello returned 200', 'GET /test/param/hello returned ' + Resp.StatusCode.ToString);
   AssertEqual('hello', Resp.ContentAsString, 'Param Body');
+
+  // Test FastRoute
+  Resp := FClient.Get(GetBaseUrl + '/test/fast');
+  AssertTrue(Resp.StatusCode = 200, 'GET /test/fast returned 200', 'GET /test/fast returned ' + Resp.StatusCode.ToString);
+  AssertEqual('{"status":"fast"}', Resp.ContentAsString, 'FastRoute Body');
 end;
 
 end.

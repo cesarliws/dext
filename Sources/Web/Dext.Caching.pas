@@ -173,6 +173,9 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
     procedure AddHeader(const AName, AValue: string);
@@ -736,10 +739,29 @@ begin
       FBodyBuffer.Append(SS.DataString);
     finally
       SS.Free;
+      AStream.Position := Pos;
     end;
-    AStream.Position := Pos; // Reset for original
   end;
   FOriginal.Write(AStream);
+end;
+
+procedure TResponseCaptureWrapper.SendJsonUtf8(const AUtf8Json: RawByteString);
+begin
+  if Length(AUtf8Json) > 0 then
+    FBodyBuffer.Append(UTF8ToString(AUtf8Json));
+  FOriginal.SendJsonUtf8(AUtf8Json);
+end;
+
+procedure TResponseCaptureWrapper.SendJsonUtf8(const ABuffer: TBytes);
+begin
+  if Length(ABuffer) > 0 then
+    FBodyBuffer.Append(TEncoding.UTF8.GetString(ABuffer));
+  FOriginal.SendJsonUtf8(ABuffer);
+end;
+
+function TResponseCaptureWrapper.GetOutputStream: TStream;
+begin
+  Result := FOriginal.GetOutputStream;
 end;
 
 procedure TResponseCaptureWrapper.Json(const AJson: string);

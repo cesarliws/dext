@@ -79,6 +79,9 @@ type
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AContent: string); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
 
     procedure Redirect(const AUrl: string; APermanent: Boolean = False);
     procedure Unauthorized(const AMessage: string = '');
@@ -277,6 +280,21 @@ end;
 
 procedure TStatefulMockResponse.Write(const AStream: TStream);
 begin
+end;
+
+procedure TStatefulMockResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+begin
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.SendJsonUtf8(const ABuffer: TBytes);
+begin
+  FContentType := 'application/json';
+end;
+
+function TStatefulMockResponse.GetOutputStream: TStream;
+begin
+  Result := nil;
 end;
 
 procedure TStatefulMockResponse.Json(const AJson: string);

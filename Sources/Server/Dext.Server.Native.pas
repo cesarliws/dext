@@ -171,10 +171,11 @@ type
     procedure Flush;
     /// <summary>Writes a UTF-8 string to the response body.</summary>
     procedure Write(const AContent: string); overload;
-    /// <summary>Writes raw bytes to the response body.</summary>
     procedure Write(const ABuffer: TBytes); overload;
-    /// <summary>Writes a stream contents directly to the response body.</summary>
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     /// <summary>Writes UTF-8 bytes directly to a native response sink.</summary>
     procedure WriteUtf8(AData: Pointer; ALength: Integer);
     /// <summary>Sends a JSON string directly as response.</summary>
@@ -807,6 +808,27 @@ begin
     if ReadBytes <= 0 then Break;
     FRawResponse.Write(FStreamBuffer, 0, ReadBytes);
   end;
+end;
+
+procedure TDextNativeHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString);
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(AUtf8Json) > 0 then
+    WriteUtf8(@AUtf8Json[1], Length(AUtf8Json));
+end;
+
+procedure TDextNativeHttpResponse.SendJsonUtf8(const ABuffer: TBytes);
+begin
+  SetContentType('application/json; charset=utf-8');
+  if Length(ABuffer) > 0 then
+    WriteUtf8(@ABuffer[0], Length(ABuffer));
+end;
+
+function TDextNativeHttpResponse.GetOutputStream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  // Return dummy or memory wrapper stream connected to WriteUtf8 if called directly
+  Result := nil;
 end;
 
 function TDextNativeHttpResponse.GetContentType: string;

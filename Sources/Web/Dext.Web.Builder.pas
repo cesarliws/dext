@@ -94,6 +94,8 @@ type
     function MapPut(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function MapDelete(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
     function MapQuery(const Path: string; Handler: TStaticHandler): IApplicationBuilder; overload;
+    function MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder; overload;
+    function MapFast(const APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder; overload;
     function Build: TRequestDelegate;
     function GetRoutes: TArray<TEndpointMetadata>;
     procedure UpdateLastRouteMetadata(const AMetadata: TEndpointMetadata);
@@ -377,6 +379,21 @@ begin
       Handler(Context);
     end
   );
+end;
+
+function TApplicationBuilder.MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder;
+begin
+  Result := MapEndpoint(AMethod, APath,
+    procedure(Context: IHttpContext)
+    begin
+      AHandler(Context.Request, Context.Response);
+    end
+  );
+end;
+
+function TApplicationBuilder.MapFast(const APath: string; AHandler: TDextFastRouteHandler): IApplicationBuilder;
+begin
+  Result := MapFast('GET', APath, AHandler);
 end;
 
 // ---------------------------------------------------------------------------

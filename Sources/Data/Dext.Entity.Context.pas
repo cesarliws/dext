@@ -56,7 +56,8 @@ uses
   Dext.Core.Reflection,
   Dext.Threading.Sync,
   Dext.Threading.Async,
-  Dext.Logging.Tracing;
+  Dext.Logging.Tracing,
+  Dext.Entity.FastQuery;
 
 type
   TFluentExpression = Dext.Specifications.Types.TFluentExpression;
@@ -283,6 +284,11 @@ type
     ///   Gets the weakly typed interface of a DbSet for the provided entity type.
     /// </summary>
     function DataSet(AEntityType: PTypeInfo): IDbSet;
+
+    /// <summary>
+    ///   Creates a fast SQL query execution pipeline directly streaming UTF-8 JSON output.
+    /// </summary>
+    function UseSql(const ASql: string): IDextFastQuery;
 
     /// <summary>
     ///   Preloads the DbSet cache to optimize future resolutions.
@@ -1449,6 +1455,11 @@ begin
     Span.SetStatus('Error', Exception(ExceptObject).Message);
      raise;
    end;
+end;
+
+function TDbContext.UseSql(const ASql: string): IDextFastQuery;
+begin
+  Result := TDextFastQuery.Create(Connection, ASql);
 end;
 
 function TDbContext.SaveChangesAsync: TAsyncBuilder<Integer>;

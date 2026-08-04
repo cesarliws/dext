@@ -39,9 +39,12 @@ The suite currently acts as the home for three kinds of measurements:
 - `ZeroAlloc`: tracks allocation-sensitive HTTP, routing, middleware, JSON, and ORM scenarios.
 
 
-## 🗂️ Historical Results
+## 🗂️ Historical Results & Reports
 
-Best benchmark results and noteworthy runs are tracked in [HISTORICAL_RESULTS.md](HISTORICAL_RESULTS.md). Keep that file updated whenever a new best result is confirmed so the current baseline stays easy to find.
+- **FastPath & UseSql Performance Report**:
+  - 🇧🇷 [Relatório em Português](FASTPATH_BENCHMARKS_PT.md)
+  - 🇺🇸 [English Report](FASTPATH_BENCHMARKS_EN.md)
+- Best benchmark results and noteworthy runs are tracked in [HISTORICAL_RESULTS.md](HISTORICAL_RESULTS.md). Keep that file updated whenever a new best result is confirmed so the current baseline stays easy to find.
 
 ### S54 Coverage Targets
 
@@ -139,7 +142,7 @@ You can control the microbenchmark execution using standard flags:
 
 ## 🌐 Mode 2: Standalone HTTP Server
 
-You can run the benchmark executable as a dedicated, standalone HTTP server (bypassing the Google Benchmark runner). This mode binds to port `8085` and exposes a `/ping` route.
+You can run the benchmark executable as a dedicated, standalone HTTP server (bypassing the Google Benchmark runner). This mode binds to port `8085` (or `8086` for native/http.sys) and initializes an in-memory SQLite database populated with **5,000 records**.
 
 ```powershell
 # Start Dext using the Kernel-mode http.sys engine
@@ -148,6 +151,12 @@ You can run the benchmark executable as a dedicated, standalone HTTP server (byp
 # Start Dext using the Indy Thread-Pool engine
 .\Dext.Benchmarks.exe --server -indy
 ```
+
+### Exposed Endpoints for Benchmark:
+- `/ping`: Standard controller/middleware route returning text `pong`.
+- `/fastping`: Ultra-fast route (`MapFast`) bypassing DI scope and RTTI activation (`{"message":"pong"}`).
+- `/cities`: Traditional ORM query (`Entities<T>.ToList`) serialized via default JSON codec.
+- `/fastcities`: Fast Data API query (`UseSql`) streaming UTF-8 JSON directly to the output stream without intermediate `TJsonObject` AST allocations.
 
 ---
 

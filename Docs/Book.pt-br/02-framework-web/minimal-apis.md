@@ -202,6 +202,28 @@ Builder.MapPost<TCreateOrderDto, IResult>('/api/orders',
   end);
 ```
 
+## FastPath & Data API (`MapFast` & `UseSql`)
+
+Para endpoints de **desempenho crítico** (ping/pong, webhooks de altíssima frequência ou APIs de dados massivas), o Dext oferece a rota **`MapFast`**:
+
+```pascal
+// Rota ultra-rápida (bypassa DI Scope e alocações de RTTI)
+App.MapFast('GET', '/fastping', procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+begin
+  Res.SendJsonUtf8('{"message":"pong"}');
+end);
+
+// FastPath Data API com UseSql (Streaming direto em UTF-8 para o socket)
+App.MapFast('GET', '/api/cities/fast', procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+begin
+  Db.UseSql('SELECT Id, Name, State FROM Cities')
+    .ExecuteToUtf8Stream(Res.GetOutputStream);
+end);
+```
+
+> [!TIP]
+> O método `Db.UseSql` aliado a `Res.GetOutputStream` escreve a resposta diretamente no stream do socket HTTP em UTF-8 sem criar objetos `TJsonObject` intermediários, garantindo **até +123% de vazão** sob carga extrema.
+
 ## Padrão de Módulo de Endpoints
 
 Mova todas as definições de rota para uma unit dedicada:

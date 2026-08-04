@@ -25,7 +25,8 @@ uses
   Dext.Server.Engine.Types,
   Dext.WebHost,
   Dext.Web.Interfaces,
-  Dext.Web;
+  Dext.Web,
+  BM.Orm;
 
 type
   { Mocking structures for in-memory HTTP pipeline execution }
@@ -76,6 +77,9 @@ type
     procedure Write(const AContent: string); overload;
     procedure Write(const ABuffer: TBytes); overload;
     procedure Write(const AStream: TStream); overload;
+    procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
     procedure AddHeader(const AName, AValue: string);
@@ -211,6 +215,9 @@ procedure TMockHttpResponse.Unauthorized(const AMessage: string); begin FStatusC
 procedure TMockHttpResponse.Write(const AContent: string); begin end;
 procedure TMockHttpResponse.Write(const ABuffer: TBytes); begin end;
 procedure TMockHttpResponse.Write(const AStream: TStream); begin end;
+procedure TMockHttpResponse.SendJsonUtf8(const AUtf8Json: RawByteString); begin FContentType := 'application/json'; end;
+procedure TMockHttpResponse.SendJsonUtf8(const ABuffer: TBytes); begin FContentType := 'application/json'; end;
+function TMockHttpResponse.GetOutputStream: TStream; begin Result := nil; end;
 
 { TMockHttpContext }
 
@@ -453,6 +460,22 @@ begin
         procedure(Context: IHttpContext)
         begin
           Context.Response.Write('pong');
+        end);
+      App.MapFast('GET', '/fastping',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        begin
+          Res.SendJsonUtf8('{"message":"pong"}');
+        end);
+      App.MapGet('/cities',
+        procedure(Context: IHttpContext)
+        begin
+          Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(BM.Orm.GCtx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray));
+        end);
+      App.MapFast('GET', '/fastcities',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        begin
+          BM.Orm.GCtx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
+            .ExecuteToUtf8Stream(Res.GetOutputStream);
         end);
     end);
 

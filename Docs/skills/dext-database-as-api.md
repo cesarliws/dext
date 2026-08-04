@@ -91,10 +91,24 @@ A key differentiator of Dext's Data API is its **high-performance JSON engine**.
 App.Builder.MapDataApi<TProduct>('/api/products',
   DataApiOptions
     .DbContext<TAppDbContext>
-    .Allow([amGet, amGetList, amPost]) // GET and POST only
-    .RequireAuth                       // Requires Authentication
-    .RequireRole('Admin')              // Requires Admin role
+    .ConfigureEndpoints(procedure(Endpoints: IDataApiEndpointConfig)
+    begin
+      Endpoints.GET.Authorize('Admin');
+      Endpoints.DELETE.Disable;
+    end)
 );
+```
+
+## Direct SQL UTF-8 Streaming (`UseSql`)
+
+For maximum performance Data APIs (bypassing entity hydration and JSON AST creation):
+
+```pascal
+App.MapFast('GET', '/api/cities/fast', procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+begin
+  Db.UseSql('SELECT Id, Name, State FROM Cities')
+    .ExecuteToUtf8Stream(Res.GetOutputStream);
+end);
 ```
 
 Available operations (`TApiMethod`): `amGet`, `amGetList`, `amPost`, `amPut`, `amDelete`.

@@ -30,6 +30,7 @@ uses
   Dext.Entity.Drivers.FireDAC,
   Dext.Entity.Drivers.FireDAC.Phys,
   Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.FastQuery,
   Dext.Entity.Grouping,
   Dext.Entity.Joining,
   Dext.Entity.LazyLoading,
@@ -139,6 +140,10 @@ type
   TCollectionEntry = Dext.Entity.Context.TCollectionEntry;
   TReferenceEntry = Dext.Entity.Context.TReferenceEntry;
   TEntityEntry = Dext.Entity.Context.TEntityEntry;
+
+  // Dext.Entity.FastQuery
+  IDextFastQuery = Dext.Entity.FastQuery.IDextFastQuery;
+  TDextFastQuery = Dext.Entity.FastQuery.TDextFastQuery;
 
   // Dext.Entity.Core
   EOptimisticConcurrencyException = Dext.Entity.Core.EOptimisticConcurrencyException;
