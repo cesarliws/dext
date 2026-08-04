@@ -485,10 +485,12 @@ begin
         var
           Ctx: TDbContext;
           SW: TStopwatch;
-          TResolve, TConnect, TFetch, TJson: Int64;
+          TStart, TResolve, TConnect, TFetch, TJson, TEnd: Int64;
           Arr: TArray<BM.Orm.TBenchmarkUser>;
         begin
           SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
           Ctx := TDextServices.GetServiceObject<TDbContext>(Context.Services);
           TResolve := SW.ElapsedMilliseconds;
 
@@ -500,28 +502,77 @@ begin
 
           Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Arr));
           TJson := SW.ElapsedMilliseconds;
+          TEnd := SW.ElapsedMilliseconds;
 
-          if TJson > 100 then
-            Writeln(Format('[Trace /dicities] Total: %d ms | DI: %d ms | Connect: %d ms | Query: %d ms | JSON: %d ms',
-              [TJson, TResolve, TConnect - TResolve, TFetch - TConnect, TJson - TFetch]));
+          if TEnd > 100 then
+            Writeln(Format('[Trace /dicities] Total: %d ms | DI: %d ms | Connect: %d ms | Query: %d ms | JSON+RTTI: %d ms',
+              [TEnd - TStart, TResolve - TStart, TConnect - TResolve, TFetch - TConnect, TJson - TFetch]));
         end);
       App.MapGet('/cities',
         procedure(Context: IHttpContext)
         var
           Ctx: TDbContext;
           SW: TStopwatch;
+          TStart, TCreateCtx, TConnect, TFetch, TJson, TFreeCtx, TEnd: Int64;
+          Arr: TArray<BM.Orm.TBenchmarkUser>;
         begin
           SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
           Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          TCreateCtx := SW.ElapsedMilliseconds;
           try
             Ctx.Connection.Connect;
-            Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Ctx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray));
+            TConnect := SW.ElapsedMilliseconds;
+
+            Arr := Ctx.Entities<BM.Orm.TBenchmarkUser>.ToList.ToArray;
+            TFetch := SW.ElapsedMilliseconds;
+
+            Context.Response.Json(TValue.From<TArray<BM.Orm.TBenchmarkUser>>(Arr));
+            TJson := SW.ElapsedMilliseconds;
           finally
             Ctx.Free;
+            TFreeCtx := SW.ElapsedMilliseconds;
           end;
-          SW.Stop;
-          if SW.ElapsedMilliseconds > 100 then
-            Writeln(Format('[Trace /cities] Slow request: %d ms', [SW.ElapsedMilliseconds]));
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 100 then
+            Writeln(Format('[Trace /cities] Total: %d ms | CreateCtx: %d ms | Connect: %d ms | Query: %d ms | JSON+RTTI: %d ms | FreeCtx: %d ms',
+              [TEnd - TStart, TCreateCtx - TStart, TConnect - TCreateCtx, TFetch - TConnect, TJson - TFetch, TFreeCtx - TJson]));
+        end);
+      App.MapFast('GET', '/fastdicities',
+        procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+        var
+          Sink: IUtf8ResponseSink;
+          Ctx: TDbContext;
+          SW: TStopwatch;
+          TStart, TResolve, TConnect, TQueryStream, TEnd: Int64;
+        begin
+          SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
+          Res.SetContentType('application/json; charset=utf-8');
+          Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          TResolve := SW.ElapsedMilliseconds;
+
+          Ctx.Connection.Connect;
+          TConnect := SW.ElapsedMilliseconds;
+
+          if Supports(Res, IUtf8ResponseSink, Sink) then
+          begin
+            Ctx.UseSql('SELECT "Id", "Name", "Email", "Age" FROM "BenchmarkUsers"')
+              .ExecuteToUtf8Proc(
+                procedure(Data: Pointer; Len: Integer)
+                begin
+                  Sink.WriteUtf8(Data, Len);
+                end);
+          end;
+          TQueryStream := SW.ElapsedMilliseconds;
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 50 then
+            Writeln(Format('[Trace /fastdicities] Total: %d ms | DI: %d ms | Connect: %d ms | Query+Stream: %d ms',
+              [TEnd - TStart, TResolve - TStart, TConnect - TResolve, TQueryStream - TConnect]));
         end);
       App.MapFast('GET', '/fastcities',
         procedure(const Req: IHttpRequest; const Res: IHttpResponse)
@@ -529,30 +580,37 @@ begin
           Sink: IUtf8ResponseSink;
           Ctx: TDbContext;
           SW: TStopwatch;
-          TConnect, TQuery: Int64;
+          TStart, TCreateCtx, TConnect, TQueryStream, TFreeCtx, TEnd: Int64;
         begin
           SW := TStopwatch.StartNew;
+          TStart := SW.ElapsedMilliseconds;
+
           Res.SetContentType('application/json; charset=utf-8');
           Ctx := TDbContext.Create(BM.Orm.GOptions, nil);
+          TCreateCtx := SW.ElapsedMilliseconds;
           try
             Ctx.Connection.Connect;
             TConnect := SW.ElapsedMilliseconds;
+
             if Supports(Res, IUtf8ResponseSink, Sink) then
             begin
-              Ctx.UseSql('SELECT Id, Name, Email, Age FROM BenchmarkUsers')
+              Ctx.UseSql('SELECT "Id", "Name", "Email", "Age" FROM "BenchmarkUsers"')
                 .ExecuteToUtf8Proc(
                   procedure(Data: Pointer; Len: Integer)
                   begin
                     Sink.WriteUtf8(Data, Len);
                   end);
             end;
-            TQuery := SW.ElapsedMilliseconds;
+            TQueryStream := SW.ElapsedMilliseconds;
           finally
             Ctx.Free;
+            TFreeCtx := SW.ElapsedMilliseconds;
           end;
-          if TQuery > 50 then
-            Writeln(Format('[Trace /fastcities] Total: %d ms | Connect: %d ms | Query+Stream: %d ms',
-              [TQuery, TConnect, TQuery - TConnect]));
+          TEnd := SW.ElapsedMilliseconds;
+
+          if TEnd > 50 then
+            Writeln(Format('[Trace /fastcities] Total: %d ms | CreateCtx: %d ms | Connect: %d ms | Query+Stream: %d ms | FreeCtx: %d ms',
+              [TEnd - TStart, TCreateCtx - TStart, TConnect - TCreateCtx, TQueryStream - TConnect, TFreeCtx - TQueryStream]));
         end);
     end);
 

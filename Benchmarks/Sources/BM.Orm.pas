@@ -48,7 +48,8 @@ procedure BM_Orm_UseSql_DirectUtf8(const state: TState);
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  FireDAC.Phys.PG;
 
 procedure SetupDatabase;
 var
@@ -58,30 +59,57 @@ var
   DbFile: string;
   NeedSeed: Boolean;
   WarmPool: array of TDbContext;
+  UsePostgres: Boolean;
 begin
-  DbFile := ExtractFilePath(ParamStr(0)) + 'benchmark_test.db';
-  NeedSeed := not FileExists(DbFile);
+  UsePostgres := FindCmdLineSwitch('postgres') or FindCmdLineSwitch('pg');
 
   GOptions := TDbContextOptions.Create;
-  GOptions.UseSQLite(DbFile);
-  GOptions.Pooling := True;
-  GOptions.PoolMax := 150;
-  GOptions.Params.AddOrSetValue('JournalMode', 'WAL');
-  GOptions.Params.AddOrSetValue('Synchronous', 'Normal');
-  GOptions.Params.AddOrSetValue('LockingMode', 'Normal');
+  if UsePostgres then
+  begin
+    NeedSeed := False;
+    GOptions.DriverName := 'PG';
+    GOptions.Params.AddOrSetValue('Server', 'localhost');
+    GOptions.Params.AddOrSetValue('Port', '5432');
+    GOptions.Params.AddOrSetValue('Database', 'dext_test');
+    GOptions.Params.AddOrSetValue('User_Name', 'postgres');
+    GOptions.Params.AddOrSetValue('Password', 'root');
+    GOptions.Params.AddOrSetValue('VendorLib', 'C:\dev\playground\Performance FireDac\Win64\Release\libpq.dll');
+    GOptions.Pooling := True;
+    GOptions.PoolMax := 150;
+  end
+  else
+  begin
+    DbFile := ExtractFilePath(ParamStr(0)) + 'benchmark_test.db';
+    NeedSeed := not FileExists(DbFile);
 
-  GCtx := TDbContext.Create(GOptions, nil);
-  GCtx.ModelBuilder.Entity<TBenchmarkUser>();
-  GCtx.EnsureCreated;
+    GOptions.UseSQLite(DbFile);
+    GOptions.Pooling := True;
+    GOptions.PoolMax := 150;
+    GOptions.Params.AddOrSetValue('JournalMode', 'WAL');
+    GOptions.Params.AddOrSetValue('Synchronous', 'Normal');
+    GOptions.Params.AddOrSetValue('LockingMode', 'Normal');
+  end;
 
-  if NeedSeed then
+  try
+    GCtx := TDbContext.Create(GOptions, nil);
+    GCtx.ModelBuilder.Entity<TBenchmarkUser>();
+    GCtx.EnsureCreated;
+  except
+    on E: Exception do
+    begin
+      Writeln('[Error SetupDatabase] Connection/EnsureCreated Exception: ', E.ClassName, ': ', E.Message);
+      raise;
+    end;
+  end;
+
+  if NeedSeed or (Length(GCtx.Entities<TBenchmarkUser>.ToList.ToArray) = 0) then
   begin
     Tx := GCtx.Connection.BeginTransaction;
     try
       for i := 1 to 5000 do
       begin
         Cmd := GCtx.Connection.CreateCommand(
-          'INSERT INTO BenchmarkUsers (Id, Name, Email, Age) VALUES (:Id, :Name, :Email, :Age)'
+          'INSERT INTO "BenchmarkUsers" ("Id", "Name", "Email", "Age") VALUES (:Id, :Name, :Email, :Age)'
         );
         Cmd.AddParam('Id', i);
         Cmd.AddParam('Name', 'User Name ' + IntToStr(i));

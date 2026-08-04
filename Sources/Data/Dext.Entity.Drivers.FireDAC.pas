@@ -1487,7 +1487,7 @@ begin
       if LSchema = '' then
         LSchema := FConnection.Params.Values['MetaDefSchema'];
 
-      FConnection.GetTableNames('', LSchema, '', List, [osMy], [tkTable], False);
+      FConnection.GetTableNames('', LSchema, '', List, [osMy, osOther], [tkTable], False);
       
       // Check for existence
       // 1. Exact match

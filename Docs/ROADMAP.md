@@ -40,6 +40,7 @@ Status | Task | Spec | Description
 ✅ | **Native Delphi IDE Test Runner** | [S36](Specs/S36-IDE-Test-Runner.md) | Native IDE Test Runner expert with decoupled DUnitX, DUnit, DUnit2, and TestInsight integrations and rich reporting.
 ✅ | **Public Symbol Indexing** | [dext index] | Extract and generate public symbol maps (Markdown, JSON, CSV) with line numbers for AI agents and NotebookLM.
 ✅ | **Performance Benchmarks** | [S18](Specs/S18-Performance-Benchmarks.md) | Benchmark suite for core Reflection, JSON, FastPath, and ORM components.
+📝 | **FastPath ORM Hydration** | [S57](Specs/S57-FastPath-Orm-Hydration-Optimization.md) | Zero-alloc struct/record hydration, DbSet `ExecuteToUtf8Proc` streaming, and pre-compiled RTTI mappers.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
 
@@ -107,6 +108,7 @@ Status | Tarefa | Spec | Descrição
 ✅ | **Evolução REST Fluente** | [S20](Specs/S20-Fluent-Rest-Evolution.md) | Factories aprimoradas para TRestClient e suporte nativo a records/arrays.
 ✅ | **Test Runner Nativo na IDE** | [S36](Specs/S36-IDE-Test-Runner.md) | Plugin Expert nativo de Test Runner na IDE com integração DUnitX, DUnit, DUnit2 e TestInsight desacoplada e relatórios ricos.
 ✅ | **Indexador de Símbolos Públicos** | [dext index] | Extrair e gerar mapas de símbolos públicos (Markdown, JSON, CSV) com números de linha para agentes de IA e NotebookLM.
+📝 | **Otimização de Hydration FastPath ORM** | [S57](Specs/S57-FastPath-Orm-Hydration-Optimization.md) | Hidratação zero-alloc em structs/records, streaming `ExecuteToUtf8Proc` no DbSet e mappers RTTI pré-compilados.
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Ferramenta visual inicial para Migrations na IDE (Somente scaffolding de TFDConnection implementado).
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Expert visual na IDE para mapeamento de schema e sync contínuo via YAML.
 🟡 | **Middleware Pack** | - | SPA Fallback, Forwarded Headers e Resiliência.
