@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -92,7 +92,6 @@ type
     FOptions: TCorsOptions;
     FEnableDebugLog: Boolean;
     function IsOriginAllowed(const AOrigin: string): Boolean;
-    procedure AddCorsHeaders(AContext: IHttpContext);
     procedure DebugLog(const AMessage: string);
   public
     constructor Create; overload;
@@ -295,80 +294,149 @@ begin
     SafeWriteLn(AMessage);
 end;
 
+procedure MergeVaryHeader(AContext: IHttpContext; const AToken: string);
+var
+  ExistingVary: string;
+  Tokens: TArray<string>;
+  T: string;
+begin
+  if AContext.Response.Headers.TryGetValue('Vary', ExistingVary) and (Trim(ExistingVary) <> '') then
+  begin
+    Tokens := ExistingVary.Split([',']);
+    for T in Tokens do
+    begin
+      if SameText(Trim(T), AToken) then
+        Exit;
+    end;
+    AContext.Response.AddHeader('Vary', ExistingVary + ', ' + AToken);
+  end
+  else
+  begin
+    AContext.Response.AddHeader('Vary', AToken);
+  end;
+end;
+
 procedure TCorsMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
+var
+  RequestOrigin: string;
+  ReqMethod: string;
+  ReqHeadersStr: string;
+  ReqHeaders: TArray<string>;
+  HeaderItem: string;
+  HeaderAllowed: Boolean;
+  MethodAllowed: Boolean;
+  AllowedItem: string;
 begin
   DebugLog('🛡️ CORS MIDDLEWARE STARTED');
   DebugLog('📥 Request: ' + AContext.Request.Method + ' ' + AContext.Request.Path);
 
-  // Debug: ver todos os headers da request
-  if FEnableDebugLog then
+  // Check if request carries Origin header
+  if AContext.Request.Headers.TryGetValue('Origin', RequestOrigin) and (not RequestOrigin.IsEmpty) then
   begin
-    DebugLog('📋 Request Headers:');
-    // For now disabled in generic dictionary to not break zero alloc
-    // but the actual dictionary might have headers implementation
+    MergeVaryHeader(AContext, 'Origin');
+
+    // Is this a CORS Preflight OPTIONS request?
+    if (AContext.Request.Method = 'OPTIONS') and 
+       AContext.Request.Headers.TryGetValue('Access-Control-Request-Method', ReqMethod) and
+       (not ReqMethod.IsEmpty) then
+    begin
+      DebugLog('🔄 CORS: Handling OPTIONS preflight for origin: ' + RequestOrigin);
+
+      // 1. Validate Origin
+      if not IsOriginAllowed(RequestOrigin) then
+      begin
+        AContext.Response.StatusCode := 403;
+        AContext.Response.Write('CORS: Origin not allowed');
+        Exit;
+      end;
+
+      // 2. Validate Requested Method
+      MethodAllowed := FOptions.AllowedMethods.Contains('*');
+      if not MethodAllowed then
+      begin
+        for AllowedItem in FOptions.AllowedMethods do
+        begin
+          if SameText(AllowedItem, ReqMethod) then
+          begin
+            MethodAllowed := True;
+            Break;
+          end;
+        end;
+      end;
+
+      if not MethodAllowed then
+      begin
+        AContext.Response.StatusCode := 403;
+        AContext.Response.Write('CORS: Method not allowed in preflight');
+        Exit;
+      end;
+
+      // 3. Validate Requested Headers
+      if AContext.Request.Headers.TryGetValue('Access-Control-Request-Headers', ReqHeadersStr) and
+         (not ReqHeadersStr.IsEmpty) and (not FOptions.AllowedHeaders.Contains('*')) then
+      begin
+        ReqHeaders := ReqHeadersStr.Split([',']);
+        for HeaderItem in ReqHeaders do
+        begin
+          HeaderAllowed := False;
+          for AllowedItem in FOptions.AllowedHeaders do
+          begin
+            if SameText(Trim(HeaderItem), AllowedItem) then
+            begin
+              HeaderAllowed := True;
+              Break;
+            end;
+          end;
+          if not HeaderAllowed then
+          begin
+            AContext.Response.StatusCode := 403;
+            AContext.Response.Write('CORS: Header not allowed in preflight');
+            Exit;
+          end;
+        end;
+      end;
+
+      // All preflight checks passed - emit CORS headers
+      if FOptions.AllowedOrigins.Contains('*') and (not FOptions.AllowCredentials) then
+        AContext.Response.AddHeader('Access-Control-Allow-Origin', '*')
+      else
+        AContext.Response.AddHeader('Access-Control-Allow-Origin', RequestOrigin);
+
+      if FOptions.AllowCredentials then
+        AContext.Response.AddHeader('Access-Control-Allow-Credentials', 'true');
+
+      if Length(FOptions.AllowedMethods) > 0 then
+        AContext.Response.AddHeader('Access-Control-Allow-Methods', string.Join(', ', FOptions.AllowedMethods));
+
+      if Length(FOptions.AllowedHeaders) > 0 then
+        AContext.Response.AddHeader('Access-Control-Allow-Headers', string.Join(', ', FOptions.AllowedHeaders));
+
+      if FOptions.MaxAge > 0 then
+        AContext.Response.AddHeader('Access-Control-Max-Age', IntToStr(FOptions.MaxAge));
+
+      AContext.Response.StatusCode := 204;
+      AContext.Response.SetContentType('text/plain');
+      Exit;
+    end;
+
+    // Actual CORS Request (non-preflight)
+    if IsOriginAllowed(RequestOrigin) then
+    begin
+      if FOptions.AllowedOrigins.Contains('*') and (not FOptions.AllowCredentials) then
+        AContext.Response.AddHeader('Access-Control-Allow-Origin', '*')
+      else
+        AContext.Response.AddHeader('Access-Control-Allow-Origin', RequestOrigin);
+
+      if FOptions.AllowCredentials then
+        AContext.Response.AddHeader('Access-Control-Allow-Credentials', 'true');
+
+      if Length(FOptions.ExposedHeaders) > 0 then
+        AContext.Response.AddHeader('Access-Control-Expose-Headers', string.Join(', ', FOptions.ExposedHeaders));
+    end;
   end;
 
-  // ? ADICIONAR HEADERS CORS
-  AddCorsHeaders(AContext);
-
-  // Se for preflight OPTIONS
-  if AContext.Request.Method = 'OPTIONS' then
-  begin
-    DebugLog('🔄 CORS: Handling OPTIONS preflight');
-    AContext.Response.StatusCode := 204; // No Content
-    AContext.Response.SetContentType('text/plain');
-    DebugLog('🛑 CORS: Stopping pipeline for OPTIONS');
-    Exit;
-  end;
-
-  DebugLog('⏭️ CORS: Continuing to next middleware');
+  // Non-CORS OPTIONS or regular request -> continue pipeline
   ANext(AContext);
-  DebugLog('🏁 CORS MIDDLEWARE FINISHED');
-end;
-
-procedure TCorsMiddleware.AddCorsHeaders(AContext: IHttpContext);
-var
-  Origin: string;
-  RequestOrigin: string;
-begin
-  // Obter Origin do request
-  if AContext.Request.Headers.TryGetValue('Origin', RequestOrigin) then
-    Origin := RequestOrigin
-  else
-    Origin := '';
-
-  // Verificar se origin  permitida
-  if IsOriginAllowed(Origin) then
-  begin
-    AContext.Response.AddHeader('Access-Control-Allow-Origin', Origin);
-
-    if FOptions.AllowCredentials then
-      AContext.Response.AddHeader('Access-Control-Allow-Credentials', 'true');
-
-    if Length(FOptions.ExposedHeaders) > 0 then
-      AContext.Response.AddHeader('Access-Control-Expose-Headers',
-        string.Join(', ', FOptions.ExposedHeaders));
-  end
-  else if FOptions.AllowedOrigins.Contains('*') then
-  begin
-    AContext.Response.AddHeader('Access-Control-Allow-Origin', '*');
-  end;
-
-  // Headers para preflight requests
-  if AContext.Request.Method = 'OPTIONS' then
-  begin
-    if Length(FOptions.AllowedMethods) > 0 then
-      AContext.Response.AddHeader('Access-Control-Allow-Methods',
-        string.Join(', ', FOptions.AllowedMethods));
-
-    if Length(FOptions.AllowedHeaders) > 0 then
-      AContext.Response.AddHeader('Access-Control-Allow-Headers',
-        string.Join(', ', FOptions.AllowedHeaders));
-
-    if FOptions.MaxAge > 0 then
-      AContext.Response.AddHeader('Access-Control-Max-Age',
-        IntToStr(FOptions.MaxAge));
-  end;
 end;
 
 function TCorsMiddleware.IsOriginAllowed(const AOrigin: string): Boolean;
@@ -430,6 +498,11 @@ end;
 function TCorsBuilder.Build: TCorsOptions;
 begin
   EnsureInitialized;
+  if FOptions.AllowedOrigins.Contains('*') and FOptions.AllowCredentials then
+    raise Exception.Create(
+      'CORS Security Error: Combining AllowAnyOrigin ("*") with AllowCredentials ' +
+      'is forbidden by the W3C Fetch specification to prevent CSRF vulnerabilities.'
+    );
   Result := FOptions;
 end;
 

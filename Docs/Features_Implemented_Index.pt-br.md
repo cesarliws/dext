@@ -240,8 +240,16 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 
 ### 3.2 Middleware Pipeline
 - **Chain of Responsibility** — Middlewares funcionais (delegates anônimos) e baseados em classe com injeção de dependência via construtor.
-- **Built-in Middlewares** — Logger, Compression (GZip/Brotli), Exception Handling (**ProblemDetails** RFC 9457), **DeveloperExceptionPage**, CORS, StartupLock.
-- **Base Path Hosting (`UsePathBase`)** — Suporte a hospedagem sob prefixo de caminho (`app.UsePathBase('/myapp')`), remoção automática do prefixo no pipeline (`TDextPathBaseMiddleware`), preenchimento de `Request.PathBase` e gerador de URL `Request.ToAppUrl('/route')`. Registro nativo de prefixos no kernel do HTTP.sys (`http://+:8080/myapp/`).
+- **Built-in Middlewares**:
+  - **HTTP Logging (`THttpLoggingMiddleware`)** — Registro de requisições e respostas com mascaramento configurável case-insensitive (`RedactHeaders`) de cabeçalhos sensíveis (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`).
+  - **Exception Handling (`TExceptionHandlerMiddleware`)** — Tratamento global de exceções formatado conforme **RFC 9457** (Problem Details, substituindo RFC 7807), geração de `TraceId` via UUIDv7 para rastreabilidade e omissão automática de `E.Message` em produção em erros status `500`.
+  - **DeveloperExceptionPage (`TDeveloperExceptionPageMiddleware`)** — Exibição detalhada de erros e stack trace exclusiva para ambiente de desenvolvimento.
+  - **CORS (`TCorsMiddleware`)** — Suporte estrito a preflight CORS (`OPTIONS` com `Origin` e `Access-Control-Request-Method`), validação rigorosa de Origens, Métodos e Cabeçalhos solicitados com rejeição status `403 Forbidden`, fail-fast no startup contra `AllowAnyOrigin + AllowCredentials` e mesclagem limpa de `Vary: Origin`.
+  - **Rate Limiting (`TRateLimitMiddleware`)** — Controle de tráfego com cabeçalhos padronizados da **RFC 9333** (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`) emitidos em requisições permitidas e rejeitadas (status `429`).
+  - **Response Caching (`TResponseCacheMiddleware`)** — Cache de respostas HTTP server-side com proteção estrita contra armazenamento de conteúdos autenticados (`Authorization`, cookies de sessão/auth), rejeição de respostas com `Set-Cookie` ou diretivas `private`/`no-store`/`no-cache` e reconstrução automática de `Cache-Control: public, max-age=N` em cache HITs.
+  - **Compression (`TCompressionMiddleware`)** — Compactação de respostas via GZip e Brotli.
+  - **Security Headers (`TSecurityHeadersMiddleware`)** — Injeção de HSTS, `X-Content-Type-Options`, `X-Frame-Options` e `X-XSS-Protection`.
+  - **Base Path Hosting (`UsePathBase`)** — Suporte a hospedagem sob prefixo de caminho (`app.UsePathBase('/myapp')`), remoção automática do prefixo no pipeline (`TDextPathBaseMiddleware`), preenchimento de `Request.PathBase` e gerador de URL `Request.ToAppUrl('/route')`. Registro nativo de prefixos no kernel do HTTP.sys (`http://+:8080/myapp/`).
 
 ### 3.3 Routing Engine
 - **Parâmetros Dinâmicos** — Rotas com `{id}`, `{slug}`, restrições de tipo.
@@ -267,7 +275,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 
 ### 3.7 Real-time & Caching
 - **SSE (Server-Sent Events)** — Streaming unidirecional de eventos como fallback.
-- **WebSockets e Hubs SignalR** — Suporte completo ao transporte nativo WebSocket RFC 6455 com mascaramento cliente-servidor, tratamento de handshake e integração total com `Dext.Web.Hubs` para mensagens bidirecionais em tempo real, despacho para grupos e keepalives via ping/pong. Realiza o upgrade nativo de conexões HTTP via modo opaco (`HTTP_SEND_RESPONSE_FLAG_OPAQUE`) no HTTP.sys.
+- **WebSockets e Hubs SignalR** — Motor nativo autônomo de WebSockets (RFC 6455) e Dext Hubs:
+  - **Protocol Engine (`Dext.WebSocket.Protocol.pas`)**: Processamento de framing RFC 6455 (`wsText`, `wsBinary`, `wsPing`, `wsPong`, `wsClose`), mascaramento/desmascaramento vetorizado, payload 64-bit e integridade.
+  - **Handshake Engine (`Dext.WebSocket.Handshake.pas`)**: Validação de upgrade HTTP `101 Switching Protocols`, cálculo SHA-1/Base64 de `Sec-WebSocket-Accept`.
+  - **Permessage-Deflate (`Dext.WebSocket.Compression.pas`)**: Negociação e compressão **RFC 7692** via ZLib nativo (até 80% de redução no payload).
+  - **Hubs Transport (`Dext.Web.Hubs.Transport.WebSocket.pas`)**: Integração completa com `Dext.Web.Hubs` para mensageria bidirecional em tempo real, dispatching de grupos (`IHubClients`), reconexão automática e heartbeats ping/pong.
+  - **Cross-Platform I/O**: Executa sobre raw sockets com `epoll` no Linux e `WSAPoll` / `IOCP` no Windows.
 - **Cliente Hub Delphi (SignalR-compatible)** — Biblioteca cliente nativa em Delphi (`Dext.Web.Hubs.Client`) de alta performance, com suporte a transportes WebSocket e SSE, protocolos de negociação/handshake automáticos, heartbeat via ping e dispatches thread-safe com marshaling opcional para a thread principal (UI).
 - **Caching** — Motor de cache em memória e provedor de cache Redis nativo (`TRedisCacheStore`). Gera chaves de cache exclusivas para requisições HTTP QUERY calculando um hash `THashSHA1` do stream de corpo da requisição. Suporte para registro de cache de resposta no pipeline via `.UseRedisCache` no `TAppBuilder`. **Health Checks** detalhados (com plano de expansão no roadmap).
 
@@ -556,6 +569,14 @@ API fluente baseada no padrão `Should(Value)`.
 - **Native DUnit Integration** (`Dext.Testing.DUnit`) — Adaptador de runner desacoplado para DUnit que registra ouvintes customizados para trafegar resultados, metadados de tempo de execução e streams de execução para o Dext Test Explorer.
 - **Native DUnit2 Integration** (`Dext.Testing.DUnit2`) — Adaptador de runner desacoplado usando interfaces proxy para trafegar resultados em tempo real e hierarquia de suites do DUnit2 para o Dext Test Explorer.
 - **Test Context Injection** — `ITestContext` injetável via parâmetro para `WriteLine`, `AttachFile` (screenshots) e metadados de execução.
+- **Histórico e Análise de Regressão** (`Dext.Testing.History`) — Persistência e rastreamento histórico do tempo de execução e taxa de sucesso dos testes ao longo de execuções passadas para detecção de *flaky tests*.
+- **Telemetria de Testes OpenTelemetry** (`Dext.Testing.Listeners.Telemetry`) — Listener integrado de telemetria enviando métricas de execução de testes (`test_duration_ms`, `test_count_passed`, `test_count_failed`) para coletores OpenTelemetry.
+
+### 7.7 RAD Studio Expert & IDE Integration (`Dext.Testing.Design.*`)
+- **Dext Test Explorer Dockable Window** (`Dext.Testing.Design.DockableForm`) — Janela ancorável nativa no RAD Studio exibindo árvore interativa de suítes, filtros por status e busca.
+- **Gutter Margin Icons** (`Dext.Testing.Design.Gutter`) — Marcas visuais interativas na margem esquerda do editor de código do RAD Studio (verdes para sucesso, vermelhas para falhas).
+- **Servidor HTTP/SSE Local da IDE** (`Dext.Testing.Design.Server`) — Servidor de comunicação em tempo real embutido no Expert que recebe o fluxo de execução dos testes sem BPLs intermediárias.
+- **Visualizador de Cobertura de Código** (`Dext.Testing.Design.Coverage`) — Destaque direto no editor das linhas de código cobridas por testes via parsing AST (`Dext.Testing.Design.AST`).
 
 ---
 

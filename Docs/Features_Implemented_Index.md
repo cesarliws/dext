@@ -240,8 +240,16 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 
 ### 3.2 Middleware Pipeline
 - **Chain of Responsibility** — Functional (anonymous delegates) and class-based middlewares with DI constructor injection.
-- **Built-in Middlewares** — Logger, Compression (GZip/Brotli), Exception Handling (**ProblemDetails** RFC 9457), **DeveloperExceptionPage**, CORS, StartupLock.
-- **Base Path Hosting (`UsePathBase`)** — Support for serving under path prefixes (`app.UsePathBase('/myapp')`), engine-agnostic path stripping (`TDextPathBaseMiddleware`), `Request.PathBase` population, and app-relative URL builder (`Request.ToAppUrl('/route')`). Native HTTP.sys kernel prefix registration (`http://+:8080/myapp/`).
+- **Built-in Middlewares**:
+  - **HTTP Logging (`THttpLoggingMiddleware`)** — Request/response logging with configurable case-insensitive redaction (`RedactHeaders`) for sensitive headers (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`).
+  - **Exception Handling (`TExceptionHandlerMiddleware`)** — Global exception handling adhering to **RFC 9457** (Problem Details, obsoleting RFC 7807), UUIDv7 `TraceId` correlation fallback, and environment-driven `E.Message` sanitization on status 500 errors in Production mode.
+  - **DeveloperExceptionPage (`TDeveloperExceptionPageMiddleware`)** — Rich exception page and stack trace viewer for development mode.
+  - **CORS (`TCorsMiddleware`)** — Strict CORS preflight checking (`OPTIONS` with `Origin` and `Access-Control-Request-Method`), allowlist validation for Origin, Method, and Headers returning `403 Forbidden` on invalid preflights, startup fail-fast against `AllowAnyOrigin + AllowCredentials`, and clean `Vary: Origin` header merging.
+  - **Rate Limiting (`TRateLimitMiddleware`)** — Traffic control emitting standard **RFC 9333** headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`) on both allowed and HTTP 429 rejected requests.
+  - **Response Caching (`TResponseCacheMiddleware`)** — Server-side HTTP response caching with strict protection against caching authenticated requests (`Authorization`, session/auth cookies), rejection of responses with `Set-Cookie` or `private`/`no-store`/`no-cache` directives, and automatic reconstruction of `Cache-Control: public, max-age=N` headers on cache HITs.
+  - **Compression (`TCompressionMiddleware`)** — Response compression via GZip and Brotli.
+  - **Security Headers (`TSecurityHeadersMiddleware`)** — Injection of HSTS, `X-Content-Type-Options`, `X-Frame-Options`, and `X-XSS-Protection`.
+  - **Base Path Hosting (`UsePathBase`)** — Support for serving under path prefixes (`app.UsePathBase('/myapp')`), engine-agnostic path stripping (`TDextPathBaseMiddleware`), `Request.PathBase` population, and app-relative URL builder (`Request.ToAppUrl('/route')`). Native HTTP.sys kernel prefix registration (`http://+:8080/myapp/`).
 
 ### 3.3 Routing Engine
 - **Dynamic Parameters** — Routes with `{id}`, `{slug}`, and type constraints.
@@ -267,7 +275,12 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 
 ### 3.7 Real-time & Caching
 - **SSE (Server-Sent Events)** — Unidirectional event streaming fallback.
-- **WebSockets & SignalR Hubs** — Full RFC 6455 native WebSocket transport with client-to-server masking, handshake handling, and complete integration with `Dext.Web.Hubs` for real-time bi-directional messaging, group dispatching, and ping/pong keepalives. Natively upgrades HTTP connections using opaque mode (`HTTP_SEND_RESPONSE_FLAG_OPAQUE`) on HTTP.sys.
+- **WebSockets & SignalR Hubs** — Native autonomous WebSockets (RFC 6455) and Dext Hubs engine:
+  - **Protocol Engine (`Dext.WebSocket.Protocol.pas`)**: RFC 6455 framing processing (`wsText`, `wsBinary`, `wsPing`, `wsPong`, `wsClose`), vectorized masking/unmasking, 64-bit payload, and integrity validation.
+  - **Handshake Engine (`Dext.WebSocket.Handshake.pas`)**: HTTP `101 Switching Protocols` upgrade validation, SHA-1/Base64 `Sec-WebSocket-Accept` computation.
+  - **Permessage-Deflate (`Dext.WebSocket.Compression.pas`)**: Negotiation and **RFC 7692** compression via native ZLib (up to 80% payload reduction).
+  - **Hubs Transport (`Dext.Web.Hubs.Transport.WebSocket.pas`)**: Full integration with `Dext.Web.Hubs` for bi-directional real-time messaging, group dispatching (`IHubClients`), automatic reconnection, and ping/pong heartbeats.
+  - **Cross-Platform I/O**: Runs over raw sockets with **`epoll` on Linux** and `WSAPoll` / `IOCP` on Windows.
 - **Delphi Hub Client (SignalR-compatible)** — Native, high-performance Delphi client library (`Dext.Web.Hubs.Client`) supporting WebSocket and SSE transports, automated negotiate/handshake protocols, ping heartbeats, and thread-safe callbacks with optional main UI thread marshaling.
 - **Caching** — In-Memory caching engine, and native Redis cache engine (`TRedisCacheStore`). Generates unique cache keys for HTTP QUERY requests by computing a `THashSHA1` hash of the query request body stream. Support for native response cache registration via `.UseRedisCache` in `TAppBuilder`. Detailed **Health Checks** (expandable roadmap under development).
 
@@ -556,6 +569,14 @@ Fluent API based on the `Should(Value)` pattern.
 - **Native DUnit Integration** (`Dext.Testing.DUnit`) — Decoupled runner adaptation for DUnit that registers custom listeners to pipe results, duration metadata, and execution streams to the Dext Test Explorer.
 - **Native DUnit2 Integration** (`Dext.Testing.DUnit2`) — Decoupled runner adaptation using proxy interfaces to pipe real-time results and suite hierarchies from DUnit2 frameworks to the Dext Test Explorer.
 - **Test Context Injection** — `ITestContext` injectable via parameter for `WriteLine`, `AttachFile` (screenshots), and execution metadata.
+- **Execution History & Regression Analysis** (`Dext.Testing.History`) — Persistence and historical tracking of test execution times and pass rates across historical runs for flaky test detection.
+- **OpenTelemetry Test Telemetry** (`Dext.Testing.Listeners.Telemetry`) — Integrated telemetry listener piping test execution metrics (`test_duration_ms`, `test_count_passed`, `test_count_failed`) to OpenTelemetry collectors.
+
+### 7.7 RAD Studio Expert & IDE Integration (`Dext.Testing.Design.*`)
+- **Dext Test Explorer Dockable Window** (`Dext.Testing.Design.DockableForm`) — Native dockable window in RAD Studio displaying interactive test tree, status filters, and search.
+- **Gutter Margin Icons** (`Dext.Testing.Design.Gutter`) — Interactive visual icons in the left code editor margin (green checkmark for pass, red cross for failure).
+- **Embedded Local IDE HTTP/SSE Server** (`Dext.Testing.Design.Server`) — Real-time event streaming server embedded in the Expert receiving test execution streams without BPL coupling.
+- **Code Coverage Visualizer** (`Dext.Testing.Design.Coverage`) — Direct editor highlighting of lines covered by test runs via AST parsing (`Dext.Testing.Design.AST`).
 
 ---
 

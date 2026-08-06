@@ -7,12 +7,20 @@ description: Add real-time two-way communication to Dext Web APIs using SignalR-
 
 SignalR-compatible WebSocket abstraction. Server can push messages to clients; clients can invoke server methods.
 
-## Core Import
+## Core Import & Engine Architecture
 
 ```pascal
 uses
-  Dext.Web.Hubs; // THub, [HubName], Clients
+  Dext.Web.Hubs,                  // THub, [HubName], Clients
+  Dext.WebSocket.Protocol,        // RFC 6455 Framing & Opcodes
+  Dext.WebSocket.Handshake,       // HTTP 101 Switching Protocols & Sec-WebSocket-Accept
+  Dext.WebSocket.Compression;     // RFC 7692 Permessage-Deflate (ZLib up to 80% compression)
 ```
+
+### High-Performance Native Sockets & Engine
+- **Cross-Platform I/O**: Runs over raw sockets with **`epoll` on Linux** and `WSAPoll` / `IOCP` on Windows (no Apache, Nginx, or Indy dependencies).
+- **RFC 6455 Protocol**: Vectorized masking/unmasking, 64-bit payloads, ping/pong keepalives, and connection validation.
+- **Permessage-Deflate (RFC 7692)**: Transparent payload compression reducing bandwidth by up to 80%.
 
 ## Define a Hub
 

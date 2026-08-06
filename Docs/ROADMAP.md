@@ -43,7 +43,7 @@ Status | Task | Spec | Description
 📝 | **FastPath ORM Hydration** | [S57](Specs/S57-FastPath-Orm-Hydration-Optimization.md) | Zero-alloc struct/record hydration, DbSet `ExecuteToUtf8Proc` streaming, and pre-compiled RTTI mappers.
 📝 | **Generic Object Pooling** | [S58](Specs/S58-Generic-Object-Pooling.md) | High-performance lock-free generic object pool with TActivator, automatic TDbContext recycling, TRestClient pooling, and FastPath integration.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
-🟡 | **Production Middleware** | - | SPA Fallback, Forwarded Headers, and Resilience.
+✅ | **Production Middleware** | [S06](Specs/S06-Middlewares-Security-Cache-Cors.md) | Hardened Web Middlewares: HTTP Logging redaction, Problem Details RFC 9457, strict CORS preflight & Vary merge, RFC 9333 Rate Limiting, and secure Response Cache.
 
 ## 🔴 Wave 3: Enterprise & Modernization (Stability)
 Status | Task | Spec | Description

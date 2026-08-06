@@ -71,7 +71,9 @@ type
   ///   Cache entry with expiration time.
   /// </summary>
   TCacheEntry = record
+    /// <summary> Cached payload string. </summary>
     Value: string;
+    /// <summary> Expiration timestamp in UTC. </summary>
     ExpiresAt: TDateTime;
   end;
 
@@ -79,8 +81,11 @@ type
   ///   Holds full HTTP response state for caching.
   /// </summary>
   TCachedResponse = record
+    /// <summary> HTTP status code (e.g. 200 OK). </summary>
     StatusCode: Integer;
+    /// <summary> Response Content-Type header value. </summary>
     ContentType: string;
+    /// <summary> Captured response body payload. </summary>
     Body: string;
   end;
 
@@ -96,14 +101,21 @@ type
     procedure CleanupExpired;
     procedure EnforceMaxSize;
   public
+    /// <summary> Initializes a new memory cache store with specified maximum capacity. </summary>
     constructor Create(AMaxSize: Integer = 1000);
+    /// <summary> Destroys the memory store and releases critical sections. </summary>
     destructor Destroy; override;
     
+    /// <summary> Tries to retrieve a cached value by key. </summary>
     function TryGet(const AKey: string; out AValue: string): Boolean;
+    /// <summary> Stores a cached value with duration in seconds. </summary>
     procedure SetValue(const AKey: string; const AValue: string; ADurationSeconds: Integer);
+    /// <summary> Removes a cached entry by key. </summary>
     procedure Remove(const AKey: string);
+    /// <summary> Clears all cached entries. </summary>
     procedure Clear;
     
+    /// <summary> Maximum capacity of cached items before LRU eviction. </summary>
     property MaxSize: Integer read FMaxSize write FMaxSize;
   end;
 
@@ -157,41 +169,72 @@ type
     FBodyBuffer: TStringBuilder;
     FStatusCode: Integer;
   public
+    /// <summary> Creates a new response capture wrapper wrapping the original HTTP response. </summary>
     constructor Create(AOriginal: IHttpResponse);
+    /// <summary> Destroys the response capture wrapper. </summary>
     destructor Destroy; override;
     
+    /// <summary> Gets HTMX response wrapper. </summary>
     function GetHtmx: IHtmxResponse;
+    /// <summary> Gets response headers collection. </summary>
     function GetHeaders: IStringDictionary;
     
     // IHttpResponse methods
+    /// <summary> Gets current status code. </summary>
     function GetStatusCode: Integer;
+    /// <summary> Gets Content-Type header. </summary>
     function GetContentType: string;
+    /// <summary> Sets status code fluently. </summary>
     function Status(AValue: Integer): IHttpResponse;
+    /// <summary> Sets HTTP status code. </summary>
     procedure SetStatusCode(AValue: Integer);
+    /// <summary> Sets Content-Type header. </summary>
     procedure SetContentType(const AValue: string);
+    /// <summary> Sets Content-Length header. </summary>
     procedure SetContentLength(const AValue: Int64);
+    /// <summary> Writes text content to response buffer. </summary>
     procedure Write(const AContent: string); overload;
+    /// <summary> Writes byte buffer to response. </summary>
     procedure Write(const ABuffer: TBytes); overload;
+    /// <summary> Writes stream content to response. </summary>
     procedure Write(const AStream: TStream); overload;
+    /// <summary> Sends UTF-8 encoded JSON. </summary>
     procedure SendJsonUtf8(const AUtf8Json: RawByteString); overload;
+    /// <summary> Sends UTF-8 encoded JSON buffer. </summary>
     procedure SendJsonUtf8(const ABuffer: TBytes); overload;
+    /// <summary> Gets underlying output stream. </summary>
     function GetOutputStream: TStream;
+    /// <summary> Writes raw JSON string. </summary>
     procedure Json(const AJson: string); overload;
+    /// <summary> Serializes object to JSON. </summary>
     procedure Json(const AValue: TValue); overload;
+    /// <summary> Adds an HTTP response header. </summary>
     procedure AddHeader(const AName, AValue: string);
+    /// <summary> Appends a cookie with options. </summary>
     procedure AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions); overload;
+    /// <summary> Appends a simple cookie. </summary>
     procedure AppendCookie(const AName, AValue: string); overload;
+    /// <summary> Deletes a cookie by name. </summary>
     procedure DeleteCookie(const AName: string);
+    /// <summary> Redirects request to target URL. </summary>
     procedure Redirect(const AUrl: string; APermanent: Boolean = False);
+    /// <summary> Responds with HTTP 401 Unauthorized. </summary>
     procedure Unauthorized(const AMessage: string = '');
+    /// <summary> Responds with HTTP 403 Forbidden. </summary>
     procedure Forbidden(const AMessage: string = '');
+    /// <summary> Responds with HTTP 400 Bad Request. </summary>
     procedure BadRequest(const AMessage: string = '');
+    /// <summary> Responds with HTTP 404 Not Found. </summary>
     procedure NotFound(const AMessage: string = '');
+    /// <summary> Flushes buffered response to client. </summary>
     procedure Flush;
+    /// <summary> HTTP status code property. </summary>
     property StatusCode: Integer read GetStatusCode write SetStatusCode;
+    /// <summary> Content-Type property. </summary>
     property ContentType: string read GetContentType write SetContentType;
 
     // TResponseCaptureWrapper specific methods
+    /// <summary> Gets the complete captured response body text. </summary>
     function GetCapturedBody: string;
   end;
 
@@ -207,17 +250,18 @@ type
     function TryServeFromCache(AContext: IHttpContext; const AKey: string): Boolean;
     procedure CacheResponse(AContext: IHttpContext; const AKey: string; AWrapper: TResponseCaptureWrapper);
   protected
+    /// <summary> Generates a unique cache key based on request URI, query string, and headers. </summary>
     function GenerateCacheKey(AContext: IHttpContext): string;
   public
+    /// <summary> Creates a new response cache middleware with specified options. </summary>
     constructor Create(const AOptions: TResponseCacheOptions);
+    /// <summary> Destroys the response cache middleware. </summary>
     destructor Destroy; override;
     
+    /// <summary> Processes request in the pipeline, serving from cache or intercepting response for storage. </summary>
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate); override;
   end;
 
-  /// <summary>
-  ///   Fluent builder for creating cache options.
-  /// </summary>
   /// <summary>
   ///   Fluent builder for creating cache options.
   /// </summary>
@@ -307,6 +351,17 @@ type
     ///   Adds response caching using a fluent builder directly.
     /// </summary>
     class function UseResponseCache(const ABuilder: IApplicationBuilder; const ACacheBuilder: TResponseCacheBuilder): IApplicationBuilder; overload; static;
+
+    /// <summary> Alias for UseResponseCache with default settings. </summary>
+    class function UseResponseCaching(const ABuilder: IApplicationBuilder): IApplicationBuilder; overload; static; inline;
+    /// <summary> Alias for UseResponseCache with specified duration. </summary>
+    class function UseResponseCaching(const ABuilder: IApplicationBuilder; ADurationSeconds: Integer): IApplicationBuilder; overload; static; inline;
+    /// <summary> Alias for UseResponseCache with custom options. </summary>
+    class function UseResponseCaching(const ABuilder: IApplicationBuilder; const AOptions: TResponseCacheOptions): IApplicationBuilder; overload; static; inline;
+    /// <summary> Alias for UseResponseCache with a builder procedure. </summary>
+    class function UseResponseCaching(const ABuilder: IApplicationBuilder; AConfigurator: TResponseCacheBuilderProc): IApplicationBuilder; overload; static; inline;
+    /// <summary> Alias for UseResponseCache with a fluent builder. </summary>
+    class function UseResponseCaching(const ABuilder: IApplicationBuilder; const ACacheBuilder: TResponseCacheBuilder): IApplicationBuilder; overload; static; inline;
   end;
 
   /// <summary>
@@ -562,7 +617,32 @@ function TResponseCacheMiddleware.IsCacheable(AContext: IHttpContext): Boolean;
 var
   Method: string;
   CacheableMethod: string;
+  AuthHeader: string;
+  CookieHeader: string;
+  ReqCacheControl: string;
 begin
+  // 1. Prevent cache for authenticated requests via Authorization header
+  if AContext.Request.Headers.TryGetValue('Authorization', AuthHeader) and (Trim(AuthHeader) <> '') then
+    Exit(False);
+
+  // 2. Prevent cache for requests carrying session/auth cookies
+  if AContext.Request.Headers.TryGetValue('Cookie', CookieHeader) and (Trim(CookieHeader) <> '') then
+  begin
+    CookieHeader := LowerCase(CookieHeader);
+    if CookieHeader.Contains('session') or CookieHeader.Contains('token') or 
+       CookieHeader.Contains('jwt') or CookieHeader.Contains('auth') then
+      Exit(False);
+  end;
+
+  // 3. Respect request Cache-Control directives: no-store, no-cache
+  if AContext.Request.Headers.TryGetValue('Cache-Control', ReqCacheControl) then
+  begin
+    ReqCacheControl := LowerCase(ReqCacheControl);
+    if ReqCacheControl.Contains('no-store') or ReqCacheControl.Contains('no-cache') then
+      Exit(False);
+  end;
+
+  // 4. Validate allowed HTTP methods (GET, HEAD)
   Method := AContext.Request.Method;
   for CacheableMethod in FOptions.CacheableMethods do
     if SameText(Method, CacheableMethod) then
@@ -592,10 +672,13 @@ begin
     Exit; // response already written, stop pipeline
   end;
 
-  // MISS – add cache-control headers
+  // MISS – add cache-control headers only if not already specified by application
   AContext.Response.AddHeader('X-Cache', 'MISS');
-  AContext.Response.AddHeader('Cache-Control',
-    Format('public, max-age=%d', [FOptions.DefaultDuration]));
+  if not AContext.Response.Headers.ContainsKey('Cache-Control') then
+  begin
+    AContext.Response.AddHeader('Cache-Control',
+      Format('public, max-age=%d', [FOptions.DefaultDuration]));
+  end;
 
   // Wrap the response to capture the body
   OriginalResponse := AContext.Response;
@@ -609,7 +692,7 @@ begin
     // Cache the captured response
     CacheResponse(AContext, CacheKey, Wrapper);
   finally
-    // Restore original response (optional but good practice)
+    // Restore original response
     AContext.Response := OriginalResponse;
   end;
 end;
@@ -625,6 +708,11 @@ begin
   if FStore.TryGet(AKey, CachedValue) then
   begin
     AContext.Response.AddHeader('X-Cache', 'HIT');
+    if not AContext.Response.Headers.ContainsKey('Cache-Control') then
+    begin
+      AContext.Response.AddHeader('Cache-Control',
+        Format('public, max-age=%d', [FOptions.DefaultDuration]));
+    end;
     if CachedValue.StartsWith('{"StatusCode":') or
        CachedValue.StartsWith('{"statusCode":') then
     begin
@@ -647,10 +735,9 @@ begin
       AContext.Response.Json(CachedValue)
     else
       AContext.Response.Write(CachedValue);
-    Result := True;
-  end
-  else
-    Result := False;
+    Exit(True);
+  end;
+  Result := False;
 end;
 
 procedure TResponseCacheMiddleware.CacheResponse(
@@ -662,11 +749,31 @@ var
   Body: string;
   CachedResponse: TCachedResponse;
   Serialized: string;
+  StatusCode: Integer;
+  ResCacheControl: string;
+  SetCookieHeader: string;
 begin
+  StatusCode := AWrapper.GetStatusCode;
+  // Cache ONLY 200 OK responses
+  if StatusCode <> 200 then
+    Exit;
+
+  // Do NOT cache responses setting cookies
+  if AContext.Response.Headers.TryGetValue('Set-Cookie', SetCookieHeader) and (Trim(SetCookieHeader) <> '') then
+    Exit;
+
+  // Do NOT cache responses with private/no-store/no-cache
+  if AContext.Response.Headers.TryGetValue('Cache-Control', ResCacheControl) then
+  begin
+    ResCacheControl := LowerCase(ResCacheControl);
+    if ResCacheControl.Contains('private') or ResCacheControl.Contains('no-store') or ResCacheControl.Contains('no-cache') then
+      Exit;
+  end;
+
   Body := AWrapper.GetCapturedBody;
   if not Body.IsEmpty then
   begin
-    CachedResponse.StatusCode := AWrapper.GetStatusCode;
+    CachedResponse.StatusCode := StatusCode;
     CachedResponse.ContentType := AWrapper.GetContentType;
     CachedResponse.Body := Body;
     Serialized := TDextJson.Serialize(CachedResponse);
@@ -985,6 +1092,36 @@ class function TApplicationBuilderCacheExtensions.UseResponseCache(
 begin
   // Register as Singleton
   Result := ABuilder.UseMiddleware(TResponseCacheMiddleware.Create(ACacheBuilder.Build));
+end;
+
+class function TApplicationBuilderCacheExtensions.UseResponseCaching(
+  const ABuilder: IApplicationBuilder): IApplicationBuilder;
+begin
+  Result := UseResponseCache(ABuilder);
+end;
+
+class function TApplicationBuilderCacheExtensions.UseResponseCaching(
+  const ABuilder: IApplicationBuilder; ADurationSeconds: Integer): IApplicationBuilder;
+begin
+  Result := UseResponseCache(ABuilder, ADurationSeconds);
+end;
+
+class function TApplicationBuilderCacheExtensions.UseResponseCaching(
+  const ABuilder: IApplicationBuilder; const AOptions: TResponseCacheOptions): IApplicationBuilder;
+begin
+  Result := UseResponseCache(ABuilder, AOptions);
+end;
+
+class function TApplicationBuilderCacheExtensions.UseResponseCaching(
+  const ABuilder: IApplicationBuilder; AConfigurator: TResponseCacheBuilderProc): IApplicationBuilder;
+begin
+  Result := UseResponseCache(ABuilder, AConfigurator);
+end;
+
+class function TApplicationBuilderCacheExtensions.UseResponseCaching(
+  const ABuilder: IApplicationBuilder; const ACacheBuilder: TResponseCacheBuilder): IApplicationBuilder;
+begin
+  Result := UseResponseCache(ABuilder, ACacheBuilder);
 end;
 
 { TResponseCacheOptionsHelper }
