@@ -236,6 +236,10 @@ type
     FSendFileFd: Integer;
     FSendFileOffset: Int64;
     FSendFileLen: Int64;
+    // Separate buffer for HTTP response headers (must precede body on wire).
+    // Never written to FResponseWriter to guarantee correct send order.
+    FHeaderBuf: TBytes;
+    FHeaderLen: Integer;
   public
     /// <summary>Initializes a new epoll response wrapper.</summary>
     /// <param name="AContext">The connection context.</param>
@@ -1160,13 +1164,19 @@ begin
   if FContext.FTLS <> nil then
   begin
     SegCount := FResponseWriter.SegmentCount;
-    PlainLength := 0;
+    // Headers must precede body in the plaintext stream for TLS.
+    PlainLength := FHeaderLen;
     for I := 0 to SegCount - 1 do
       Inc(PlainLength, FResponseWriter.Segments[I].Length);
     if PlainLength > 0 then
     begin
       SetLength(Plaintext, PlainLength);
       PlainOffset := 0;
+      if FHeaderLen > 0 then
+      begin
+        Move(FHeaderBuf[0], Plaintext[0], FHeaderLen);
+        PlainOffset := FHeaderLen;
+      end;
       for I := 0 to SegCount - 1 do
       begin
         Move(FResponseWriter.Segments[I].Data^, Plaintext[PlainOffset],
@@ -1199,23 +1209,28 @@ begin
     Exit;
   end;
 
-  SegCount := FResponseWriter.SegmentCount;
-  if SegCount <= 0 then
-    goto SendFileCheck;
+  // Headers iovec MUST be first — placed before any body segments.
+  IovCnt := 0;
+  if FHeaderLen > 0 then
+  begin
+    Iov[0].iov_base := @FHeaderBuf[0];
+    Iov[0].iov_len  := FHeaderLen;
+    IovCnt := 1;
+  end;
 
-  TotalBytes := 0;
+  SegCount := FResponseWriter.SegmentCount;
+  TotalBytes := FHeaderLen;
   for I := 0 to SegCount - 1 do
     TotalBytes := TotalBytes + FResponseWriter.Segments[I].Length;
 
   if TotalBytes <= 0 then
     goto SendFileCheck;
 
-  IovCnt := 0;
   for I := 0 to SegCount - 1 do
   begin
     if IovCnt >= Length(Iov) then Break;
     Iov[IovCnt].iov_base := FResponseWriter.Segments[I].Data;
-    Iov[IovCnt].iov_len := FResponseWriter.Segments[I].Length;
+    Iov[IovCnt].iov_len  := FResponseWriter.Segments[I].Length;
     Inc(IovCnt);
   end;
 
@@ -1240,7 +1255,11 @@ begin
       FContext.FWriteSegIndex := 0;
       FContext.FWriteSegOffset := 0;
 
-      TDextBufferCursor.Advance(@FContext.FWriteSegments[0], SegCount, Res,
+      // Subtract bytes consumed by the header iovec (already sent)
+      // before advancing through body segments.
+      var BodyWritten := Res - Min(FHeaderLen, Res);
+      TDextBufferCursor.Advance(@FContext.FWriteSegments[0], SegCount,
+        BodyWritten,
         FContext.FWriteSegIndex, FContext.FWriteSegOffset);
 
       // Ownership of every segment is now represented by FWriteSegments.
@@ -1375,7 +1394,11 @@ begin
 
   AppendStr(#13#10, TempBuf, BufferOffset);
 
-  FResponseWriter.Write(TByteSpan.Create(@TempBuf[0], BufferOffset));
+  // Store headers in a dedicated buffer — NOT in FResponseWriter —
+  // so the Flush() writev places headers strictly before body segments.
+  SetLength(FHeaderBuf, BufferOffset);
+  Move(TempBuf[0], FHeaderBuf[0], BufferOffset);
+  FHeaderLen := BufferOffset;
   FHeadersSent := True;
 end;
 
@@ -1399,15 +1422,19 @@ begin
     FReason := 'OK';
 end;
 
-procedure TDextEpollResponse.Write(const ABuffer: TBytes; AOffset, ACount: Integer);
+procedure TDextEpollResponse.Write(
+  const ABuffer: TBytes; AOffset, ACount: Integer);
 begin
   if FContext.FGeneration <> FGeneration then Exit;
   if ACount <= 0 then Exit;
-
-  if not FHeadersSent then
-    SendHeaders;
-
-  FResponseWriter.Write(TByteSpan.Create(@ABuffer[AOffset], ACount));
+  // NOTE: Do NOT call SendHeaders here.
+  // Content-Length is computed from all accumulated segments
+  // in SendHeaders, which is called by Flush/Close once the
+  // handler has finished writing the complete body.
+  // Calling SendHeaders here would emit Content-Length: 0
+  // because no segments exist yet at this point.
+  FResponseWriter.Write(
+    TByteSpan.Create(@ABuffer[AOffset], ACount));
 end;
 
 procedure TDextEpollResponse.WriteFile(const APath: string; AOffset, ACount: Int64);
@@ -1442,10 +1469,12 @@ procedure TDextEpollResponse.WriteBytes(AData: Pointer; ALength: Integer);
 begin
   if ALength <= 0 then
     Exit;
-  if not FHeadersSent then
-    SendHeaders;
+  // NOTE: Do NOT call SendHeaders here — same reason as Write().
+  // Content-Length is computed in SendHeaders from all segments,
+  // which is invoked by Flush/Close after the handler completes.
   FResponseWriter.Write(TByteSpan.Create(AData, ALength));
 end;
+
 
 { TDextEpollWorker }
 
