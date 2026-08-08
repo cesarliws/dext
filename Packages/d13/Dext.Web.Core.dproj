@@ -179,6 +179,7 @@
         <DCCReference Include="..\..\Sources\Web\Dext.Web.Utf8.pas"/>
         <DCCReference Include="..\..\Sources\Server\Dext.WebSocket.Compression.pas"/>
         <DCCReference Include="..\..\Sources\Web\Dext.Web.PathBase.pas"/>
+        <DCCReference Include="..\..\Sources\Web\Dext.Web.SecurityHeaders.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>

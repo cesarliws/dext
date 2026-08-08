@@ -188,15 +188,30 @@ begin
     begin
       // Rate limit exceeded
       AContext.Response.Status(FConfig.RejectionStatusCode);
+      AContext.Response.AddHeader('X-RateLimit-Limit', IntToStr(LimitResult.Limit));
+      AContext.Response.AddHeader('X-RateLimit-Remaining', '0');
+      AContext.Response.AddHeader('RateLimit-Limit', IntToStr(LimitResult.Limit));
+      AContext.Response.AddHeader('RateLimit-Remaining', '0');
       if LimitResult.RetryAfter > 0 then
+      begin
+        AContext.Response.AddHeader('X-RateLimit-Reset', IntToStr(LimitResult.RetryAfter));
+        AContext.Response.AddHeader('RateLimit-Reset', IntToStr(LimitResult.RetryAfter));
         AContext.Response.AddHeader('Retry-After', IntToStr(LimitResult.RetryAfter));
+      end;
       AContext.Response.Json(Format('{"error":"%s"}', [FConfig.RejectionMessage]));
       Exit;
     end;
     
-    // Allow request
+    // Allow request (RFC 9333 & Legacy headers)
     AContext.Response.AddHeader('X-RateLimit-Limit', IntToStr(LimitResult.Limit));
     AContext.Response.AddHeader('X-RateLimit-Remaining', IntToStr(LimitResult.Remaining));
+    AContext.Response.AddHeader('RateLimit-Limit', IntToStr(LimitResult.Limit));
+    AContext.Response.AddHeader('RateLimit-Remaining', IntToStr(LimitResult.Remaining));
+    if LimitResult.RetryAfter > 0 then
+    begin
+      AContext.Response.AddHeader('X-RateLimit-Reset', IntToStr(LimitResult.RetryAfter));
+      AContext.Response.AddHeader('RateLimit-Reset', IntToStr(LimitResult.RetryAfter));
+    end;
     
     try
       ANext(AContext);

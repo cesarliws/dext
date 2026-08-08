@@ -78,6 +78,7 @@ uses
   Dext.Web.Pipeline,
   Dext.Web.PathBase,
   Dext.Web.Results,
+  Dext.Web.SecurityHeaders,
   Dext.Web.View,
   Dext.Web.View.Native,
   {$IFDEF DEXT_ENABLE_WEB_STENCILS}
@@ -426,13 +427,22 @@ type
   EForbiddenException = Dext.Web.Middleware.EForbiddenException;
   EValidationException = Dext.Web.Middleware.EValidationException;
   TExceptionHandlerOptions = Dext.Web.Middleware.TExceptionHandlerOptions;
+  TExceptionHandlerBuilder = Dext.Web.Middleware.TExceptionHandlerBuilder;
   TProblemDetails = Dext.Web.Middleware.TProblemDetails;
   TExceptionHandlerMiddleware = Dext.Web.Middleware.TExceptionHandlerMiddleware;
   THttpLoggingOptions = Dext.Web.Middleware.THttpLoggingOptions;
+  THttpLoggingBuilder = Dext.Web.Middleware.THttpLoggingBuilder;
   THttpLoggingMiddleware = Dext.Web.Middleware.THttpLoggingMiddleware;
 
   // Dext.Web.Middleware.Compression
+  TCompressionOptions = Dext.Web.Middleware.Compression.TCompressionOptions;
+  TCompressionBuilder = Dext.Web.Middleware.Compression.TCompressionBuilder;
   TCompressionMiddleware = Dext.Web.Middleware.Compression.TCompressionMiddleware;
+
+  // Dext.Web.SecurityHeaders
+  TSecurityHeadersOptions = Dext.Web.SecurityHeaders.TSecurityHeadersOptions;
+  TSecurityHeadersBuilder = Dext.Web.SecurityHeaders.TSecurityHeadersBuilder;
+  TSecurityHeadersMiddleware = Dext.Web.SecurityHeaders.TSecurityHeadersMiddleware;
 
   // Dext.Web.Middleware.Extensions
   TApplicationBuilderMiddlewareExtensions = Dext.Web.Middleware.Extensions.TApplicationBuilderMiddlewareExtensions;
@@ -729,10 +739,6 @@ type
     ///   Adds CORS middleware to the pipeline using the provided options.
     /// </summary>
     function UseCors(const AOptions: TCorsOptions): AppBuilder; overload;
-    
-    /// <summary>
-    ///   Adds CORS middleware to the pipeline using a configuration delegate.
-    /// </summary>
     function UseCors(AConfigurator: TProc<TCorsBuilder>): AppBuilder; overload;
     
     /// <summary>
@@ -846,9 +852,17 @@ type
     function UseStartupLock: AppBuilder;
     function UseExceptionHandler: AppBuilder; overload;
     function UseExceptionHandler(const AOptions: TExceptionHandlerOptions): AppBuilder; overload;
+    function UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): AppBuilder; overload;
     function UseDeveloperExceptionPage: AppBuilder;
     function UseHttpLogging: AppBuilder; overload;
     function UseHttpLogging(const AOptions: THttpLoggingOptions): AppBuilder; overload;
+    function UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): AppBuilder; overload;
+    function UseCompression: AppBuilder; overload;
+    function UseCompression(const AOptions: TCompressionOptions): AppBuilder; overload;
+    function UseCompression(AConfigurator: TProc<TCompressionBuilder>): AppBuilder; overload;
+    function UseSecurityHeaders: AppBuilder; overload;
+    function UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): AppBuilder; overload;
+    function UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): AppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 🚦 Rate Limiting
@@ -860,6 +874,8 @@ type
     // -------------------------------------------------------------------------
     function UseResponseCache(AConfigurator: TResponseCacheBuilderProc): AppBuilder; overload;
     function UseResponseCache(const ACacheBuilder: TResponseCacheBuilder): AppBuilder; overload;
+    function UseResponseCaching(AConfigurator: TResponseCacheBuilderProc): AppBuilder; overload;
+    function UseResponseCaching(const ACacheBuilder: TResponseCacheBuilder): AppBuilder; overload;
 
     function MapEndpoints(AMapper: TProc<TAppBuilder>): TAppBuilder;
     function MapDataApis: TAppBuilder;
@@ -1023,6 +1039,10 @@ type
 
 function WebApplication: IWebApplication;
 function CorsOptions: TCorsBuilder;
+function CompressionOptions: TCompressionBuilder;
+function ExceptionHandlerOptions: TExceptionHandlerBuilder;
+function HttpLoggingOptions: THttpLoggingBuilder;
+function SecurityHeadersOptions: TSecurityHeadersBuilder;
 function JwtOptions(const ASecretKey: string): TJwtOptionsBuilder;
 function ResponseCacheOptions: TResponseCacheBuilder;
 function SwaggerOptions: TOpenAPIBuilder;
@@ -1047,6 +1067,26 @@ end;
 function CorsOptions: TCorsBuilder;
 begin
   Result := TCorsBuilder.Create;
+end;
+
+function CompressionOptions: TCompressionBuilder;
+begin
+  Result := TCompressionBuilder.Create;
+end;
+
+function ExceptionHandlerOptions: TExceptionHandlerBuilder;
+begin
+  Result := TExceptionHandlerBuilder.Create;
+end;
+
+function HttpLoggingOptions: THttpLoggingBuilder;
+begin
+  Result := THttpLoggingBuilder.Create;
+end;
+
+function SecurityHeadersOptions: TSecurityHeadersBuilder;
+begin
+  Result := TSecurityHeadersBuilder.Create;
 end;
 
 function JwtOptions(const ASecretKey: string): TJwtOptionsBuilder;
@@ -1145,6 +1185,12 @@ begin
   Result := Self;
 end;
 
+function THttpAppBuilderHelper.UseCors(AConfigurator: TProc<TCorsBuilder>): AppBuilder;
+begin
+  TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap, AConfigurator);
+  Result := Self;
+end;
+
 function THttpAppBuilderHelper.UseStartupLock: AppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseStartupLock(Self.Unwrap);
@@ -1163,6 +1209,16 @@ begin
   Result := Self;
 end;
 
+function THttpAppBuilderHelper.UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): AppBuilder;
+var
+  Builder: TExceptionHandlerBuilder;
+begin
+  Builder := TExceptionHandlerBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  Result := UseExceptionHandler(Builder.Build);
+end;
+
 function THttpAppBuilderHelper.UseHttpLogging: AppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseHttpLogging(Self.Unwrap);
@@ -1175,10 +1231,56 @@ begin
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseCors(AConfigurator: TProc<TCorsBuilder>): AppBuilder;
+function THttpAppBuilderHelper.UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): AppBuilder;
+var
+  Builder: THttpLoggingBuilder;
 begin
-  TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap, AConfigurator);
+  Builder := THttpLoggingBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  Result := UseHttpLogging(Builder.Build);
+end;
+
+function THttpAppBuilderHelper.UseCompression(const AOptions: TCompressionOptions): AppBuilder;
+begin
+  Self.Unwrap.UseMiddleware(TCompressionMiddleware.Create(AOptions));
   Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseCompression(AConfigurator: TProc<TCompressionBuilder>): AppBuilder;
+var
+  Builder: TCompressionBuilder;
+begin
+  Builder := TCompressionBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  Result := UseCompression(Builder.Build);
+end;
+
+function THttpAppBuilderHelper.UseCompression: AppBuilder;
+begin
+  Result := UseCompression(TCompressionOptions.Create);
+end;
+
+function THttpAppBuilderHelper.UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): AppBuilder;
+begin
+  Self.Unwrap.UseMiddleware(TSecurityHeadersMiddleware.Create(AOptions));
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): AppBuilder;
+var
+  Builder: TSecurityHeadersBuilder;
+begin
+  Builder := TSecurityHeadersBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  Result := UseSecurityHeaders(Builder.Build);
+end;
+
+function THttpAppBuilderHelper.UseSecurityHeaders: AppBuilder;
+begin
+  Result := UseSecurityHeaders(TSecurityHeadersOptions.Create);
 end;
 
 function THttpAppBuilderHelper.UseJwtAuthentication(const AOptions: TJwtOptions): AppBuilder;
@@ -1336,8 +1438,19 @@ begin
   Result := Self;
 end;
 
-
 function THttpAppBuilderHelper.UseResponseCache(const ACacheBuilder: TResponseCacheBuilder): AppBuilder;
+begin
+  TApplicationBuilderCacheExtensions.UseResponseCache(Self.Unwrap, ACacheBuilder);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseResponseCaching(AConfigurator: TResponseCacheBuilderProc): AppBuilder;
+begin
+  TApplicationBuilderCacheExtensions.UseResponseCache(Self.Unwrap, AConfigurator);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseResponseCaching(const ACacheBuilder: TResponseCacheBuilder): AppBuilder;
 begin
   TApplicationBuilderCacheExtensions.UseResponseCache(Self.Unwrap, ACacheBuilder);
   Result := Self;
@@ -1790,10 +1903,10 @@ end;
 
 function TWebServicesHelper.AddWebStencils(AConfig: TProc<TViewOptions>): TDextServices;
 var
-  LConfig: TProc<TViewOptions>;
+  ConfigProc: TProc<TViewOptions>;
 begin
   Result := Self;
-  LConfig := AConfig;
+  ConfigProc := AConfig;
   TWebStencilsViewEngine.RegisterWebStencilsFunctions;
   Self.AddSingleton<IViewEngine, TWebStencilsViewEngine>(
     function(Provider: IServiceProvider): TObject
@@ -1801,8 +1914,8 @@ begin
       Options: TViewOptions;
     begin
       Options := TViewOptions.Create;
-      if Assigned(LConfig) then
-        LConfig(Options);
+      if Assigned(ConfigProc) then
+        ConfigProc(Options);
       Result := TWebStencilsViewEngine.Create(Options);
     end);
 end;
@@ -1843,17 +1956,17 @@ end;
 
 function TWebServicesHelper.AddDextTemplating(AConfig: TProc<TViewOptions>): TDextServices;
 var
-  LConfig: TProc<TViewOptions>;
+  ConfigProc: TProc<TViewOptions>;
 begin
-  LConfig := AConfig;
+  ConfigProc := AConfig;
   Result := Self.AddSingleton<IViewEngine, TDextNativeViewEngine>(
     function(Provider: IServiceProvider): TObject
     var
       Options: TViewOptions;
     begin
       Options := TViewOptions.Create;
-      if Assigned(LConfig) then
-        LConfig(Options);
+      if Assigned(ConfigProc) then
+        ConfigProc(Options);
       Result := TDextNativeViewEngine.Create(Options);
     end);
 end;

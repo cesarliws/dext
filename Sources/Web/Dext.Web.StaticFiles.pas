@@ -40,16 +40,24 @@ type
   /// <summary>
   ///   MIME type provider based on file extensions.
   /// </summary>
+  /// <summary>
+  ///   MIME type provider based on file extensions.
+  /// </summary>
   TContentTypeProvider = class
   private
     FMimeTypes: IDictionary<string, string>;
     class function NormalizeExtension(const AExtension: string): string; static;
     procedure RegisterDefaults;
   public
+    /// <summary> Creates a new TContentTypeProvider with default MIME type mappings. </summary>
     constructor Create;
+    /// <summary> Destroys TContentTypeProvider. </summary>
     destructor Destroy; override;
+    /// <summary> Registers or updates a MIME type mapping for an extension. </summary>
     procedure AddOrUpdate(const AExtension, AContentType: string);
+    /// <summary> Loads custom MIME type mappings from a JSON mapping file. </summary>
     function LoadFromFile(const AFilePath: string): Integer;
+    /// <summary> Tries to retrieve the Content-Type for a given file name or extension. </summary>
     function TryGetContentType(const AFileName: string; out AContentType: string): Boolean;
   end;
 
@@ -57,13 +65,44 @@ type
   ///   Configuration options for the static file server.
   /// </summary>
   TStaticFileOptions = record
+    /// <summary> Root physical path on disk serving static files (e.g. './wwwroot'). </summary>
     RootPath: string;
+    /// <summary> Default file name to serve when a directory URL is requested (e.g. 'index.html'). </summary>
     DefaultFile: string;
+    /// <summary> Whether to serve unknown file extensions with fallback octet-stream Content-Type. </summary>
     ServeUnknownFileTypes: Boolean;
+    /// <summary> Custom Content-Type provider instance. </summary>
     ContentTypeProvider: TContentTypeProvider;
+    /// <summary> Path to external JSON MIME type mapping file. </summary>
     MimeTypesFile: string;
     
+    /// <summary> Creates default TStaticFileOptions. </summary>
     class function Create: TStaticFileOptions; static;
+  end;
+
+  /// <summary> Fluent builder for TStaticFileOptions. </summary>
+  TStaticFileBuilder = record
+  private
+    FOptions: TStaticFileOptions;
+    FInitialized: Boolean;
+    procedure EnsureInitialized;
+  public
+    /// <summary> Creates a new static file builder. </summary>
+    class function Create: TStaticFileBuilder; static;
+    /// <summary> Configures root path for static file server. </summary>
+    function RootPath(const APath: string): TStaticFileBuilder;
+    /// <summary> Configures default file name (e.g. 'index.html'). </summary>
+    function DefaultFile(const AFile: string): TStaticFileBuilder;
+    /// <summary> Configures whether to serve unknown file types. </summary>
+    function ServeUnknownFileTypes(AValue: Boolean = True): TStaticFileBuilder;
+    /// <summary> Sets a custom content type provider. </summary>
+    function ContentTypeProvider(AProvider: TContentTypeProvider): TStaticFileBuilder;
+    /// <summary> Sets custom MIME types mapping file path. </summary>
+    function MimeTypesFile(const AFilePath: string): TStaticFileBuilder;
+    /// <summary> Builds and returns TStaticFileOptions. </summary>
+    function Build: TStaticFileOptions;
+    /// <summary> Implicit conversion operator from builder to options. </summary>
+    class operator Implicit(const ABuilder: TStaticFileBuilder): TStaticFileOptions;
   end;
 
   /// <summary>
@@ -77,18 +116,30 @@ type
     function GetContentType(const AFileName: string): string;
     procedure ServeFile(AContext: IHttpContext; const AFilePath: string);
   public
+    /// <summary> Creates a new static file middleware instance with specified options. </summary>
     constructor Create(const AOptions: TStaticFileOptions);
+    /// <summary> Destroys static file middleware instance. </summary>
     destructor Destroy; override;
 
+    /// <summary> Invokes static file middleware logic in the HTTP pipeline. </summary>
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate); override;
   end;
 
+  /// <summary> Extension methods for adding static files middleware to IApplicationBuilder. </summary>
   TApplicationBuilderStaticFilesExtensions = class
   public
+    /// <summary> Enables static files middleware with default options. </summary>
     class function UseStaticFiles(const ABuilder: IApplicationBuilder): IApplicationBuilder; overload;
+    /// <summary> Enables static files middleware with custom options record. </summary>
     class function UseStaticFiles(const ABuilder: IApplicationBuilder; const AOptions: TStaticFileOptions): IApplicationBuilder; overload;
+    /// <summary> Enables static files middleware with custom root path string. </summary>
     class function UseStaticFiles(const ABuilder: IApplicationBuilder; const ARootPath: string): IApplicationBuilder; overload;
+    /// <summary> Enables static files middleware with a fluent builder. </summary>
+    class function UseStaticFiles(const ABuilder: IApplicationBuilder; const ABuilderObj: TStaticFileBuilder): IApplicationBuilder; overload;
   end;
+
+/// <summary> Factory function returning a fluent TStaticFileBuilder instance. </summary>
+function StaticFileOptions: TStaticFileBuilder;
 
 implementation
 
@@ -379,6 +430,81 @@ begin
   // ✅ Instantiate Singleton Middleware
   Middleware := TStaticFileMiddleware.Create(Options);
   Result := ABuilder.UseMiddleware(Middleware);
+end;
+
+class function TApplicationBuilderStaticFilesExtensions.UseStaticFiles(
+  const ABuilder: IApplicationBuilder;
+  const ABuilderObj: TStaticFileBuilder): IApplicationBuilder;
+begin
+  Result := UseStaticFiles(ABuilder, ABuilderObj.Build);
+end;
+
+function StaticFileOptions: TStaticFileBuilder;
+begin
+  Result := TStaticFileBuilder.Create;
+end;
+
+{ TStaticFileBuilder }
+
+class function TStaticFileBuilder.Create: TStaticFileBuilder;
+begin
+  Result.FOptions := TStaticFileOptions.Create;
+  Result.FInitialized := True;
+end;
+
+procedure TStaticFileBuilder.EnsureInitialized;
+begin
+  if not FInitialized then
+  begin
+    FOptions := TStaticFileOptions.Create;
+    FInitialized := True;
+  end;
+end;
+
+function TStaticFileBuilder.RootPath(const APath: string): TStaticFileBuilder;
+begin
+  EnsureInitialized;
+  FOptions.RootPath := APath;
+  Result := Self;
+end;
+
+function TStaticFileBuilder.DefaultFile(const AFile: string): TStaticFileBuilder;
+begin
+  EnsureInitialized;
+  FOptions.DefaultFile := AFile;
+  Result := Self;
+end;
+
+function TStaticFileBuilder.ServeUnknownFileTypes(AValue: Boolean): TStaticFileBuilder;
+begin
+  EnsureInitialized;
+  FOptions.ServeUnknownFileTypes := AValue;
+  Result := Self;
+end;
+
+function TStaticFileBuilder.ContentTypeProvider(AProvider: TContentTypeProvider): TStaticFileBuilder;
+begin
+  EnsureInitialized;
+  FOptions.ContentTypeProvider := AProvider;
+  Result := Self;
+end;
+
+function TStaticFileBuilder.MimeTypesFile(const AFilePath: string): TStaticFileBuilder;
+begin
+  EnsureInitialized;
+  FOptions.MimeTypesFile := AFilePath;
+  Result := Self;
+end;
+
+function TStaticFileBuilder.Build: TStaticFileOptions;
+begin
+  EnsureInitialized;
+  Result := FOptions;
+end;
+
+class operator TStaticFileBuilder.Implicit(const ABuilder: TStaticFileBuilder): TStaticFileOptions;
+begin
+  Result := ABuilder.Build;
 end;
 
 end.
