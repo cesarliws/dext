@@ -675,21 +675,23 @@ API fluente baseada no padrão `Should(Value)`.
 
 ---
 
-## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding`)
+## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding` / `Apps\CLI`)
 
-- **Dext CLI (S01)** — Motor CLI unificado (`dext.exe`) para gerenciamento de projetos.
-- **Advanced Scaffolding** — Geração de projetos e arquivos via templates inteligentes: `dext new` (projetos), `dext add` (controllers, entidades, middlewares).
-- **Template Logic** — Integração direta com o motor **Dext.Templating** para lógica complexa dentro dos templates de scaffolding.
-- **Dext Doc** — Geração automatizada de documentação técnica do projeto.
-- **`dext test`** — Execução de testes e geração de relatórios de cobertura via CLI.
-- **`dext ui`** — Dashboard web para monitoramento de testes em tempo real.
-- **`dext index`** — Mapeamento e indexação de todos os símbolos públicos (classes, records, interfaces, métodos, etc.) com números de linha em Markdown, JSON e CSV para agentes de IA e NotebookLM.
+- **Dext CLI (S01)** — Motor CLI unificado (`dext.exe`) para gerenciamento de projetos e automação de desenvolvimento.
+- **Advanced Scaffolding** — Geração de projetos e arquivos via templates inteligentes: `dext new` (projetos), `dext scaffold` (controllers, entidades ORM, DTOs, middlewares).
+- **`dext dev-certs`** — Provisionador nativo CryptoAPI de certificados X.509 de desenvolvimento local com extensão SAN e registro automático no Root Certificate Store.
+- **`dext test --coverage`** — Executor de suítes de testes unitários com **análise completa de cobertura de código (*Code Coverage*)** via arquivos de mapa (`.map`) e exportação XML para **SonarQube** (`--sonar`).
+- **`dext migrate [up|down|list|generate]`** — Gerenciador CLI de migrações de esquema de banco de dados para o Dext ORM.
+- **`dext doc`** — Geração automatizada de documentação técnica estática HTML e mapas visuais de rotas.
+- **`dext ui`** — Dashboard web local em tempo real para acompanhamento visual de suítes de teste e métricas.
+- **`dext index`** — Mapeamento e indexação de todos os símbolos públicos (classes, records, interfaces, métodos) em Markdown, JSON e CSV otimizados para consumo por agentes de IA e NotebookLM.
 
 ---
 
-## 🔍 14. Observabilidade & Telemetria (`Sources\Core\Base`)
+## 🔍 14. Observabilidade & Telemetria (`Sources\Core\Base` / `Apps\Sidecar`)
 
 - **TDiagnosticSource (S03)** — Publicador de eventos centralizado baseado em payloads JSON, garantindo desacoplamento entre produtores (ORM, Web) e consumidores.
+- **Dext Sidecar (`DextSidecar.exe`)** — Aplicação nativa acoplada para monitoramento em tempo real (`Dext.Services.FileWatcher.pas`), streaming de logs (`Dext.Sidecar.LogStreamer.pas`), servidor web de telemetria (`TSidecarServer`) e interface System Tray VCL (`Dext.Vcl.TrayIcon.pas`).
 - **Telemetry Bridge** (`Dext.Logging.Telemetry`) — Integração automática com `ILogger`, permitindo visualizar telemetria HTTP e SQL no console ou arquivos de log.
 - **SQL Capture** — Extração e formatação de instruções SQL nativas do ORM para auditoria em tempo real.
 - **HTTP Life-cycle** — Tracing de latência, códigos de status e rotas do framework web.

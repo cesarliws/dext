@@ -675,20 +675,24 @@ Fluent API based on the `Should(Value)` pattern.
 
 ---
 
-## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding`)
+## 🛠️ 13. Dext CLI & Scaffolding (`Tools\Dext.Tool.Scaffolding` / `Apps\CLI`)
 
-- **Dext CLI (S01)** — Unified CLI engine (`dext.exe`) for project management.
-- **Advanced Scaffolding** — Project and file generation via smart templates: `dext new` (projects), `dext add` (controllers, entities, middlewares).
-- **Template Logic** — Direct integration with **Dext.Templating** for complex logic within scaffolding templates.
-- **Dext Doc** — Automated technical project documentation generation.
-- **`dext test`** — CLI-based test execution and coverage report generation.
-- **`dext ui`** — Web dashboard for real-time test monitoring.
+- **Dext CLI (S01)** — Unified CLI engine (`dext.exe`) for project management and development automation.
+- **Advanced Scaffolding** — Project and file generation via smart templates: `dext new` (projects), `dext scaffold` (controllers, ORM entities, DTOs, middlewares).
+- **`dext dev-certs`** — Native CryptoAPI provisioner for local development X.509 certificates with SAN extension and automatic Root Certificate Store trust.
+- **`dext test --coverage`** — Automated unit test suite runner with **complete Code Coverage analysis** via `.map` files and XML export for **SonarQube** (`--sonar`).
+- **`dext migrate [up|down|list|generate]`** — CLI manager for Dext ORM database schema migrations.
+- **`dext doc`** — Automated static HTML technical documentation generator with interactive route visual maps.
+- **`dext ui`** — Real-time local web dashboard for visual monitoring of test suites and metrics.
+- **`dext index`** — Indexing of all public symbols (classes, records, interfaces, methods) in Markdown, JSON, and CSV optimized for AI agents and NotebookLM.
 
 ---
 
-## 🔍 14. Observability & Telemetry (`Sources\Core\Base`)
+
+## 🔍 14. Observability & Telemetry (`Sources\Core\Base` / `Apps\Sidecar`)
 
 - **TDiagnosticSource (S03)** — Centralized event publisher based on JSON payloads, ensuring decoupling between producers (ORM, Web) and consumers.
+- **Dext Sidecar (`DextSidecar.exe`)** — Sidecar native process for real-time file watching (`Dext.Services.FileWatcher.pas`), log streaming (`Dext.Sidecar.LogStreamer.pas`), embedded telemetry web server (`TSidecarServer`), and System Tray VCL interface (`Dext.Vcl.TrayIcon.pas`).
 - **Telemetry Bridge** (`Dext.Logging.Telemetry`) — Automatic `ILogger` integration, enabling HTTP and SQL telemetry visualization in console or log files.
 - **SQL Capture** — ORM native SQL instruction extraction and formatting for real-time auditing.
 - **HTTP Lifecycle** — Latency, status codes, and web framework route tracing.
