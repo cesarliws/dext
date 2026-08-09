@@ -126,7 +126,7 @@ type
   TDbProjectionWriteProc = reference to procedure(const AWriter: Pointer);
 
   /// <summary>Non-generic base FastPath interface for zero-alloc direct JSON streaming.</summary>
-  IDbSetFastStream = interface
+  IDbSetFastStream = interface(IDBSet)
     ['{E4A5C6D7-E8F9-4102-83A4-5B6C7D8E9F0A}']
     procedure ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback); overload;
     procedure ExecuteToUtf8Stream(const AStream: TStream); overload;
@@ -146,10 +146,13 @@ type
     function Add(const ABuilder: TFunc<IEntityBuilder<T>, T>): IDbSet<T>; overload;
     function Update(const AEntity: T): IDbSet<T>;
     function Remove(const AEntity: T): IDbSet<T>;
-    function Detach(const AEntity: T): IDbSet<T>; overload;
     function GetItem(Index: Integer): T;
 
     property Items[Index: Integer]: T read GetItem; default;
+
+    function IsBulkInsertSafe: Boolean;
+    function IsBulkUpdateSafe: Boolean;
+    function IsBulkDeleteSafe: Boolean;
 
     // Bulk Operations
     procedure AddRange(const AEntities: TArray<T>); overload;

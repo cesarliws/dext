@@ -3,6 +3,9 @@ unit Dext.Collections.Pool;
 interface
 
 uses
+{$IFDEF MSWINDOWS}
+  Winapi.Windows,
+{$ENDIF}
   System.SysUtils,
   System.Classes,
   System.SyncObjs;

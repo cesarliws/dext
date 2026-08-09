@@ -65,7 +65,7 @@
         <PreBuildEvent>if exist appsettings.json copy /Y appsettings.json &quot;$(DCC_ExeOutput)&quot;</PreBuildEvent>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
-        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Sources\Core;..\..\..\Sources\Core\Base;..\..\..\Sources\Core\Json;..\..\..\Sources\Data;..\..\..\Sources\Net;..\..\..\Sources\Web;..\..\..\Sources\Server;..\..\..\Sources\Server\Engine;..\..\..\Sources\Security;..\..\..\Sources\Logging;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>..\..\Output\$(ProductVersion)\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_ExeOutput>..\..\Output</DCC_ExeOutput>
     </PropertyGroup>

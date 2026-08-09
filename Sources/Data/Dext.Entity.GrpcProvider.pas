@@ -28,6 +28,8 @@
 {***************************************************************************}
 unit Dext.Entity.GrpcProvider;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -44,7 +46,11 @@ uses
   Dext.Grpc.Attributes,
   Dext.DI.Interfaces,
   Dext.Server.Engine.Interfaces,
-  Dext.Auth.Identity;
+  Dext.Auth.Identity,
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  Dext.Entity.Core,
+  {$ENDIF}
+  Dext.Entity.FastQuery;
 
 type
   IEntityDataProvider<T: class, constructor> = interface
@@ -147,7 +153,8 @@ type
     destructor Destroy; override;
     function GetStatusCode: Integer;
     function GetContentType: string;
-    function Status(AValue: Integer): Dext.Web.Interfaces.IHttpResponse;
+    function Status(AValue: Integer): Dext.Web.Interfaces.IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): Dext.Web.Interfaces.IHttpResponse; overload;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
@@ -160,6 +167,14 @@ type
     function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     procedure AddHeader(const AName, AValue: string);
     procedure AppendCookie(const AName, AValue: string;
       const AOptions: TCookieOptions); overload;
@@ -272,6 +287,11 @@ begin
   FStatusCode := AValue;
   Result := Self;
 end;
+function TMockHttpResponse.Status(AValue: Integer; const AMessage: string): Dext.Web.Interfaces.IHttpResponse;
+begin
+  FStatusCode := AValue;
+  Result := Self;
+end;
 procedure TMockHttpResponse.SetStatusCode(AValue: Integer); begin FStatusCode := AValue; end;
 procedure TMockHttpResponse.SetContentType(const AValue: string); begin FContentType := AValue; end;
 procedure TMockHttpResponse.SetContentLength(const AValue: Int64); begin end;
@@ -305,6 +325,14 @@ begin
 end;
 procedure TMockHttpResponse.Json(const AJson: string); begin end;
 procedure TMockHttpResponse.Json(const AValue: TValue); begin end;
+procedure TMockHttpResponse.WriteJson(const AValue: TValue); begin end;
+procedure TMockHttpResponse.WriteJson(ACode: Integer; const AValue: TValue); begin end;
+procedure TMockHttpResponse.WriteJson(const AQuery: IDextFastQuery); begin end;
+procedure TMockHttpResponse.WriteJson(ACode: Integer; const AQuery: IDextFastQuery); begin end;
+{$IFDEF DEXT_ENABLE_ENTITY}
+procedure TMockHttpResponse.WriteJson(const AStream: IDbSetFastStream); begin end;
+procedure TMockHttpResponse.WriteJson(ACode: Integer; const AStream: IDbSetFastStream); begin end;
+{$ENDIF}
 procedure TMockHttpResponse.AddHeader(const AName, AValue: string);
 begin
   FHeaders.AddOrSetValue(AName, AValue);
