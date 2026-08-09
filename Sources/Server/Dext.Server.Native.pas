@@ -27,6 +27,8 @@
 {***************************************************************************}
 unit Dext.Server.Native;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -37,6 +39,10 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.Web.Interfaces,
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  Dext.Entity.Core,
+  {$ENDIF}
+  Dext.Entity.FastQuery,
   Dext.DI.Interfaces,
   Dext.Auth.Identity,
   Dext.Web.Results,
@@ -160,7 +166,8 @@ type
     /// <summary>Gets the response Content-Type header value.</summary>
     function GetContentType: string;
     /// <summary>Sets the HTTP status code fluently.</summary>
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     /// <summary>Sets the HTTP status code.</summary>
     procedure SetStatusCode(AValue: Integer);
     /// <summary>Sets the response Content-Type header.</summary>
@@ -182,6 +189,14 @@ type
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue to JSON and sends it.</summary>
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     /// <summary>Adds a header value to the response.</summary>
     procedure AddHeader(const AName, AValue: string);
     /// <summary>Appends a cookie with options to the response.</summary>
@@ -727,6 +742,95 @@ begin
   SetStatusCode(AValue);
   Result := Self;
 end;
+
+function TDextNativeHttpResponse.Status(AValue: Integer; const AMessage: string): IHttpResponse;
+begin
+  SetStatusCode(AValue);
+  Result := Self;
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(const AValue: TValue);
+var
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  FastStream: IDbSetFastStream;
+  {$ENDIF}
+  FastQuery: IDextFastQuery;
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AValue.IsEmpty then Exit;
+
+  if AValue.Kind = tkInterface then
+  begin
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    if Supports(AValue.AsInterface, IDbSetFastStream, FastStream) then
+    begin
+      Stream := GetOutputStream;
+      FastStream.ExecuteToUtf8Stream(Stream);
+      Exit;
+    end;
+    {$ENDIF}
+
+    if Supports(AValue.AsInterface, IDextFastQuery, FastQuery) then
+    begin
+      Stream := GetOutputStream;
+      FastQuery.ExecuteToUtf8Proc(
+        procedure(Data: Pointer; Len: Integer)
+        begin
+          Stream.WriteBuffer(Data^, Len);
+        end
+      );
+      Exit;
+    end;
+  end;
+
+  Json(AValue);
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(ACode: Integer; const AValue: TValue);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AValue);
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(const AQuery: IDextFastQuery);
+var
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AQuery = nil then Exit;
+  Stream := GetOutputStream;
+  AQuery.ExecuteToUtf8Proc(
+    procedure(Data: Pointer; Len: Integer)
+    begin
+      Stream.WriteBuffer(Data^, Len);
+    end
+  );
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(ACode: Integer; const AQuery: IDextFastQuery);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AQuery);
+end;
+
+{$IFDEF DEXT_ENABLE_ENTITY}
+procedure TDextNativeHttpResponse.WriteJson(const AStream: IDbSetFastStream);
+var
+  Stream: TStream;
+begin
+  SetContentType('application/json; charset=utf-8');
+  if AStream = nil then Exit;
+  Stream := GetOutputStream;
+  AStream.ExecuteToUtf8Stream(Stream);
+end;
+
+procedure TDextNativeHttpResponse.WriteJson(ACode: Integer; const AStream: IDbSetFastStream);
+begin
+  SetStatusCode(ACode);
+  WriteJson(AStream);
+end;
+{$ENDIF}
 
 procedure TDextNativeHttpResponse.Unauthorized(const AMessage: string);
 begin

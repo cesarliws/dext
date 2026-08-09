@@ -31,6 +31,8 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Web.Interfaces,
+  Dext.DI.Interfaces,
+  Dext.Collections.Pool,
   Dext.Web.HandlerInvoker,
   Dext.Web.ModelBinding,
   Dext.OpenAPI.Types,
@@ -204,6 +206,13 @@ type
       Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
     class function MapQueryResult<T1, T2, T3, TResult>(App: IApplicationBuilder; const Path: string;
       Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
+
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    class function MapFast<TDbContext: class, constructor>(App: IApplicationBuilder; const AMethod, APath: string;
+      AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder; overload;
+    class function MapFast<TDbContext: class, constructor>(App: IApplicationBuilder; const APath: string;
+      AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder; overload;
+    {$ENDIF}
   end;
 
   TDextAppBuilderHelper = record helper for TAppBuilder
@@ -268,6 +277,11 @@ type
     function MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): IApplicationBuilder; overload;
     function MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): IApplicationBuilder; overload;
     function MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): IApplicationBuilder; overload;
+
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    function MapFast<TDbContext: class, constructor>(const AMethod, APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder; overload;
+    function MapFast<TDbContext: class, constructor>(const APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder; overload;
+    {$ENDIF}
 
     /// <summary>
     ///  Marks the last registered route as requiring authorization (defaults to 'Basic').
@@ -1450,5 +1464,58 @@ class function TApplicationBuilderExtensions.MapPostR<T1, T2, T3, TResult>(App: 
 begin
   Result := MapPostResult<T1, T2, T3, TResult>(App, Path, Handler);
 end;
+
+{$IFDEF DEXT_ENABLE_ENTITY}
+class function TApplicationBuilderExtensions.MapFast<TDbContext>(App: IApplicationBuilder;
+  const AMethod, APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder;
+var
+  FastHandler: TDextFastRouteHandler;
+begin
+  FastHandler := procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+    var
+      Services: IServiceProvider;
+      Unk: IInterface;
+      Pool: IDextPool<TDbContext>;
+      Ctx: TDbContext;
+    begin
+      Ctx := nil;
+      Services := App.GetServiceProvider;
+      if Services <> nil then
+      begin
+        Unk := Services.GetServiceAsInterface(TypeInfo(IDextPool<TDbContext>));
+        if (Unk <> nil) and Supports(Unk, IDextPool<TDbContext>, Pool) then
+        begin
+          if Pool.Acquire(Ctx) and (Ctx <> nil) then
+          begin
+            try
+              AHandler(Ctx, Req, Res);
+            finally
+              Pool.Release(Ctx);
+            end;
+          end;
+        end;
+      end;
+    end;
+  Result := App.MapFast(AMethod, APath, FastHandler);
+end;
+
+class function TApplicationBuilderExtensions.MapFast<TDbContext>(App: IApplicationBuilder;
+  const APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder;
+begin
+  Result := MapFast<TDbContext>(App, 'GET', APath, AHandler);
+end;
+
+function TDextAppBuilderHelper.MapFast<TDbContext>(const AMethod, APath: string;
+  AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapFast<TDbContext>(Self.Unwrap, AMethod, APath, AHandler);
+end;
+
+function TDextAppBuilderHelper.MapFast<TDbContext>(const APath: string;
+  AHandler: TDextFastContextRouteHandler<TDbContext>): IApplicationBuilder;
+begin
+  Result := TApplicationBuilderExtensions.MapFast<TDbContext>(Self.Unwrap, 'GET', APath, AHandler);
+end;
+{$ENDIF}
 
 end.

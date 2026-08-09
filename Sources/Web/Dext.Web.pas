@@ -33,6 +33,7 @@ uses
   System.SysUtils,
   System.Classes,
   Dext,
+  Dext.Collections.Pool,
   {$IFDEF DEXT_ENABLE_ENTITY}
   Dext.Entity,
   {$ENDIF}
@@ -404,9 +405,12 @@ type
   IFormFile = Dext.Web.Interfaces.IFormFile;
   IFormFileCollection = Dext.Web.Interfaces.IFormFileCollection;
   IResult = Dext.Web.Interfaces.IResult;
-  IMiddleware = Dext.Web.Interfaces.IMiddleware;
-  AppBuilder = Dext.Web.Interfaces.TAppBuilder;
+  TAppBuilder = Dext.Web.Interfaces.TAppBuilder;
+  AppBuilder = TAppBuilder;
   TDextAppBuilder = AppBuilder; // deprecated
+  TWebHost = Dext.Web.Interfaces.TWebHost;
+  WebHost = TWebHost;
+  DextWebHost = WebHost; // deprecated
   // Dext.Web.View
   IViewEngine = Dext.Web.View.IViewEngine;
   IViewData = Dext.Web.View.IViewData;
@@ -416,8 +420,6 @@ type
 
   IWebApplication = Dext.Web.Interfaces.IWebApplication;
   IStartup = Dext.Web.Interfaces.IStartup;
-  WebHost = Dext.Web.Interfaces.TWebHost;
-  TDextWebHost = WebHost; // deprecated
   TFormFileCollection = Dext.Web.Interfaces.TFormFileCollection;
 
   // Dext.Web.Middleware
@@ -544,12 +546,6 @@ type
   THeaderApiVersionReader = Dext.Web.Versioning.THeaderApiVersionReader;
   TPathApiVersionReader = Dext.Web.Versioning.TPathApiVersionReader;
   TCompositeApiVersionReader = Dext.Web.Versioning.TCompositeApiVersionReader;
-
-  // Dext.Web.Interfaces
-  TAppBuilder = Dext.Web.Interfaces.TAppBuilder;
-  DextAppBuilder = AppBuilder; // deprecated
-  TWebHost = Dext.Web.Interfaces.TWebHost;
-  DextWebHost = WebHost; // deprecated
 
   // Dext.Web.WebApplication
   TWebApplication = Dext.Web.WebApplication.TWebApplication;
@@ -711,6 +707,17 @@ type
   TDextWebServicesHelper = TWebServicesHelper;
   TDextHttpServicesHelper = TWebServicesHelper;
 
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  /// <summary>
+  ///   Helper for TWebApplication to allow fluent MapFast routing with DbContext pooling.
+  /// </summary>
+  TWebApplicationHelper = class helper for TWebApplication
+  public
+    function MapFast<TDbContext: class, constructor>(const AMethod, APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IWebApplication; overload;
+    function MapFast<TDbContext: class, constructor>(const APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IWebApplication; overload;
+  end;
+  {$ENDIF}
+
   /// <summary>
   ///   Helper for AppBuilder to provide factory methods and extensions for middleware configuration.
   /// </summary>
@@ -738,92 +745,93 @@ type
     /// <summary>
     ///   Adds CORS middleware to the pipeline using the provided options.
     /// </summary>
-    function UseCors(const AOptions: TCorsOptions): AppBuilder; overload;
-    function UseCors(AConfigurator: TProc<TCorsBuilder>): AppBuilder; overload;
+    function UseCors(const AOptions: TCorsOptions): TAppBuilder; overload;
+    function UseCors(AConfigurator: TProc<TCorsBuilder>): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds JWT Authentication middleware to the pipeline using the provided options.
     /// </summary>
-    function UseJwtAuthentication(const AOptions: TJwtOptions): AppBuilder; overload;
+    function UseJwtAuthentication(const AOptions: TJwtOptions): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds JWT Authentication middleware to the pipeline using the provided options (Legacy overload).
     /// </summary>
-    function UseJwtAuthentication(const ASecretKey: string; AConfigurator: TJwtBuilderProc): AppBuilder; overload;
-    function UseJwtAuthentication(const AJwtBuilder: TJwtOptionsBuilder): AppBuilder; overload;
+    function UseJwtAuthentication(const ASecretKey: string; AConfigurator: TJwtBuilderProc): TAppBuilder; overload;
+    function UseJwtAuthentication(const AJwtBuilder: TJwtOptionsBuilder): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds Basic Authentication middleware with a simple validation function.
     /// </summary>
-    function UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateFunc): AppBuilder; overload;
+    function UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateFunc): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds Basic Authentication middleware with role support.
     /// </summary>
-    function UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateWithRolesFunc): AppBuilder; overload;
+    function UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateWithRolesFunc): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds Basic Authentication middleware with custom options.
     /// </summary>
-    function UseBasicAuthentication(const AOptions: TBasicAuthOptions; AValidateFunc: TBasicAuthValidateFunc): AppBuilder; overload;
+    function UseBasicAuthentication(const AOptions: TBasicAuthOptions; AValidateFunc: TBasicAuthValidateFunc): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds Swagger middleware to the application pipeline using the provided options.
     /// </summary>
-    function UseSwagger(const AOptions: TOpenAPIOptions): AppBuilder; overload;
+    function UseSwagger(const AOptions: TOpenAPIOptions): TAppBuilder; overload;
 
     /// <summary>
     ///   Adds Swagger middleware to the application pipeline with default options.
     /// </summary>
-    function UseSwagger: AppBuilder; overload;
+    function UseSwagger: TAppBuilder; overload;
 
     /// <summary>
     ///   Adds Static Files middleware to the pipeline using the provided options.
     /// </summary>
-    function UseStaticFiles(const AOptions: TStaticFileOptions): AppBuilder; overload;
+    function UseStaticFiles(const AOptions: TStaticFileOptions): TAppBuilder; overload;
     
     /// <summary>
     ///   Adds Static Files middleware to the pipeline serving from the specified root path.
     /// </summary>
-    function UseStaticFiles(const ARootPath: string): AppBuilder; overload;
+    function UseStaticFiles(const ARootPath: string): TAppBuilder; overload;
     
     // ⏩ Core Forwarding
     
     /// <summary>
     ///   Adds a middleware class to the pipeline. The middleware must have a constructor accepting RequestDelegate (and optionally other services).
     /// </summary>
-    function UseMiddleware(AMiddleware: TClass): AppBuilder;
+    function UseMiddleware(AMiddleware: TClass): TAppBuilder;
     
     /// <summary>
     ///   Maps a GET request to a static handler.
     /// </summary>
-    function MapGet(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+    function MapGet(const Path: string; Handler: TStaticHandler): TAppBuilder; overload;
 
     /// <summary>
     ///   Maps a POST request to a static handler.
     /// </summary>
-    function MapPost(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+    function MapPost(const Path: string; Handler: TStaticHandler): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a PUT request to a static handler.
     /// </summary>
-    function MapPut(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+    function MapPut(const Path: string; Handler: TStaticHandler): TAppBuilder; overload;
 
     /// <summary>
     ///   Maps a DELETE request to a static handler.
     /// </summary>
-    function MapDelete(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+    function MapDelete(const Path: string; Handler: TStaticHandler): TAppBuilder; overload;
 
     /// <summary>
     ///   Maps a QUERY request to a static handler.
     /// </summary>
-    function MapQuery(const Path: string; Handler: TStaticHandler): AppBuilder; overload;
+    function MapQuery(const Path: string; Handler: TStaticHandler): TAppBuilder; overload;
 
-    /// <summary>
-    ///   Maps a fast route bypassing DI and controller RTTI overhead.
-    /// </summary>
-    function MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): AppBuilder; overload;
-    function MapFast(const APath: string; AHandler: TDextFastRouteHandler): AppBuilder; overload;
+    function MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): TAppBuilder; overload;
+    function MapFast(const APath: string; AHandler: TDextFastRouteHandler): TAppBuilder; overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    function MapFast<TDbContext: class, constructor>(const AMethod, APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): TAppBuilder; overload;
+    function MapFast<TDbContext: class, constructor>(const APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): TAppBuilder; overload;
+    {$ENDIF}
 
     /// <summary>
     ///   Builds the request pipeline and returns the main RequestDelegate.
@@ -833,7 +841,7 @@ type
     /// <summary>
     ///   Enables Server-Side Surface Rendering (SSR) view support.
     /// </summary>
-    function UseViewEngine: AppBuilder;
+    function UseViewEngine: TAppBuilder;
 
     /// <summary>
     ///   Starts the Streamable Session Scavenger thread (background GC for idle sessions).
@@ -841,41 +849,41 @@ type
     ///   Default: checks every 60s, evicts sessions idle for 30min.
     /// </summary>
     function UseStreamableSessions(AIntervalSeconds: Integer = 60;
-      ATimeoutMinutes: Integer = 30): AppBuilder;
+      ATimeoutMinutes: Integer = 30): TAppBuilder;
 
     // -------------------------------------------------------------------------
     // ⛓️ Middleware
     // -------------------------------------------------------------------------
     /// <summary>Adds base path middleware to strip prefix and populate Request.PathBase.</summary>
-    function UsePathBase(const APathBase: string): AppBuilder;
-    function UseStaticFiles: AppBuilder; overload;
-    function UseStartupLock: AppBuilder;
-    function UseExceptionHandler: AppBuilder; overload;
-    function UseExceptionHandler(const AOptions: TExceptionHandlerOptions): AppBuilder; overload;
-    function UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): AppBuilder; overload;
-    function UseDeveloperExceptionPage: AppBuilder;
-    function UseHttpLogging: AppBuilder; overload;
-    function UseHttpLogging(const AOptions: THttpLoggingOptions): AppBuilder; overload;
-    function UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): AppBuilder; overload;
-    function UseCompression: AppBuilder; overload;
-    function UseCompression(const AOptions: TCompressionOptions): AppBuilder; overload;
-    function UseCompression(AConfigurator: TProc<TCompressionBuilder>): AppBuilder; overload;
-    function UseSecurityHeaders: AppBuilder; overload;
-    function UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): AppBuilder; overload;
-    function UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): AppBuilder; overload;
+    function UsePathBase(const APathBase: string): TAppBuilder;
+    function UseStaticFiles: TAppBuilder; overload;
+    function UseStartupLock: TAppBuilder;
+    function UseExceptionHandler: TAppBuilder; overload;
+    function UseExceptionHandler(const AOptions: TExceptionHandlerOptions): TAppBuilder; overload;
+    function UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): TAppBuilder; overload;
+    function UseDeveloperExceptionPage: TAppBuilder;
+    function UseHttpLogging: TAppBuilder; overload;
+    function UseHttpLogging(const AOptions: THttpLoggingOptions): TAppBuilder; overload;
+    function UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): TAppBuilder; overload;
+    function UseCompression: TAppBuilder; overload;
+    function UseCompression(const AOptions: TCompressionOptions): TAppBuilder; overload;
+    function UseCompression(AConfigurator: TProc<TCompressionBuilder>): TAppBuilder; overload;
+    function UseSecurityHeaders: TAppBuilder; overload;
+    function UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): TAppBuilder; overload;
+    function UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 🚦 Rate Limiting
     // -------------------------------------------------------------------------
-    function UseRateLimiting(const APolicy: TRateLimitPolicy): AppBuilder; overload;
+    function UseRateLimiting(const APolicy: TRateLimitPolicy): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 💾 Response Caching
     // -------------------------------------------------------------------------
-    function UseResponseCache(AConfigurator: TResponseCacheBuilderProc): AppBuilder; overload;
-    function UseResponseCache(const ACacheBuilder: TResponseCacheBuilder): AppBuilder; overload;
-    function UseResponseCaching(AConfigurator: TResponseCacheBuilderProc): AppBuilder; overload;
-    function UseResponseCaching(const ACacheBuilder: TResponseCacheBuilder): AppBuilder; overload;
+    function UseResponseCache(AConfigurator: TResponseCacheBuilderProc): TAppBuilder; overload;
+    function UseResponseCache(const ACacheBuilder: TResponseCacheBuilder): TAppBuilder; overload;
+    function UseResponseCaching(AConfigurator: TResponseCacheBuilderProc): TAppBuilder; overload;
+    function UseResponseCaching(const ACacheBuilder: TResponseCacheBuilder): TAppBuilder; overload;
 
     function MapEndpoints(AMapper: TProc<TAppBuilder>): TAppBuilder;
     function MapDataApis: TAppBuilder;
@@ -886,30 +894,30 @@ type
     /// <summary>
     ///   Maps a POST request to a handler with 1 injected parameter.
     /// </summary>
-    function MapPost<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
+    function MapPost<T>(const Path: string; Handler: THandlerProc<T>): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a POST request to a handler with 2 injected parameters.
     /// </summary>
-    function MapPost<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
+    function MapPost<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a POST request to a handler with 3 injected parameters.
     /// </summary>
-    function MapPost<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder; overload;
+    function MapPost<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TAppBuilder; overload;
 
     /// <summary>
     ///   Maps a POST request to a handler that returns a result.
     /// </summary>
-    function MapPost<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapPost<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapPost<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapPost<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapPost<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapPost<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapPost<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapPost<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
-    function MapPostResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapPostResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapPostResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapPostResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapPostResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapPostResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapPostResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapPostResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 📥 Routing - GET
@@ -918,94 +926,94 @@ type
     /// <summary>
     ///   Maps a GET request to a handler with 1 injected parameter.
     /// </summary>
-    function MapGet<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
+    function MapGet<T>(const Path: string; Handler: THandlerProc<T>): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a GET request to a handler with 2 injected parameters.
     /// </summary>
-    function MapGet<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
+    function MapGet<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a GET request to a handler with 3 injected parameters.
     /// </summary>
-    function MapGet<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder; overload;
+    function MapGet<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TAppBuilder; overload;
 
     /// <summary>
     ///   Maps a GET request to a handler that returns a result.
     /// </summary>
-    function MapGet<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapGet<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapGet<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapGet<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapGet<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapGet<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapGet<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapGet<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
-    function MapGetResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
+    function MapGetResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
     
 
     /// <summary>
     ///   Maps a GET request to a handler with 1 parameter that returns a result.
     /// </summary>
-    function MapGetResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
+    function MapGetResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a GET request to a handler with 2 parameters that returns a result.
     /// </summary>
-    function MapGetResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
+    function MapGetResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
     
     /// <summary>
     ///   Maps a GET request to a handler with 3 parameters that returns a result.
     /// </summary>
-    function MapGetResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapGetResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 📤 Routing - PUT
     // -------------------------------------------------------------------------
-    function MapPut<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
-    function MapPut<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
-    function MapPut<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder; overload;
+    function MapPut<T>(const Path: string; Handler: THandlerProc<T>): TAppBuilder; overload;
+    function MapPut<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TAppBuilder; overload;
+    function MapPut<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TAppBuilder; overload;
 
-    function MapPut<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapPut<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapPut<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapPut<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapPut<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapPut<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapPut<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapPut<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
-    function MapPutResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapPutResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapPutResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapPutResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapPutResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapPutResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapPutResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapPutResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 🗑️ Routing - DELETE
     // -------------------------------------------------------------------------
-    function MapDelete<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
-    function MapDelete<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
-    function MapDelete<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder; overload;
+    function MapDelete<T>(const Path: string; Handler: THandlerProc<T>): TAppBuilder; overload;
+    function MapDelete<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TAppBuilder; overload;
+    function MapDelete<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TAppBuilder; overload;
 
-    function MapDelete<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapDelete<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapDelete<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapDelete<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapDelete<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapDelete<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapDelete<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapDelete<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
-    function MapDeleteResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapDeleteResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapDeleteResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapDeleteResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapDeleteResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapDeleteResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapDeleteResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // Routing - QUERY
     // -------------------------------------------------------------------------
-    function MapQuery<T>(const Path: string; Handler: THandlerProc<T>): AppBuilder; overload;
-    function MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): AppBuilder; overload;
-    function MapQuery<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): AppBuilder; overload;
+    function MapQuery<T>(const Path: string; Handler: THandlerProc<T>): TAppBuilder; overload;
+    function MapQuery<T1, T2>(const Path: string; Handler: THandlerProc<T1, T2>): TAppBuilder; overload;
+    function MapQuery<T1, T2, T3>(const Path: string; Handler: THandlerProc<T1, T2, T3>): TAppBuilder; overload;
 
-    function MapQuery<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapQuery<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapQuery<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapQuery<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapQuery<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapQuery<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapQuery<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapQuery<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
-    function MapQueryResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): AppBuilder; overload;
-    function MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): AppBuilder; overload;
-    function MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): AppBuilder; overload;
-    function MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): AppBuilder; overload;
+    function MapQueryResult<TResult>(const Path: string; Handler: THandlerResultFunc<TResult>): TAppBuilder; overload;
+    function MapQueryResult<T, TResult>(const Path: string; Handler: THandlerResultFunc<T, TResult>): TAppBuilder; overload;
+    function MapQueryResult<T1, T2, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, TResult>): TAppBuilder; overload;
+    function MapQueryResult<T1, T2, T3, TResult>(const Path: string; Handler: THandlerResultFunc<T1, T2, T3, TResult>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
     // 📝 OpenAPI Metadata
@@ -1179,37 +1187,37 @@ begin
   Result := TStaticFileOptions.Create;
 end;
 
-function THttpAppBuilderHelper.UseCors(const AOptions: TCorsOptions): AppBuilder;
+function THttpAppBuilderHelper.UseCors(const AOptions: TCorsOptions): TAppBuilder;
 begin
   TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap, AOptions);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseCors(AConfigurator: TProc<TCorsBuilder>): AppBuilder;
+function THttpAppBuilderHelper.UseCors(AConfigurator: TProc<TCorsBuilder>): TAppBuilder;
 begin
   TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap, AConfigurator);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseStartupLock: AppBuilder;
+function THttpAppBuilderHelper.UseStartupLock: TAppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseStartupLock(Self.Unwrap);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseExceptionHandler: AppBuilder;
+function THttpAppBuilderHelper.UseExceptionHandler: TAppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseExceptionHandler(Self.Unwrap);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseExceptionHandler(const AOptions: TExceptionHandlerOptions): AppBuilder;
+function THttpAppBuilderHelper.UseExceptionHandler(const AOptions: TExceptionHandlerOptions): TAppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseExceptionHandler(Self.Unwrap, AOptions);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): AppBuilder;
+function THttpAppBuilderHelper.UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): TAppBuilder;
 var
   Builder: TExceptionHandlerBuilder;
 begin
@@ -1219,19 +1227,19 @@ begin
   Result := UseExceptionHandler(Builder.Build);
 end;
 
-function THttpAppBuilderHelper.UseHttpLogging: AppBuilder;
+function THttpAppBuilderHelper.UseHttpLogging: TAppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseHttpLogging(Self.Unwrap);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseHttpLogging(const AOptions: THttpLoggingOptions): AppBuilder;
+function THttpAppBuilderHelper.UseHttpLogging(const AOptions: THttpLoggingOptions): TAppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseHttpLogging(Self.Unwrap, AOptions);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): AppBuilder;
+function THttpAppBuilderHelper.UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): TAppBuilder;
 var
   Builder: THttpLoggingBuilder;
 begin
@@ -1241,13 +1249,13 @@ begin
   Result := UseHttpLogging(Builder.Build);
 end;
 
-function THttpAppBuilderHelper.UseCompression(const AOptions: TCompressionOptions): AppBuilder;
+function THttpAppBuilderHelper.UseCompression(const AOptions: TCompressionOptions): TAppBuilder;
 begin
   Self.Unwrap.UseMiddleware(TCompressionMiddleware.Create(AOptions));
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseCompression(AConfigurator: TProc<TCompressionBuilder>): AppBuilder;
+function THttpAppBuilderHelper.UseCompression(AConfigurator: TProc<TCompressionBuilder>): TAppBuilder;
 var
   Builder: TCompressionBuilder;
 begin
@@ -1257,18 +1265,18 @@ begin
   Result := UseCompression(Builder.Build);
 end;
 
-function THttpAppBuilderHelper.UseCompression: AppBuilder;
+function THttpAppBuilderHelper.UseCompression: TAppBuilder;
 begin
   Result := UseCompression(TCompressionOptions.Create);
 end;
 
-function THttpAppBuilderHelper.UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): AppBuilder;
+function THttpAppBuilderHelper.UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): TAppBuilder;
 begin
   Self.Unwrap.UseMiddleware(TSecurityHeadersMiddleware.Create(AOptions));
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): AppBuilder;
+function THttpAppBuilderHelper.UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): TAppBuilder;
 var
   Builder: TSecurityHeadersBuilder;
 begin
@@ -1278,118 +1286,172 @@ begin
   Result := UseSecurityHeaders(Builder.Build);
 end;
 
-function THttpAppBuilderHelper.UseSecurityHeaders: AppBuilder;
+function THttpAppBuilderHelper.UseSecurityHeaders: TAppBuilder;
 begin
   Result := UseSecurityHeaders(TSecurityHeadersOptions.Create);
 end;
 
-function THttpAppBuilderHelper.UseJwtAuthentication(const AOptions: TJwtOptions): AppBuilder;
+function THttpAppBuilderHelper.UseJwtAuthentication(const AOptions: TJwtOptions): TAppBuilder;
 begin
   TApplicationBuilderJwtExtensions.UseJwtAuthentication(Self.Unwrap, AOptions);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseJwtAuthentication(const ASecretKey: string; AConfigurator: TJwtBuilderProc): AppBuilder;
+function THttpAppBuilderHelper.UseJwtAuthentication(const ASecretKey: string; AConfigurator: TJwtBuilderProc): TAppBuilder;
 begin
   TApplicationBuilderJwtExtensions.UseJwtAuthentication(Self.Unwrap, ASecretKey, AConfigurator);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseJwtAuthentication(const AJwtBuilder: TJwtOptionsBuilder): AppBuilder;
+function THttpAppBuilderHelper.UseJwtAuthentication(const AJwtBuilder: TJwtOptionsBuilder): TAppBuilder;
 begin
   TApplicationBuilderJwtExtensions.UseJwtAuthentication(Self.Unwrap, AJwtBuilder);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateFunc): AppBuilder;
+function THttpAppBuilderHelper.UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateFunc): TAppBuilder;
 begin
   TApplicationBuilderBasicAuthExtensions.UseBasicAuthentication(Self.Unwrap, ARealm, AValidateFunc);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateWithRolesFunc): AppBuilder;
+function THttpAppBuilderHelper.UseBasicAuthentication(const ARealm: string; AValidateFunc: TBasicAuthValidateWithRolesFunc): TAppBuilder;
 begin
   TApplicationBuilderBasicAuthExtensions.UseBasicAuthentication(Self.Unwrap, ARealm, AValidateFunc);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseBasicAuthentication(const AOptions: TBasicAuthOptions; AValidateFunc: TBasicAuthValidateFunc): AppBuilder;
+function THttpAppBuilderHelper.UseBasicAuthentication(const AOptions: TBasicAuthOptions; AValidateFunc: TBasicAuthValidateFunc): TAppBuilder;
 begin
   TApplicationBuilderBasicAuthExtensions.UseBasicAuthentication(Self.Unwrap, AOptions, AValidateFunc);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseSwagger(const AOptions: TOpenAPIOptions): AppBuilder;
+function THttpAppBuilderHelper.UseSwagger(const AOptions: TOpenAPIOptions): TAppBuilder;
 begin
   TSwaggerExtensions.UseSwagger(Self.Unwrap, AOptions);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseSwagger: AppBuilder;
+function THttpAppBuilderHelper.UseSwagger: TAppBuilder;
 begin
   TSwaggerExtensions.UseSwagger(Self.Unwrap);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseStaticFiles(const AOptions: TStaticFileOptions): AppBuilder;
+function THttpAppBuilderHelper.UseStaticFiles(const AOptions: TStaticFileOptions): TAppBuilder;
 begin
   TApplicationBuilderStaticFilesExtensions.UseStaticFiles(Self.Unwrap, AOptions);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseStaticFiles(const ARootPath: string): AppBuilder;
+function THttpAppBuilderHelper.UseStaticFiles(const ARootPath: string): TAppBuilder;
 begin
   TApplicationBuilderStaticFilesExtensions.UseStaticFiles(Self.Unwrap, ARootPath);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseMiddleware(AMiddleware: TClass): AppBuilder;
+function THttpAppBuilderHelper.UseMiddleware(AMiddleware: TClass): TAppBuilder;
 begin
   Self.Unwrap.UseMiddleware(AMiddleware);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapGet(const Path: string; Handler: TStaticHandler): AppBuilder;
+function THttpAppBuilderHelper.MapGet(const Path: string; Handler: TStaticHandler): TAppBuilder;
 begin
   Self.Unwrap.MapGet(Path, Handler);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapPost(const Path: string; Handler: TStaticHandler): AppBuilder;
+function THttpAppBuilderHelper.MapPost(const Path: string; Handler: TStaticHandler): TAppBuilder;
 begin
   Self.Unwrap.MapPost(Path, Handler);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapPut(const Path: string; Handler: TStaticHandler): AppBuilder;
+function THttpAppBuilderHelper.MapPut(const Path: string; Handler: TStaticHandler): TAppBuilder;
 begin
   Self.Unwrap.MapPut(Path, Handler);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapDelete(const Path: string; Handler: TStaticHandler): AppBuilder;
+function THttpAppBuilderHelper.MapDelete(const Path: string; Handler: TStaticHandler): TAppBuilder;
 begin
   Self.Unwrap.MapDelete(Path, Handler);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapQuery(const Path: string; Handler: TStaticHandler): AppBuilder;
+function THttpAppBuilderHelper.MapQuery(const Path: string; Handler: TStaticHandler): TAppBuilder;
 begin
   Self.Unwrap.MapQuery(Path, Handler);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): AppBuilder;
+function THttpAppBuilderHelper.MapFast(const AMethod, APath: string; AHandler: TDextFastRouteHandler): TAppBuilder;
 begin
   Self.Unwrap.MapFast(AMethod, APath, AHandler);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.MapFast(const APath: string; AHandler: TDextFastRouteHandler): AppBuilder;
+function THttpAppBuilderHelper.MapFast(const APath: string; AHandler: TDextFastRouteHandler): TAppBuilder;
 begin
   Self.Unwrap.MapFast('GET', APath, AHandler);
   Result := Self;
 end;
+
+{$IFDEF DEXT_ENABLE_ENTITY}
+function THttpAppBuilderHelper.MapFast<TDbContext>(const AMethod, APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): TAppBuilder;
+var
+  App: IApplicationBuilder;
+  FastHandler: TDextFastRouteHandler;
+begin
+  App := Self.Unwrap;
+  FastHandler := procedure(const Req: IHttpRequest; const Res: IHttpResponse)
+    var
+      Services: IServiceProvider;
+      Unk: IInterface;
+      Pool: IDextPool<TDbContext>;
+      Ctx: TDbContext;
+    begin
+      Ctx := nil;
+      Services := App.GetServiceProvider;
+      if Services <> nil then
+      begin
+        Unk := Services.GetServiceAsInterface(TypeInfo(IDextPool<TDbContext>));
+        if (Unk <> nil) and Supports(Unk, IDextPool<TDbContext>, Pool) then
+        begin
+          if Pool.Acquire(Ctx) and (Ctx <> nil) then
+          begin
+            try
+              AHandler(Ctx, Req, Res);
+            finally
+              Pool.Release(Ctx);
+            end;
+          end;
+        end;
+      end;
+    end;
+  App.MapFast(AMethod, APath, FastHandler);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.MapFast<TDbContext>(const APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): TAppBuilder;
+begin
+  Result := MapFast<TDbContext>('GET', APath, AHandler);
+end;
+
+function TWebApplicationHelper.MapFast<TDbContext>(const AMethod, APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IWebApplication;
+begin
+  Self.GetBuilder.MapFast<TDbContext>(AMethod, APath, AHandler);
+  Result := Self;
+end;
+
+function TWebApplicationHelper.MapFast<TDbContext>(const APath: string; AHandler: TDextFastContextRouteHandler<TDbContext>): IWebApplication;
+begin
+  Self.GetBuilder.MapFast<TDbContext>('GET', APath, AHandler);
+  Result := Self;
+end;
+{$ENDIF}
 
 function THttpAppBuilderHelper.Build: TRequestDelegate;
 begin
@@ -1398,13 +1460,13 @@ end;
 
 { THttpAppBuilderHelper }
 
-function THttpAppBuilderHelper.UseStaticFiles: AppBuilder;
+function THttpAppBuilderHelper.UseStaticFiles: TAppBuilder;
 begin
   TApplicationBuilderStaticFilesExtensions.UseStaticFiles(Self.Unwrap);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UseDeveloperExceptionPage: AppBuilder;
+function THttpAppBuilderHelper.UseDeveloperExceptionPage: TAppBuilder;
 begin
   TApplicationBuilderMiddlewareExtensions.UseDeveloperExceptionPage(Self.Unwrap);
   Result := Self;
@@ -1415,13 +1477,13 @@ end;
 // THttpAppBuilderHelper (Rate Limiting Extensions)
 // -------------------------------------------------------------------------
 
-function THttpAppBuilderHelper.UseRateLimiting(const APolicy: TRateLimitPolicy): AppBuilder;
+function THttpAppBuilderHelper.UseRateLimiting(const APolicy: TRateLimitPolicy): TAppBuilder;
 begin
   TApplicationBuilderRateLimitExtensions.UseRateLimiting(Self.Unwrap, APolicy);
   Result := Self;
 end;
 
-function THttpAppBuilderHelper.UsePathBase(const APathBase: string): AppBuilder;
+function THttpAppBuilderHelper.UsePathBase(const APathBase: string): TAppBuilder;
 begin
   Self.Unwrap.UseMiddleware(TDextPathBaseMiddleware.Create(APathBase));
   Result := Self;
@@ -1432,7 +1494,7 @@ end;
 // -------------------------------------------------------------------------
 
 
-function THttpAppBuilderHelper.UseResponseCache(AConfigurator: TResponseCacheBuilderProc): AppBuilder;
+function THttpAppBuilderHelper.UseResponseCache(AConfigurator: TResponseCacheBuilderProc): TAppBuilder;
 begin
   TApplicationBuilderCacheExtensions.UseResponseCache(Self.Unwrap, AConfigurator);
   Result := Self;
@@ -1908,7 +1970,7 @@ begin
   Result := Self;
   ConfigProc := AConfig;
   TWebStencilsViewEngine.RegisterWebStencilsFunctions;
-  Self.AddSingleton<IViewEngine, TWebStencilsViewEngine>(
+  Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IViewEngine)), TWebStencilsViewEngine,
     function(Provider: IServiceProvider): TObject
     var
       Options: TViewOptions;
@@ -1927,7 +1989,7 @@ begin
   Result := Self;
   Options := AOptions;
   TWebStencilsViewEngine.RegisterWebStencilsFunctions;
-  Self.AddSingleton<IViewEngine, TWebStencilsViewEngine>(
+  Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IViewEngine)), TWebStencilsViewEngine,
     function(Provider: IServiceProvider): TObject
     begin
       Result := TWebStencilsViewEngine.Create(Options);
@@ -1941,7 +2003,7 @@ begin
   Result := Self;
   OptionsBuilder := ABuilder;
   TWebStencilsViewEngine.RegisterWebStencilsFunctions;
-  Self.AddSingleton<IViewEngine, TWebStencilsViewEngine>(
+  Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IViewEngine)), TWebStencilsViewEngine,
     function(Provider: IServiceProvider): TObject
     begin
       Result := TWebStencilsViewEngine.Create(TViewOptions(OptionsBuilder));
@@ -1959,7 +2021,7 @@ var
   ConfigProc: TProc<TViewOptions>;
 begin
   ConfigProc := AConfig;
-  Result := Self.AddSingleton<IViewEngine, TDextNativeViewEngine>(
+  Result := Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IViewEngine)), TDextNativeViewEngine,
     function(Provider: IServiceProvider): TObject
     var
       Options: TViewOptions;
@@ -1976,7 +2038,7 @@ var
   Options: TViewOptions;
 begin
   Options := AOptions;
-  Result := Self.AddSingleton<IViewEngine, TDextNativeViewEngine>(
+  Result := Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IViewEngine)), TDextNativeViewEngine,
     function(Provider: IServiceProvider): TObject
     begin
       Result := TDextNativeViewEngine.Create(Options);
@@ -1988,7 +2050,7 @@ var
   OptionsBuilder: TViewOptionsBuilder;
 begin
   OptionsBuilder := ABuilder;
-  Result := Self.AddSingleton<IViewEngine, TDextNativeViewEngine>(
+  Result := Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IViewEngine)), TDextNativeViewEngine,
     function(Provider: IServiceProvider): TObject
     begin
       Result := TDextNativeViewEngine.Create(TViewOptions(OptionsBuilder));
@@ -2002,7 +2064,7 @@ end;
 
 function TWebServicesHelper.AddStreamableSessions: TDextServices;
 begin
-  Result := Self.AddSingleton<IStreamableSessionManager, TInMemoryStreamableSessionManager>(
+  Result := Self.AddSingleton(TServiceType.FromInterface(TypeInfo(IStreamableSessionManager)), TInMemoryStreamableSessionManager,
     function(Provider: IServiceProvider): TObject
     begin
       Result := TInMemoryStreamableSessionManager.Create;

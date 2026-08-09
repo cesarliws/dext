@@ -22,7 +22,8 @@ uses
   Dext.Net.Security in '..\..\Sources\Net\Dext.Net.Security.pas',
   Dext.Net.Security.OpenSSL in '..\..\Sources\Net\Dext.Net.Security.OpenSSL.pas',
   Dext.Net.Security.TestCerts in 'Dext.Net.Security.TestCerts.pas',
-  Dext.Net.Security.Tests in 'Dext.Net.Security.Tests.pas';
+  Dext.Net.Security.Tests in 'Dext.Net.Security.Tests.pas',
+  Dext.Net.Streaming.Tests in 'Dext.Net.Streaming.Tests.pas';
 
 begin
   SetConsoleCharSet;
@@ -39,7 +40,8 @@ begin
         TDextSecurityHttpSysTests,
         TDextSecurityIndyHandlerTests,
         TDextSecurityRedisTests,
-        TDextSecurityRestClientTests
+        TDextSecurityRestClientTests,
+        TDextRestClientStreamingTests
       ]));
   except
     on error: Exception do

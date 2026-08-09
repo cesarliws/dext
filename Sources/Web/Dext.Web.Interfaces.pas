@@ -27,6 +27,8 @@ unit Dext.Web.Interfaces;
 
 interface
 
+{$I Dext.inc}
+
 uses
   System.Classes,
   System.Rtti,
@@ -38,6 +40,10 @@ uses
   Dext.Auth.Identity,
   Dext.Configuration.Interfaces,
   Dext.Threading.CancellationToken,
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  Dext.Entity.Core,
+  {$ENDIF}
+  Dext.Entity.FastQuery,
   Dext.Server.Engine.Types,
   Dext.Server.Engine.Interfaces;
 
@@ -59,6 +65,7 @@ type
 
   TRequestDelegate = reference to procedure(AContext: IHttpContext);
   TDextFastRouteHandler = reference to procedure(const Req: IHttpRequest; const Res: IHttpResponse);
+  TDextFastContextRouteHandler<T: class> = reference to procedure(Ctx: T; const Req: IHttpRequest; const Res: IHttpResponse);
   TStaticHandler = reference to procedure(AContext: IHttpContext);
   TMiddlewareDelegate = reference to procedure(AContext: IHttpContext; ANext: TRequestDelegate);
   TServerFactory = reference to function(Port: Integer; Pipeline: TRequestDelegate; Services: IServiceProvider): IWebHost;
@@ -255,7 +262,8 @@ type
     function GetContentType: string;
     
     /// <summary>Sets the status code fluently and returns the interface itself.</summary>
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
@@ -278,6 +286,16 @@ type
     procedure Json(const AJson: string); overload;
     /// <summary>Serializes a TValue (Object, Array, Primitive) to JSON and sends it.</summary>
     procedure Json(const AValue: TValue); overload;
+
+    /// <summary>Writes JSON directly using zero-alloc UTF-8 FastPath streaming.</summary>
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     
     /// <summary>Adds a custom HTTP header to the response.</summary>
     procedure AddHeader(const AName, AValue: string);

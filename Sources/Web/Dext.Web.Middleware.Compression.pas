@@ -25,6 +25,8 @@
 {***************************************************************************}
 unit Dext.Web.Middleware.Compression;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -33,7 +35,7 @@ uses
   System.Rtti,
   System.SysUtils,
   System.ZLib,
-  Dext.Web.Interfaces, Dext.Web.Builder, Dext.Collections.Dict;
+  Dext.Web.Interfaces, Dext.Entity.Core, Dext.Entity.FastQuery, Dext.Web.Builder, Dext.Collections.Dict;
 
 type
   /// <summary>
@@ -115,7 +117,8 @@ type
 
     function GetStatusCode: Integer;
     function GetContentType: string;
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     procedure SetStatusCode(AValue: Integer);
     procedure SetContentType(const AValue: string);
     procedure SetContentLength(const AValue: Int64);
@@ -128,6 +131,14 @@ type
     function GetOutputStream: TStream;
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     procedure AddHeader(const AName, AValue: string);
     procedure AppendCookie(const AName, AValue: string; const AOptions: TCookieOptions); overload;
     procedure AppendCookie(const AName, AValue: string); overload;
@@ -185,6 +196,15 @@ procedure TBufferedResponse.Flush; begin FInner.Flush; end;
 procedure TBufferedResponse.SetContentType(const AValue: string); begin FInner.SetContentType(AValue); end;
 procedure TBufferedResponse.SetStatusCode(AValue: Integer); begin FInner.StatusCode := AValue; end;
 function TBufferedResponse.Status(AValue: Integer): IHttpResponse; begin FInner.Status(AValue); Result := Self; end;
+function TBufferedResponse.Status(AValue: Integer; const AMessage: string): IHttpResponse; begin FInner.Status(AValue, AMessage); Result := Self; end;
+procedure TBufferedResponse.WriteJson(const AValue: TValue); begin FInner.WriteJson(AValue); end;
+procedure TBufferedResponse.WriteJson(ACode: Integer; const AValue: TValue); begin FInner.WriteJson(ACode, AValue); end;
+procedure TBufferedResponse.WriteJson(const AQuery: IDextFastQuery); begin FInner.WriteJson(AQuery); end;
+procedure TBufferedResponse.WriteJson(ACode: Integer; const AQuery: IDextFastQuery); begin FInner.WriteJson(ACode, AQuery); end;
+{$IFDEF DEXT_ENABLE_ENTITY}
+procedure TBufferedResponse.WriteJson(const AStream: IDbSetFastStream); begin FInner.WriteJson(AStream); end;
+procedure TBufferedResponse.WriteJson(ACode: Integer; const AStream: IDbSetFastStream); begin FInner.WriteJson(ACode, AStream); end;
+{$ENDIF}
 procedure TBufferedResponse.Write(const AContent: string);
 var
   Bytes: TBytes;

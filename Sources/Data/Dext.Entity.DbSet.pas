@@ -44,6 +44,7 @@ uses
   Dext.Core.TypeModel,
   Dext.Core.SmartTypes,
   Dext.Core.ValueConverters,
+  Dext.Json,
   Dext.Json.Utf8,
   Dext.Entity.Attributes,
   Dext.Entity.BatchStrategy,
@@ -113,7 +114,7 @@ type
   /// <summary>
   ///   Concrete implementation of an entity set (DbSet), providing query and persistence operations.
   /// </summary>
-  TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet)
+  TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet, IDbSetFastStream<T>)
   private
     FColumns: IDictionary<string, string>;
     FContextPtr: Pointer;
@@ -236,6 +237,10 @@ type
     function ToList: IList<T>; overload;
     function ToList(const ASpec: ISpecification<T>): IList<T>; overload;
     function ToList(const AExpression: IExpression): IList<T>; overload;
+
+    // FastPath Direct Streaming (S57)
+    procedure ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback); overload;
+    procedure ExecuteToUtf8Stream(const AStream: TStream); overload;
     function FirstOrDefault(const AExpression: IExpression): T; overload;
     function FirstOrDefault(const ASpec: ISpecification<T>): T; overload;
     function Any(const AExpression: IExpression): Boolean; overload;
@@ -2319,6 +2324,35 @@ end;
 function TDbSet<T>.ToList: IList<T>;
 begin
   Result := ToList(ISpecification<T>(nil));
+end;
+
+procedure TDbSet<T>.ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback);
+var
+  Stream: TMemoryStream;
+begin
+  if not Assigned(ACallback) then Exit;
+  Stream := TMemoryStream.Create;
+  try
+    ExecuteToUtf8Stream(Stream);
+    if Stream.Size > 0 then
+      ACallback(Stream.Memory, Stream.Size);
+  finally
+    Stream.Free;
+  end;
+end;
+
+procedure TDbSet<T>.ExecuteToUtf8Stream(const AStream: TStream);
+var
+  List: IList<T>;
+  JsonStr: string;
+  Bytes: TBytes;
+begin
+  if AStream = nil then Exit;
+  List := ToList;
+  JsonStr := TDextJson.Serialize<IList<T>>(List);
+  Bytes := TEncoding.UTF8.GetBytes(JsonStr);
+  if Length(Bytes) > 0 then
+    AStream.WriteBuffer(Bytes[0], Length(Bytes));
 end;
 
 function TDbSet<T>.ToListAsync: TAsyncBuilder<IList<T>>;

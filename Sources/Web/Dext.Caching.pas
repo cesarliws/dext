@@ -25,6 +25,8 @@
 {***************************************************************************}
 unit Dext.Caching;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -37,7 +39,9 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.Web.Builder,
-  Dext.Web.Interfaces;
+  Dext.Web.Interfaces,
+  Dext.Entity.Core,
+  Dext.Entity.FastQuery;
 
 type
   /// <summary>
@@ -185,7 +189,8 @@ type
     /// <summary> Gets Content-Type header. </summary>
     function GetContentType: string;
     /// <summary> Sets status code fluently. </summary>
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
     /// <summary> Sets HTTP status code. </summary>
     procedure SetStatusCode(AValue: Integer);
     /// <summary> Sets Content-Type header. </summary>
@@ -208,6 +213,14 @@ type
     procedure Json(const AJson: string); overload;
     /// <summary> Serializes object to JSON. </summary>
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    {$IFDEF DEXT_ENABLE_ENTITY}
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
+    {$ENDIF}
     /// <summary> Adds an HTTP response header. </summary>
     procedure AddHeader(const AName, AValue: string);
     /// <summary> Appends a cookie with options. </summary>
@@ -802,6 +815,47 @@ begin
   SetStatusCode(AValue);
   Result := Self;
 end;
+
+function TResponseCaptureWrapper.Status(AValue: Integer; const AMessage: string): IHttpResponse;
+begin
+  SetStatusCode(AValue);
+  Result := Self;
+end;
+
+procedure TResponseCaptureWrapper.WriteJson(const AValue: TValue);
+begin
+  FOriginal.WriteJson(AValue);
+end;
+
+procedure TResponseCaptureWrapper.WriteJson(ACode: Integer; const AValue: TValue);
+begin
+  SetStatusCode(ACode);
+  FOriginal.WriteJson(ACode, AValue);
+end;
+
+procedure TResponseCaptureWrapper.WriteJson(const AQuery: IDextFastQuery);
+begin
+  FOriginal.WriteJson(AQuery);
+end;
+
+procedure TResponseCaptureWrapper.WriteJson(ACode: Integer; const AQuery: IDextFastQuery);
+begin
+  SetStatusCode(ACode);
+  FOriginal.WriteJson(ACode, AQuery);
+end;
+
+{$IFDEF DEXT_ENABLE_ENTITY}
+procedure TResponseCaptureWrapper.WriteJson(const AStream: IDbSetFastStream);
+begin
+  FOriginal.WriteJson(AStream);
+end;
+
+procedure TResponseCaptureWrapper.WriteJson(ACode: Integer; const AStream: IDbSetFastStream);
+begin
+  SetStatusCode(ACode);
+  FOriginal.WriteJson(ACode, AStream);
+end;
+{$ENDIF}
 
 procedure TResponseCaptureWrapper.SetStatusCode(AValue: Integer);
 begin
