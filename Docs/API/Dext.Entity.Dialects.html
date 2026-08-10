@@ -245,9 +245,9 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function VariantToSQL(const const: Variant): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetCascadeActionSQL(AAction: TCascadeAction): string</div></div>
 <div class="api-item">
@@ -317,9 +317,9 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function VariantToSQL(const const: Variant): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetCascadeActionSQL(AAction: TCascadeAction): string</div></div>
 <div class="api-item">
@@ -388,7 +388,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLastInsertIdSQL: string</div></div>
 <div class="api-item">
@@ -410,7 +410,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLastInsertIdSQL: string</div></div>
 <div class="api-item">
@@ -450,7 +450,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLastInsertIdSQL: string</div></div>
 <div class="api-item">
@@ -478,7 +478,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLastInsertIdSQL: string</div></div>
 <div class="api-item">
@@ -506,7 +506,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetLockingSQL(ALockMode: TLockMode): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 <div class="api-item">
@@ -524,7 +524,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLastInsertIdSQL: string</div></div>
 <div class="api-item">
@@ -538,7 +538,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function GetJsonValueSQL(const const: string; const const: string): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetSequenceNextValSQL(const const: string; AAllocationSize: Integer): string</div></div>
 </div>
@@ -562,7 +562,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetLastInsertIdSQL: string</div></div>
 <div class="api-item">
@@ -590,7 +590,7 @@ TFirebirdDialect <|-- TInterBaseDialect
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function BooleanToSQL(AValue: Boolean): string</div></div>
 <div class="api-item">
-<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string</div></div>
+<div class="api-signature">function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision: Integer; AScale: Integer): string</div></div>
 <div class="api-item">
 <div class="api-signature">function GetDialect: TDatabaseDialect</div></div>
 </div>

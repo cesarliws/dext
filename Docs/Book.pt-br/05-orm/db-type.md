@@ -33,29 +33,41 @@ A maioria dos valores padrão de `TFieldType` é suportada, incluindo:
 - `ftBoolean`
 - `ftBlob`, `ftGuid`
 
-## Decimais de Alta Precisão
+## Decimais de Alta Precisão (`TBcd` & `ftFMTBcd`)
 
-Para aplicações financeiras, o uso de `ftFMTBcd` é recomendado para evitar erros de arredondamento:
+Para aplicações financeiras e fiscais que exigem alta precisão numérea sem limite de 4 casas decimais do `Currency` e sem erros de ponto flutuante do `Double`, o Dext oferece suporte de primeira classe a `TBcd` e `ftFMTBcd`:
 
 ```pascal
 type
   [Table('Products')]
   TProduct = class
+  private
+    FPrice: TBcd;
   public
-    [DbType(ftFMTBcd), Precision(18, 4)]
-    property Price: Currency read FPrice write FPrice;
+    [PK, AutoInc]
+    property Id: Int64 read FId write FId;
+
+    // Uso nativo de TBcd com precisao customizada (ex: 28 digitos, 10 decimais)
+    [DbType(ftFMTBcd), Precision(28, 10)]
+    property Price: TBcd read FPrice write FPrice;
   end;
 ```
 
+> [!NOTE]
+> O caminho mais eficiente para `TBcd` é o binding binário direto do
+> FireDAC (`Param.AsFMTBCD := Bcd`). Conversões via `String`, `Currency`,
+> `Double` ou `Variant` continuam disponíveis para compatibilidade, mas
+> podem executar formatação, parsing ou conversão numérica intermediária.
+
 ## Mapeamento Fluente
 
-Se você preferir usar o Mapeamento Fluente em vez de atributos, pode usar o método `HasDbType`:
+Se você preferir usar o Mapeamento Fluente em vez de atributos, pode usar os métodos `HasDbType` e `HasPrecision`:
 
 ```pascal
 modelBuilder.Entity<TProduct>()
   .Prop('Price')
     .HasDbType(ftFMTBcd)
-    .HasPrecision(18, 4);
+    .HasPrecision(28, 10);
 ```
 
 ## Paginação Legada

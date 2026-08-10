@@ -126,6 +126,33 @@ TBaseConverter <|-- TIntegerToStringConverter
 class TBooleanToStringConverter {    +Convert()
 }
 TBaseConverter <|-- TBooleanToStringConverter
+class TBcdToCurrencyConverter {    +Convert()
+}
+TBaseConverter <|-- TBcdToCurrencyConverter
+class TBcdToDoubleConverter {    +Convert()
+}
+TBaseConverter <|-- TBcdToDoubleConverter
+class TBcdToStringConverter {    +Convert()
+}
+TBaseConverter <|-- TBcdToStringConverter
+class TBcdToIntegerConverter {    +Convert()
+}
+TBaseConverter <|-- TBcdToIntegerConverter
+class TVariantToBcdConverter {    +Convert()
+}
+TBaseConverter <|-- TVariantToBcdConverter
+class TStringToBcdConverter {    +Convert()
+}
+TBaseConverter <|-- TStringToBcdConverter
+class TFloatToBcdConverter {    +Convert()
+}
+TBaseConverter <|-- TFloatToBcdConverter
+class TIntegerToBcdConverter {    +Convert()
+}
+TBaseConverter <|-- TIntegerToBcdConverter
+class TCurrencyToBcdConverter {    +Convert()
+}
+TBaseConverter <|-- TCurrencyToBcdConverter
 </div>
 </div>
 </details>
@@ -287,6 +314,60 @@ TBaseConverter <|-- TBooleanToStringConverter
 <hr>
 <div class="class-header">
 <h3>class TBooleanToStringConverter</h3><a name="TBooleanToStringConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TBcdToCurrencyConverter</h3><a name="TBcdToCurrencyConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts TBcd values to Currency.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TBcdToDoubleConverter</h3><a name="TBcdToDoubleConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts TBcd values to Double/Float.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TBcdToStringConverter</h3><a name="TBcdToStringConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts TBcd values to String using invariant format settings.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TBcdToIntegerConverter</h3><a name="TBcdToIntegerConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts TBcd values to Integer/Int64.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TVariantToBcdConverter</h3><a name="TVariantToBcdConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts Variant values to TBcd.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TStringToBcdConverter</h3><a name="TStringToBcdConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts String values to TBcd using invariant format settings.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TFloatToBcdConverter</h3><a name="TFloatToBcdConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts Float/Double values to TBcd.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TIntegerToBcdConverter</h3><a name="TIntegerToBcdConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts Integer/Int64 values to TBcd.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TCurrencyToBcdConverter</h3><a name="TCurrencyToBcdConverter"></a><div class="ancestor">Inherits from: TBaseConverter</div><div class="description">Converts Currency values to TBcd.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Convert(const const: TValue; ATargetType: PTypeInfo): TValue</div></div>
 </div>

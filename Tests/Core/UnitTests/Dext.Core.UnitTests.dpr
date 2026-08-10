@@ -37,7 +37,8 @@ uses
   Dext.BackgroundJobs.Storage.Sqlite in '..\..\..\Sources\Data\Dext.BackgroundJobs.Storage.Sqlite.pas',
   Dext.Core.SmartTypes.Combinatorial.Tests in 'Dext.Core.SmartTypes.Combinatorial.Tests.pas',
   Dext.Collections.Pool in '..\..\..\Sources\Core\Dext.Collections.Pool.pas',
-  Dext.Collections.Pool.Tests in 'Dext.Collections.Pool.Tests.pas';
+  Dext.Collections.Pool.Tests in 'Dext.Collections.Pool.Tests.pas',
+  Dext.Bcd.Tests in 'Dext.Bcd.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -76,7 +77,8 @@ begin
         TWebUtf8Tests,
         TResponseWriterTests,
         TBoundedExecutorTests,
-        TDextPoolTests
+        TDextPoolTests,
+        TBcdSupportTests
       ]));
   except
     on E: Exception do

@@ -112,6 +112,7 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **TValueConverterRegistry** — Global converter registry with 3-level lookup: (1) Exact Match by `PTypeInfo` pair, (2) Kind Match by `TTypeKind` pair, (3) Fallback for `tkVariant` source.
 - **TValueConverter** — Execution engine orchestrating conversions, with automatic handling of Smart Types (`Prop<T>`) and `Nullable<T>` (detected via `TReflection.GetMetadata`).
 - **20+ Built-in Converters** — `Variant→Integer/String/Boolean/Float/DateTime/Date/Time/Enum/GUID/Class/TBytes/TUUID`, `Integer→Enum/String`, `String→GUID/TBytes/TUUID/Integer/Float/DateTime/Boolean`, `Float→String`, `Boolean→String`, `Class→Class`.
+- **TBcd & ftFMTBcd First-Class Support** — Bidirectional zero-alloc converters: `TBcd` <-> `Currency`, `TBcd` <-> `Double`, `TBcd` <-> `string` (invariant), `TBcd` <-> `Integer/Int64`, `Variant` <-> `TBcd`, `String` <-> `TBcd`, `Float` <-> `TBcd`, `Currency` <-> `TBcd`. Provides end-to-end precision preservation for high-precision `NUMERIC`/`DECIMAL` database columns.
 - **ConvertAndSet / ConvertAndSetField** — Conversion + assignment via RTTI in a single call (used by ORM and Model Binding).
 
 ### 1.8 Memory & Span (`Dext.Core.Span`, `Dext.Core.Memory`)

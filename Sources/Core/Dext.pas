@@ -161,6 +161,8 @@ type
   BoolType = Dext.Core.SmartTypes.BoolType;
   FloatType = Dext.Core.SmartTypes.FloatType;
   CurrencyType = Dext.Core.SmartTypes.CurrencyType;
+  BcdType = Dext.Core.SmartTypes.BcdType;
+  FmtBcdType = Dext.Core.SmartTypes.FmtBcdType;
   DateTimeType = Dext.Core.SmartTypes.DateTimeType;
   DateType = Dext.Core.SmartTypes.DateType;
   TimeType = Dext.Core.SmartTypes.TimeType;
@@ -177,6 +179,15 @@ type
   TValueConverterRegistry = Dext.Core.ValueConverters.TValueConverterRegistry;
   TValueConverter = Dext.Core.ValueConverters.TValueConverter;
   TBaseConverter = Dext.Core.ValueConverters.TBaseConverter;
+  TBcdToCurrencyConverter = Dext.Core.ValueConverters.TBcdToCurrencyConverter;
+  TBcdToDoubleConverter = Dext.Core.ValueConverters.TBcdToDoubleConverter;
+  TBcdToStringConverter = Dext.Core.ValueConverters.TBcdToStringConverter;
+  TBcdToIntegerConverter = Dext.Core.ValueConverters.TBcdToIntegerConverter;
+  TVariantToBcdConverter = Dext.Core.ValueConverters.TVariantToBcdConverter;
+  TStringToBcdConverter = Dext.Core.ValueConverters.TStringToBcdConverter;
+  TFloatToBcdConverter = Dext.Core.ValueConverters.TFloatToBcdConverter;
+  TIntegerToBcdConverter = Dext.Core.ValueConverters.TIntegerToBcdConverter;
+  TCurrencyToBcdConverter = Dext.Core.ValueConverters.TCurrencyToBcdConverter;
   TVariantToIntegerConverter = Dext.Core.ValueConverters.TVariantToIntegerConverter;
   TVariantToStringConverter = Dext.Core.ValueConverters.TVariantToStringConverter;
   TVariantToBooleanConverter = Dext.Core.ValueConverters.TVariantToBooleanConverter;
@@ -579,6 +590,5 @@ begin
   TServiceCollectionLoggingExtensions.AddLogging(Self.Unwrap, AConfigure);
   Result := Self;
 end;
-
 
 end.

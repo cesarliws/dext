@@ -32,6 +32,7 @@ uses
   System.TypInfo,
   Dext.Collections,
   Data.DB,
+  Data.FmtBcd,
   Dext.Types.UUID,
   Dext.Entity.Attributes,
   System.Variants,
@@ -69,8 +70,8 @@ type
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string;
     function BooleanToSQL(AValue: Boolean): string;
     function VariantToSQL(const AValue: Variant): string;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string;
-    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string;
+    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string;
     function GetCascadeActionSQL(AAction: TCascadeAction): string;
     function GetLastInsertIdSQL: string;
     function GetCreateTableSQL(const ATableName, ABody: string): string;
@@ -156,8 +157,8 @@ type
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; virtual; abstract;
     function BooleanToSQL(AValue: Boolean): string; virtual;
     function VariantToSQL(const AValue: Variant): string; virtual;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; virtual; abstract;
-    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string; virtual;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; virtual; abstract;
+    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; virtual;
     function GetCascadeActionSQL(AAction: TCascadeAction): string; virtual;
     function GetLastInsertIdSQL: string; virtual; abstract;
     function GetCreateTableSQL(const ATableName, ABody: string): string; virtual;
@@ -194,7 +195,7 @@ type
     function QuoteIdentifier(const AName: string): string; override;
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetLastInsertIdSQL: string; override;
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     function GetDialect: TDatabaseDialect; override;
@@ -213,7 +214,7 @@ type
     function QuoteIdentifier(const AName: string): string; override;
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetLastInsertIdSQL: string; override;
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     
@@ -239,7 +240,7 @@ type
     function QuoteIdentifier(const AName: string): string; override;
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetLastInsertIdSQL: string; override;
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     
@@ -259,7 +260,7 @@ type
     function QuoteIdentifier(const AName: string): string; override;
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetLastInsertIdSQL: string; override;
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     
@@ -274,7 +275,7 @@ type
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
     function GenerateProcedureCallSQL(const AProcName: string; const AParamNames: TArray<string>): string; override;
     function GetLockingSQL(ALockMode: TLockMode): string; override;
-    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetSequenceNextValSQL(const ASequenceName: string; AAllocationSize: Integer = 1): string; override;
     function GetSequenceExistsSQL(const ASequenceName: string): string; override;
     function GetCreateSequenceSQL(const ASequenceName: string; AAllocationSize: Integer = 1): string; override;
@@ -288,7 +289,7 @@ type
     function QuoteIdentifier(const AName: string): string; override;
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetLastInsertIdSQL: string; override;
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     
@@ -297,7 +298,7 @@ type
     function GetSetSchemaSQL(const ASchemaName: string): string; override;
     function GetDialect: TDatabaseDialect; override;
     function GetJsonValueSQL(const AColumn, APath: string): string; override;
-    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetSequenceNextValSQL(const ASequenceName: string; AAllocationSize: Integer = 1): string; override;
   end;
 
@@ -319,7 +320,7 @@ type
     function QuoteIdentifier(const AName: string): string; override;
     function GeneratePaging(const ASQL: string; ASkip, ATake: Integer): string; override;
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetLastInsertIdSQL: string; override;
     function GetCreateTableSQL(const ATableName, ABody: string): string; override;
     
@@ -339,7 +340,7 @@ type
   TInterBaseDialect = class(TFirebirdDialect)
   public
     function BooleanToSQL(AValue: Boolean): string; override;
-    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False): string; override;
+    function GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean = False; APrecision: Integer = 0; AScale: Integer = 0): string; override;
     function GetDialect: TDatabaseDialect; override;
   end;
 
@@ -472,7 +473,7 @@ begin
   Result := '';
 end;
 
-function TBaseDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string;
+function TBaseDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
      // Fallback to integer logic (will be overridden by GetColumnType(PTypeInfo) usually, or specific dialects need to override this)
@@ -484,7 +485,13 @@ begin
     ftInteger, ftLongWord, ftAutoInc: Result := 'INTEGER';
     ftLargeint: Result := 'BIGINT';
     ftFloat, ftSingle, ftExtended: Result := 'FLOAT';
-    ftCurrency, ftBCD, ftFMTBcd: Result := 'DECIMAL(18,4)';
+    ftCurrency, ftBCD, ftFMTBcd:
+      begin
+        if APrecision > 0 then
+          Result := Format('DECIMAL(%d,%d)', [APrecision, AScale])
+        else
+          Result := 'DECIMAL(18,4)';
+      end;
     ftBoolean: Result := 'BOOLEAN'; // Some DBs override this
     ftDate: Result := 'DATE';
     ftTime: Result := 'TIME';
@@ -817,7 +824,7 @@ begin
     Result := '"' + AName + '"';
 end;
 
-function TSQLiteDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TSQLiteDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
     Exit('INTEGER'); // SQLite AutoInc must be INTEGER PRIMARY KEY
@@ -853,12 +860,18 @@ begin
       end;
     tkRecord:
       begin
-        // special case for UUID fields
-        if String(AtypeINfo.Name).Equals('TUUID') then
+        if ATypeInfo = TypeInfo(TBcd) then
+        begin
+          if APrecision > 0 then
+            Result := Format('NUMERIC(%d,%d)', [APrecision, AScale])
+          else
+            Result := 'NUMERIC';
+        end
+        else if string(ATypeInfo.Name).Equals('TUUID') then
           Result := 'VARCHAR(36)'
         else
           Result := 'TEXT';
-      end
+      end;
   else
     Result := 'TEXT';
   end;
@@ -915,7 +928,7 @@ begin
     Result := '"' + AName + '"';
 end;
 
-function TPostgreSQLDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TPostgreSQLDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
     Exit('SERIAL');
@@ -946,7 +959,14 @@ begin
       end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'UUID'
+        if ATypeInfo = TypeInfo(TBcd) then
+        begin
+          if APrecision > 0 then
+            Result := Format('NUMERIC(%d,%d)', [APrecision, AScale])
+          else
+            Result := 'NUMERIC';
+        end
+        else if ATypeInfo = TypeInfo(TGUID) then Result := 'UUID'
         else if ATypeInfo = TypeInfo(TUUID) then Result := 'UUID'
         else Result := 'JSONB'; // Records as JSONB
       end;
@@ -1064,13 +1084,9 @@ begin
   if AValue then Result := '1' else Result := '0';
 end;
 
-function TInterBaseDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TInterBaseDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
-  if (not AIsAutoInc) and (ATypeInfo.Kind = tkEnumeration) and (ATypeInfo = TypeInfo(Boolean)) then
-    Exit('SMALLINT');
-    
-  // Delegate other types to Firebird dialect (compatible for most parts)
-  Result := inherited GetColumnType(ATypeInfo, AIsAutoInc);
+  Result := inherited GetColumnType(ATypeInfo, AIsAutoInc, APrecision, AScale);
 end;
 
 function TInterBaseDialect.GetDialect: TDatabaseDialect;
@@ -1097,10 +1113,10 @@ begin
   Result := '"' + AName + '"';
 end;
 
-function TFirebirdDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TFirebirdDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
-    Exit('INTEGER GENERATED BY DEFAULT AS IDENTITY'); // Firebird 3.0+
+    Exit('BIGINT GENERATED BY DEFAULT AS IDENTITY'); // Firebird 3.0+ Identity
 
   case ATypeInfo.Kind of
     tkInteger: Result := 'INTEGER';
@@ -1128,7 +1144,14 @@ begin
       end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)'
+        if ATypeInfo = TypeInfo(TBcd) then
+        begin
+          if APrecision > 0 then
+            Result := Format('DECIMAL(%d,%d)', [APrecision, AScale])
+          else
+            Result := 'DECIMAL(18,4)';
+        end
+        else if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)'
         else if ATypeInfo = TypeInfo(TUUID) then Result := 'CHAR(36)'
         else Result := 'VARCHAR(255)';
       end;
@@ -1240,15 +1263,10 @@ begin
   end;
 end;
 
-function TSQLServerDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TSQLServerDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
-  begin
-    if (ATypeInfo <> nil) and (ATypeInfo.Kind = tkInt64) then
-      Exit('BIGINT IDENTITY(1,1)')
-    else
-      Exit('INT IDENTITY(1,1)');
-  end;
+    Exit('INT IDENTITY(1,1)');
 
   case ATypeInfo.Kind of
     tkInteger: Result := 'INT';
@@ -1276,7 +1294,14 @@ begin
       end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'UNIQUEIDENTIFIER'
+        if ATypeInfo = TypeInfo(TBcd) then
+        begin
+          if APrecision > 0 then
+            Result := Format('DECIMAL(%d,%d)', [APrecision, AScale])
+          else
+            Result := 'DECIMAL(18,4)';
+        end
+        else if ATypeInfo = TypeInfo(TGUID) then Result := 'UNIQUEIDENTIFIER'
         else if ATypeInfo = TypeInfo(TUUID) then Result := 'UNIQUEIDENTIFIER'
         else Result := 'NVARCHAR(MAX)';
       end;
@@ -1383,12 +1408,12 @@ begin
   Result := Format('JSON_VALUE(%s, ''$.%s'')', [AColumn, APath]);
 end;
 
-function TSQLServerDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string;
+function TSQLServerDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
-  if AFieldType = ftBoolean then
-    Result := 'BIT'
+  if AFieldType = ftGuid then
+    Result := 'UNIQUEIDENTIFIER'
   else
-    Result := inherited GetColumnTypeForField(AFieldType, AIsAutoInc);
+    Result := inherited GetColumnTypeForField(AFieldType, AIsAutoInc, APrecision, AScale);
 end;
 
 function TSQLServerDialect.GetSequenceNextValSQL(const ASequenceName: string; AAllocationSize: Integer): string;
@@ -1430,15 +1455,10 @@ begin
     Result := '`' + AName + '`';
 end;
 
-function TMySQLDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TMySQLDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
-  begin
-    if (ATypeInfo <> nil) and (ATypeInfo.Kind = tkInt64) then
-      Exit('BIGINT AUTO_INCREMENT')
-    else
-      Exit('INT AUTO_INCREMENT');
-  end;
+    Exit('INT AUTO_INCREMENT');
 
   case ATypeInfo.Kind of
     tkInteger: Result := 'INT';
@@ -1447,7 +1467,7 @@ begin
       begin
         if ATypeInfo = TypeInfo(Double) then Result := 'DOUBLE'
         else if ATypeInfo = TypeInfo(Single) then Result := 'FLOAT'
-        else if ATypeInfo = TypeInfo(Currency) then Result := 'DECIMAL(15,2)'
+        else if ATypeInfo = TypeInfo(Currency) then Result := 'DECIMAL(18,4)'
         else if ATypeInfo = TypeInfo(TDateTime) then Result := 'DATETIME'
         else if ATypeInfo = TypeInfo(TDate) then Result := 'DATE'
         else if ATypeInfo = TypeInfo(TTime) then Result := 'TIME'
@@ -1466,7 +1486,14 @@ begin
       end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)'
+        if ATypeInfo = TypeInfo(TBcd) then
+        begin
+          if APrecision > 0 then
+            Result := Format('DECIMAL(%d,%d)', [APrecision, AScale])
+          else
+            Result := 'DECIMAL(18,4)';
+        end
+        else if ATypeInfo = TypeInfo(TGUID) then Result := 'CHAR(36)'
         else if ATypeInfo = TypeInfo(TUUID) then Result := 'CHAR(36)'
         else Result := 'JSON';
       end;
@@ -1506,12 +1533,12 @@ begin
     Result := '';
 end;
 
-function TMySQLDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean): string;
+function TMySQLDialect.GetColumnTypeForField(AFieldType: TFieldType; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AFieldType = ftBoolean then
     Result := 'TINYINT(1)'
   else
-    Result := inherited GetColumnTypeForField(AFieldType, AIsAutoInc);
+    Result := inherited GetColumnTypeForField(AFieldType, AIsAutoInc, APrecision, AScale);
 end;
 
 function TMySQLDialect.GetDialect: TDatabaseDialect;
@@ -1579,7 +1606,7 @@ begin
   Result := '"' + AName + '"';
 end;
 
-function TOracleDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean): string;
+function TOracleDialect.GetColumnType(ATypeInfo: PTypeInfo; AIsAutoInc: Boolean; APrecision, AScale: Integer): string;
 begin
   if AIsAutoInc then
     Exit('NUMBER(10) GENERATED BY DEFAULT AS IDENTITY'); // Oracle 12c+
@@ -1610,7 +1637,14 @@ begin
       end;
     tkRecord:
       begin
-        if ATypeInfo = TypeInfo(TGUID) then Result := 'VARCHAR2(36)'
+        if ATypeInfo = TypeInfo(TBcd) then
+        begin
+          if APrecision > 0 then
+            Result := Format('NUMBER(%d,%d)', [APrecision, AScale])
+          else
+            Result := 'NUMBER(28,10)';
+        end
+        else if ATypeInfo = TypeInfo(TGUID) then Result := 'VARCHAR2(36)'
         else Result := 'VARCHAR2(4000)';
       end;
   else

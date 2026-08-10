@@ -59,6 +59,7 @@ contains
   Dext.Collections.Algorithms in '..\..\Sources\Core\Dext.Collections.Algorithms.pas',
   Dext.Collections.Simd in '..\..\Sources\Core\Dext.Collections.Simd.pas',
   Dext.Collections.Vector in '..\..\Sources\Core\Dext.Collections.Vector.pas',
+  Dext.Collections.Pool in '..\..\Sources\Core\Dext.Collections.Pool.pas',
   Dext.Collections in '..\..\Sources\Core\Dext.Collections.pas',
   Dext.Configuration.Binder in '..\..\Sources\Core\Dext.Configuration.Binder.pas',
   Dext.Configuration.EnvironmentVariables in '..\..\Sources\Core\Dext.Configuration.EnvironmentVariables.pas',

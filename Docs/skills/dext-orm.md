@@ -132,7 +132,7 @@ end;
 ```
 
 ### 1.3. Smart Properties
-Always use native Smart Property aliases (**IntType**, **StringType**, **DoubleType**, **BoolType** from `Dext.Core.SmartTypes`) for class properties to enable automatic model binding and type-safe filtering.
+Always use native Smart Property aliases (**IntType**, **StringType**, **DoubleType**, **BoolType**, **BcdType**, **FmtBcdType** from `Dext.Core.SmartTypes`) for class properties to enable automatic model binding, type-safe filtering, and zero-allocation high-precision decimal (`TBcd`/`ftFMTBcd`) support.
 
 ### 1.4. Available Mapping Attributes
 

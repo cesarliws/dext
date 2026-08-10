@@ -17,6 +17,7 @@ uses
   Dext.Configuration.Interfaces,
   Dext.Logging.Extensions,
   Dext.Collections.Dict,
+  Dext.Core.SmartTypes,
   // {BEGIN_DEXT_USES}
   // Generated Uses
   Dext.Entity.Attributes,
@@ -344,6 +345,8 @@ type
   TTypeConverterRegistry = Dext.Entity.TypeConverters.TTypeConverterRegistry;
 
   // Dext.Entity.TypeSystem
+  BcdType = Dext.Core.SmartTypes.BcdType;
+  FmtBcdType = Dext.Core.SmartTypes.FmtBcdType;
   // TProp<T> = Dext.Entity.TypeSystem.TProp<T>;
   // IEntityBuilder<T> = Dext.Entity.TypeSystem.IEntityBuilder<T>;
   // TEntityBuilder<T> = Dext.Entity.TypeSystem.TEntityBuilder<T>;

@@ -45,6 +45,7 @@ unit Dext.Core.SmartTypes;
 interface
 
 uses
+  Data.FmtBcd,
   Dext.Collections.Comparers,
   System.Rtti,
   System.SysUtils,
@@ -276,6 +277,8 @@ type
   BoolType = Prop<Boolean>;
   FloatType = Prop<Double>;
   CurrencyType = Prop<Currency>;
+  BcdType = Prop<TBcd>;
+  FmtBcdType = Prop<TBcd>;
   DateTimeType = Prop<TDateTime>;
   DateType = Prop<TDate>;
   TimeType = Prop<TTime>;
