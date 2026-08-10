@@ -16,6 +16,8 @@ uses
   Dext.Mocks.Matching,
   Dext.Web.Results,
   Dext.Json,
+  Dext.Entity.FastQuery,
+  Dext.Entity.Core,
   Dext.Server.Engine.Interfaces;
 
 type
@@ -64,7 +66,8 @@ type
 
     function GetContentType: string;
     function GetStatusCode: Integer;
-    function Status(AValue: Integer): IHttpResponse;
+    function Status(AValue: Integer): IHttpResponse; overload;
+    function Status(AValue: Integer; const AMessage: string): IHttpResponse; overload;
 
     procedure AddHeader(const AName, AValue: string);
     procedure AppendCookie(const AName, AValue: string); overload;
@@ -72,6 +75,12 @@ type
     procedure DeleteCookie(const AName: string);
     procedure Json(const AJson: string); overload;
     procedure Json(const AValue: TValue); overload;
+    procedure WriteJson(const AValue: TValue); overload;
+    procedure WriteJson(ACode: Integer; const AValue: TValue); overload;
+    procedure WriteJson(const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(ACode: Integer; const AQuery: IDextFastQuery); overload;
+    procedure WriteJson(const AStream: IDbSetFastStream); overload;
+    procedure WriteJson(ACode: Integer; const AStream: IDbSetFastStream); overload;
     procedure SetContentLength(const AValue: Int64);
     procedure SetContentType(const AValue: string);
     procedure SetStatusCode(AValue: Integer);
@@ -252,6 +261,12 @@ begin
   Result := Self;
 end;
 
+function TStatefulMockResponse.Status(AValue: Integer; const AMessage: string): IHttpResponse;
+begin
+  FStatusCode := AValue;
+  Result := Self;
+end;
+
 procedure TStatefulMockResponse.SetStatusCode(AValue: Integer);
 begin
   FStatusCode := AValue;
@@ -304,6 +319,39 @@ end;
 
 procedure TStatefulMockResponse.Json(const AValue: TValue);
 begin
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.WriteJson(const AValue: TValue);
+begin
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.WriteJson(ACode: Integer; const AValue: TValue);
+begin
+  FStatusCode := ACode;
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.WriteJson(const AQuery: IDextFastQuery);
+begin
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.WriteJson(ACode: Integer; const AQuery: IDextFastQuery);
+begin
+  FStatusCode := ACode;
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.WriteJson(const AStream: IDbSetFastStream);
+begin
+  FContentType := 'application/json';
+end;
+
+procedure TStatefulMockResponse.WriteJson(ACode: Integer; const AStream: IDbSetFastStream);
+begin
+  FStatusCode := ACode;
   FContentType := 'application/json';
 end;
 

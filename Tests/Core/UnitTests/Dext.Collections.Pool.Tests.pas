@@ -130,11 +130,12 @@ begin
   Config := TDextPoolConfig.Default;
   Config.MinSize := 0;
   Config.MaxSize := 2;
+  Config.AcquireTimeoutMs := 100;
 
   Pool := TDextPool<TTestPoolItem>.Create(Config);
   Assert.IsTrue(Pool.Acquire(Item1));
   Assert.IsTrue(Pool.Acquire(Item2));
-  Assert.IsFalse(Pool.Acquire(Item3));
+  Assert.IsFalse(Pool.Acquire(Item3)); // Timed out waiting for item
 
   Pool.Release(Item1);
   Pool.Release(Item2);

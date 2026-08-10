@@ -33,6 +33,7 @@ uses
   System.SysUtils,
   System.Classes,
   Dext,
+  Dext.DI.Interfaces,
   Dext.Collections.Pool,
   {$IFDEF DEXT_ENABLE_ENTITY}
   Dext.Entity,

@@ -32,11 +32,41 @@ type
   end;
 
   /// <summary>
+  ///   ARC-managed wrapper that automatically releases an acquired pool item back to its pool
+  ///   when the interface goes out of scope (RAII pattern).
+  /// </summary>
+  IPooledObject<T: class> = interface
+    ['{7A8B9C0D-1E2F-3A4B-5C6D-7E8F9A0B1C2D}']
+    function GetItem: T;
+    function HasItem: Boolean;
+    property Item: T read GetItem;
+  end;
+
+  IDextPool<T: class> = interface;
+
+  /// <summary>
+  ///   Implementation of IPooledObject<T> for automatic RAII pool item release.
+  /// </summary>
+  TPooledObject<T: class> = class(TInterfacedObject, IPooledObject<T>)
+  private
+    FPool: IDextPool<T>;
+    FItem: T;
+  public
+    constructor Create(const APool: IDextPool<T>; AItem: T);
+    destructor Destroy; override;
+    function GetItem: T;
+    function HasItem: Boolean;
+    property Item: T read GetItem;
+  end;
+
+  /// <summary>
   ///   Generic interface for high-performance thread-safe object pools.
   /// </summary>
   IDextPool<T: class> = interface
     ['{1F2E3D4C-5B6A-7F8E-9D0C-1A2B3C4D5E6F}']
     function Acquire(out AItem: T): Boolean;
+    function AcquireScoped(out AScoped: IPooledObject<T>): Boolean; overload;
+    function AcquireScoped: IPooledObject<T>; overload;
     procedure Release(AItem: T);
     procedure Use(const AProc: TProc<T>); overload;
     function GetCount: Integer;
@@ -53,8 +83,11 @@ type
     FResetAction: TProc<T>;
     FItems: TArray<T>;
     FLock: TSpinLock;
+    FAvailableEvent: TEvent;
     FCount: Integer;
     FTotalAllocated: Integer;
+    FIsDisposing: Integer; // 0 = False, 1 = True (atomic access)
+    FActiveWaiters: Integer; // Active acquire waiters count (atomic access)
     procedure InternalPush(AItem: T);
     function InternalPop(out AItem: T): Boolean;
     function CreateInstance: T;
@@ -64,6 +97,8 @@ type
     destructor Destroy; override;
 
     function Acquire(out AItem: T): Boolean;
+    function AcquireScoped(out AScoped: IPooledObject<T>): Boolean; overload;
+    function AcquireScoped: IPooledObject<T>; overload;
     procedure Release(AItem: T);
     procedure Use(const AProc: TProc<T>); overload;
     function Use<TResult>(const AFunc: TFunc<T, TResult>): TResult; overload;
@@ -100,8 +135,11 @@ begin
   FFactory := AFactory;
   FResetAction := AResetAction;
   FLock := TSpinLock.Create(False);
+  FAvailableEvent := TEvent.Create(nil, True, False, ''); // ManualReset = True for broadcast signaling
   FCount := 0;
   FTotalAllocated := 0;
+  FIsDisposing := 0;
+  FActiveWaiters := 0;
 
   if FConfig.MaxSize < 1 then
     FConfig.MaxSize := 64;
@@ -123,6 +161,16 @@ var
   Item: T;
   Obj: TObject;
 begin
+  // 1. Mark shutdown atomically
+  AtomicExchange(FIsDisposing, 1);
+
+  // 2. Unblock any threads waiting on FAvailableEvent
+  FAvailableEvent.SetEvent;
+
+  // 3. Wait for all active waiters to exit their WaitFor block cleanly
+  while AtomicCmpExchange(FActiveWaiters, 0, 0) > 0 do
+    TThread.Sleep(1);
+
   FLock.Enter;
   try
     while FCount > 0 do
@@ -136,6 +184,8 @@ begin
   finally
     FLock.Exit;
   end;
+
+  FAvailableEvent.Free;
   inherited Destroy;
 end;
 
@@ -174,29 +224,103 @@ function TDextPool<T>.Acquire(out AItem: T): Boolean;
 var
   Popped: Boolean;
   CanAllocate: Boolean;
+  WaitRes: TWaitResult;
+  TimeoutMs: Integer;
+  Deadline: UInt64;
+  NowTick: UInt64;
+  RemainingMs: Int64;
 begin
-  FLock.Enter;
-  try
-    Popped := InternalPop(AItem);
-    if not Popped then
+  TimeoutMs := FConfig.AcquireTimeoutMs;
+  if TimeoutMs < 0 then
+    TimeoutMs := 5000;
+
+  Deadline := TThread.GetTickCount64 + UInt64(TimeoutMs);
+
+  repeat
+    if AtomicCmpExchange(FIsDisposing, 0, 0) <> 0 then
     begin
+      AItem := nil;
+      Result := False;
+      Exit;
+    end;
+
+    FLock.Enter;
+    try
+      if AtomicCmpExchange(FIsDisposing, 0, 0) <> 0 then
+      begin
+        AItem := nil;
+        Result := False;
+        Exit;
+      end;
+
+      Popped := InternalPop(AItem);
+      if Popped then
+      begin
+        // If items still remain or we can allocate more, keep event signaled for other waiters
+        CanAllocate := (FConfig.MaxSize <= 0) or (FTotalAllocated < FConfig.MaxSize);
+        if (FCount = 0) and (not CanAllocate) then
+          FAvailableEvent.ResetEvent;
+        Result := True;
+        Exit;
+      end;
+
       CanAllocate := (FConfig.MaxSize <= 0) or (FTotalAllocated < FConfig.MaxSize);
       if CanAllocate then
       begin
         AItem := CreateInstance;
+        // Check if allocating pushed pool to max capacity and no items in pool
+        CanAllocate := (FConfig.MaxSize <= 0) or (FTotalAllocated < FConfig.MaxSize);
+        if (FCount = 0) and (not CanAllocate) then
+          FAvailableEvent.ResetEvent;
         Result := True;
         Exit;
       end;
+
+      if TimeoutMs = 0 then
+      begin
+        AItem := nil;
+        Result := False;
+        Exit;
+      end;
+
+      NowTick := TThread.GetTickCount64;
+      if NowTick >= Deadline then
+      begin
+        AItem := nil;
+        Result := False;
+        Exit;
+      end;
+      RemainingMs := Int64(Deadline - NowTick);
+
+      // Pool is exhausted, reset signal for this waiting phase and register waiter
+      FAvailableEvent.ResetEvent;
+      AtomicIncrement(FActiveWaiters);
+    finally
+      FLock.Exit;
     end;
-  finally
-    FLock.Exit;
-  end;
 
-  if Popped then
-    Exit(True);
+    // Wait for an item to be released back or shutdown broadcast using calculated remaining timeout
+    try
+      WaitRes := FAvailableEvent.WaitFor(Cardinal(RemainingMs));
+    finally
+      AtomicDecrement(FActiveWaiters);
+    end;
 
-  AItem := nil;
-  Result := False;
+    if AtomicCmpExchange(FIsDisposing, 0, 0) <> 0 then
+    begin
+      AItem := nil;
+      Result := False;
+      Exit;
+    end;
+
+    if WaitRes <> wrSignaled then
+    begin
+      AItem := nil;
+      Result := False;
+      Exit;
+    end;
+    // Loop back to acquire item under FLock state protection
+  until False;
 end;
 
 procedure TDextPool<T>.Release(AItem: T);
@@ -222,6 +346,7 @@ begin
       FLock.Exit;
     end;
     AItem.Free;
+    FAvailableEvent.SetEvent;
     Exit;
   end;
 
@@ -239,6 +364,8 @@ begin
     FLock.Exit;
   end;
 
+  FAvailableEvent.SetEvent;
+
   if ShouldDestroy then
     TObject(AItem).Free;
 end;
@@ -248,7 +375,7 @@ var
   Item: T;
 begin
   if not Acquire(Item) then
-    raise Exception.Create('Failed to acquire instance from object pool.');
+    raise Exception.Create('Failed to acquire instance from object pool: Pool exhausted or timeout.');
   try
     AProc(Item);
   finally
@@ -261,12 +388,63 @@ var
   Item: T;
 begin
   if not Acquire(Item) then
-    raise Exception.Create('Failed to acquire instance from object pool.');
+    raise Exception.Create('Failed to acquire instance from object pool: Pool exhausted or timeout.');
   try
     Result := AFunc(Item);
   finally
     Release(Item);
   end;
+end;
+
+{ TPooledObject<T> }
+
+constructor TPooledObject<T>.Create(const APool: IDextPool<T>; AItem: T);
+begin
+  inherited Create;
+  FPool := APool;
+  FItem := AItem;
+end;
+
+destructor TPooledObject<T>.Destroy;
+begin
+  if (FPool <> nil) and (FItem <> nil) then
+    FPool.Release(FItem);
+  inherited Destroy;
+end;
+
+function TPooledObject<T>.GetItem: T;
+begin
+  Result := FItem;
+end;
+
+function TPooledObject<T>.HasItem: Boolean;
+begin
+  Result := FItem <> nil;
+end;
+
+function TDextPool<T>.AcquireScoped(out AScoped: IPooledObject<T>): Boolean;
+var
+  Item: T;
+begin
+  if Acquire(Item) then
+  begin
+    AScoped := TPooledObject<T>.Create(Self, Item);
+    Result := True;
+  end
+  else
+  begin
+    AScoped := nil;
+    Result := False;
+  end;
+end;
+
+function TDextPool<T>.AcquireScoped: IPooledObject<T>;
+var
+  Scoped: IPooledObject<T>;
+begin
+  if not AcquireScoped(Scoped) then
+    raise Exception.Create('Failed to acquire scoped instance from object pool: Pool exhausted or timeout.');
+  Result := Scoped;
 end;
 
 function TDextPool<T>.GetCount: Integer;

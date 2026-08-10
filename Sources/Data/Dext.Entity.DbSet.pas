@@ -52,6 +52,7 @@ uses
   Dext.Entity.Core,
   Dext.Entity.Dialects,
   Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.FastQuery,
   Dext.Entity.LazyLoading,
   Dext.Entity.Mapping,
   Dext.Entity.Prototype,
@@ -2328,31 +2329,49 @@ end;
 
 procedure TDbSet<T>.ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback);
 var
-  Stream: TMemoryStream;
+  Generator: TSqlGenerator<T>;
+  Sql: string;
+  FastQuery: TDextFastQuery;
 begin
   if not Assigned(ACallback) then Exit;
-  Stream := TMemoryStream.Create;
+  Generator := CreateGenerator;
   try
-    ExecuteToUtf8Stream(Stream);
-    if Stream.Size > 0 then
-      ACallback(Stream.Memory, Stream.Size);
+    Sql := Generator.GenerateSelect;
+    FastQuery := TDextFastQuery.Create(FContext.Connection, Sql);
+    try
+      FastQuery.ExecuteToUtf8Proc(
+        procedure(Buffer: Pointer; Length: Integer)
+        begin
+          ACallback(Buffer, Length);
+        end
+      );
+    finally
+      FastQuery.Free;
+    end;
   finally
-    Stream.Free;
+    Generator.Free;
   end;
 end;
 
 procedure TDbSet<T>.ExecuteToUtf8Stream(const AStream: TStream);
 var
-  List: IList<T>;
-  JsonStr: string;
-  Bytes: TBytes;
+  Generator: TSqlGenerator<T>;
+  Sql: string;
+  FastQuery: TDextFastQuery;
 begin
   if AStream = nil then Exit;
-  List := ToList;
-  JsonStr := TDextJson.Serialize<IList<T>>(List);
-  Bytes := TEncoding.UTF8.GetBytes(JsonStr);
-  if Length(Bytes) > 0 then
-    AStream.WriteBuffer(Bytes[0], Length(Bytes));
+  Generator := CreateGenerator;
+  try
+    Sql := Generator.GenerateSelect;
+    FastQuery := TDextFastQuery.Create(FContext.Connection, Sql);
+    try
+      FastQuery.ExecuteToUtf8Stream(AStream);
+    finally
+      FastQuery.Free;
+    end;
+  finally
+    Generator.Free;
+  end;
 end;
 
 function TDbSet<T>.ToListAsync: TAsyncBuilder<IList<T>>;

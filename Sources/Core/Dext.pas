@@ -33,6 +33,7 @@ uses
   // Generated Uses
   Dext.Collections.Extensions,
   Dext.Collections,
+  Dext.Collections.Pool,
   Dext.Configuration.Binder,
   Dext.Configuration.Core,
   Dext.Configuration.EnvironmentVariables,
@@ -89,6 +90,8 @@ type
 
   // Dext.Collections
   TCollections = Dext.Collections.TCollections;
+  IPoolable = Dext.Collections.Pool.IPoolable;
+  TDextPoolConfig = Dext.Collections.Pool.TDextPoolConfig;
   // IEnumerator<T> = Dext.Collections.IEnumerator<T>;
   // IEnumerable<T> = Dext.Collections.IEnumerable<T>;
   // IList<T> = Dext.Collections.IList<T>;

@@ -23,7 +23,6 @@ implementation
 procedure TDextRestClientStreamingTests.Test_DownloadToFile_Streaming;
 var
   TargetFile: string;
-  Client: IRestClient;
   Stream: TMemoryStream;
 begin
   TargetFile := ExtractFilePath(ParamStr(0)) + 'test_stream_output.tmp';
@@ -45,25 +44,21 @@ var
   ProgressCalled: Boolean;
   Abort: Boolean;
   ReadBytes, TotalBytes: Int64;
+  Proc: TRestReceiveAnonEvent;
 begin
   ProgressCalled := False;
   Abort := False;
   ReadBytes := 512;
   TotalBytes := 1024;
 
-  // Simulate progress callback signature test
-  if Assigned(
-    procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
-    begin
-      ProgressCalled := True;
-      Assert.AreEqual(Int64(1024), AContentLength);
-      Assert.AreEqual(Int64(512), AReadCount);
-    end
-  ) then
+  Proc := procedure(const AContentLength, AReadCount: Int64; var AAbort: Boolean)
   begin
     ProgressCalled := True;
+    Assert.AreEqual(TotalBytes, AContentLength);
+    Assert.AreEqual(ReadBytes, AReadCount);
   end;
 
+  Proc(TotalBytes, ReadBytes, Abort);
   Assert.IsTrue(ProgressCalled);
 end;
 

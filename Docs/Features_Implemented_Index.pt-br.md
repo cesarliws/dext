@@ -127,6 +127,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Escalonador Work-Stealing** — Distribuição eficiente de tarefas entre os núcleos da CPU para máxima performance paralela.
 - **ICancellationToken** — Cancelamento cooperativo com `WaitForCancellation(timeout)` e `IsCancellationRequested`. Integrado com Event Bus Lifecycle e Background Services.
 
+### 1.10 Generic Object Pooling (`Dext.Collections.Pool`)
+- **TDextPool\<T\>** — Pool genérico de objetos thread-safe com `TSpinLock`, `ManualReset` event broadcast, rastreamento atômico de waiters e deadline monotônica de timeout (`AcquireTimeoutMs`).
+- **Reciclagem Automática (`IPoolable`)** — Execução automática do método `ResetState` durante o `Release` do objeto antes de seu retorno ao estoque.
+- **Protocolo Drain-Before-Free** — Shutdown atômico com broadcast (`FAvailableEvent.SetEvent`) e espera por *drain* de waiters (`FActiveWaiters = 0`) prevenindo *use-after-free*.
+- **MapFast HTTP Fallback 503** — Retorno automático de `HTTP 503 Service Unavailable` em endpoints `App.MapFast<TDbContext>` sob exaustão do pool de contextos.
+
 ### 1.10 Logging Pipeline (`Dext.Logging`, `Dext.Logging.Sinks.APM`)
 - **ILoggerFactory** — Factory de loggers com registro de múltiplos providers. `CreateLogger(categoryName)` retorna `ILogger` composto.
 - **ILogger** — Interface com métodos por nível: `Trace`, `Debug`, `Information`, `Warning`, `Error`, `Critical`. Suporte a structured templates com placeholders.

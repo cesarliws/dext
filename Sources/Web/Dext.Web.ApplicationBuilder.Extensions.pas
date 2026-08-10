@@ -1492,9 +1492,14 @@ begin
             finally
               Pool.Release(Ctx);
             end;
+            Exit;
           end;
         end;
       end;
+
+      // Deterministic fallback response when pool is exhausted or unconfigured
+      Res.Status(503, 'Service Unavailable')
+         .WriteJson(503, '{"error":"Service Unavailable","message":"DbContext pool exhausted or unconfigured."}');
     end;
   Result := App.MapFast(AMethod, APath, FastHandler);
 end;
