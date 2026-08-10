@@ -28,6 +28,7 @@ unit Dext.Core.ValueConverters;
 interface
 
 uses
+  Data.FmtBcd,
   System.Classes,
   System.DateUtils,
   System.Rtti,
@@ -190,6 +191,71 @@ type
     function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
   end;
 
+  // TBcd Converters
+
+  /// <summary>
+  ///   Converts TBcd values to Currency.
+  /// </summary>
+  TBcdToCurrencyConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts TBcd values to Double/Float.
+  /// </summary>
+  TBcdToDoubleConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts TBcd values to String using invariant format settings.
+  /// </summary>
+  TBcdToStringConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts TBcd values to Integer/Int64.
+  /// </summary>
+  TBcdToIntegerConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts Variant values to TBcd.
+  /// </summary>
+  TVariantToBcdConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts String values to TBcd using invariant format settings.
+  /// </summary>
+  TStringToBcdConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts Float/Double values to TBcd.
+  /// </summary>
+  TFloatToBcdConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts Integer/Int64 values to TBcd.
+  /// </summary>
+  TIntegerToBcdConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
+  /// <summary>
+  ///   Converts Currency values to TBcd.
+  /// </summary>
+  TCurrencyToBcdConverter = class(TBaseConverter)
+    function Convert(const AValue: TValue; ATargetType: PTypeInfo): TValue; override;
+  end;
+
 implementation
 
 uses
@@ -264,6 +330,25 @@ begin
   // TUUID support
   RegisterConverter(TypeInfo(string), TypeInfo(TUUID), TStringToUUIDConverter.Create);
   RegisterConverter(TypeInfo(Variant), TypeInfo(TUUID), TVariantToUUIDConverter.Create);
+
+  // TBcd Support
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(Currency), TBcdToCurrencyConverter.Create);
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(Double), TBcdToDoubleConverter.Create);
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(Single), TBcdToDoubleConverter.Create);
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(Extended), TBcdToDoubleConverter.Create);
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(string), TBcdToStringConverter.Create);
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(Integer), TBcdToIntegerConverter.Create);
+  RegisterConverter(TypeInfo(TBcd), TypeInfo(Int64), TBcdToIntegerConverter.Create);
+
+  RegisterConverter(TypeInfo(Variant), TypeInfo(TBcd), TVariantToBcdConverter.Create);
+  RegisterConverter(TypeInfo(string), TypeInfo(TBcd), TStringToBcdConverter.Create);
+  RegisterConverter(tkUString, tkRecord, TStringToBcdConverter.Create);
+  RegisterConverter(TypeInfo(Double), TypeInfo(TBcd), TFloatToBcdConverter.Create);
+  RegisterConverter(TypeInfo(Single), TypeInfo(TBcd), TFloatToBcdConverter.Create);
+  RegisterConverter(TypeInfo(Extended), TypeInfo(TBcd), TFloatToBcdConverter.Create);
+  RegisterConverter(TypeInfo(Integer), TypeInfo(TBcd), TIntegerToBcdConverter.Create);
+  RegisterConverter(TypeInfo(Int64), TypeInfo(TBcd), TIntegerToBcdConverter.Create);
+  RegisterConverter(TypeInfo(Currency), TypeInfo(TBcd), TCurrencyToBcdConverter.Create);
 
   // Numerical Kinds catch-all (ensures Double -> Currency, Integer -> Double, etc)
   NumericToFloat := TVariantToFloatConverter.Create;
@@ -937,6 +1022,112 @@ begin
   end
   else
     Result := AValue.ToString;
+end;
+
+{ TBcdToCurrencyConverter }
+
+function TBcdToCurrencyConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+var
+  Bcd: TBcd;
+  Curr: Currency;
+begin
+  Bcd := AValue.AsType<TBcd>;
+  if BcdToCurr(Bcd, Curr) then
+    Result := TValue.From<Currency>(Curr)
+  else
+    raise EConvertError.CreateFmt(
+      'Cannot convert TBcd value (%s) to Currency due to overflow or scale incompatibility.',
+      [BcdToStr(Bcd, TFormatSettings.Invariant)]);
+end;
+
+{ TBcdToDoubleConverter }
+
+function TBcdToDoubleConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+begin
+  Result := TValue.From<Double>(BcdToDouble(AValue.AsType<TBcd>));
+end;
+
+{ TBcdToStringConverter }
+
+function TBcdToStringConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+begin
+  Result := BcdToStr(AValue.AsType<TBcd>, TFormatSettings.Invariant);
+end;
+
+{ TBcdToIntegerConverter }
+
+function TBcdToIntegerConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+var
+  Bcd: TBcd;
+begin
+  Bcd := AValue.AsType<TBcd>;
+  if ATargetType = TypeInfo(Int64) then
+    Result := TValue.From<Int64>(Trunc(BcdToDouble(Bcd)))
+  else
+    Result := TValue.From<Integer>(Trunc(BcdToDouble(Bcd)));
+end;
+
+{ TVariantToBcdConverter }
+
+function TVariantToBcdConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+var
+  V: Variant;
+begin
+  V := AValue.AsVariant;
+  if VarIsNull(V) or VarIsEmpty(V) then
+    Result := TValue.From<TBcd>(StrToBcd('0', TFormatSettings.Invariant))
+  else if VarIsFMTBcd(V) then
+    Result := TValue.From<TBcd>(VarToBcd(V))
+  else if VarIsStr(V) then
+    Result := TValue.From<TBcd>(StrToBcd(VarToStr(V), TFormatSettings.Invariant))
+  else if VarIsNumeric(V) then
+    Result := TValue.From<TBcd>(DoubleToBcd(Double(V)))
+  else
+    Result := TValue.From<TBcd>(StrToBcd(VarToStr(V), TFormatSettings.Invariant));
+end;
+
+{ TStringToBcdConverter }
+
+function TStringToBcdConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+begin
+  Result := TValue.From<TBcd>(StrToBcd(AValue.AsString, TFormatSettings.Invariant));
+end;
+
+{ TFloatToBcdConverter }
+
+function TFloatToBcdConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+begin
+  Result := TValue.From<TBcd>(DoubleToBcd(AValue.AsExtended));
+end;
+
+{ TIntegerToBcdConverter }
+
+function TIntegerToBcdConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+begin
+  Result := TValue.From<TBcd>(IntegerToBcd(AValue.AsInt64));
+end;
+
+{ TCurrencyToBcdConverter }
+
+function TCurrencyToBcdConverter.Convert(const AValue: TValue;
+  ATargetType: PTypeInfo): TValue;
+var
+  Curr: Currency;
+  Bcd: TBcd;
+begin
+  Curr := AValue.AsType<Currency>;
+  if CurrToBcd(Curr, Bcd) then
+    Result := TValue.From<TBcd>(Bcd)
+  else
+    raise EConvertError.CreateFmt('Cannot convert Currency value to TBcd.', []);
 end;
 
 end.

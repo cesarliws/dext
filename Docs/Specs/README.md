@@ -61,9 +61,10 @@ ID | Title | Status | Goal
 **S53** | [Cloud Object Storage](S53-Storage-ObjectStorage.md) | 📝 Draft | Unified object storage API (S3-Compatible, AWS, OCI, MinIO) and cloud backlog (Queues, Email, Document DBs).
 **S54** | [Direct Codecs & Static Code Generation](S54-Codegen-Direct-Codecs.md) | ✅ Runtime Finalized | Shared direct-offset and generated-code codec architecture for gRPC, REST/JSON, ORM, and EntityDataSet. IDE Expert DX is deferred to S15/S54.
 **S55** | [Base Path Support (#182)](S55-Base-Path-Support.md) | ✅ Finalized | HTTP.sys URL prefix path binding, TDextPathBaseMiddleware, and Request.ToAppUrl builder.
-**S57** | [FastPath ORM Hydration & Streaming Optimization](S57-FastPath-Orm-Hydration-Optimization.md) | 📝 Draft | Zero-alloc struct/record hydration, DbSet `ExecuteToUtf8Proc` streaming, and pre-compiled RTTI mappers.
-**S58** | [High-Performance Generic Object Pooling & Context Recycling](S58-Generic-Object-Pooling.md) | 📝 Draft | Lock-free generic object pool with TActivator, automatic TDbContext recycling, TRestClient pooling, and FastPath integration.
+**S57** | [FastPath ORM Hydration & Streaming Optimization](S57-FastPath-Orm-Hydration-Optimization.md) | ✅ Finalized | Zero-alloc struct/record hydration, DbSet `ExecuteToUtf8Proc` streaming, and pre-compiled RTTI mappers.
+**S58** | [High-Performance Generic Object Pooling & Context Recycling](S58-Generic-Object-Pooling.md) | ✅ Finalized | High-performance generic object pool with TSpinLock, manual-reset event broadcast, automatic TDbContext recycling, TRestClient pooling, and FastPath integration.
 **S59** | [DbSet Dialect-Aware Batch UPDATE & DELETE Strategy](../../Docs/Specs/S59-DbSet-Batch-Update-Delete.md) | ✅ Finalized | Single-statement dialect-aware batching for PostgreSQL (`unnest`/`VALUES`), MySQL (`CASE-WHEN`), and Tuple-IN deletes.
+**S60** | [TBcd & ftFMTBcd High-Precision Decimal Support](S55-TBcd-FmtBcd-Support.md) | ✅ Finalized | First-class end-to-end TBcd / ftFMTBcd support across FireDAC driver, ORM hydration, type converters, and Smart Properties.
 
 ---
 

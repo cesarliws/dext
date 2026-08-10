@@ -33,6 +33,7 @@ uses
   // Generated Uses
   Dext.Collections.Extensions,
   Dext.Collections,
+  Dext.Collections.Pool,
   Dext.Configuration.Binder,
   Dext.Configuration.Core,
   Dext.Configuration.EnvironmentVariables,
@@ -89,6 +90,8 @@ type
 
   // Dext.Collections
   TCollections = Dext.Collections.TCollections;
+  IPoolable = Dext.Collections.Pool.IPoolable;
+  TDextPoolConfig = Dext.Collections.Pool.TDextPoolConfig;
   // IEnumerator<T> = Dext.Collections.IEnumerator<T>;
   // IEnumerable<T> = Dext.Collections.IEnumerable<T>;
   // IList<T> = Dext.Collections.IList<T>;
@@ -158,6 +161,8 @@ type
   BoolType = Dext.Core.SmartTypes.BoolType;
   FloatType = Dext.Core.SmartTypes.FloatType;
   CurrencyType = Dext.Core.SmartTypes.CurrencyType;
+  BcdType = Dext.Core.SmartTypes.BcdType;
+  FmtBcdType = Dext.Core.SmartTypes.FmtBcdType;
   DateTimeType = Dext.Core.SmartTypes.DateTimeType;
   DateType = Dext.Core.SmartTypes.DateType;
   TimeType = Dext.Core.SmartTypes.TimeType;
@@ -174,6 +179,15 @@ type
   TValueConverterRegistry = Dext.Core.ValueConverters.TValueConverterRegistry;
   TValueConverter = Dext.Core.ValueConverters.TValueConverter;
   TBaseConverter = Dext.Core.ValueConverters.TBaseConverter;
+  TBcdToCurrencyConverter = Dext.Core.ValueConverters.TBcdToCurrencyConverter;
+  TBcdToDoubleConverter = Dext.Core.ValueConverters.TBcdToDoubleConverter;
+  TBcdToStringConverter = Dext.Core.ValueConverters.TBcdToStringConverter;
+  TBcdToIntegerConverter = Dext.Core.ValueConverters.TBcdToIntegerConverter;
+  TVariantToBcdConverter = Dext.Core.ValueConverters.TVariantToBcdConverter;
+  TStringToBcdConverter = Dext.Core.ValueConverters.TStringToBcdConverter;
+  TFloatToBcdConverter = Dext.Core.ValueConverters.TFloatToBcdConverter;
+  TIntegerToBcdConverter = Dext.Core.ValueConverters.TIntegerToBcdConverter;
+  TCurrencyToBcdConverter = Dext.Core.ValueConverters.TCurrencyToBcdConverter;
   TVariantToIntegerConverter = Dext.Core.ValueConverters.TVariantToIntegerConverter;
   TVariantToStringConverter = Dext.Core.ValueConverters.TVariantToStringConverter;
   TVariantToBooleanConverter = Dext.Core.ValueConverters.TVariantToBooleanConverter;
@@ -576,6 +590,5 @@ begin
   TServiceCollectionLoggingExtensions.AddLogging(Self.Unwrap, AConfigure);
   Result := Self;
 end;
-
 
 end.

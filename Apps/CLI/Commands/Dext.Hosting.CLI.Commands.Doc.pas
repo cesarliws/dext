@@ -309,8 +309,7 @@ type
         '            <input type="text" class="search-input" placeholder="Search API..." id="searchInput">' + sLineBreak +
         '        </div>' + sLineBreak +
         '        <div class="nav-list" id="navList">' + sLineBreak +
-        '            <!-- Sidebar Content Injected Here -->' + sLineBreak +
-        '            {{SIDEBAR_CONTENT}}' + sLineBreak +
+        '            <!-- Sidebar Content Loaded Dynamically via toc.json -->' + sLineBreak +
         '        </div>' + sLineBreak +
         '    </div>' + sLineBreak +
         '' + sLineBreak +
@@ -325,6 +324,7 @@ type
         '        </div>' + sLineBreak +
         '    </div>' + sLineBreak +
         '' + sLineBreak +
+        '    <script src="toc.js"></script>' + sLineBreak +
         '    <script src="viewer.js"></script>' + sLineBreak +
         '</body>' + sLineBreak +
         '</html>';
@@ -344,29 +344,51 @@ type
         '        ' + sLineBreak +
         '        document.documentElement.setAttribute(''data-theme'', newTheme);' + sLineBreak +
         '        localStorage.setItem(''dext-theme'', newTheme);' + sLineBreak +
-        '        ' + sLineBreak +
-        '        // Re-render Mermaid if needed (optional)' + sLineBreak +
-        '        // mermaid.init(); ' + sLineBreak +
         '    });' + sLineBreak +
         '' + sLineBreak +
-        '    // 2. Search Functionality' + sLineBreak +
+        '    // 2. Load TOC dynamically from window.DEXT_TOC' + sLineBreak +
+        '    const navList = document.getElementById(''navList'');' + sLineBreak +
         '    const searchInput = document.getElementById(''searchInput'');' + sLineBreak +
-        '    const navItems = document.querySelectorAll(''.nav-item'');' + sLineBreak +
+        '    const currentFile = window.location.pathname.split(''/'').pop() || ''index.html'';' + sLineBreak +
+        '    const items = window.DEXT_TOC || [];' + sLineBreak +
         '' + sLineBreak +
-        '    searchInput.addEventListener(''input'', (e) => {' + sLineBreak +
-        '        const term = e.target.value.toLowerCase();' + sLineBreak +
-        '        ' + sLineBreak +
-        '        navItems.forEach(item => {' + sLineBreak +
-        '            const text = item.textContent.toLowerCase();' + sLineBreak +
-        '            if(text.includes(term)) {' + sLineBreak +
-        '                item.style.display = ''block'';' + sLineBreak +
-        '            } else {' + sLineBreak +
-        '                item.style.display = ''none'';' + sLineBreak +
+        '    if (navList) {' + sLineBreak +
+        '        navList.innerHTML = '''';' + sLineBreak +
+        '        items.forEach(item => {' + sLineBreak +
+        '            const a = document.createElement(''a'');' + sLineBreak +
+        '            a.href = item.file;' + sLineBreak +
+        '            a.className = ''nav-item'';' + sLineBreak +
+        '            if (item.file === currentFile) {' + sLineBreak +
+        '                a.classList.add(''active'');' + sLineBreak +
         '            }' + sLineBreak +
+        '            a.textContent = item.name;' + sLineBreak +
+        '            navList.appendChild(a);' + sLineBreak +
         '        });' + sLineBreak +
-        '    });' + sLineBreak +
         '' + sLineBreak +
-        '    // 3. Initialize Mermaid Manually to fix SVG sizing' + sLineBreak +
+        '        // Index page unit list container if present' + sLineBreak +
+        '        const indexListGroup = document.getElementById(''indexUnitList'');' + sLineBreak +
+        '        if (indexListGroup) {' + sLineBreak +
+        '            indexListGroup.innerHTML = navList.innerHTML;' + sLineBreak +
+        '        }' + sLineBreak +
+        '    }' + sLineBreak +
+        '' + sLineBreak +
+        '    // 3. Search Functionality' + sLineBreak +
+        '    if (searchInput) {' + sLineBreak +
+        '        searchInput.addEventListener(''input'', (e) => {' + sLineBreak +
+        '            const term = e.target.value.toLowerCase();' + sLineBreak +
+        '            const navItems = document.querySelectorAll(''.nav-item'');' + sLineBreak +
+        '            navItems.forEach(item => {' + sLineBreak +
+        '                const text = item.textContent.toLowerCase();' + sLineBreak +
+        '                if (text.includes(term)) {' + sLineBreak +
+        '                    item.style.display = ''block'';' + sLineBreak +
+        '                } else {' + sLineBreak +
+        '                    item.style.display = ''none'';' + sLineBreak +
+        '                }' + sLineBreak +
+        '            });' + sLineBreak +
+        '        });' + sLineBreak +
+        '    }' + sLineBreak +
+        '' + sLineBreak +
+        '    // 4. Initialize Mermaid Manually to fix SVG sizing' + sLineBreak +
         '    mermaid.initialize({ ' + sLineBreak +
         '        startOnLoad: false, ' + sLineBreak +
         '        "class": { useMaxWidth: false },' + sLineBreak +
@@ -374,7 +396,6 @@ type
         '    });' + sLineBreak +
         '' + sLineBreak +
         '    mermaid.run().then(() => {' + sLineBreak +
-        '        // Post-processing: remove width="100%" and set explicit width/height based on viewBox' + sLineBreak +
         '        document.querySelectorAll(''.mermaid-container svg'').forEach(svg => {' + sLineBreak +
         '             const viewBox = svg.getAttribute("viewBox");' + sLineBreak +
         '             if (viewBox) {' + sLineBreak +
@@ -388,7 +409,6 @@ type
         '             svg.removeAttribute("width");' + sLineBreak +
         '        });' + sLineBreak +
         '        ' + sLineBreak +
-        '        // Make visible again' + sLineBreak +
         '        document.querySelectorAll(''.mermaid'').forEach(el => el.style.visibility = ''visible'');' + sLineBreak +
         '    });' + sLineBreak +
         '});';

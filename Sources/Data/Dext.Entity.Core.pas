@@ -119,19 +119,40 @@ type
     property EntityType: PTypeInfo read GetEntityType;
   end;
 
+  /// <summary>Callback delegate for streaming UTF-8 bytes to HTTP sockets or streams.</summary>
+  TUtf8StreamCallback = reference to procedure(const ABuffer: Pointer; const ALength: Integer);
+
+  /// <summary>Callback delegate for writing projections directly into UTF-8 stream.</summary>
+  TDbProjectionWriteProc = reference to procedure(const AWriter: Pointer);
+
+  /// <summary>Non-generic base FastPath interface for zero-alloc direct JSON streaming.</summary>
+  IDbSetFastStream = interface(IDBSet)
+    ['{E4A5C6D7-E8F9-4102-83A4-5B6C7D8E9F0A}']
+    procedure ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback); overload;
+    procedure ExecuteToUtf8Stream(const AStream: TStream); overload;
+  end;
+
+  /// <summary>FastPath interface extending IDbSet<T> with zero-alloc direct JSON streaming.</summary>
+  IDbSetFastStream<T: class> = interface(IDbSetFastStream)
+    ['{7E8F9A0B-1C2D-3E4F-5A6B-7C8D9E0F1A2B}']
+  end;
+
   /// <summary>
   ///   Represents a collection of entities mapped to a database table.
   /// </summary>
-  IDbSet<T: class> = interface(IDbSet)
+  IDbSet<T: class> = interface(IDbSetFastStream<T>)
     // CRUD
     function Add(const AEntity: T): IDbSet<T>; overload;
     function Add(const ABuilder: TFunc<IEntityBuilder<T>, T>): IDbSet<T>; overload;
     function Update(const AEntity: T): IDbSet<T>;
     function Remove(const AEntity: T): IDbSet<T>;
-    function Detach(const AEntity: T): IDbSet<T>; overload;
     function GetItem(Index: Integer): T;
 
     property Items[Index: Integer]: T read GetItem; default;
+
+    function IsBulkInsertSafe: Boolean;
+    function IsBulkUpdateSafe: Boolean;
+    function IsBulkDeleteSafe: Boolean;
 
     // Bulk Operations
     procedure AddRange(const AEntities: TArray<T>); overload;

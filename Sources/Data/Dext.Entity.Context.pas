@@ -36,6 +36,7 @@ uses
   Dext.Collections.Base,
   Dext.Collections.Dict,
   Dext.Collections,
+  Dext.Collections.Pool,
   Dext.Entity.Naming,
   Dext.Entity.Mapping,
   Dext.Entity.Core,
@@ -195,7 +196,7 @@ type
   ///   with Dependency Injection and avoid destruction conflicts. The lifecycle should be 
   ///   managed by the DI Container or manually via Free/Destroy.
   /// </remarks>
-  TDbContext = class(TObject, IDbContext)
+  TDbContext = class(TObject, IDbContext, IPoolable)
   private
     FConnection: IDbConnection;
     FDialect: ISQLDialect;
@@ -279,6 +280,11 @@ type
     /// </summary>
     procedure Rollback;
     function InTransaction: Boolean;
+    
+    /// <summary>
+    ///   Resets pending transactions and clears ChangeTracker state for object pooling (S58).
+    /// </summary>
+    procedure ResetState;
     
     /// <summary>
     ///   Gets the weakly typed interface of a DbSet for the provided entity type.
@@ -779,6 +785,14 @@ begin
     FTransaction.Rollback;
     FTransaction := nil;
   end;
+end;
+
+procedure TDbContext.ResetState;
+begin
+  if InTransaction then
+    Rollback;
+  if FChangeTracker <> nil then
+    FChangeTracker.Clear;
 end;
 
 function TDbContext.InTransaction: Boolean;

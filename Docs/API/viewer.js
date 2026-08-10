@@ -12,29 +12,51 @@ document.addEventListener('DOMContentLoaded', () => {
         
         document.documentElement.setAttribute('data-theme', newTheme);
         localStorage.setItem('dext-theme', newTheme);
-        
-        // Re-render Mermaid if needed (optional)
-        // mermaid.init(); 
     });
 
-    // 2. Search Functionality
+    // 2. Load TOC dynamically from window.DEXT_TOC
+    const navList = document.getElementById('navList');
     const searchInput = document.getElementById('searchInput');
-    const navItems = document.querySelectorAll('.nav-item');
+    const currentFile = window.location.pathname.split('/').pop() || 'index.html';
+    const items = window.DEXT_TOC || [];
 
-    searchInput.addEventListener('input', (e) => {
-        const term = e.target.value.toLowerCase();
-        
-        navItems.forEach(item => {
-            const text = item.textContent.toLowerCase();
-            if(text.includes(term)) {
-                item.style.display = 'block';
-            } else {
-                item.style.display = 'none';
+    if (navList) {
+        navList.innerHTML = '';
+        items.forEach(item => {
+            const a = document.createElement('a');
+            a.href = item.file;
+            a.className = 'nav-item';
+            if (item.file === currentFile) {
+                a.classList.add('active');
             }
+            a.textContent = item.name;
+            navList.appendChild(a);
         });
-    });
 
-    // 3. Initialize Mermaid Manually to fix SVG sizing
+        // Index page unit list container if present
+        const indexListGroup = document.getElementById('indexUnitList');
+        if (indexListGroup) {
+            indexListGroup.innerHTML = navList.innerHTML;
+        }
+    }
+
+    // 3. Search Functionality
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                const text = item.textContent.toLowerCase();
+                if (text.includes(term)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    // 4. Initialize Mermaid Manually to fix SVG sizing
     mermaid.initialize({ 
         startOnLoad: false, 
         "class": { useMaxWidth: false },
@@ -42,7 +64,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     mermaid.run().then(() => {
-        // Post-processing: remove width="100%" and set explicit width/height based on viewBox
         document.querySelectorAll('.mermaid-container svg').forEach(svg => {
              const viewBox = svg.getAttribute("viewBox");
              if (viewBox) {
@@ -56,7 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
              svg.removeAttribute("width");
         });
         
-        // Make visible again
         document.querySelectorAll('.mermaid').forEach(el => el.style.visibility = 'visible');
     });
 });

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dext.Web.SecurityHeaders - Dext Framework 1.0</title>
+    
+    <!-- Blocking script to avoid theme flicker --> 
+    <script>
+        (function() {
+            const storedTheme = localStorage.getItem('dext-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', storedTheme);
+        })();
+    </script>
+    
+    <!-- Theme & Layout (Separate files for internal Dext Tooling) -->
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="layout.css">
+    
+    <!-- Mermaid for Diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Dext Framework 1.0</h3>
+            <small>Documentation</small>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="Search API..." id="searchInput">
+        </div>
+        <div class="nav-list" id="navList">
+            <!-- Sidebar Content Loaded Dynamically via toc.json -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">&#x1F313;</button>
+        </div>
+        
+        <div id="contentArea">
+            <!-- Main Documentation Content Injected Here -->
+            <h1>Unit Dext.Web.SecurityHeaders</h1><h2>Classes</h2>
+<details class="mermaid-details" open>
+<summary>Class Diagram <span class="collapse-text">(Click to collapse)</span><span class="expand-text">(Click to expand)</span></summary>
+<div class="mermaid-container">
+<div class="mermaid">
+classDiagram
+class TSecurityHeadersOptions {    +Create()
+}
+class TSecurityHeadersBuilder {    +EnsureInitialized()
+    +Create()
+    +Hsts()
+    +FrameOptions()
+    +ContentTypeOptions()
+    +ReferrerPolicy()
+    +ContentSecurityPolicy()
+    +Build()
+    +Implicit()
+}
+class TSecurityHeadersMiddleware {    +Create()
+    +Invoke()
+}
+TMiddleware <|-- TSecurityHeadersMiddleware
+</div>
+</div>
+</details>
+<h2>API Details</h2>
+<div class="class-header">
+<h3>record TSecurityHeadersOptions</h3><a name="TSecurityHeadersOptions"></a><div class="description">Configuration options for Security Headers middleware.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create: TSecurityHeadersOptions</div><div class="description">Creates default TSecurityHeadersOptions.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TSecurityHeadersBuilder</h3><a name="TSecurityHeadersBuilder"></a><div class="description">Fluent builder for Security Headers options.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create: TSecurityHeadersBuilder</div><div class="description">Creates a new TSecurityHeadersBuilder.</div></div>
+<div class="api-item">
+<div class="api-signature">function Hsts(AMaxAgeSeconds: Integer; AIncludeSubDomains: Boolean): TSecurityHeadersBuilder</div><div class="description">Configures HSTS max-age and includeSubDomains settings.</div></div>
+<div class="api-item">
+<div class="api-signature">function FrameOptions(const const: string): TSecurityHeadersBuilder</div><div class="description">Configures X-Frame-Options header (e.g. 'SAMEORIGIN').</div></div>
+<div class="api-item">
+<div class="api-signature">function ContentTypeOptions(const const: string): TSecurityHeadersBuilder</div><div class="description">Configures X-Content-Type-Options header (e.g. 'nosniff').</div></div>
+<div class="api-item">
+<div class="api-signature">function ReferrerPolicy(const const: string): TSecurityHeadersBuilder</div><div class="description">Configures Referrer-Policy header.</div></div>
+<div class="api-item">
+<div class="api-signature">function ContentSecurityPolicy(const const: string): TSecurityHeadersBuilder</div><div class="description">Configures Content-Security-Policy header.</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TSecurityHeadersOptions</div><div class="description">Builds and returns configured TSecurityHeadersOptions.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Implicit(const const: TSecurityHeadersBuilder)</div><div class="description">Implicit conversion operator from builder to options.</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure EnsureInitialized</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TSecurityHeadersMiddleware</h3><a name="TSecurityHeadersMiddleware"></a><div class="ancestor">Inherits from: TMiddleware</div><div class="description">Middleware that injects HTTP Security Headers into responses.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div><div class="description">Creates a new security headers middleware with default options.</div></div>
+<div class="api-item">
+<div class="api-signature">constructor Create(const const: TSecurityHeadersOptions)</div><div class="description">Creates a new security headers middleware with custom options.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate)</div><div class="description">Invokes security headers middleware in the HTTP pipeline.</div></div>
+</div>
+<hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function SecurityHeadersOptions: TSecurityHeadersBuilder</div><div class="description">Factory function returning a fluent TSecurityHeadersBuilder instance.</div></div>
+</div>
+
+        </div>
+    </div>
+
+    <script src="toc.js"></script>
+    <script src="viewer.js"></script>
+</body>
+</html>

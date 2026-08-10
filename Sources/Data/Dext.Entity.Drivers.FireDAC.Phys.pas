@@ -252,8 +252,17 @@ begin
   case FTable.Columns[AColumnIndex].DataType of
     dtInt32, dtInt16, dtByte, dtUInt16, dtSByte: Result := TValue.From<Integer>(Integer(Data));
     dtInt64, dtUInt32, dtUInt64: Result := TValue.From<Int64>(Int64(Data));
-    dtDouble, dtSingle, dtBCD, dtFmtBCD:
+    dtDouble, dtSingle:
       Result := TValue.From<Double>(Double(Data));
+    dtBCD, dtFmtBCD:
+      if VarIsFMTBcd(Data) then
+        Result := TValue.From<TBcd>(VarToBcd(Data))
+      else if VarIsStr(Data) then
+        Result := TValue.From<TBcd>(StrToBcd(VarToStr(Data), TFormatSettings.Invariant))
+      else if VarIsNumeric(Data) then
+        Result := TValue.From<TBcd>(DoubleToBcd(Double(Data)))
+      else
+        raise EConvertError.CreateFmt('Cannot convert column %d data to TBcd.', [AColumnIndex]);
     dtCurrency:
       Result := TValue.From<Currency>(Currency(Data));
     dtDateTime, dtDate, dtTime, dtDateTimeStamp: Result := TValue.From<TDateTime>(TDateTime(Data));
@@ -485,19 +494,25 @@ begin
       Param.AsLargeInt := V.AsInt64;
     ftFloat, ftCurrency, ftExtended:
       Param.AsFloat := V.AsExtended;
-    ftBCD:
-      Param.AsBCD := V.AsType<Currency>;
-    ftFMTBcd:
-      case V.Kind of
-        tkFloat:
-          Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
-        tkInteger, tkInt64:
-          Param.AsFMTBCD := DoubleToBcd(V.AsInt64);
-        tkString, tkUString, tkWString, tkLString:
-          Param.AsFMTBCD := StrToBcd(V.AsString);
+    ftBCD, ftFMTBcd:
+      if V.TypeInfo = TypeInfo(TBcd) then
+        Param.AsFMTBCD := V.AsType<TBcd>
       else
-        Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
-      end;
+        case V.Kind of
+          tkFloat:
+            Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+          tkInteger, tkInt64:
+            Param.AsFMTBCD := DoubleToBcd(V.AsInt64);
+          tkString, tkUString, tkWString, tkLString:
+            Param.AsFMTBCD := StrToBcd(V.AsString);
+          tkRecord:
+            if V.TypeInfo = TypeInfo(TBcd) then
+              Param.AsFMTBCD := V.AsType<TBcd>
+            else
+              Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+        else
+          Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+        end;
     ftDate:
       Param.AsDate := V.AsType<TDate>;
     ftTime:
@@ -729,13 +744,24 @@ begin
         end;
         tkRecord:
         begin
-          if IsNullable(Val.TypeInfo) then
+          if Val.TypeInfo = TypeInfo(TBcd) then
+          begin
+            Param.DataType := ftFMTBcd;
+            Param.AsFMTBCDs[i] := Val.AsType<TBcd>;
+          end
+          else if IsNullable(Val.TypeInfo) then
           begin
              Helper := TNullableHelper.Create(Val.TypeInfo);
              if Helper.HasValue(Val.GetReferenceToRawData) then
              begin
                InnerVal := Helper.GetValue(Val.GetReferenceToRawData);
-               case InnerVal.Kind of
+               if InnerVal.TypeInfo = TypeInfo(TBcd) then
+               begin
+                 Param.DataType := ftFMTBcd;
+                 Param.AsFMTBCDs[i] := InnerVal.AsType<TBcd>;
+               end
+               else
+                 case InnerVal.Kind of
                  tkInteger:
                    begin
                      Param.DataType := ftInteger;

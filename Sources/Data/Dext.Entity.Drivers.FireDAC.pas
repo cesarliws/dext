@@ -225,14 +225,10 @@ begin
       Result := TValue.From<Double>(Field.AsFloat);
     Data.DB.ftExtended:
       Result := TValue.From<Double>(Field.AsFloat);
-    ftCurrency, ftBCD:
+    ftCurrency:
       Result := TValue.From<Currency>(Field.AsCurrency);
-    ftFMTBcd:
-      try
-        Result := TValue.From<Currency>(Field.AsCurrency);
-      except
-        Result := TValue.From<Double>(Field.AsFloat);
-      end;
+    ftBCD, ftFMTBcd:
+      Result := TValue.From<TBcd>(Field.AsBcd);
     ftBoolean:
       if Field is TBooleanField then
         Result := TValue.From<Boolean>(TBooleanField(Field).Value)
@@ -557,19 +553,25 @@ begin
       Param.AsFloat := V.AsExtended;
     ftCurrency:
       Param.AsCurrency := V.AsType<Currency>;
-    ftBCD:
-      Param.AsBCD := V.AsType<Currency>;
-    ftFMTBcd:
-      case V.Kind of
-        tkFloat:
-          Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
-        tkInteger, tkInt64:
-          Param.AsFMTBCD := DoubleToBcd(V.AsInt64);
-        tkString, tkUString, tkWString, tkLString:
-          Param.AsFMTBCD := StrToBcd(V.AsString);
+    ftBCD, ftFMTBcd:
+      if V.TypeInfo = TypeInfo(TBcd) then
+        Param.AsFMTBCD := V.AsType<TBcd>
       else
-        Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
-      end;
+        case V.Kind of
+          tkFloat:
+            Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+          tkInteger, tkInt64:
+            Param.AsFMTBCD := DoubleToBcd(V.AsInt64);
+          tkString, tkUString, tkWString, tkLString:
+            Param.AsFMTBCD := StrToBcd(V.AsString);
+          tkRecord:
+            if V.TypeInfo = TypeInfo(TBcd) then
+              Param.AsFMTBCD := V.AsType<TBcd>
+            else
+              Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+        else
+          Param.AsFMTBCD := DoubleToBcd(V.AsExtended);
+        end;
     ftDate:
       Param.AsDate := V.AsType<TDate>;
     ftTime:
@@ -862,7 +864,12 @@ begin
       end;
       tkRecord:
       begin
-        if IsNullable(AValue.TypeInfo) then
+        if AValue.TypeInfo = TypeInfo(TBcd) then
+        begin
+          Param.DataType := ftFMTBcd;
+          Param.AsFMTBCD := AValue.AsType<TBcd>;
+        end
+        else if IsNullable(AValue.TypeInfo) then
         begin
            Helper := TNullableHelper.Create(AValue.TypeInfo);
            if Helper.HasValue(AValue.GetReferenceToRawData) then
@@ -877,16 +884,19 @@ begin
              Underlying := GetUnderlyingType(AValue.TypeInfo);
              if Underlying <> nil then
              begin
-               case Underlying.Kind of
-                 tkInteger, tkInt64: Param.DataType := ftInteger;
-                 tkFloat: Param.DataType := ftFloat;
-                 tkString, tkUString, tkWString: Param.DataType := ftString;
-                 tkEnumeration: 
-                   if Underlying = TypeInfo(Boolean) then 
-                     Param.DataType := ftBoolean
-                   else 
-                     Param.DataType := ftInteger;
-               end;
+               if Underlying = TypeInfo(TBcd) then
+                 Param.DataType := ftFMTBcd
+               else
+                 case Underlying.Kind of
+                   tkInteger, tkInt64: Param.DataType := ftInteger;
+                   tkFloat: Param.DataType := ftFloat;
+                   tkString, tkUString, tkWString: Param.DataType := ftString;
+                   tkEnumeration:
+                     if Underlying = TypeInfo(Boolean) then
+                       Param.DataType := ftBoolean
+                     else
+                       Param.DataType := ftInteger;
+                 end;
              end;
            end;
         end

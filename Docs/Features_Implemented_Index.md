@@ -112,6 +112,7 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **TValueConverterRegistry** — Global converter registry with 3-level lookup: (1) Exact Match by `PTypeInfo` pair, (2) Kind Match by `TTypeKind` pair, (3) Fallback for `tkVariant` source.
 - **TValueConverter** — Execution engine orchestrating conversions, with automatic handling of Smart Types (`Prop<T>`) and `Nullable<T>` (detected via `TReflection.GetMetadata`).
 - **20+ Built-in Converters** — `Variant→Integer/String/Boolean/Float/DateTime/Date/Time/Enum/GUID/Class/TBytes/TUUID`, `Integer→Enum/String`, `String→GUID/TBytes/TUUID/Integer/Float/DateTime/Boolean`, `Float→String`, `Boolean→String`, `Class→Class`.
+- **TBcd & ftFMTBcd First-Class Support** — Bidirectional zero-alloc converters: `TBcd` <-> `Currency`, `TBcd` <-> `Double`, `TBcd` <-> `string` (invariant), `TBcd` <-> `Integer/Int64`, `Variant` <-> `TBcd`, `String` <-> `TBcd`, `Float` <-> `TBcd`, `Currency` <-> `TBcd`. Provides end-to-end precision preservation for high-precision `NUMERIC`/`DECIMAL` database columns.
 - **ConvertAndSet / ConvertAndSetField** — Conversion + assignment via RTTI in a single call (used by ORM and Model Binding).
 
 ### 1.8 Memory & Span (`Dext.Core.Span`, `Dext.Core.Memory`)
@@ -126,6 +127,12 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **TAsyncTask** — Fluent Async/Await implementation for asynchronous operations.
 - **Work-Stealing Scheduler** — Efficient task distribution across CPU cores for maximum parallel performance.
 - **ICancellationToken** — Cooperative cancellation with `WaitForCancellation(timeout)` and `IsCancellationRequested`. Integrated with Event Bus Lifecycle and Background Services.
+
+### 1.10 Generic Object Pooling (`Dext.Collections.Pool`)
+- **TDextPool\<T\>** — High-performance thread-safe generic object pool with `TSpinLock`, `ManualReset` event broadcast, atomic waiter tracking, and monotonic deadline timeouts (`AcquireTimeoutMs`).
+- **Automatic Recycling (`IPoolable`)** — Automatic execution of `ResetState` upon object `Release` back to the pool.
+- **Drain-Before-Free Protocol** — Atomic shutdown with broadcast (`FAvailableEvent.SetEvent`) and waiter drain waiting (`FActiveWaiters = 0`) preventing *use-after-free*.
+- **MapFast HTTP Fallback 503** — Automatic `HTTP 503 Service Unavailable` response in `App.MapFast<TDbContext>` endpoints upon context pool exhaustion.
 
 ### 1.10 Logging Pipeline (`Dext.Logging`, `Dext.Logging.Sinks.APM`)
 - **ILoggerFactory** — Factory for loggers with multiple provider registration. `CreateLogger(categoryName)` returns a composite `ILogger`.

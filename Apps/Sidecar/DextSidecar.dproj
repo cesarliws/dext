@@ -52,7 +52,7 @@
         <DCC_ExeOutput>..\..\Output</DCC_ExeOutput>
         <DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;System;$(DCC_Namespace)</DCC_Namespace>
         <DCC_RuntimePackages>true</DCC_RuntimePackages>
-        <DCC_UnitSearchPath>..\..\Sources\Common;..\..\Sources\Dashboard;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\Sources\Common;..\..\Sources\Dashboard;..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_UsePackage>rtl;vcl;vclimg;vclwinx;Dext.Core;Dext.Web.Core;Dext.Hosting;Dext.Web.Hubs;$(DCC_UsePackage)</DCC_UsePackage>
         <PostBuildEvent><![CDATA[copy /Y "$(OUTPUTPATH)" "$(OUTPUTDIR)..\Apps\dext-sidecar.exe"
 $(PostBuildEvent)]]></PostBuildEvent>

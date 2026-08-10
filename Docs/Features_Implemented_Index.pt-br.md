@@ -112,6 +112,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **TValueConverterRegistry** — Registro global de conversores com lookup em 3 níveis: (1) Exact Match por `PTypeInfo` pair, (2) Kind Match por `TTypeKind` pair, (3) Fallback para `tkVariant` source.
 - **TValueConverter** — Motor de execução que orquestra conversões, com tratamento automático de Smart Types (`Prop<T>`) e `Nullable<T>` (detecta via `TReflection.GetMetadata`).
 - **20+ Conversores Built-in** — `Variant→Integer/String/Boolean/Float/DateTime/Date/Time/Enum/GUID/Class/TBytes/TUUID`, `Integer→Enum/String`, `String→GUID/TBytes/TUUID/Integer/Float/DateTime/Boolean`, `Float→String`, `Boolean→String`, `Class→Class`.
+- **Suporte Nativo a TBcd & ftFMTBcd** — Conversores bidirecionais de alta performance e zero-alloc: `TBcd` <-> `Currency`, `TBcd` <-> `Double`, `TBcd` <-> `string` (invariante), `TBcd` <-> `Integer/Int64`, `Variant` <-> `TBcd`, `String` <-> `TBcd`, `Float` <-> `TBcd`, `Currency` <-> `TBcd`. Garante preservação total de precisão ponta-a-ponta para colunas numéricas de alta precisão (`NUMERIC`/`DECIMAL`).
 - **ConvertAndSet / ConvertAndSetField** — Conversão + atribuição via RTTI em uma única chamada (usado pelo ORM e Model Binding).
 
 ### 1.8 Memory & Span (`Dext.Core.Span`, `Dext.Core.Memory`)
@@ -126,6 +127,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **TAsyncTask** — Implementação fluente de Async/Await para operações assíncronas.
 - **Escalonador Work-Stealing** — Distribuição eficiente de tarefas entre os núcleos da CPU para máxima performance paralela.
 - **ICancellationToken** — Cancelamento cooperativo com `WaitForCancellation(timeout)` e `IsCancellationRequested`. Integrado com Event Bus Lifecycle e Background Services.
+
+### 1.10 Generic Object Pooling (`Dext.Collections.Pool`)
+- **TDextPool\<T\>** — Pool genérico de objetos thread-safe com `TSpinLock`, `ManualReset` event broadcast, rastreamento atômico de waiters e deadline monotônica de timeout (`AcquireTimeoutMs`).
+- **Reciclagem Automática (`IPoolable`)** — Execução automática do método `ResetState` durante o `Release` do objeto antes de seu retorno ao estoque.
+- **Protocolo Drain-Before-Free** — Shutdown atômico com broadcast (`FAvailableEvent.SetEvent`) e espera por *drain* de waiters (`FActiveWaiters = 0`) prevenindo *use-after-free*.
+- **MapFast HTTP Fallback 503** — Retorno automático de `HTTP 503 Service Unavailable` em endpoints `App.MapFast<TDbContext>` sob exaustão do pool de contextos.
 
 ### 1.10 Logging Pipeline (`Dext.Logging`, `Dext.Logging.Sinks.APM`)
 - **ILoggerFactory** — Factory de loggers com registro de múltiplos providers. `CreateLogger(categoryName)` retorna `ILogger` composto.

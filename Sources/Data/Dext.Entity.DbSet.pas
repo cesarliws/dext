@@ -44,6 +44,7 @@ uses
   Dext.Core.TypeModel,
   Dext.Core.SmartTypes,
   Dext.Core.ValueConverters,
+  Dext.Json,
   Dext.Json.Utf8,
   Dext.Entity.Attributes,
   Dext.Entity.BatchStrategy,
@@ -51,6 +52,7 @@ uses
   Dext.Entity.Core,
   Dext.Entity.Dialects,
   Dext.Entity.Drivers.Interfaces,
+  Dext.Entity.FastQuery,
   Dext.Entity.LazyLoading,
   Dext.Entity.Mapping,
   Dext.Entity.Prototype,
@@ -113,7 +115,7 @@ type
   /// <summary>
   ///   Concrete implementation of an entity set (DbSet), providing query and persistence operations.
   /// </summary>
-  TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet)
+  TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet, IDbSetFastStream<T>)
   private
     FColumns: IDictionary<string, string>;
     FContextPtr: Pointer;
@@ -236,6 +238,10 @@ type
     function ToList: IList<T>; overload;
     function ToList(const ASpec: ISpecification<T>): IList<T>; overload;
     function ToList(const AExpression: IExpression): IList<T>; overload;
+
+    // FastPath Direct Streaming (S57)
+    procedure ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback); overload;
+    procedure ExecuteToUtf8Stream(const AStream: TStream); overload;
     function FirstOrDefault(const AExpression: IExpression): T; overload;
     function FirstOrDefault(const ASpec: ISpecification<T>): T; overload;
     function Any(const AExpression: IExpression): Boolean; overload;
@@ -2319,6 +2325,53 @@ end;
 function TDbSet<T>.ToList: IList<T>;
 begin
   Result := ToList(ISpecification<T>(nil));
+end;
+
+procedure TDbSet<T>.ExecuteToUtf8Proc(const ACallback: TUtf8StreamCallback);
+var
+  Generator: TSqlGenerator<T>;
+  Sql: string;
+  FastQuery: TDextFastQuery;
+begin
+  if not Assigned(ACallback) then Exit;
+  Generator := CreateGenerator;
+  try
+    Sql := Generator.GenerateSelect;
+    FastQuery := TDextFastQuery.Create(FContext.Connection, Sql);
+    try
+      FastQuery.ExecuteToUtf8Proc(
+        procedure(Buffer: Pointer; Length: Integer)
+        begin
+          ACallback(Buffer, Length);
+        end
+      );
+    finally
+      FastQuery.Free;
+    end;
+  finally
+    Generator.Free;
+  end;
+end;
+
+procedure TDbSet<T>.ExecuteToUtf8Stream(const AStream: TStream);
+var
+  Generator: TSqlGenerator<T>;
+  Sql: string;
+  FastQuery: TDextFastQuery;
+begin
+  if AStream = nil then Exit;
+  Generator := CreateGenerator;
+  try
+    Sql := Generator.GenerateSelect;
+    FastQuery := TDextFastQuery.Create(FContext.Connection, Sql);
+    try
+      FastQuery.ExecuteToUtf8Stream(AStream);
+    finally
+      FastQuery.Free;
+    end;
+  finally
+    Generator.Free;
+  end;
 end;
 
 function TDbSet<T>.ToListAsync: TAsyncBuilder<IList<T>>;

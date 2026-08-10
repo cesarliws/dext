@@ -1,10 +1,11 @@
-﻿unit EntityDemo.Tests.Bulk;
+unit EntityDemo.Tests.Bulk;
 
 interface
 
 uses
   System.SysUtils,
   Dext.Collections,
+  Dext.Entity.Core,
   Dext.Entity.Dialects,
   EntityDemo.Tests.Base,
   EntityDemo.Entities,

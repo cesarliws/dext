@@ -54,6 +54,13 @@ Builder.MapGet<IResult>('/health',
     Result := Results.Ok('healthy');
   end);
 
+// FastPath High-Throughput Endpoint with DbContext Object Pooling (Spec S58)
+Builder.MapFast<TAppDbContext>('/api/users/fast',
+  procedure(Ctx: TAppDbContext; Req: IHttpRequest; Res: IHttpResponse)
+  begin
+    Ctx.DataSet(TypeInfo(TUser)).ExecuteToUtf8Stream(Res.BodyStream);
+  end);
+
 // Service injected from DI
 Builder.MapGet<IUserService, IResult>('/api/users',
   function(Svc: IUserService): IResult

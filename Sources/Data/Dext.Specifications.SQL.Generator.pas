@@ -2541,6 +2541,7 @@ var
   RelatedSchema, LFullRelatedTable: string;
   FieldFValue: TRttiField;
   MaxLen: Integer;
+  PrecisionVal, ScaleVal: Integer;
 begin
   SB := TStringBuilder.Create;
   PKCols := TCollections.CreateList<string>;
@@ -2690,6 +2691,27 @@ begin
       
       PropTypeHandle := Prop.PropertyType.Handle;
       
+      // Extract Precision and Scale from PropMap or PrecisionAttribute
+      PrecisionVal := 0;
+      ScaleVal := 0;
+      if PropMap <> nil then
+      begin
+        PrecisionVal := PropMap.Precision;
+        ScaleVal := PropMap.Scale;
+      end;
+      if PrecisionVal = 0 then
+      begin
+        for Attr in Prop.GetAttributes do
+        begin
+          if Attr is PrecisionAttribute then
+          begin
+            PrecisionVal := PrecisionAttribute(Attr).Precision;
+            ScaleVal := PrecisionAttribute(Attr).Scale;
+            Break;
+          end;
+        end;
+      end;
+
       // Handle Explicit DbType (Attributes or Fluent).
       // Skip GetColumnTypeForField when AutoInc is True: DiscoverAttributes always fills
       // PropMap.DataType from the property type (e.g. ftInteger), so we must NOT fall into
@@ -2698,7 +2720,7 @@ begin
       // BY DEFAULT AS IDENTITY' for Firebird, 'SERIAL' for PostgreSQL).
       if (PropMap <> nil) and (PropMap.DataType <> ftUnknown) and (not IsAutoInc) then
       begin
-        ColType := FDialect.GetColumnTypeForField(PropMap.DataType, IsAutoInc);
+        ColType := FDialect.GetColumnTypeForField(PropMap.DataType, IsAutoInc, PrecisionVal, ScaleVal);
       end
       else
       begin
@@ -2721,7 +2743,7 @@ begin
            end;
         end;
         
-        ColType := FDialect.GetColumnType(PropTypeHandle, IsAutoInc);
+        ColType := FDialect.GetColumnType(PropTypeHandle, IsAutoInc, PrecisionVal, ScaleVal);
       end;
       
       // Apply MaxLength for string columns - check from PropMap or Attribute

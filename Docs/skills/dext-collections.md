@@ -165,6 +165,31 @@ TTask.Run(procedure
   end);
 ```
 
+### 3. Generic Object Pooling (`TDextPool<T>`) — High-Concurrency Recycling ⚡
+
+For recycling expensive objects (`TDbContext`, `TRestClient`, `TUtf8JsonWriter`) without per-request heap allocation overhead:
+
+```pascal
+uses Dext.Collections.Pool;
+
+var
+  Config: TDextPoolConfig;
+  Pool: IDextPool<TMyContext>;
+begin
+  Config.MinSize := 5;
+  Config.MaxSize := 50;
+  Config.AcquireTimeoutMs := 2000; // Monotonic deadline-enforced wait
+
+  Pool := TDextPool<TMyContext>.Create(Config);
+
+  // Safe RAII usage (auto-returns instance to pool even on exception)
+  Pool.Use(procedure(Ctx: TMyContext)
+    begin
+      Ctx.PerformQuery;
+    end);
+end;
+```
+
 ## Common Mistakes
 
 | Wrong | Correct |
