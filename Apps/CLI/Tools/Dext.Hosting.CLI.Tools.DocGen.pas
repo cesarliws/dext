@@ -99,7 +99,7 @@ type
     procedure ExtractMembers(CInfo: TClassInfo; ClassNode: TSyntaxNode);
     function GetMethodSignature(const MethodNode: TSyntaxNode; out Args, RetType: string): string;
 
-    function GenerateSidebar: string; 
+    procedure GenerateTocJs; 
     function GenerateUnitHtml(Info: TUnitInfo; UnitNode: TSyntaxNode): string;
     function RenderHtmlDocumentationObj(CInfo: TClassInfo): string;
     
@@ -747,8 +747,8 @@ var
   FinalHtml: string;
   Info: TUnitInfo;
   Node, _Node: TSyntaxNode;
+  OutFilePath: string;
   SafeFileName: string;
-  SidebarHtml: string;
   UnitHtml: string;
   UnitInfo: TUnitInfo;
   UnitName: string;
@@ -775,6 +775,8 @@ begin
     SafeWriteLn('Phase 1: Indexing...');
     for FileName in Files do
     begin
+      if not TFile.Exists(FileName) then
+        Continue;
       if FileName.ToLower.Contains('\tests\') then
         Continue;
 
@@ -808,8 +810,8 @@ begin
     // 1.5 Resolve display names for duplicates
     FRegistry.ResolveDisplayNames;
 
-    // 2. Generate Sidebar
-    SidebarHtml := GenerateSidebar;
+    // 2. Generate TOC JS
+    GenerateTocJs;
 
     // 3. Generate HTML for each unit (Pass 2)
     SafeWriteLn('Phase 2: Generating HTML...');
@@ -832,9 +834,11 @@ begin
         // Use safe filename (replace problematic chars for duplicates with paths)
         SafeFileName := Info.DisplayName.Replace(' ', '_').Replace('(', '_').Replace(')', '_');
 
-        FinalHtml := FTemplate.Replace('{{TITLE}}', Info.DisplayName).Replace('{{PROJECT_TITLE}}', FTitle).Replace('{{SIDEBAR_CONTENT}}', SidebarHtml).Replace('{{MAIN_CONTENT}}', UnitHtml);
+        FinalHtml := FTemplate.Replace('{{TITLE}}', Info.DisplayName).Replace('{{PROJECT_TITLE}}', FTitle).Replace('{{MAIN_CONTENT}}', UnitHtml);
 
-        TFile.WriteAllText(TPath.Combine(FOutputDir, SafeFileName + '.html'), FinalHtml);
+        OutFilePath := TPath.Combine(FOutputDir, SafeFileName + '.html');
+        if (not TFile.Exists(OutFilePath)) or (TFile.ReadAllText(OutFilePath) <> FinalHtml) then
+          TFile.WriteAllText(OutFilePath, FinalHtml);
       except
         on E: Exception do
           SafeWriteLn(Format('  [ERROR] Failed to generate HTML for %s: %s', [Info.Name, E.Message]));
@@ -842,8 +846,10 @@ begin
     end;
 
     // 4. Generate Index
-    FinalHtml := FTemplate.Replace('{{TITLE}}', 'Index').Replace('{{PROJECT_TITLE}}', FTitle).Replace('{{SIDEBAR_CONTENT}}', SidebarHtml).Replace('{{MAIN_CONTENT}}', '<h1>Dext Framework API</h1><p>Select a unit from the sidebar to view full documentation.</p>' + '<h2>Units</h2><div class="list-group">' + SidebarHtml + '</div>');
-    TFile.WriteAllText(TPath.Combine(FOutputDir, 'index.html'), FinalHtml);
+    FinalHtml := FTemplate.Replace('{{TITLE}}', 'Index').Replace('{{PROJECT_TITLE}}', FTitle).Replace('{{MAIN_CONTENT}}', '<h1>Dext Framework API</h1><p>Select a unit from the sidebar to view full documentation.</p>' + '<h2>Units</h2><div class="list-group" id="indexUnitList"></div>');
+    OutFilePath := TPath.Combine(FOutputDir, 'index.html');
+    if (not TFile.Exists(OutFilePath)) or (TFile.ReadAllText(OutFilePath) <> FinalHtml) then
+      TFile.WriteAllText(OutFilePath, FinalHtml);
 
   finally
     for _Node in UnitNodes.Values do
@@ -851,12 +857,15 @@ begin
   end;
 end;
 
-function TDextDocGenerator.GenerateSidebar: string;
+procedure TDextDocGenerator.GenerateTocJs;
 var
   AllUnits: IList<TUnitInfo>;
   Info: TUnitInfo;
   SafeFileName: string;
   SB: TStringBuilder;
+  First: Boolean;
+  OutFilePath: string;
+  JsText: string;
 begin
   SB := TStringBuilder.Create;
   try
@@ -869,17 +878,31 @@ begin
         Result := CompareText(Left.DisplayName, Right.DisplayName);
       end));
     
+    SB.AppendLine('window.DEXT_TOC = [');
+    First := True;
     for Info in AllUnits do
     begin
-      // Use same safe filename logic as Generate
+      if not First then
+        SB.AppendLine(',');
+      First := False;
+
       SafeFileName := Info.DisplayName
         .Replace(' ', '_')
         .Replace('(', '_')
         .Replace(')', '_');
-      SB.AppendFormat('<a href="%s.html" class="nav-item">%s</a>', [SafeFileName, Info.DisplayName]);
-      SB.AppendLine;
+
+      SB.AppendFormat('  {"name": "%s", "file": "%s.html"}', [
+        Info.DisplayName.Replace('\', '\\').Replace('"', '\"'),
+        SafeFileName
+      ]);
     end;
-    Result := SB.ToString;
+    SB.AppendLine;
+    SB.AppendLine('];');
+
+    JsText := SB.ToString;
+    OutFilePath := TPath.Combine(FOutputDir, 'toc.js');
+    if (not TFile.Exists(OutFilePath)) or (TFile.ReadAllText(OutFilePath) <> JsText) then
+      TFile.WriteAllText(OutFilePath, JsText);
   finally
     SB.Free;
   end;
