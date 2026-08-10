@@ -8,7 +8,8 @@ uses
 {$ENDIF}
   System.SysUtils,
   System.Classes,
-  System.SyncObjs;
+  System.SyncObjs,
+  Dext.Resilience;
 
 type
   /// <summary>
@@ -107,6 +108,9 @@ type
   end;
 
 implementation
+
+uses
+  System.Diagnostics;
 
 { TDextPoolConfig }
 
@@ -234,7 +238,7 @@ begin
   if TimeoutMs < 0 then
     TimeoutMs := 5000;
 
-  Deadline := TThread.GetTickCount64 + UInt64(TimeoutMs);
+  Deadline := GetTickCount64 + UInt64(TimeoutMs);
 
   repeat
     if AtomicCmpExchange(FIsDisposing, 0, 0) <> 0 then
@@ -283,7 +287,7 @@ begin
         Exit;
       end;
 
-      NowTick := TThread.GetTickCount64;
+      NowTick := GetTickCount64;
       if NowTick >= Deadline then
       begin
         AItem := nil;
