@@ -18,7 +18,7 @@
         <DCC_S>false</DCC_S>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;Winapi;System.Win;Data.Win;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UnitSearchPath>..\..\Sources\Common;..\..\Sources;..\..\Sources\Core;..\..\Sources\Core\Base;..\..\Sources\Core\Json;..\..\Sources\Core\DI;..\..\Sources\Data;..\..\Sources\Events;..\..\Sources\Web;..\..\Sources\Hosting;..\..\Sources\Net;..\..\Sources\UI;..\..\External\DelphiAST\Source\SimpleParser;..\..\External\DelphiAST\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\Sources\Common;..\..\Output\$(ProductVersion)\$(Platform)\$(Config);..\..\External\DelphiAST\Source\SimpleParser;..\..\External\DelphiAST\Source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DcuOutput>.\Dcu</DCC_DcuOutput>
         <DCC_ExeOutput>.</DCC_ExeOutput>
     </PropertyGroup>

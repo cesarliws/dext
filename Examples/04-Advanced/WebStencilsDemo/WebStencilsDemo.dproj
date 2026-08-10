@@ -1039,7 +1039,7 @@
         <DCC_S>false</DCC_S>
         <DCC_ExeOutput>..\..\Output\</DCC_ExeOutput>
         <DCC_DcuOutput>..\..\Output\$(ProductVersion)\$(Platform)\$(Config)</DCC_DcuOutput>
-        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Sources\Web;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\..\Sources\Common;..\..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <SanitizedProjectName>WebStencilsDemo</SanitizedProjectName>
         <VerInfo_Locale>1046</VerInfo_Locale>

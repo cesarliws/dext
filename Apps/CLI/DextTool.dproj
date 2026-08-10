@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <Base>True</Base>
         <AppType>Console</AppType>
@@ -41,7 +41,7 @@
         <DCC_ImageBase>00400000</DCC_ImageBase>
         <DCC_Namespace>System;Xml;Data;Datasnap;Web;Soap;$(DCC_Namespace)</DCC_Namespace>
         <DCC_ResourcePath>..\..\Sources\Dashboard;$(DCC_ResourcePath)</DCC_ResourcePath>
-        <DCC_UnitSearchPath>..\..\Sources\Dashboard;..\..\Sources\Common;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>..\..\Sources\Dashboard;..\..\Sources\Common;..\..\Output\$(ProductVersion)\$(Platform)\$(Config);$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <Icns_MainIcns>$(BDS)\bin\delphi_PROJECTICNS.icns</Icns_MainIcns>
         <Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
         <PostBuildEvent><![CDATA[copy /Y "$(OUTPUTPATH)" "$(OUTPUTDIR)..\Apps\dext.exe"
