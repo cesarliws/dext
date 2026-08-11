@@ -43,6 +43,10 @@ Status | Task | Spec | Description
 ✅ | **FastPath ORM Hydration** | [S57](Specs/S57-FastPath-Orm-Hydration-Optimization.md) | Direct cursor dataset streaming, DbSet `ExecuteToUtf8Proc` streaming, and pre-compiled RTTI mappers.
 ✅ | **Generic Object Pooling** | [S58](Specs/S58-Generic-Object-Pooling.md) | High-performance thread-safe generic object pool, automatic TDbContext recycling, TRestClient pooling, and FastPath integration.
 ✅ | **TBcd & ftFMTBcd Support** | [S60](Specs/S55-TBcd-FmtBcd-Support.md) | First-class end-to-end TBcd / ftFMTBcd support across FireDAC driver, ORM hydration, type converters, and Smart Properties.
+✅ | **Feature Flags & Management** | [S63](../../Docs/Specs/S63-Feature-Flags.md) | Dynamic toggle keys, rollout percentage filters, time windows and [FeatureGate] attributes.
+✅ | **Forwarded Headers Middleware** | [S64](../../Docs/Specs/S64-Forwarded-Headers.md) | Zero-Trust reverse proxy header parsing (X-Forwarded-For/Proto/Host).
+✅ | **Antiforgery CSRF Protection** | [S65](../../Docs/Specs/S65-Antiforgery-CSRF.md) | HMAC-SHA256 tokens, constant-time validation, and Origin/Host verification.
+✅ | **Testing WebApp Factory** | [S66](../../Docs/Specs/S66-WebApplicationFactory.md) | Lightweight integration testing factory for Dext Web Applications.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 ✅ | **Production Middleware** | [S06](Specs/S06-Middlewares-Security-Cache-Cors.md) | Hardened Web Middlewares: HTTP Logging redaction, Problem Details RFC 9457, strict CORS preflight & Vary merge, RFC 9333 Rate Limiting, and secure Response Cache.
 

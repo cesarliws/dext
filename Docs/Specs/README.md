@@ -65,6 +65,10 @@ ID | Title | Status | Goal
 **S58** | [High-Performance Generic Object Pooling & Context Recycling](S58-Generic-Object-Pooling.md) | ✅ Finalized | High-performance generic object pool with TSpinLock, manual-reset event broadcast, automatic TDbContext recycling, TRestClient pooling, and FastPath integration.
 **S59** | [DbSet Dialect-Aware Batch UPDATE & DELETE Strategy](../../Docs/Specs/S59-DbSet-Batch-Update-Delete.md) | ✅ Finalized | Single-statement dialect-aware batching for PostgreSQL (`unnest`/`VALUES`), MySQL (`CASE-WHEN`), and Tuple-IN deletes.
 **S60** | [TBcd & ftFMTBcd High-Precision Decimal Support](S55-TBcd-FmtBcd-Support.md) | ✅ Finalized | First-class end-to-end TBcd / ftFMTBcd support across FireDAC driver, ORM hydration, type converters, and Smart Properties.
+**S63** | [Feature Flags & Feature Management](S63-Feature-Flags.md) | 🟡 In Progress | Dynamic toggle keys, rollout filters, time windows and [FeatureGate] attributes.
+**S64** | [Forwarded Headers Middleware](S64-Forwarded-Headers.md) | 🟡 In Progress | Reverse proxy header validation (X-Forwarded-For/Proto/Host) and KnownProxies security.
+**S65** | [Antiforgery / CSRF Protection](S65-Antiforgery-CSRF.md) | 🟡 In Progress | Double Submit Cookie anti-CSRF protection for SSR HTML forms and HTMX.
+**S66** | [Testing WebApplicationFactory](S66-WebApplicationFactory.md) | 🟡 In Progress | Fluent in-memory integration test runner with DI container service overriding.
 
 ---
 

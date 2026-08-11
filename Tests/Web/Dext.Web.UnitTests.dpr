@@ -31,7 +31,9 @@ uses
   Test_Dext.Http2.Connection in 'Test_Dext.Http2.Connection.pas',
   Test_Dext.Http2.Framing in 'Test_Dext.Http2.Framing.pas',
   Test_Dext.Http2.Hpack in 'Test_Dext.Http2.Hpack.pas',
-  Test_Dext.Http2.Stream in 'Test_Dext.Http2.Stream.pas';
+  Test_Dext.Http2.Stream in 'Test_Dext.Http2.Stream.pas',
+  Dext.Testing.WebApplicationFactory in '..\..\Sources\Testing\Dext.Testing.WebApplicationFactory.pas',
+  Dext.Web.NewFeatures.Tests in 'Dext.Web.NewFeatures.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -58,6 +60,7 @@ begin
         TAPMSinksTests,
         TWebSocketTests,
         TPathBaseTests,
+        TDextNewFeaturesTests,
         // HTTP/2 and HPACK Tests
         THpackStaticTableTests,
         THpackDynTableTests,

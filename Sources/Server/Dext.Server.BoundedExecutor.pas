@@ -201,15 +201,19 @@ procedure AnonymousTaskExecutor(Data: Pointer);
 var
   Proc: TProc;
   P: Pointer absolute Proc;
-  Intf: IInterface absolute Proc;
 begin
+  if Data = nil then
+    Exit;
+
   P := Data;
   try
     if Assigned(Proc) then
       Proc();
   finally
-    if Assigned(Proc) then
-      Intf._Release;
+    // Release the manual reference held for the queue, and zero out P (Proc)
+    // so the compiler's automatic _IntfClear does not run on freed memory.
+    IInterface(Data)._Release;
+    P := nil;
   end;
 end;
 
@@ -237,16 +241,17 @@ end;
 function TDextBoundedExecutor.TryEnqueue(const AProc: TProc): Boolean;
 var
   LProc: TProc;
-  Intf: IInterface absolute LProc;
   P: Pointer absolute LProc;
 begin
   if not Assigned(AProc) then
     Exit(False);
+
   LProc := AProc;
-  Intf._AddRef;
+  IInterface(P)._AddRef; // Explicitly retain 1 reference for queue duration
+
   if not TryEnqueue(AnonymousTaskExecutor, P) then
   begin
-    Intf._Release;
+    IInterface(P)._Release;
     Exit(False);
   end;
   Result := True;

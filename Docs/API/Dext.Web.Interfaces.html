@@ -111,6 +111,10 @@ class IHttpRequest {    +GetMethod()
     +Files
     +RemoteIpAddress
 }
+class IForwardedHeadersFeature {    +SetRemoteIpAddress()
+    +SetIsHttps()
+    +SetHost()
+}
 class IHtmxResponse {    +Trigger()
     +Retarget()
     +Reswap()
@@ -408,6 +412,16 @@ IFormFileCollection <|.. TFormFileCollection
 <div class="api-signature">property Files: </div><div class="description">Collection of files received via multipart/form-data.</div></div>
 <div class="api-item">
 <div class="api-signature">property RemoteIpAddress: </div><div class="description">Remote IP address of the client.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>interface IForwardedHeadersFeature</h3><a name="IForwardedHeadersFeature"></a><div class="description">Feature interface to update request network properties from trusted reverse proxies.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure SetRemoteIpAddress(const const: string)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetIsHttps(AValue: Boolean)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SetHost(const const: string)</div></div>
 </div>
 <hr>
 <div class="class-header">

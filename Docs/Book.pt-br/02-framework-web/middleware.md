@@ -108,6 +108,42 @@ A ordem importa! Ordem recomendada:
 5. `UseRateLimiting` - Limita requisições
 6. **Endpoints** - Sua lógica de API
 
+## Forwarded Headers (Reverse Proxies)
+
+Processe cabeçalhos `X-Forwarded-*` provenientes de proxies reversos (NGINX, Caddy, Cloudflare, Traefik) com arquitetura **Zero-Trust**:
+
+```pascal
+var
+  Opts: TForwardedHeadersOptions;
+begin
+  Opts := TForwardedHeadersOptions.Create;
+  // Registre apenas proxies explicitamente confiáveis
+  Opts.KnownProxies.Add('127.0.0.1');
+  Opts.KnownNetworks.Add('10.0.0.0/8');
+
+  App.UseForwardedHeaders(Opts);
+end;
+```
+
+## Antiforgery (Proteção CSRF)
+
+Proteção contra Cross-Site Request Forgery usando tokens HMAC-SHA256 e verificação de Origin/Host:
+
+```pascal
+var
+  Antiforgery: IAntiforgery;
+begin
+  Antiforgery := TAntiforgery.Create('chave-secreta-hmac-2026', True);
+  
+  App.Use(procedure(Ctx: IHttpContext; Next: TRequestDelegate)
+    begin
+      // Valida automaticamente requisições mutativas (POST, PUT, DELETE, PATCH)
+      Antiforgery.ValidateRequest(Ctx);
+      Next(Ctx);
+    end);
+end;
+```
+
 ---
 
 [← Rotas](rotas.md) | [Próximo: Autenticação →](../03-autenticacao/README.md)

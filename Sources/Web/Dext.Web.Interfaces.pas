@@ -226,6 +226,16 @@ type
   end;
 
   /// <summary>
+  ///   Feature interface to update request network properties from trusted reverse proxies.
+  /// </summary>
+  IForwardedHeadersFeature = interface
+    ['{F1E2D3C4-B5A6-7890-1234-56789ABCDEF0}']
+    procedure SetRemoteIpAddress(const AValue: string);
+    procedure SetIsHttps(AValue: Boolean);
+    procedure SetHost(const AValue: string);
+  end;
+
+  /// <summary>
   ///   Fluent interface for manipulating HTMX-specific response headers.
   /// </summary>
   IHtmxResponse = interface

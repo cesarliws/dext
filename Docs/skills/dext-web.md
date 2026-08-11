@@ -348,6 +348,34 @@ Dext uses an optimized Radix Tree router:
 | `MapPatch<...>` | PATCH |
 | `[HttpGet]` / `[HttpPost]` / etc. | Controller attributes |
 
+## Reverse Proxies, Security & Feature Flags
+
+### Forwarded Headers (Zero-Trust)
+```pascal
+var Opts := TForwardedHeadersOptions.Create;
+Opts.KnownProxies.Add('127.0.0.1');
+App.UseForwardedHeaders(Opts);
+```
+
+### Antiforgery (CSRF Protection)
+```pascal
+var Antiforgery := TAntiforgery.Create('my-hmac-secret-key-2026', True);
+App.Use(procedure(Ctx: IHttpContext; Next: TRequestDelegate)
+  begin
+    Antiforgery.ValidateRequest(Ctx);
+    Next(Ctx);
+  end);
+```
+
+### Feature Flags
+```pascal
+var Config := TDextConfiguration.New
+  .AddValues([TPair<string, string>.Create('FeatureManagement:NewUI', 'True')])
+  .Build;
+var Mgr: IFeatureManager := TFeatureManager.Create(Config);
+if Mgr.IsEnabled('NewUI') then ;
+```
+
 ## Common Mistakes
 
 | Wrong | Correct |

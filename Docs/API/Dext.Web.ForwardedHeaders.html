@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dext.Web.ForwardedHeaders - Dext Framework 1.0</title>
+    
+    <!-- Blocking script to avoid theme flicker --> 
+    <script>
+        (function() {
+            const storedTheme = localStorage.getItem('dext-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', storedTheme);
+        })();
+    </script>
+    
+    <!-- Theme & Layout (Separate files for internal Dext Tooling) -->
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="layout.css">
+    
+    <!-- Mermaid for Diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Dext Framework 1.0</h3>
+            <small>Documentation</small>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="Search API..." id="searchInput">
+        </div>
+        <div class="nav-list" id="navList">
+            <!-- Sidebar Content Loaded Dynamically via toc.json -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">&#x1F313;</button>
+        </div>
+        
+        <div id="contentArea">
+            <!-- Main Documentation Content Injected Here -->
+            <h1>Unit Dext.Web.ForwardedHeaders</h1><h2>Classes</h2>
+<details class="mermaid-details" open>
+<summary>Class Diagram <span class="collapse-text">(Click to collapse)</span><span class="expand-text">(Click to expand)</span></summary>
+<div class="mermaid-container">
+<div class="mermaid">
+classDiagram
+class TForwardedHeadersOptions {    +Create()
+    +Destroy()
+    +KnownProxies
+    +KnownNetworks
+    +ForwardedHeaders
+    +ForwardLimit
+}
+TObject <|-- TForwardedHeadersOptions
+class TDextForwardedHeadersMiddleware {    +IPv4ToCardinal()
+    +MatchIPv4Subnet()
+    +IsProxyTrusted()
+    +SanitizeHost()
+    +Create()
+    +Destroy()
+    +Invoke()
+}
+TInterfacedObject <|-- TDextForwardedHeadersMiddleware
+IMiddleware <|.. TDextForwardedHeadersMiddleware
+</div>
+</div>
+</details>
+<h2>API Details</h2>
+<div class="class-header">
+<h3>class TForwardedHeadersOptions</h3><a name="TForwardedHeadersOptions"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Options for configuring the Forwarded Headers middleware. Default is Zero Trust (empty lists).</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">property KnownProxies: </div></div>
+<div class="api-item">
+<div class="api-signature">property KnownNetworks: </div></div>
+<div class="api-item">
+<div class="api-signature">property ForwardedHeaders: </div></div>
+<div class="api-item">
+<div class="api-signature">property ForwardLimit: </div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TDextForwardedHeadersMiddleware</h3><a name="TDextForwardedHeadersMiddleware"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Middleware to parse and apply X-Forwarded-* headers from trusted reverse proxies using official IMiddleware contract.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(AOptions: TForwardedHeadersOptions)</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate)</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">function IPv4ToCardinal(const const: string; out out: Cardinal): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function MatchIPv4Subnet(const const: string; const const: string): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function IsProxyTrusted(const const: string): Boolean</div></div>
+<div class="api-item">
+<div class="api-signature">function SanitizeHost(const const: string): string</div></div>
+</div>
+<hr>
+<h2>Types</h2>
+<div class="visibility-group"><div class="api-item">
+<div class="api-signature">type TForwardedHeaderFlag = enumeration</div><div class="enum-values">Values: fhXForwardedFor, fhXForwardedProto, fhXForwardedHost</div><div class="description">Flags indicating which forwarded headers to process.</div></div>
+<div class="api-item">
+<div class="api-signature">type TForwardedHeaderFlags = set</div></div>
+</div>
+
+        </div>
+    </div>
+
+    <script src="toc.js"></script>
+    <script src="viewer.js"></script>
+</body>
+</html>

@@ -130,7 +130,9 @@ contains
   Dext.Web.Utf8 in '..\..\Sources\Web\Dext.Web.Utf8.pas',
   Dext.WebSocket.Compression in '..\..\Sources\Server\Dext.WebSocket.Compression.pas',
   Dext.Web.PathBase in '..\..\Sources\Web\Dext.Web.PathBase.pas',
-  Dext.Web.SecurityHeaders in '..\..\Sources\Web\Dext.Web.SecurityHeaders.pas';
+  Dext.Web.SecurityHeaders in '..\..\Sources\Web\Dext.Web.SecurityHeaders.pas',
+  Dext.Web.ForwardedHeaders in '..\..\Sources\Web\Dext.Web.ForwardedHeaders.pas',
+  Dext.Web.Antiforgery in '..\..\Sources\Web\Dext.Web.Antiforgery.pas';
 
 end.
 
