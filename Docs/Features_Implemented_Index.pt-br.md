@@ -149,6 +149,11 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **IEventPublisher / IEventHandler<T>** — Despacho assíncrono de eventos via DI. Suporte a múltiplos handlers para o mesmo evento ou handlers exclusivos.
 - **Scoping Suport** — Handlers respeitam o ciclo de vida do DI (Scoped handlers recebem o mesmo contexto da request original).
 
+### 1.12 Feature Flags, Zero-Trust Proxies & Antiforgery (`Dext.FeatureFlags`, `Dext.Web.ForwardedHeaders`, `Dext.Web.Antiforgery`)
+- **Dext.FeatureFlags (`IFeatureManager`)** — Gerenciamento dinâmico de chaves operacionais e rollouts graduais. Suporta flags booleanas, `TPercentageFilter` (rollout percentual determinístico por usuário/tenant), `TTimeWindowFilter` (janela temporal ISO-8601), filtros customizados (`IFeatureFilter`) e anotação `[FeatureGate('NomeFeature')]`.
+- **Dext.Web.ForwardedHeaders (`TForwardedHeadersMiddleware`)** — Middleware de segurança Zero-Trust para processamento de cabeçalhos `X-Forwarded-For`, `X-Forwarded-Proto` e `X-Forwarded-Host` oriundos de proxies reversos confiáveis (NGINX, Caddy, Cloudflare, Traefik).
+- **Dext.Web.Antiforgery (`IAntiforgery`)** — Proteção contra Cross-Site Request Forgery (CSRF) com tokens HMAC-SHA256, tempo constante de comparação contra ataques de timing, validação de Origin/Host e suporte a cookies e cabeçalhos `X-CSRF-TOKEN`.
+
 ### 1.12 Observability & Telemetry (`Dext.Core.Diagnostics`)
 - **TDiagnosticSource** — Infraestrutura de telemetria baseada em observadores. Permite interceptar o ciclo de vida de requisições HTTP e execuções SQL sem acoplar código de monitoramento à lógica de negócio.
 - **SQL Logging Hooks** — Interceptação automática de comandos SQL, parâmetros e tempo de execução, integrados ao logger do framework.
@@ -256,6 +261,9 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
   - **Response Caching (`TResponseCacheMiddleware`)** — Cache de respostas HTTP server-side com proteção estrita contra armazenamento de conteúdos autenticados (`Authorization`, cookies de sessão/auth), rejeição de respostas com `Set-Cookie` ou diretivas `private`/`no-store`/`no-cache` e reconstrução automática de `Cache-Control: public, max-age=N` em cache HITs.
   - **Compression (`TCompressionMiddleware`)** — Compactação de respostas via GZip e Brotli.
   - **Security Headers (`TSecurityHeadersMiddleware`)** — Injeção de HSTS, `X-Content-Type-Options`, `X-Frame-Options` e `X-XSS-Protection`.
+  - **Feature Flags (`Dext.FeatureFlags`)** — Gerenciamento dinâmico de chaves operacionais e rollouts graduais (`IFeatureManager`) com suporte a filtros estáticos booleans, percentuais de rollout (`TPercentageFilter`), janelas de tempo (`TTimeWindowFilter`), atributos declarativos (`[FeatureGate]`) e integração nativa com a infraestrutura de configuração do Dext (`IConfiguration`).
+  - **Forwarded Headers (`Dext.Web.ForwardedHeaders`)** — Validação segura de proxies reversos (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`) lidos da direita para a esquerda com controle de `KnownProxies`, subredes CIDR e limite de encaminhamento contra IP Spoofing.
+  - **Antiforgery CSRF Protection (`Dext.Web.Antiforgery`)** — Proteção contra ataques Cross-Site Request Forgery via padrão Double Submit Cookie, validação de tokens em tempo constante contra timing attacks e suporte nativo a formulários SSR (`WebStencils`) e cabeçalhos HTMX (`X-XSRF-TOKEN`).
   - **Base Path Hosting (`UsePathBase`)** — Suporte a hospedagem sob prefixo de caminho (`app.UsePathBase('/myapp')`), remoção automática do prefixo no pipeline (`TDextPathBaseMiddleware`), preenchimento de `Request.PathBase` e gerador de URL `Request.ToAppUrl('/route')`. Registro nativo de prefixos no kernel do HTTP.sys (`http://+:8080/myapp/`).
 
 ### 3.3 Routing Engine

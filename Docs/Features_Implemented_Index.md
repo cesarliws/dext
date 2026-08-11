@@ -149,6 +149,11 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **IEventPublisher / IEventHandler<T>** — Asynchronous event dispatch via DI. Supports multiple handlers for the same event or exclusive handlers.
 - **Scoping Support** — Handlers respect DI lifecycle (Scoped handlers receive the same context as the original request).
 
+### 1.12 Feature Flags, Zero-Trust Proxies & Antiforgery (`Dext.FeatureFlags`, `Dext.Web.ForwardedHeaders`, `Dext.Web.Antiforgery`)
+- **Dext.FeatureFlags (`IFeatureManager`)** — Dynamic feature toggle management and progressive rollout strategies. Supports boolean feature flags, `TPercentageFilter` (deterministic percentage rollout per user/tenant key), `TTimeWindowFilter` (ISO-8601 time window), custom filters (`IFeatureFilter`), and `[FeatureGate('FeatureName')]` attributes.
+- **Dext.Web.ForwardedHeaders (`TForwardedHeadersMiddleware`)** — Zero-Trust security middleware for processing `X-Forwarded-For`, `X-Forwarded-Proto`, and `X-Forwarded-Host` headers from trusted reverse proxies (NGINX, Caddy, Cloudflare, Traefik).
+- **Dext.Web.Antiforgery (`IAntiforgery`)** — Cross-Site Request Forgery (CSRF) protection with HMAC-SHA256 tokens, constant-time comparison against timing attacks, Origin/Host validation, and support for cookie and `X-CSRF-TOKEN` headers.
+
 ### 1.12 Observability & Telemetry (`Dext.Core.Diagnostics`)
 - **TDiagnosticSource** — Telemetry infrastructure based on observers. Allows intercepting HTTP request lifecycle and SQL execution without coupling monitoring code to business logic.
 - **SQL Logging Hooks** — Automatic interception of SQL commands, parameters, and execution time, integrated into the framework's logger.

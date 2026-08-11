@@ -159,7 +159,40 @@ Order matters! Recommended order:
 4. `UseAuthentication` - Validate tokens
 5. `UseRateLimiting` - Throttle requests
 6. `UseCompression` - Compress responses
-7. **Endpoints** - Your API logic
+## Forwarded Headers (Reverse Proxies)
+
+Process `X-Forwarded-*` headers from reverse proxies (NGINX, Caddy, Cloudflare, Traefik) with **Zero-Trust** architecture by default:
+
+```pascal
+var
+  Opts: TForwardedHeadersOptions;
+begin
+  Opts := TForwardedHeadersOptions.Create;
+  // Explicitly add trusted reverse proxies
+  Opts.KnownProxies.Add('127.0.0.1');
+  Opts.KnownNetworks.Add('10.0.0.0/8');
+
+  App.UseForwardedHeaders(Opts);
+end;
+```
+
+## Antiforgery (CSRF Protection)
+
+Protect against Cross-Site Request Forgery with HMAC-SHA256 tokens and strict Origin/Host verification:
+
+```pascal
+var
+  Antiforgery: IAntiforgery;
+begin
+  Antiforgery := TAntiforgery.Create('hmac-secret-key-2026', True);
+
+  App.Use(procedure(Ctx: IHttpContext; Next: TRequestDelegate)
+    begin
+      // Automatically validates mutating HTTP methods (POST, PUT, DELETE, PATCH)
+      Antiforgery.ValidateRequest(Ctx);
+      Next(Ctx);
+    end);
+end;
 
 ---
 
