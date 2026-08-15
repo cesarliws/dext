@@ -967,7 +967,10 @@ begin
   end
   else if (AParam.ParamType.TypeKind = tkInterface) then
   begin
-    Result := BindServices(AParam.ParamType.Handle, AContext);
+    if AParam.ParamType.Handle = TypeInfo(IHttpContext) then
+      Result := TValue.From<IHttpContext>(AContext)
+    else
+      Result := BindServices(AParam.ParamType.Handle, AContext);
   end
   else
   begin

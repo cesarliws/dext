@@ -1402,7 +1402,8 @@ begin
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
 
-  if KnownResponseHeadersMapGlobal.TryGetValue(AName, Index) then
+  if (not SameText(AName, 'Set-Cookie')) and
+     KnownResponseHeadersMapGlobal.TryGetValue(AName, Index) then
   begin
     if FHeaderDataLen + Length(AValue) * 3 + 1 >= SizeOf(FHeaderData) then
       Exit;

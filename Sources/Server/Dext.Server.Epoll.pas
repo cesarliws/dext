@@ -37,6 +37,7 @@ uses
   System.SysUtils,
   System.Types,
   Dext.Collections.Dict,
+  Dext.Collections.Vector,
   Dext.Core.Span,
   Dext.Server.BoundedExecutor,
   Dext.Server.Engine.Interfaces,
@@ -233,6 +234,7 @@ type
     FStatusCode: Integer;
     FReason: string;
     FHeaders: TDictionary<string, string>;
+    FCookies: TVector<string>;
     FSendFileFd: Integer;
     FSendFileOffset: Int64;
     FSendFileLen: Int64;
@@ -1392,6 +1394,13 @@ begin
     AppendStr(#13#10, TempBuf, BufferOffset);
   end;
 
+  for var Cookie in FCookies do
+  begin
+    AppendStr('Set-Cookie: ', TempBuf, BufferOffset);
+    AppendStr(Cookie, TempBuf, BufferOffset);
+    AppendStr(#13#10, TempBuf, BufferOffset);
+  end;
+
   AppendStr(#13#10, TempBuf, BufferOffset);
 
   // Store headers in a dedicated buffer — NOT in FResponseWriter —
@@ -1407,7 +1416,11 @@ begin
   if FContext.FGeneration <> FGeneration then Exit;
   if FHeadersSent then
     raise EInvalidOp.Create('Headers already sent');
-  FHeaders.AddOrSetValue(AName, AValue);
+
+  if SameText(AName, 'Set-Cookie') then
+    FCookies.Add(AValue)
+  else
+    FHeaders.AddOrSetValue(AName, AValue);
 end;
 
 procedure TDextEpollResponse.SetStatus(ACode: Integer; const AReason: string);
