@@ -142,7 +142,8 @@ type
   end;
   PHTTP_KNOWN_HEADER = ^HTTP_KNOWN_HEADER;
 
-  // low(THttpApiHeader)..reqUserAgent
+  // HTTP Server API response headers index (0..29)
+  // Low(THttpApiHeader)..reqUserAgent for requests (0..40)
   THttpApiHeader = (
     reqCacheControl,
     reqConnection,
@@ -185,16 +186,36 @@ type
     reqTe,
     reqTranslate,
     reqUserAgent,
+    respCacheControl = 0,
+    respConnection = 1,
+    respDate = 2,
+    respKeepAlive = 3,
+    respPragma = 4,
+    respTrailer = 5,
+    respTransferEncoding = 6,
+    respUpgrade = 7,
+    respVia = 8,
+    respWarning = 9,
+    respAllow = 10,
+    respContentLength = 11,
+    respContentType = 12,
+    respContentEncoding = 13,
+    respContentLanguage = 14,
+    respContentLocation = 15,
+    respContentMd5 = 16,
+    respContentRange = 17,
+    respExpires = 18,
+    respLastModified = 19,
     respAcceptRanges = 20,
-    respAge,
-    respEtag,
-    respLocation,
-    respProxyAuthenticate,
-    respRetryAfter,
-    respServer,
-    respSetCookie,
-    respVary,
-    respWwwAuthenticate
+    respAge = 21,
+    respEtag = 22,
+    respLocation = 23,
+    respProxyAuthenticate = 24,
+    respRetryAfter = 25,
+    respServer = 26,
+    respSetCookie = 27,
+    respVary = 28,
+    respWwwAuthenticate = 29
   );
 
   HTTP_REQUEST_HEADERS = record
@@ -202,7 +223,7 @@ type
     pUnknownHeaders: PHTTP_UNKNOWN_HEADER;
     TrailerCount: USHORT;
     pTrailers: Pointer;
-    KnownHeaders: array[0..40] of HTTP_KNOWN_HEADER; // array matching size of request headers
+    KnownHeaders: array[0..40] of HTTP_KNOWN_HEADER; // array matching size of request headers (0..40)
   end;
 
   HTTP_RESPONSE_HEADERS = record
@@ -210,7 +231,7 @@ type
     pUnknownHeaders: PHTTP_UNKNOWN_HEADER;
     TrailerCount: USHORT;
     pTrailers: Pointer;
-    KnownHeaders: array[0..29] of HTTP_KNOWN_HEADER; // array matching size of response headers
+    KnownHeaders: array[0..29] of HTTP_KNOWN_HEADER; // array matching size of response headers (0..29 = 30 elements)
   end;
 
   HTTP_SSL_CLIENT_CERT_INFO = record

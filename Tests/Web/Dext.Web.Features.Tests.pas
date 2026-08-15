@@ -50,6 +50,9 @@ type
 
     [Test('Should compress response body when compression middleware is used on Native Server (HTTP.sys)')]
     procedure TestNativeServerCompression;
+
+    [Test('Should preserve and emit repeated Set-Cookie headers on Native Server (Issue #189)')]
+    procedure TestNativeServerRepeatedCookies;
   end;
 
   [ApiController, Route('/gzip-controller')]
@@ -65,12 +68,15 @@ type
 implementation
 
 uses
+  IdTCPClient,
   Dext.Web.Indy,
   Dext.Web.Middleware.Compression,
   Dext,
   Dext.Web,
   Dext.Web.Results,
   Dext.Server.Engine.Types,
+  Dext.Net.Engine,
+  Dext.Utils,
   System.TypInfo,
   System.Rtti;
 
@@ -464,6 +470,101 @@ begin
       begin
         raise Exception.Create('CRASH: ' + E.ClassName + ': ' + E.Message + sLineBreak + E.StackTrace);
       end;
+    end;
+  finally
+    Host.Stop;
+  end;
+end;
+
+procedure TWebFeaturesTests.TestNativeServerRepeatedCookies;
+var
+  Builder: IWebHostBuilder;
+  Host: IWebHost;
+  Options: TServerEngineOptions;
+  CookieHeaders: TArray<string>;
+  I: Integer;
+  Cookie1Found, Cookie2Found, Cookie3Found: Boolean;
+  Client: TIdTCPClient;
+  RawLine: string;
+begin
+  Builder := TWebHost.CreateDefaultBuilder
+    .UseUrls('http://127.0.0.1:60456');
+
+  Builder.Configure(procedure(App: IApplicationBuilder)
+    begin
+      App.MapGet('/cookie-test', procedure(Ctx: IHttpContext)
+        var
+          Opt1, Opt2, Opt3: TCookieOptions;
+        begin
+          Opt1 := TCookieOptions.Default;
+          Opt1.HttpOnly := True;
+          Opt1.Path := '/';
+
+          Opt2 := TCookieOptions.Default;
+          Opt2.Path := '/';
+
+          Opt3 := TCookieOptions.Default;
+
+          Ctx.Response.AppendCookie('session_id', 'abc123xyz', Opt1);
+          Ctx.Response.AppendCookie('csrf_token', 'token_456', Opt2);
+          Ctx.Response.AppendCookie('theme', 'dark', Opt3);
+          Ctx.Response.Write('cookies-set');
+        end);
+    end);
+
+  Host := Builder.Build;
+  Options := TServerEngineOptions.Default.WithBindAddress('127.0.0.1');
+  (Host as IWebApplication).UseNativeServer(Options);
+  Host.Start;
+  try
+    // Send raw HTTP request via TCP to avoid HttpClient cookie manager stripping Set-Cookie headers
+    Client := TIdTCPClient.Create(nil);
+    try
+      Client.Host := '127.0.0.1';
+      Client.Port := Host.Port;
+      Client.ConnectTimeout := 3000;
+      Client.ReadTimeout := 3000;
+      Client.Connect;
+
+      Client.Socket.WriteLn('GET /cookie-test HTTP/1.1');
+      Client.Socket.WriteLn('Host: 127.0.0.1:' + Host.Port.ToString);
+      Client.Socket.WriteLn('Connection: close');
+      Client.Socket.WriteLn('');
+
+      RawLine := Client.Socket.ReadLn;
+      Should(RawLine).Contain('200');
+
+      SetLength(CookieHeaders, 0);
+      repeat
+        RawLine := Client.Socket.ReadLn;
+        if SameText(Copy(RawLine, 1, 11), 'Set-Cookie:') then
+        begin
+          SetLength(CookieHeaders, Length(CookieHeaders) + 1);
+          CookieHeaders[High(CookieHeaders)] := Trim(Copy(RawLine, 12, MaxInt));
+        end;
+      until RawLine = '';
+
+      Should(Length(CookieHeaders)).Be(3);
+
+      Cookie1Found := False;
+      Cookie2Found := False;
+      Cookie3Found := False;
+
+      for I := 0 to High(CookieHeaders) do
+      begin
+        if Pos('session_id=abc123xyz', CookieHeaders[I]) > 0 then
+          Cookie1Found := True;
+        if Pos('csrf_token=token_456', CookieHeaders[I]) > 0 then
+          Cookie2Found := True;
+        if Pos('theme=dark', CookieHeaders[I]) > 0 then
+          Cookie3Found := True;
+      end;
+
+      Should(Cookie1Found).BeTrue;
+      Should(Cookie2Found).BeTrue;
+      Should(Cookie3Found).BeTrue;
+    finally
+      Client.Free;
     end;
   finally
     Host.Stop;
