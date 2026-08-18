@@ -36,9 +36,9 @@ uses
 
 type
   /// <summary>
-  ///   Fluent in-memory test host and WebApplicationFactory for integration testing.
+  ///   Fluent in-memory test host and ApplicationFactory for integration testing.
   /// </summary>
-  TDextWebApplicationFactory<TApp: class> = class
+  TDextApplicationFactory<TApp: class> = class
   private
     FApp: TWebApplication;
     FConfigureServicesProc: TProc<IServiceCollection>;
@@ -49,8 +49,8 @@ type
     /// <summary>
     ///   Overrides or injects mocks into the DI container prior to server startup.
     /// </summary>
-    function WithTestServices(AProc: TProc<IServiceCollection>): TDextWebApplicationFactory<TApp>; overload;
-    function WithTestServices(AProc: TProc<TDextServices>): TDextWebApplicationFactory<TApp>; overload;
+    function WithTestServices(AProc: TProc<IServiceCollection>): TDextApplicationFactory<TApp>; overload;
+    function WithTestServices(AProc: TProc<TDextServices>): TDextApplicationFactory<TApp>; overload;
 
     /// <summary>
     ///   Initializes the in-memory application and returns the configured WebApplication instance.
@@ -60,16 +60,16 @@ type
 
 implementation
 
-{ TDextWebApplicationFactory<TApp> }
+{ TDextApplicationFactory<TApp> }
 
-constructor TDextWebApplicationFactory<TApp>.Create;
+constructor TDextApplicationFactory<TApp>.Create;
 begin
   inherited Create;
   FApp := nil;
   FConfigureServicesProc := nil;
 end;
 
-destructor TDextWebApplicationFactory<TApp>.Destroy;
+destructor TDextApplicationFactory<TApp>.Destroy;
 begin
   if FApp <> nil then
   begin
@@ -79,13 +79,13 @@ begin
   inherited Destroy;
 end;
 
-function TDextWebApplicationFactory<TApp>.WithTestServices(AProc: TProc<IServiceCollection>): TDextWebApplicationFactory<TApp>;
+function TDextApplicationFactory<TApp>.WithTestServices(AProc: TProc<IServiceCollection>): TDextApplicationFactory<TApp>;
 begin
   FConfigureServicesProc := AProc;
   Result := Self;
 end;
 
-function TDextWebApplicationFactory<TApp>.WithTestServices(AProc: TProc<TDextServices>): TDextWebApplicationFactory<TApp>;
+function TDextApplicationFactory<TApp>.WithTestServices(AProc: TProc<TDextServices>): TDextApplicationFactory<TApp>;
 begin
   FConfigureServicesProc := procedure(AServices: IServiceCollection)
     begin
@@ -95,7 +95,7 @@ begin
   Result := Self;
 end;
 
-function TDextWebApplicationFactory<TApp>.CreateApplication: TWebApplication;
+function TDextApplicationFactory<TApp>.CreateApplication: TWebApplication;
 begin
   if FApp = nil then
   begin
