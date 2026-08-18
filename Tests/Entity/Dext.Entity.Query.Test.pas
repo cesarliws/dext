@@ -31,6 +31,7 @@ type
     procedure Run;
     procedure TestTypedOrderBy;
     procedure TestTypedSelect;
+    procedure TestStringArraySelect;
     procedure TestSkipTakeOptimization;
     procedure TestScalarOptimization;
     procedure TestThenBy;
@@ -50,6 +51,7 @@ begin
   WriteLn('Testing TFluentQuery Parity and Optimizations...');
   TestTypedOrderBy;
   TestTypedSelect;
+  TestStringArraySelect;
   TestSkipTakeOptimization;
   TestScalarOptimization;
   TestThenBy;
@@ -121,6 +123,55 @@ begin
 
   // Explicitly clear to avoid leaks in ActRec
   Projection := Default(TFluentQuery<string>);
+  Query := Default(TFluentQuery<TUser>);
+  Spec := nil;
+end;
+
+procedure TQueryParityTest.TestStringArraySelect;
+var
+  Query: TFluentQuery<TUser>;
+  SelectedQuery: TFluentQuery<TUser>;
+  Spec: ISpecification<TUser>;
+  CountCalled: Boolean;
+begin
+  Write('  - String Array Select Preserves Spec & Optimizations: ');
+  CountCalled := False;
+  Spec := TSpecification<TUser>.Create;
+  Query := TFluentQuery<TUser>.Create(
+    nil,
+    Spec,
+    function(S: ISpecification): Integer
+    begin
+      CountCalled := True;
+      Result := 99;
+    end,
+    nil,
+    nil,
+    nil
+  );
+
+  SelectedQuery := Query.Select(['Id', 'Name']);
+
+  // Check columns are pushed into spec
+  Should(Length(Spec.GetSelectedColumns)).Be(2);
+  Should(Spec.GetSelectedColumns[0]).Be('Id');
+  Should(Spec.GetSelectedColumns[1]).Be('Name');
+
+  // Check specification is preserved on returned query
+  Should(SelectedQuery.Specification <> nil).BeTrue;
+
+  // Check count optimization is still routed through FExecuteCount
+  Should(SelectedQuery.Count).Be(99);
+  Should(CountCalled).BeTrue;
+
+  // Check Skip and Take still mutate specification
+  SelectedQuery.Skip(5).Take(15);
+  Should(Spec.GetSkip).Be(5);
+  Should(Spec.GetTake).Be(15);
+
+  WriteLn('[PASS]');
+
+  SelectedQuery := Default(TFluentQuery<TUser>);
   Query := Default(TFluentQuery<TUser>);
   Spec := nil;
 end;

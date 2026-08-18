@@ -952,21 +952,23 @@ end;
 
 function TFluentQuery<T>.Select(const AProperties: array of string): TFluentQuery<T>;
 var
-  LProperties: TArray<string>;
-  LProp: string;
-  I: Integer;
+  Properties: TArray<string>;
+  PropName: string;
+  Index: Integer;
 begin
+  Result := Self;
   if FSpecification <> nil then
   begin
-    for LProp in AProperties do
-      FSpecification.Select(LProp);
+    for PropName in AProperties do
+      FSpecification.Select(PropName);
+    Exit;
   end;
 
-  SetLength(LProperties, Length(AProperties));
-  for I := 0 to High(AProperties) do
-    LProperties[I] := AProperties[I];
+  SetLength(Properties, Length(AProperties));
+  for Index := 0 to High(AProperties) do
+    Properties[Index] := AProperties[Index];
 
-  Result := Select<T>(CreatePropsSelector(LProperties));
+  Result := Select<T>(CreatePropsSelector(Properties));
 end;
 
 function TFluentQuery<T>.WherePredicate(const APredicate: TPredicate<T>): TFluentQuery<T>;

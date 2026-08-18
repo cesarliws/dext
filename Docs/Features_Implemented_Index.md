@@ -366,7 +366,7 @@ One of Dext's most powerful features: **automatic generation of full REST APIs f
 - **Shadow Properties Support** — Declares columns (like `TenantId`, `CreatedAt`, `IsDeleted`) in database mappings that are tracked and saved without needing to be exposed as physical fields in class declarations.
 
 ### 4.2 Query Engine (LINQ-like)
-- Fluent queries with **Projection (Select)**, **Paging** (`Skip`/`Take`), and **Aggregates** (`Count`, `Sum`, `Max`, `Min`, `Average`).
+- Fluent queries with **Projection (Select)** (`Select(array of string)`, typed property projections), preserving server-side specifications, **Paging** (`Skip`/`Take`), and **Aggregates** (`Count`, `Sum`, `Max`, `Min`, `Average`).
 - **SQL Cache** — Reuse of generated SQL commands for repeated queries.
 - **Strongly-Typed Fluent Joins** (`JoinInner`, `JoinLeft`, `JoinRight`, `JoinFull`, `JoinCross`) — Compiles directly into optimized database-level joins (INNER, LEFT, RIGHT, FULL, CROSS) using explicit condition expressions, implicit auto-resolution via relations metadata (`TModelBuilder`), or Cross Join Cartesian product execution.
 - **Pessimistic Locking** — `FOR UPDATE` for concurrency control.
