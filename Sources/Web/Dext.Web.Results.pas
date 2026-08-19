@@ -211,6 +211,92 @@ type
   end;
 
   /// <summary>
+  ///   Contextual results dispatcher that executes the semantic HTTP result immediately
+  ///   on the specified HTTP context, eliminating the need to call .Execute(Ctx).
+  /// </summary>
+  TContextualResults = record
+  private
+    FCtx: IHttpContext;
+  public
+    constructor Create(const ACtx: IHttpContext);
+
+    /// <summary>Dispatches 200 OK.</summary>
+    procedure Ok; overload;
+    /// <summary>Dispatches 200 OK with string body or pre-formatted JSON.</summary>
+    procedure Ok(const AValue: string); overload;
+    /// <summary>Dispatches 200 OK with object serialized via Content Negotiation.</summary>
+    procedure Ok<T>(const AValue: T); overload;
+
+    /// <summary>Dispatches 201 Created.</summary>
+    procedure Created(const AUri: string); overload;
+    /// <summary>Dispatches 201 Created with created resource URI.</summary>
+    procedure Created(const AUri, AValue: string); overload;
+    /// <summary>Dispatches 201 Created with object serialized via Content Negotiation.</summary>
+    procedure Created<T>(const AUri: string; const AValue: T); overload;
+
+    /// <summary>Dispatches 400 Bad Request.</summary>
+    procedure BadRequest; overload;
+    /// <summary>Dispatches 400 Bad Request with an error message.</summary>
+    procedure BadRequest(const AError: string); overload;
+    /// <summary>Dispatches 400 Bad Request with a serialized error object.</summary>
+    procedure BadRequest<T>(const AError: T); overload;
+
+    /// <summary>Dispatches 404 Not Found.</summary>
+    procedure NotFound; overload;
+    /// <summary>Dispatches 404 Not Found with a detailed message.</summary>
+    procedure NotFound(const AMessage: string); overload;
+
+    /// <summary>Dispatches 204 No Content.</summary>
+    procedure NoContent;
+
+    /// <summary>Dispatches 401 Unauthorized.</summary>
+    procedure Unauthorized; overload;
+    /// <summary>Dispatches 401 Unauthorized with a detailed message.</summary>
+    procedure Unauthorized(const AMessage: string); overload;
+    /// <summary>Dispatches 401 Unauthorized with a serialized object.</summary>
+    procedure Unauthorized<T>(const AValue: T); overload;
+
+    /// <summary>Dispatches 403 Forbidden.</summary>
+    procedure Forbidden; overload;
+    /// <summary>Dispatches 403 Forbidden with a detailed message.</summary>
+    procedure Forbidden(const AMessage: string); overload;
+    /// <summary>Dispatches 403 Forbidden with a serialized object.</summary>
+    procedure Forbidden<T>(const AValue: T); overload;
+
+    /// <summary>Dispatches 500 Internal Server Error with a friendly message.</summary>
+    procedure InternalServerError(const AMessage: string); overload;
+    /// <summary>Dispatches 500 Internal Server Error from a captured exception.</summary>
+    procedure InternalServerError(const E: Exception); overload;
+
+    /// <summary>Dispatches standardized RFC 7807 Problem Details.</summary>
+    procedure Problem(const ADetail: string; AStatusCode: Integer = 500);
+
+    /// <summary>Dispatches standardized RFC 7807 Validation Problem.</summary>
+    procedure ValidationProblem(const AValidation: TValidationResult);
+
+    /// <summary>Dispatches a 302 Found redirect.</summary>
+    procedure Redirect(const AUrl: string; APermanent: Boolean = False; APreserveMethod: Boolean = False);
+    /// <summary>Dispatches a 302 Found redirect to a local URL.</summary>
+    procedure LocalRedirect(const AUrl: string; APermanent: Boolean = False; APreserveMethod: Boolean = False);
+
+    /// <summary>Dispatches a file response from a physical path.</summary>
+    procedure SendFile(const APath: string; const AContentType: string = ''; const ADownloadName: string = '');
+
+    /// <summary>Dispatches an explicit JSON result.</summary>
+    procedure Json(const AJson: string; AStatusCode: Integer = 200); overload;
+    /// <summary>Dispatches object directly to JSON.</summary>
+    procedure Json<T>(const AValue: T; AStatusCode: Integer = 200); overload;
+    /// <summary>Dispatches plain text.</summary>
+    procedure Text(const AContent: string; AStatusCode: Integer = 200);
+    /// <summary>Dispatches pure HTML.</summary>
+    procedure Html(const AHtml: string; AStatusCode: Integer = 200);
+
+    /// <summary>Dispatches arbitrary HTTP status code.</summary>
+    procedure StatusCode(ACode: Integer); overload;
+    procedure StatusCode(ACode: Integer; const AContent: string); overload;
+  end;
+
+  /// <summary>
   ///   Static helper class (Factory) for creating common HTTP results.
   ///   Mainly used in Minimal APIs and Controllers to return standardized responses.
   /// </summary>
@@ -338,6 +424,9 @@ type
     class function ViewPart(const AViewName: string): TDextViewResult; overload;
     class function ViewPart<T: class>(const AViewName: string; const AQuery: TFluentQuery<T>): TDextViewResult; overload;
     class function ViewPart(const AViewName: string; AData: TObject; AOwns: Boolean = False): TDextViewResult; overload;
+
+    /// <summary>Returns a contextual results dispatcher bound to the given HTTP context.</summary>
+    class function Context(const ACtx: IHttpContext): TContextualResults; inline;
   end;
 
 implementation
@@ -1060,6 +1149,173 @@ function THtmxResponse.Location(const AUrl: string): IHtmxResponse;
 begin
   FResponse.AddHeader('HX-Location', AUrl);
   Result := Self;
+end;
+
+{ TContextualResults }
+
+constructor TContextualResults.Create(const ACtx: IHttpContext);
+begin
+  FCtx := ACtx;
+end;
+
+procedure TContextualResults.Ok;
+begin
+  Results.Ok.Execute(FCtx);
+end;
+
+procedure TContextualResults.Ok(const AValue: string);
+begin
+  Results.Ok(AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.Ok<T>(const AValue: T);
+begin
+  Results.Ok<T>(AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.Created(const AUri: string);
+begin
+  Results.Created(AUri).Execute(FCtx);
+end;
+
+procedure TContextualResults.Created(const AUri, AValue: string);
+begin
+  Results.Created(AUri, AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.Created<T>(const AUri: string; const AValue: T);
+begin
+  Results.Created<T>(AUri, AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.BadRequest;
+begin
+  Results.BadRequest.Execute(FCtx);
+end;
+
+procedure TContextualResults.BadRequest(const AError: string);
+begin
+  Results.BadRequest(AError).Execute(FCtx);
+end;
+
+procedure TContextualResults.BadRequest<T>(const AError: T);
+begin
+  Results.BadRequest<T>(AError).Execute(FCtx);
+end;
+
+procedure TContextualResults.NotFound;
+begin
+  Results.NotFound.Execute(FCtx);
+end;
+
+procedure TContextualResults.NotFound(const AMessage: string);
+begin
+  Results.NotFound(AMessage).Execute(FCtx);
+end;
+
+procedure TContextualResults.NoContent;
+begin
+  Results.NoContent.Execute(FCtx);
+end;
+
+procedure TContextualResults.Unauthorized;
+begin
+  Results.Unauthorized.Execute(FCtx);
+end;
+
+procedure TContextualResults.Unauthorized(const AMessage: string);
+begin
+  Results.Unauthorized(AMessage).Execute(FCtx);
+end;
+
+procedure TContextualResults.Unauthorized<T>(const AValue: T);
+begin
+  Results.Unauthorized<T>(AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.Forbidden;
+begin
+  Results.Forbidden.Execute(FCtx);
+end;
+
+procedure TContextualResults.Forbidden(const AMessage: string);
+begin
+  Results.Forbidden(AMessage).Execute(FCtx);
+end;
+
+procedure TContextualResults.Forbidden<T>(const AValue: T);
+begin
+  Results.Forbidden<T>(AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.InternalServerError(const AMessage: string);
+begin
+  Results.InternalServerError(AMessage).Execute(FCtx);
+end;
+
+procedure TContextualResults.InternalServerError(const E: Exception);
+begin
+  Results.InternalServerError(E).Execute(FCtx);
+end;
+
+procedure TContextualResults.Problem(const ADetail: string; AStatusCode: Integer);
+begin
+  Results.Problem(ADetail, AStatusCode).Execute(FCtx);
+end;
+
+procedure TContextualResults.ValidationProblem(const AValidation: TValidationResult);
+begin
+  Results.ValidationProblem(AValidation).Execute(FCtx);
+end;
+
+procedure TContextualResults.Redirect(const AUrl: string; APermanent, APreserveMethod: Boolean);
+begin
+  Results.Redirect(AUrl, APermanent, APreserveMethod).Execute(FCtx);
+end;
+
+procedure TContextualResults.LocalRedirect(const AUrl: string; APermanent, APreserveMethod: Boolean);
+begin
+  Results.LocalRedirect(AUrl, APermanent, APreserveMethod).Execute(FCtx);
+end;
+
+procedure TContextualResults.SendFile(const APath, AContentType, ADownloadName: string);
+begin
+  Results.SendFile(APath, AContentType, ADownloadName).Execute(FCtx);
+end;
+
+procedure TContextualResults.Json(const AJson: string; AStatusCode: Integer);
+begin
+  Results.Json(AJson, AStatusCode).Execute(FCtx);
+end;
+
+procedure TContextualResults.Json<T>(const AValue: T; AStatusCode: Integer);
+begin
+  Results.Json<T>(AValue, AStatusCode).Execute(FCtx);
+end;
+
+procedure TContextualResults.Text(const AContent: string; AStatusCode: Integer);
+begin
+  Results.Text(AContent, AStatusCode).Execute(FCtx);
+end;
+
+procedure TContextualResults.Html(const AHtml: string; AStatusCode: Integer);
+begin
+  Results.Html(AHtml, AStatusCode).Execute(FCtx);
+end;
+
+procedure TContextualResults.StatusCode(ACode: Integer);
+begin
+  Results.StatusCode(ACode).Execute(FCtx);
+end;
+
+procedure TContextualResults.StatusCode(ACode: Integer; const AContent: string);
+begin
+  Results.StatusCode(ACode, AContent).Execute(FCtx);
+end;
+
+class function Results.Context(const ACtx: IHttpContext): TContextualResults;
+begin
+  Result := TContextualResults.Create(ACtx);
 end;
 
 end.

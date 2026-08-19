@@ -53,6 +53,9 @@ type
 
     [Test('Should preserve and emit repeated Set-Cookie headers on Native Server (Issue #189)')]
     procedure TestNativeServerRepeatedCookies;
+
+    [Test('Should immediately dispatch semantic results using Results(Ctx) contextual helper')]
+    procedure TestContextualResults;
   end;
 
   [ApiController, Route('/gzip-controller')]
@@ -566,6 +569,65 @@ begin
     finally
       Client.Free;
     end;
+  finally
+    Host.Stop;
+  end;
+end;
+
+procedure TWebFeaturesTests.TestContextualResults;
+var
+  Builder: IWebHostBuilder;
+  Host: IWebHost;
+  Resp: IRestResponse;
+begin
+  Builder := TWebHost.CreateDefaultBuilder
+    .UseUrls('http://127.0.0.1:18099');
+
+  Builder.Configure(
+    procedure(App: IApplicationBuilder)
+    begin
+      App.MapGet('/test-ok',
+        procedure(Ctx: IHttpContext)
+        begin
+          Results.Context(Ctx).Ok('{"message": "success"}');
+        end);
+
+      App.MapGet('/test-bad-request',
+        procedure(Ctx: IHttpContext)
+        begin
+          Results.Context(Ctx).BadRequest('Invalid ID');
+        end);
+
+      App.MapGet('/test-not-found',
+        procedure(Ctx: IHttpContext)
+        begin
+          Results.Context(Ctx).NotFound('Invoice not found');
+        end);
+    end);
+
+  Host := Builder.Build;
+  Host.Start;
+  try
+    // 1. Test Ok
+    Resp := RestClient('http://127.0.0.1:' + Host.Port.ToString)
+      .Get('/test-ok')
+      .Await;
+    Should(Resp.StatusCode).Be(200);
+    Should(Resp.ContentString).Contain('success');
+
+    // 2. Test BadRequest
+    Resp := RestClient('http://127.0.0.1:' + Host.Port.ToString)
+      .Get('/test-bad-request')
+      .Await;
+    Should(Resp.StatusCode).Be(400);
+    Should(Resp.ContentString).Contain('Invalid ID');
+
+    // 3. Test NotFound
+    Resp := RestClient('http://127.0.0.1:' + Host.Port.ToString)
+      .Get('/test-not-found')
+      .Await;
+    Should(Resp.StatusCode).Be(404);
+    Should(Resp.ContentString).Contain('Invoice not found');
   finally
     Host.Stop;
   end;

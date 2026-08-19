@@ -495,6 +495,7 @@ type
   TStatusCodeResult = Dext.Web.Results.TStatusCodeResult;
   TContentResult = Dext.Web.Results.TContentResult;
   TStreamResult = Dext.Web.Results.TStreamResult;
+  TContextualResults = Dext.Web.Results.TContextualResults;
   Results = Dext.Web.Results.Results;
   // TObjectResult<T> = Dext.Web.Results.TObjectResult<T>;
 

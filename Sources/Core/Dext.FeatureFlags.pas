@@ -25,6 +25,8 @@
 {***************************************************************************}
 unit Dext.FeatureFlags;
 
+{$I Dext.inc}
+
 interface
 
 uses
@@ -168,12 +170,17 @@ begin
 
   KeyToHash := AContext.FeatureName + ':' + AContext.UserOrTenantKey;
 
+  {$OVERFLOWCHECKS OFF}
+  {$RANGECHECKS OFF}
   HashVal := 2166136261;
   for i := 1 to Length(KeyToHash) do
   begin
     HashVal := HashVal xor Ord(KeyToHash[i]);
     HashVal := HashVal * 16777619;
   end;
+  {$IFDEF DEBUG}
+  // Restore if needed, or Dext.inc takes precedence
+  {$ENDIF}
 
   Result := (HashVal mod 100) < Cardinal(ValInt);
 end;
