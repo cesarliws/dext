@@ -46,7 +46,7 @@ O Dext Framework alcançou maturidade de produção em seu núcleo (Core), Web e
 - [x] **Roteamento Avançado**: Parâmetros dinâmicos, restrições e versionamento nativo (Header, Query, Path).
 - [x] **Model Binding Híbrido**: Vinculação inteligente de Body, Query, Route, Header e Services.
 - [x] **Real-time & Hubs**: Suporte a **SSE (Server-Sent Events)** e Hubs inspirados no SignalR.
-- [x] **Middleware Nativo**: ProblemDetails (RFC 7807), Compression (GZip/Brotli), CORS e Rate Limiting.
+- [x] **Middleware Nativo**: ProblemDetails (RFC 7807), Compression (GZip), CORS e Rate Limiting.
 - [x] **Zero-Leak Management**: Tracking de ciclo de vida de objetos integrado ao ChangeTracker do ORM.
 
 ### 🗄️ Dext.Entity ORM (Concluído)

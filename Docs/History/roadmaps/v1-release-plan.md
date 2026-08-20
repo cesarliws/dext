@@ -57,7 +57,7 @@ Improving how developers interact with the ORM and performance optimization.
 Features required for a modern, production-grade API.
 
 -   [x] **Response Compression**
-    -   Implement Middleware for `Gzip` and `Brotli` compression.
+    -   Implement Middleware for `Gzip` compression.
     -   Respect `Accept-Encoding` headers.
 -   [x] **HTTPS / SSL Support**
     -   Simplify SSL configuration in `TIndyWebServer` (via `UseHttps`).

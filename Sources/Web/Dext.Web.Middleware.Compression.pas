@@ -39,7 +39,7 @@ uses
 
 type
   /// <summary>
-  ///   Options for configuring HTTP response compression middleware (GZip / Brotli).
+  ///   Options for configuring HTTP response compression middleware (GZip).
   /// </summary>
   TCompressionOptions = record
   public

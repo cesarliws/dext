@@ -19,7 +19,7 @@ O Web Framework consolidou seu pipeline de roteamento, middleware e hubs em temp
 ### 1. HTTP Abstractions & Performance
 - [x] **Lazy Headers**: Acesso a headers sem alocações desnecessárias.
 - [x] **Items Bag**: Dicionário compartilhado no contexto da requisição.
-- [x] **Response Compression**: Suporte nativo a GZip e Brotli.
+- [x] **Response Compression**: Suporte nativo a GZip.
 - [x] **Stream Writing**: Suporte a envio eficiente de arquivos e streams grandes.
 
 ### 2. Web API Improvements
