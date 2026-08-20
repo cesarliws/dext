@@ -157,7 +157,8 @@ begin
   if Underlying = nil then Exit(ftUnknown);
 
   case Underlying.Kind of
-    tkInteger, tkInt64: Result := ftInteger;
+    tkInteger: Result := ftInteger;
+    tkInt64: Result := ftLargeint;
     tkFloat:
       if Underlying = TypeInfo(TDateTime) then Result := ftDateTime
       else if Underlying = TypeInfo(TDate) then Result := ftDate

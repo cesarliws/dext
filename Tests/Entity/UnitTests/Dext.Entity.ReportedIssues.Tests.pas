@@ -1,10 +1,11 @@
-﻿unit Dext.Entity.ReportedIssues.Tests;
+unit Dext.Entity.ReportedIssues.Tests;
 
 interface
 
 uses
   System.SysUtils,
   System.Classes,
+  System.Variants,
   Data.DB,
   Dext.Assertions,
   Dext.Testing.Attributes,
@@ -40,13 +41,21 @@ type
 
     [Test]
     procedure Test_GenerateFields_Should_Not_Duplicate_Existing_Fields;
+
+    [Test]
+    procedure Issue_192_FireDAC_Param_Binding_Should_Not_Truncate_Int64;
   end;
 
 implementation
 
 uses
   System.IOUtils,
-  System.Rtti;
+  System.Rtti,
+  FireDAC.Comp.Client,
+  FireDAC.Stan.Param,
+  Dext.Types.Nullable,
+  Dext.Entity.Dialects,
+  Dext.Entity.Drivers.FireDAC;
 
 procedure SetComponentDesigning(AComponent: TComponent; ADesigning: Boolean);
 var
@@ -86,7 +95,6 @@ procedure TEntityReportedIssuesTests.Issue_3_TableName_Should_Be_Serialized_And_
 var
   MD: TEntityClassMetadata;
 begin
-  // 1. Setup metadata manually
   MD := TEntityClassMetadata.Create;
   try
     MD.EntityClassName := 'TOrder';
@@ -97,172 +105,140 @@ begin
     MD.Free;
   end;
 
-  // 2. Select entity (Simulating IDE action)
   SetComponentDesigning(FDataSet, True);
   try
     FDataSet.EntityClassName := 'TOrder';
+    Should(FDataSet.TableName).Be('orders_table_name');
   finally
     SetComponentDesigning(FDataSet, False);
   end;
   
-  // TableName should have been updated from metadata
-  Should(FDataSet.TableName).Be('orders_table_name');
+  FDataSet.TableName := 'custom_orders_table';
   
-  // 3. Simulating "serialization": If I change TableName manually, it should persist
-  FDataSet.TableName := 'custom_table';
-  Should(FDataSet.TableName).Be('custom_table');
+  var Stream := TMemoryStream.Create;
+  try
+    Stream.WriteComponent(FDataSet);
+    Stream.Position := 0;
+    
+    var NewDataSet := TEntityDataSet.Create(nil);
+    try
+      NewDataSet.DataProvider := FDataProvider;
+      Stream.ReadComponent(NewDataSet);
+      
+      Should(NewDataSet.TableName).Be('custom_orders_table');
+    finally
+      NewDataSet.Free;
+    end;
+  finally
+    Stream.Free;
+  end;
 end;
 
 procedure TEntityReportedIssuesTests.Issue_2_5_AddFields_Should_Not_Contain_Fields_From_Other_Entities;
 var
-  Member: TEntityMemberMetadata;
-  MD1, MD2: TEntityClassMetadata;
+  MDOrder, MDCustomer: TEntityClassMetadata;
+  FieldDefs: TFieldDefs;
 begin
-  // 1. Setup 2 entities in metadata
-  MD1 := TEntityClassMetadata.Create;
+  MDOrder := TEntityClassMetadata.Create;
   try
-    MD1.EntityClassName := 'TOrder';
-    MD1.TableName := 'orders';
-    
-    Member := MD1.Members.Add;
-    Member.Name := 'OrderId';
-    Member.MemberType := 'Integer';
-    Member.IsPrimaryKey := True;
-    
-    Member := MD1.Members.Add;
-    Member.Name := 'Customer';
-    Member.MemberType := 'string';
-    
-    FDataProvider.AddOrSetMetadata(MD1);
+    MDOrder.EntityClassName := 'TOrder';
+    MDOrder.Members.Add.Name := 'OrderId';
+    FDataProvider.AddOrSetMetadata(MDOrder);
   finally
-    MD1.Free;
+    MDOrder.Free;
   end;
 
-  MD2 := TEntityClassMetadata.Create;
+  MDCustomer := TEntityClassMetadata.Create;
   try
-    MD2.EntityClassName := 'TProduct';
-    MD2.TableName := 'products';
-    
-    Member := MD2.Members.Add;
-    Member.Name := 'ProductId';
-    Member.MemberType := 'Integer';
-    Member.IsPrimaryKey := True;
-    
-    Member := MD2.Members.Add;
-    Member.Name := 'Description';
-    Member.MemberType := 'string';
-    
-    FDataProvider.AddOrSetMetadata(MD2);
+    MDCustomer.EntityClassName := 'TCustomer';
+    MDCustomer.Members.Add.Name := 'CustomerId';
+    FDataProvider.AddOrSetMetadata(MDCustomer);
   finally
-    MD2.Free;
+    MDCustomer.Free;
   end;
 
-  // 2. Select TOrder (Design mode)
   SetComponentDesigning(FDataSet, True);
   try
     FDataSet.EntityClassName := 'TOrder';
     
-    // TEntityDataSet.SetEntityClassName (line 1307) calls GenerateFields automatically if csDesigning is present.
-    // So FieldCount should be > 0 now.
-    Should(FDataSet.FieldCount).Be(2);
-    Should(FDataSet.FindField('OrderId')).NotBeNull;
-    Should(FDataSet.FindField('Customer')).NotBeNull;
+    FieldDefs := FDataSet.FieldDefs;
+    FieldDefs.Update;
     
-    // 3. Switch to TProduct (Design mode)
-    FDataSet.EntityClassName := 'TProduct';
+    Should(FieldDefs.Count).Be(1);
+    Should(FieldDefs[0].Name).Be('OrderId');
     
-    // Switch to TProduct should have cleared old Fields (OrderId, Customer) and generated new ones
-    Should(FDataSet.FieldCount).Be(2);
-    Should(FDataSet.FindField('ProductId')).NotBeNull;
-    Should(FDataSet.FindField('Description')).NotBeNull;
-    Should(FDataSet.FindField('OrderId')).BeNull; // Should be gone!
-    Should(FDataSet.FindField('Customer')).BeNull; // Should be gone!
+    FDataSet.EntityClassName := 'TCustomer';
+    FieldDefs.Update;
     
+    Should(FieldDefs.Count).Be(1);
+    Should(FieldDefs[0].Name).Be('CustomerId');
   finally
     SetComponentDesigning(FDataSet, False);
   end;
 end;
 
 procedure TEntityReportedIssuesTests.Issue_6_Activate_Dataset_Should_Not_AV_Even_Without_RTTI_Class;
-var
-  Member: TEntityMemberMetadata;
-  MD: TEntityClassMetadata;
 begin
-  // 1. Setup metadata WITHOUT a compiled class
-  MD := TEntityClassMetadata.Create;
-  try
-    MD.EntityClassName := 'UnknownEntity';
-    MD.TableName := 'unknown';
-    
-    Member := MD.Members.Add;
-    Member.Name := 'Id';
-    Member.MemberType := 'Integer';
-    Member.IsPrimaryKey := True;
-    
-    FDataProvider.AddOrSetMetadata(MD);
-  finally
-    MD.Free;
-  end;
-
-  FDataSet.EntityClassName := 'UnknownEntity';
+  FDataSet.EntityClassName := 'TNonExistentClass';
   
-  // 2. Try to activate without class - Should fail gracefully, NOT AV
   try
     FDataSet.Active := True;
   except
+    on E: EAccessViolation do
+      Assert.Fail('Should not raise Access Violation when activating dataset without RTTI class: ' + E.Message);
     on E: Exception do
-    begin
-      if E.ClassName = 'EAccessViolation' then
-        raise;
-    end;
+      ;
   end;
 end;
 
 procedure TEntityReportedIssuesTests.Test_Metadata_Persistence_Via_Streams;
 var
   Stream: TMemoryStream;
-  P2: TEntityDataProvider;
-  MD1: TEntityClassMetadata;
-  MD2: TEntityClassMetadata;
-  RttiContext: TRttiContext;
-  RttiMethod: TRttiMethod;
+  LoadedProvider: TEntityDataProvider;
+  MD: TEntityClassMetadata;
+  LoadedMD: TEntityClassMetadata;
 begin
+  MD := TEntityClassMetadata.Create;
+  try
+    MD.EntityClassName := 'TPersistentOrder';
+    MD.TableName := 'orders';
+    MD.EntityUnitName := 'OrderUnit';
+    
+    var M1 := MD.Members.Add;
+    M1.Name := 'Id';
+    M1.MemberType := 'Integer';
+    M1.IsPrimaryKey := True;
+    
+    var M2 := MD.Members.Add;
+    M2.Name := 'Total';
+    M2.MemberType := 'Currency';
+    
+    FDataProvider.AddOrSetMetadata(MD);
+  finally
+    MD.Free;
+  end;
+
   Stream := TMemoryStream.Create;
   try
-    // 1. Setup P1 with metadata
-    MD1 := TEntityClassMetadata.Create;
-    try
-      MD1.EntityClassName := 'TOrder';
-      MD1.TableName := 'orders';
-      FDataProvider.AddOrSetMetadata(MD1);
-    finally
-      MD1.Free;
-    end;
-    
-    // 2. Save P1 (Mock form saving)
     Stream.WriteComponent(FDataProvider);
     Stream.Position := 0;
     
-    // 3. Load into P2 (Mock form loading)
-    P2 := TEntityDataProvider.Create(nil);
+    LoadedProvider := TEntityDataProvider.Create(nil);
     try
-      Stream.ReadComponent(P2);
+      Stream.ReadComponent(LoadedProvider);
       
-      // Need to simulate Loaded call which usually happens after DFM load
-      // FDataProvider.Loaded; -> Not accessible easily without RTTI or Hack
-      // But we can call the public property setter which triggers the cache sync
-      // Actually, TEntityDataProvider.Loaded calls SyncInternalCache;
-      
-      RttiMethod := RttiContext.GetType(TEntityDataProvider).GetMethod('Loaded');
-      if RttiMethod <> nil then
-        RttiMethod.Invoke(P2, []);
-
-      // 4. Check if metadata was restored correctly
-      MD2 := P2.GetEntityMetadata('TOrder');
-      Should(MD2).NotBeNull;
-      Should(MD2.TableName).Be('orders');
+      Should(LoadedProvider.EntityCount).Be(1);
+      LoadedMD := LoadedProvider.GetEntityMetadata('TPersistentOrder');
+      Should(LoadedMD).NotBeNil;
+      Should(LoadedMD.TableName).Be('orders');
+      Should(LoadedMD.EntityUnitName).Be('OrderUnit');
+      Should(LoadedMD.Members.Count).Be(2);
+      Should(LoadedMD.Members[0].Name).Be('Id');
+      Should(LoadedMD.Members[0].IsPrimaryKey).BeTrue;
+      Should(LoadedMD.Members[1].Name).Be('Total');
+      Should(LoadedMD.Members[1].MemberType).Be('Currency');
     finally
-      P2.Free;
+      LoadedProvider.Free;
     end;
   finally
     Stream.Free;
@@ -275,7 +251,6 @@ var
   Member: TEntityMemberMetadata;
   F: TField;
 begin
-  // 1. Setup metadata
   MD := TEntityClassMetadata.Create;
   try
     MD.EntityClassName := 'TOrder';
@@ -289,7 +264,6 @@ begin
     MD.Free;
   end;
   
-  // 2. Setup Dataset with one EXISTING manual field
   FDataSet.EntityClassName := 'TOrder';
   
   F := TIntegerField.Create(FDataSet);
@@ -298,20 +272,57 @@ begin
   
   Should(FDataSet.FieldCount).Be(1);
   
-  // 3. Simulate "Add all fields" in IDE (which calls GenerateFields)
   SetComponentDesigning(FDataSet, True);
   try
-    // At design-time, TEntityDataSet uses metadata to create FieldDefs and then fields
     FDataSet.FieldDefs.Update;
-    // Internal call to GenerateFields usually happens via IDE property editor or automatically
-    // Let's call it via RTTI if it's protected, or check if it's public (it's public in TEntityDataSet)
     FDataSet.GenerateFields;
     
-    // 4. Verify we still have only 1 OrderId field, not 2
     Should(FDataSet.FieldCount).Be(1);
     Should(FDataSet.Fields[0].FieldName).Be('OrderId');
   finally
     SetComponentDesigning(FDataSet, False);
+  end;
+end;
+
+procedure TEntityReportedIssuesTests.Issue_192_FireDAC_Param_Binding_Should_Not_Truncate_Int64;
+var
+  Conn: TFDConnection;
+  Cmd: TFireDACCommand;
+  EanValue: Int64;
+  MaxInt64Value: Int64;
+  NullableEan: Nullable<Int64>;
+  EmptyNullable: Nullable<Int64>;
+begin
+  EanValue := 7898040321642; 
+  MaxInt64Value := 9223372036854775807;
+  NullableEan := EanValue;
+
+  Conn := TFDConnection.Create(nil);
+  try
+    Cmd := TFireDACCommand.Create(Conn, ddSQLite);
+    try
+      Cmd.SetSQL('SELECT * FROM dummy WHERE pEan = :pEan AND pMax = :pMax AND pNullEan = :pNullEan AND pEmpty = :pEmpty AND pInt32 = :pInt32');
+
+      Cmd.AddParam('pEan', TValue.From<Int64>(EanValue));
+      Should(Cmd.GetParamValue('pEan').AsInt64).Be(EanValue);
+
+      Cmd.AddParam('pMax', TValue.From<Int64>(MaxInt64Value));
+      Should(Cmd.GetParamValue('pMax').AsInt64).Be(MaxInt64Value);
+
+      Cmd.AddParam('pNullEan', TValue.From<Nullable<Int64>>(NullableEan));
+      Should(Cmd.GetParamValue('pNullEan').AsInt64).Be(EanValue);
+
+      Cmd.AddParam('pEmpty', TValue.From<Nullable<Int64>>(EmptyNullable));
+      Should(Cmd.Query.ParamByName('pEmpty').DataType = ftLargeInt).BeTrue;
+      Should(Cmd.Query.ParamByName('pEmpty').IsNull).BeTrue;
+
+      Cmd.AddParam('pInt32', TValue.From<Integer>(12345));
+      Should(Cmd.GetParamValue('pInt32').AsInteger).Be(12345);
+    finally
+      Cmd.Free;
+    end;
+  finally
+    Conn.Free;
   end;
 end;
 

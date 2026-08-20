@@ -140,6 +140,7 @@ type
     procedure SetArraySize(const ASize: Integer);
     procedure SetParamArray(const AName: string; const AValues: TArray<TValue>);
     procedure ExecuteBatch(const ATimes: Integer; const AOffset: Integer = 0);
+    property Query: TFDQuery read FQuery;
   end;
 
   /// <summary>
@@ -618,38 +619,47 @@ var
   Helper: TNullableHelper;
   InnerVal: TValue;
   Underlying: PTypeInfo;
+  V: TValue;
 begin
-  if AValue.IsEmpty then
+  V := AValue;
+  TReflection.TryUnwrapProp(V, V);
+
+  if V.IsEmpty then
   begin
     Param.Clear;
-    // Set correct DataType for empty values - byte arrays need ftBlob!
-    if AValue.TypeInfo <> nil then
+    Param.Value := Null;
+    Underlying := V.TypeInfo;
+    if Underlying = nil then
     begin
-      TypeName := string(AValue.TypeInfo.Name);
+      if (AValue.TypeInfo <> nil) and IsNullable(AValue.TypeInfo) then
+        Underlying := GetUnderlyingType(AValue.TypeInfo)
+      else
+        Underlying := AValue.TypeInfo;
+    end;
+
+    // Set correct DataType for empty values - byte arrays need ftBlob!
+    if Underlying <> nil then
+    begin
+      TypeName := string(Underlying.Name);
       if (TypeName = 'TBytes') or (TypeName = 'TArray<System.Byte>') or (TypeName = 'TArray<Byte>') then
         Param.DataType := ftBlob
-      // Do not force ftString for unknown types, let FireDAC or the query handle it, 
-      // or at least leave it as ftUnknown so it doesn't conflict if the parameter is actually an integer/date in the query
-      else if Param.DataType = ftUnknown then
+      else
       begin
-         // If we really don't know, ftString is often a safe default for NULLs in some DBs,
-         // but for others (like strict SQL) it might be an issue. 
-         // However, the error "Parameter [P2] data type is unknown" suggests we MUST set it.
-         // If TypeInfo is present but value is empty, we can try to infer from TypeInfo kind.
-         case AValue.TypeInfo.Kind of
-           tkInteger, tkInt64: Param.DataType := ftInteger;
-           tkFloat: 
-             if AValue.TypeInfo = TypeInfo(TDateTime) then Param.DataType := ftDateTime
-             else if AValue.TypeInfo = TypeInfo(TDate) then Param.DataType := ftDate
-             else if AValue.TypeInfo = TypeInfo(TTime) then Param.DataType := ftTime
-             else Param.DataType := ftFloat;
-           tkString, tkUString, tkWString, tkChar, tkWChar: Param.DataType := ftString;
-           tkEnumeration:
-             if AValue.TypeInfo = TypeInfo(Boolean) then Param.DataType := ftBoolean
-             else Param.DataType := ftInteger;
-           else
-             Param.DataType := ftString; // Fallback
-         end;
+        case Underlying.Kind of
+          tkInteger: Param.DataType := ftInteger;
+          tkInt64: Param.DataType := ftLargeInt;
+          tkFloat: 
+            if Underlying = TypeInfo(TDateTime) then Param.DataType := ftDateTime
+            else if Underlying = TypeInfo(TDate) then Param.DataType := ftDate
+            else if Underlying = TypeInfo(TTime) then Param.DataType := ftTime
+            else Param.DataType := ftFloat;
+          tkString, tkUString, tkWString, tkChar, tkWChar: Param.DataType := ftString;
+          tkEnumeration:
+            if Underlying = TypeInfo(Boolean) then Param.DataType := ftBoolean
+            else Param.DataType := ftInteger;
+          else
+            Param.DataType := ftString; // Fallback
+        end;
       end;
     end
     else if Param.DataType = ftUnknown then
@@ -658,18 +668,16 @@ begin
   end;
   
   // Try to find a type converter
-  Converter := TTypeConverterRegistry.Instance.GetConverter(AValue.TypeInfo);
+  Converter := TTypeConverterRegistry.Instance.GetConverter(V.TypeInfo);
 
-  
   if Converter <> nil then
   begin
     // Convert value using converter
-    ConvertedValue := Converter.ToDatabase(AValue, GetDialect);
+    ConvertedValue := Converter.ToDatabase(V, GetDialect);
 
-    
     // Fix for PostgreSQL UUID "operator does not exist" error
     // Explicitly handle TGUID, TUUID and String-formatted GUIDs
-    if (AValue.TypeInfo = TypeInfo(TGUID)) or (AValue.TypeInfo = TypeInfo(TUUID)) then
+    if (V.TypeInfo = TypeInfo(TGUID)) or (V.TypeInfo = TypeInfo(TUUID)) then
     begin
       Param.DataType := ftGuid;
       Param.AsString := ConvertedValue.AsString;
@@ -687,9 +695,14 @@ begin
     else
     // Set param value (converted value is typically a string or integer)
     case ConvertedValue.Kind of
-        tkInteger, tkInt64:
+        tkInteger:
         begin
           Param.DataType := ftInteger;
+          Param.AsInteger := ConvertedValue.AsInteger;
+        end;
+        tkInt64:
+        begin
+          Param.DataType := ftLargeInt;
           Param.AsLargeInt := ConvertedValue.AsInt64;
         end;
         tkFloat:
@@ -767,65 +780,70 @@ begin
   end  // end if Converter <> nil
   else
   begin
-    case AValue.Kind of
-      tkInteger, tkInt64: 
+    case V.Kind of
+      tkInteger: 
       begin
         Param.DataType := ftInteger;
-        Param.AsInteger := AValue.AsInteger;
+        Param.AsInteger := V.AsInteger;
+      end;
+      tkInt64:
+      begin
+        Param.DataType := ftLargeInt;
+        Param.AsLargeInt := V.AsInt64;
       end;
       tkFloat:
       begin
-        if AValue.TypeInfo = TypeInfo(TDateTime) then
+        if V.TypeInfo = TypeInfo(TDateTime) then
         begin
           Param.DataType := ftDateTime;
-          Param.AsDateTime := AValue.AsType<TDateTime>;
+          Param.AsDateTime := V.AsType<TDateTime>;
         end
-        else if AValue.TypeInfo = TypeInfo(TDate) then
+        else if V.TypeInfo = TypeInfo(TDate) then
         begin
           Param.DataType := ftDate;
-          Param.AsDate := AValue.AsType<TDate>;
+          Param.AsDate := V.AsType<TDate>;
         end
-        else if AValue.TypeInfo = TypeInfo(TTime) then
+        else if V.TypeInfo = TypeInfo(TTime) then
         begin
           Param.DataType := ftTime;
-          Param.AsTime := AValue.AsType<TTime>;
+          Param.AsTime := V.AsType<TTime>;
         end
         else
         begin
           Param.DataType := ftFloat;
-          Param.AsFloat := AValue.AsExtended;
+          Param.AsFloat := V.AsExtended;
         end;
       end;
       tkString, tkUString, tkWString, tkChar, tkWChar:
       begin
         // Check if this string is a GUID and force ftGuid for PostgreSQL compatibility
-        if (AValue.Kind in [tkString, tkUString, tkWString]) and
-           ((Length(AValue.AsString) = 36) or (Length(AValue.AsString) = 38)) and
-           (AValue.AsString.IndexOf('-') > 0) then
+        if (V.Kind in [tkString, tkUString, tkWString]) and
+           ((Length(V.AsString) = 36) or (Length(V.AsString) = 38)) and
+           (V.AsString.IndexOf('-') > 0) then
         begin
           Param.DataType := ftGuid;
-          Param.AsString := AValue.AsString;
+          Param.AsString := V.AsString;
         end
         // Use ftWideMemo for large strings to avoid FireDAC size limits (default is 32767 for ftString)
-        else if Length(AValue.AsString) > 4000 then
+        else if Length(V.AsString) > 4000 then
         begin
           Param.DataType := ftWideMemo;
-          Param.Size := Length(AValue.AsString);
-          Param.AsWideMemo := AValue.AsString;
+          Param.Size := Length(V.AsString);
+          Param.AsWideMemo := V.AsString;
         end
         else
         begin
           Param.DataType := ftWideString;
-          Param.AsWideString := AValue.AsString;
+          Param.AsWideString := V.AsString;
         end;
       end;
       tkDynArray:
       begin
         // Check for byte arrays by name (TBytes / TArray<Byte> / TArray<System.Byte>)
         IsByteArray := False;
-        if AValue.TypeInfo <> nil then
+        if V.TypeInfo <> nil then
         begin
-          TypeName := string(AValue.TypeInfo.Name);
+          TypeName := string(V.TypeInfo.Name);
           IsByteArray := (TypeName = 'TBytes') or 
                          (TypeName = 'TArray<System.Byte>') or 
                          (TypeName = 'TArray<Byte>');
@@ -836,7 +854,7 @@ begin
         begin
            // Set ftBlob explicitly for PostgreSQL bytea compatibility
            Param.DataType := ftBlob;
-           Bytes := AValue.AsType<TBytes>;
+           Bytes := V.AsType<TBytes>;
            SetLength(RawStr, Length(Bytes));
            if Length(Bytes) > 0 then
              Move(Bytes[0], RawStr[1], Length(Bytes));
@@ -845,50 +863,51 @@ begin
         end
         else
         begin
-          Param.Value := AValue.AsVariant;
+          Param.Value := V.AsVariant;
 
         end;
       end;
       tkEnumeration:
       begin
-        if AValue.TypeInfo = TypeInfo(Boolean) then
+        if V.TypeInfo = TypeInfo(Boolean) then
         begin
           Param.DataType := ftBoolean;
-          Param.AsBoolean := AValue.AsBoolean;
+          Param.AsBoolean := V.AsBoolean;
         end
         else
         begin
           Param.DataType := ftInteger;
-          Param.AsInteger := AValue.AsOrdinal;
+          Param.AsInteger := V.AsOrdinal;
         end;
       end;
       tkRecord:
       begin
-        if AValue.TypeInfo = TypeInfo(TBcd) then
+        if V.TypeInfo = TypeInfo(TBcd) then
         begin
           Param.DataType := ftFMTBcd;
-          Param.AsFMTBCD := AValue.AsType<TBcd>;
+          Param.AsFMTBCD := V.AsType<TBcd>;
         end
-        else if IsNullable(AValue.TypeInfo) then
+        else if IsNullable(V.TypeInfo) then
         begin
-           Helper := TNullableHelper.Create(AValue.TypeInfo);
-           if Helper.HasValue(AValue.GetReferenceToRawData) then
+           Helper := TNullableHelper.Create(V.TypeInfo);
+           if Helper.HasValue(V.GetReferenceToRawData) then
            begin
-             InnerVal := Helper.GetValue(AValue.GetReferenceToRawData);
+             InnerVal := Helper.GetValue(V.GetReferenceToRawData);
              SetParamValue(Param, InnerVal);
            end
            else
            begin
              Param.Clear;
              // Try to set type from underlying type
-             Underlying := GetUnderlyingType(AValue.TypeInfo);
+             Underlying := GetUnderlyingType(V.TypeInfo);
              if Underlying <> nil then
              begin
                if Underlying = TypeInfo(TBcd) then
                  Param.DataType := ftFMTBcd
                else
                  case Underlying.Kind of
-                   tkInteger, tkInt64: Param.DataType := ftInteger;
+                   tkInteger: Param.DataType := ftInteger;
+                   tkInt64: Param.DataType := ftLargeInt;
                    tkFloat: Param.DataType := ftFloat;
                    tkString, tkUString, tkWString: Param.DataType := ftString;
                    tkEnumeration:
@@ -901,10 +920,10 @@ begin
            end;
         end
         else
-           Param.Value := AValue.AsVariant;
-      end;  // end case AValue.Kind
+           Param.Value := V.AsVariant;
+      end;  // end case V.Kind
     else
-      Param.Value := AValue.AsVariant;
+      Param.Value := V.AsVariant;
       // If the value is Null and we haven't set a type, default to ftString
       // This prevents "Data type is unknown" errors in FireDAC
       if (VarIsNull(Param.Value) or VarIsEmpty(Param.Value)) and (Param.DataType = ftUnknown) then
@@ -919,8 +938,16 @@ begin
 end;
 
 function TFireDACCommand.GetParamValue(const AName: string): TValue;
+var
+  Param: TFDParam;
 begin
-  Result := TValue.FromVariant(FQuery.ParamByName(AName).Value);
+  Param := FQuery.ParamByName(AName);
+  if Param.IsNull or VarIsNull(Param.Value) or VarIsEmpty(Param.Value) then
+    Result := TValue.Empty
+  else if Param.DataType = ftLargeInt then
+    Result := TValue.From<Int64>(Param.AsLargeInt)
+  else
+    Result := TValue.FromVariant(Param.Value);
 end;
 
 procedure TFireDACCommand.ClearParams;

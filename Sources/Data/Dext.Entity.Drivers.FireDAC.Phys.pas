@@ -557,7 +557,14 @@ var
 begin
   Param := FCommand.Params.FindParam(AName);
   if Param <> nil then
-    Result := TValue.FromVariant(Param.Value)
+  begin
+    if Param.IsNull or VarIsNull(Param.Value) or VarIsEmpty(Param.Value) then
+      Result := TValue.Empty
+    else if Param.DataType = ftLargeInt then
+      Result := TValue.From<Int64>(Param.AsLargeInt)
+    else
+      Result := TValue.FromVariant(Param.Value);
+  end
   else
     Result := TValue.Empty;
 end;
@@ -963,10 +970,15 @@ begin
     ConvertedValue := Converter.ToDatabase(AValue, GetDialect);
     
     case ConvertedValue.Kind of
-      tkInteger, tkInt64:
+      tkInteger:
       begin
         Param.DataType := ftInteger;
         Param.AsInteger := ConvertedValue.AsInteger;
+      end;
+      tkInt64:
+      begin
+        Param.DataType := ftLargeInt;
+        Param.AsLargeInt := ConvertedValue.AsInt64;
       end;
       tkFloat:
       begin
@@ -1016,10 +1028,15 @@ begin
   begin
     // Direct assignment logic
     case AValue.Kind of
-      tkInteger, tkInt64: 
+      tkInteger: 
       begin
         Param.DataType := ftInteger;
         Param.AsInteger := AValue.AsInteger;
+      end;
+      tkInt64:
+      begin
+        Param.DataType := ftLargeInt;
+        Param.AsLargeInt := AValue.AsInt64;
       end;
       tkFloat:
       begin
