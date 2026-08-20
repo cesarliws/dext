@@ -113,6 +113,28 @@ type
   end;
 
   /// <summary>
+  ///   Mapping item between database result set column and a DTO property/field.
+  /// </summary>
+  TDtoColumnMapping = record
+    ColumnIndex: Integer;
+    Prop: TRttiProperty;
+    Field: TRttiField;
+    TargetKind: TTypeKind;
+    TargetTypeInfo: PTypeInfo;
+  end;
+
+  /// <summary>
+  ///   Lightweight, high-performance RTTI hydrator for arbitrary DTO and POCO classes.
+  /// </summary>
+  TDextDtoHydrator = class
+  private
+    FMappings: TArray<TDtoColumnMapping>;
+  public
+    constructor Create(ATypeInfo: PTypeInfo; const Reader: IDbReader);
+    procedure Hydrate(const Target: TObject; const Reader: IDbReader);
+  end;
+
+  /// <summary>
   ///   Concrete implementation of an entity set (DbSet), providing query and persistence operations.
   /// </summary>
   TDbSet<T: class> = class(TInterfacedObject, IDbSet<T>, IDbSet, IDbSetFastStream<T>)
@@ -506,6 +528,150 @@ begin
   except
     on E: Exception do
       Result := AValue.ToString;
+  end;
+end;
+
+{ TDextDtoHydrator }
+
+constructor TDextDtoHydrator.Create(ATypeInfo: PTypeInfo; const Reader: IDbReader);
+var
+  RttiCtx: TRttiContext;
+  RttiType: TRttiType;
+  Props: TArray<TRttiProperty>;
+  Fields: TArray<TRttiField>;
+  ColCount, i, j: Integer;
+  ColName, NormColName, NormMemberName: string;
+  Found: Boolean;
+  Mapping: TDtoColumnMapping;
+  MappingsList: TList<TDtoColumnMapping>;
+
+  function NormalizeName(const S: string): string;
+  begin
+    Result := StringReplace(LowerCase(S), '_', '', [rfReplaceAll]);
+  end;
+
+begin
+  RttiCtx := TRttiContext.Create;
+  RttiType := RttiCtx.GetType(ATypeInfo);
+  if RttiType = nil then Exit;
+
+  Props := RttiType.GetProperties;
+  Fields := RttiType.GetFields;
+  ColCount := Reader.GetColumnCount;
+
+  MappingsList := TList<TDtoColumnMapping>.Create;
+  try
+    for i := 0 to ColCount - 1 do
+    begin
+      ColName := Reader.GetColumnName(i);
+      NormColName := NormalizeName(ColName);
+      Found := False;
+
+      // 1. Match Properties (case-insensitive & snake_case agnostic)
+      for j := 0 to Length(Props) - 1 do
+      begin
+        if not Props[j].IsWritable then Continue;
+        NormMemberName := NormalizeName(Props[j].Name);
+        if NormMemberName = NormColName then
+        begin
+          Mapping.ColumnIndex := i;
+          Mapping.Prop := Props[j];
+          Mapping.Field := nil;
+          Mapping.TargetKind := Props[j].PropertyType.TypeKind;
+          Mapping.TargetTypeInfo := Props[j].PropertyType.Handle;
+          MappingsList.Add(Mapping);
+          Found := True;
+          Break;
+        end;
+      end;
+
+      if Found then Continue;
+
+      // 2. Match Fields (e.g. FValor -> valor, valor_total -> FValorTotal)
+      for j := 0 to Length(Fields) - 1 do
+      begin
+        NormMemberName := NormalizeName(Fields[j].Name);
+        if (NormMemberName.Length > 1) and (NormMemberName[1] = 'f') then
+          NormMemberName := Copy(NormMemberName, 2, MaxInt);
+
+        if NormMemberName = NormColName then
+        begin
+          Mapping.ColumnIndex := i;
+          Mapping.Prop := nil;
+          Mapping.Field := Fields[j];
+          Mapping.TargetKind := Fields[j].FieldType.TypeKind;
+          Mapping.TargetTypeInfo := Fields[j].FieldType.Handle;
+          MappingsList.Add(Mapping);
+          Break;
+        end;
+      end;
+    end;
+
+    FMappings := MappingsList.ToArray;
+  finally
+    MappingsList.Free;
+  end;
+end;
+
+procedure TDextDtoHydrator.Hydrate(const Target: TObject; const Reader: IDbReader);
+var
+  i: Integer;
+  Mapping: TDtoColumnMapping;
+  RawVal, Val: TValue;
+begin
+  for i := 0 to Length(FMappings) - 1 do
+  begin
+    Mapping := FMappings[i];
+    if Reader.IsNull(Mapping.ColumnIndex) then
+      Continue;
+
+    RawVal := Reader.GetValue(Mapping.ColumnIndex);
+    if RawVal.IsEmpty then
+      Continue;
+
+    case Mapping.TargetKind of
+      tkInteger:
+        Val := TValue.From<Integer>(RawVal.AsInteger);
+      tkInt64:
+        Val := TValue.From<Int64>(RawVal.AsInt64);
+      tkFloat:
+        begin
+          if Mapping.TargetTypeInfo = TypeInfo(Currency) then
+            Val := TValue.From<Currency>(Currency(RawVal.AsExtended))
+          else if (Mapping.TargetTypeInfo = TypeInfo(TDateTime)) or
+                  (Mapping.TargetTypeInfo = TypeInfo(TDate)) or
+                  (Mapping.TargetTypeInfo = TypeInfo(TTime)) then
+            Val := TValue.From<TDateTime>(TDateTime(RawVal.AsExtended))
+          else
+            Val := TValue.From<Double>(RawVal.AsExtended);
+        end;
+      tkUString, tkString, tkWString, tkLString:
+        Val := TValue.From<string>(RawVal.AsString);
+      tkEnumeration:
+        begin
+          if Mapping.TargetTypeInfo = TypeInfo(Boolean) then
+            Val := TValue.From<Boolean>(RawVal.AsBoolean)
+          else
+            Val := RawVal;
+        end;
+    else
+      Val := RawVal;
+    end;
+
+    if Mapping.Prop <> nil then
+    begin
+      try
+        Mapping.Prop.SetValue(Target, Val);
+      except
+      end;
+    end
+    else if Mapping.Field <> nil then
+    begin
+      try
+        Mapping.Field.SetValue(Target, Val);
+      except
+      end;
+    end;
   end;
 end;
 

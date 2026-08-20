@@ -297,6 +297,18 @@ type
     function UseSql(const ASql: string): IDextFastQuery;
 
     /// <summary>
+    ///   Executes a raw SQL query and hydrates the results into a typed list of DTOs/POCO objects.
+    /// </summary>
+    function SqlQuery<T: class, constructor>(const ASql: string; const AParams: array of TValue): IList<T>; overload;
+    function SqlQuery<T: class, constructor>(const ASql: string): IList<T>; overload;
+
+    /// <summary>
+    ///   Executes a raw SQL query and returns the first hydrated result, or nil if no records match.
+    /// </summary>
+    function SqlQueryFirst<T: class, constructor>(const ASql: string; const AParams: array of TValue): T; overload;
+    function SqlQueryFirst<T: class, constructor>(const ASql: string): T; overload;
+
+    /// <summary>
     ///   Preloads the DbSet cache to optimize future resolutions.
     /// </summary>
     procedure PreloadDbSets;
@@ -356,6 +368,7 @@ type
 implementation
 
 uses
+  System.Variants,
   System.IOUtils,
   Dext.Utils,
   Dext.Validation,
@@ -1474,6 +1487,98 @@ end;
 function TDbContext.UseSql(const ASql: string): IDextFastQuery;
 begin
   Result := TDextFastQuery.Create(Connection, ASql);
+end;
+
+function TDbContext.SqlQuery<T>(const ASql: string; const AParams: array of TValue): IList<T>;
+var
+  Cmd: IDbCommand;
+  Reader: IDbReader;
+  List: TList<T>;
+  Item: T;
+  Hydrator: TDextDtoHydrator;
+  I: Integer;
+  ParamsArray: TArray<TValue>;
+begin
+  List := TList<T>.Create(True);
+  try
+    Cmd := Connection.CreateCommand(ASql);
+    if Length(AParams) > 0 then
+    begin
+      SetLength(ParamsArray, Length(AParams));
+      for I := 0 to Length(AParams) - 1 do
+        ParamsArray[I] := AParams[I];
+      Cmd.BindSequentialParams(ParamsArray);
+    end;
+
+    Reader := Cmd.ExecuteQuery;
+    Hydrator := TDextDtoHydrator.Create(TypeInfo(T), Reader);
+    try
+      while Reader.Next do
+      begin
+        Item := T.Create;
+        try
+          Hydrator.Hydrate(Item, Reader);
+          List.Add(Item);
+        except
+          Item.Free;
+          raise;
+        end;
+      end;
+    finally
+      Hydrator.Free;
+    end;
+
+    Result := List;
+  except
+    List.Free;
+    raise;
+  end;
+end;
+
+function TDbContext.SqlQuery<T>(const ASql: string): IList<T>;
+begin
+  Result := SqlQuery<T>(ASql, []);
+end;
+
+function TDbContext.SqlQueryFirst<T>(const ASql: string; const AParams: array of TValue): T;
+var
+  Cmd: IDbCommand;
+  Reader: IDbReader;
+  Hydrator: TDextDtoHydrator;
+  I: Integer;
+  ParamsArray: TArray<TValue>;
+begin
+  Result := nil;
+  Cmd := Connection.CreateCommand(ASql);
+  if Length(AParams) > 0 then
+  begin
+    SetLength(ParamsArray, Length(AParams));
+    for I := 0 to Length(AParams) - 1 do
+      ParamsArray[I] := AParams[I];
+    Cmd.BindSequentialParams(ParamsArray);
+  end;
+
+  Reader := Cmd.ExecuteQuery;
+  if Reader.Next then
+  begin
+    Hydrator := TDextDtoHydrator.Create(TypeInfo(T), Reader);
+    try
+      Result := T.Create;
+      try
+        Hydrator.Hydrate(Result, Reader);
+      except
+        Result.Free;
+        raise;
+      end;
+    finally
+      Hydrator.Free;
+    end;
+  end;
+end;
+
+function TDbContext.SqlQueryFirst<T>(const ASql: string): T;
+begin
+  Result := SqlQueryFirst<T>(ASql, []);
 end;
 
 function TDbContext.SaveChangesAsync: TAsyncBuilder<Integer>;
