@@ -112,6 +112,10 @@ type
   ISpecification<T> = interface(ISpecification)
     ['{1FBFFBCF-768E-44DB-8F6B-91C9B4A8EF45}']
     function Clone: ISpecification<T>;
+    function AndSpec(const Other: ISpecification<T>): ISpecification<T>;
+    function OrSpec(const Other: ISpecification<T>): ISpecification<T>;
+    function NotSpec: ISpecification<T>;
+    function IsSatisfiedBy(const AEntity: T): Boolean;
   end;
 
   /// <summary>

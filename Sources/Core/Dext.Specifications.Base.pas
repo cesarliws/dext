@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -119,9 +119,17 @@ type
     
     procedure EnableTracking(const AValue: Boolean);
     procedure AsNoTracking;
+
+    function AndSpec(const Other: ISpecification<T>): ISpecification<T>; virtual;
+    function OrSpec(const Other: ISpecification<T>): ISpecification<T>; virtual;
+    function NotSpec: ISpecification<T>; virtual;
+    function IsSatisfiedBy(const AEntity: T): Boolean; virtual;
   end;
     
 implementation
+
+uses
+  Dext.Specifications.Evaluator;
 
 { TSpecification<T> }
 
@@ -448,6 +456,60 @@ begin
   NewSpec.FOnlyDeleted := FOnlyDeleted;
   NewSpec.FLockMode := FLockMode;
   Result := NewSpec;
+end;
+
+function TSpecification<T>.AndSpec(const Other: ISpecification<T>): ISpecification<T>;
+var
+  NewSpec: TSpecification<T>;
+  NewExpr: IExpression;
+begin
+  if (FExpression = nil) and (Other = nil) then
+    Exit(Self);
+  if FExpression = nil then
+    Exit(Other);
+  if (Other = nil) or (Other.GetExpression = nil) then
+    Exit(Self);
+
+  NewExpr := TLogicalExpression.Create(FExpression, Other.GetExpression, loAnd);
+  NewSpec := TSpecification<T>.Create(NewExpr);
+  Result := NewSpec;
+end;
+
+function TSpecification<T>.OrSpec(const Other: ISpecification<T>): ISpecification<T>;
+var
+  NewSpec: TSpecification<T>;
+  NewExpr: IExpression;
+begin
+  if (FExpression = nil) and (Other = nil) then
+    Exit(Self);
+  if FExpression = nil then
+    Exit(Other);
+  if (Other = nil) or (Other.GetExpression = nil) then
+    Exit(Self);
+
+  NewExpr := TLogicalExpression.Create(FExpression, Other.GetExpression, loOr);
+  NewSpec := TSpecification<T>.Create(NewExpr);
+  Result := NewSpec;
+end;
+
+function TSpecification<T>.NotSpec: ISpecification<T>;
+var
+  NewSpec: TSpecification<T>;
+  NewExpr: IExpression;
+begin
+  if FExpression = nil then
+    Exit(Self);
+
+  NewExpr := TUnaryExpression.Create(FExpression);
+  NewSpec := TSpecification<T>.Create(NewExpr);
+  Result := NewSpec;
+end;
+
+function TSpecification<T>.IsSatisfiedBy(const AEntity: T): Boolean;
+begin
+  if FExpression = nil then
+    Exit(True);
+  Result := TExpressionEvaluator.Evaluate(FExpression, AEntity);
 end;
 
 end.
