@@ -245,6 +245,10 @@ type
     ///   Initializes the context based on a configurable options object.
     /// </summary>
     constructor Create(const AOptions: TDbContextOptions; const ATenantProvider: ITenantProvider = nil); overload;
+    /// <summary>
+    ///   Initializes the context based on a fluent options builder.
+    /// </summary>
+    constructor Create(const ABuilder: TDbContextOptionsBuilder; const ATenantProvider: ITenantProvider = nil); overload;
     destructor Destroy; override;
     
     class constructor Create;
@@ -551,6 +555,19 @@ begin
   Self.Create(AOptions.BuildConnection, AOptions.BuildDialect, AOptions.BuildNamingStrategy, ATenantProvider);
   Self.OnLog := AOptions.OnLog;
   Self.FBulkBatchSize := AOptions.BulkBatchSize;
+end;
+
+constructor TDbContext.Create(const ABuilder: TDbContextOptionsBuilder;
+  const ATenantProvider: ITenantProvider);
+var
+  Options: TDbContextOptions;
+begin
+  Options := ABuilder.Build;
+  try
+    Create(Options, ATenantProvider);
+  finally
+    Options.Free;
+  end;
 end;
 
 procedure TDbContext.OnConfiguring(Options: TDbContextOptions);

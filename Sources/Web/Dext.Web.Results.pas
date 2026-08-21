@@ -246,6 +246,13 @@ type
     /// <summary>Dispatches 404 Not Found with a detailed message.</summary>
     procedure NotFound(const AMessage: string); overload;
 
+    /// <summary>Dispatches 409 Conflict.</summary>
+    procedure Conflict; overload;
+    /// <summary>Dispatches 409 Conflict with a detailed message.</summary>
+    procedure Conflict(const AMessage: string); overload;
+    /// <summary>Dispatches 409 Conflict with a serialized object.</summary>
+    procedure Conflict<T>(const AValue: T); overload;
+
     /// <summary>Dispatches 204 No Content.</summary>
     procedure NoContent;
 
@@ -337,6 +344,13 @@ type
     class function NotFound: IResult; overload;
     /// <summary>Returns 404 Not Found with a detailed message.</summary>
     class function NotFound(const AMessage: string): IResult; overload;
+
+    /// <summary>Returns 409 Conflict.</summary>
+    class function Conflict: IResult; overload;
+    /// <summary>Returns 409 Conflict with a detailed message.</summary>
+    class function Conflict(const AMessage: string): IResult; overload;
+    /// <summary>Returns 409 Conflict with a serialized object.</summary>
+    class function Conflict<T>(const AValue: T): IResult; overload;
 
     /// <summary>Returns 204 No Content.</summary>
     class function NoContent: IResult;
@@ -694,6 +708,21 @@ end;
 class function Results.NotFound(const AMessage: string): IResult;
 begin
   Result := TJsonResult.Create(Format('{"error": "%s"}', [AMessage]), HttpStatus.NotFound);
+end;
+
+class function Results.Conflict: IResult;
+begin
+  Result := TStatusCodeResult.Create(HttpStatus.Conflict);
+end;
+
+class function Results.Conflict(const AMessage: string): IResult;
+begin
+  Result := TJsonResult.Create(Format('{"error": "%s"}', [AMessage]), HttpStatus.Conflict);
+end;
+
+class function Results.Conflict<T>(const AValue: T): IResult;
+begin
+  Result := TObjectResult<T>.Create(AValue, HttpStatus.Conflict);
 end;
 
 class function Results.NoContent: IResult;
@@ -1211,6 +1240,21 @@ end;
 procedure TContextualResults.NotFound(const AMessage: string);
 begin
   Results.NotFound(AMessage).Execute(FCtx);
+end;
+
+procedure TContextualResults.Conflict;
+begin
+  Results.Conflict.Execute(FCtx);
+end;
+
+procedure TContextualResults.Conflict(const AMessage: string);
+begin
+  Results.Conflict(AMessage).Execute(FCtx);
+end;
+
+procedure TContextualResults.Conflict<T>(const AValue: T);
+begin
+  Results.Conflict<T>(AValue).Execute(FCtx);
 end;
 
 procedure TContextualResults.NoContent;

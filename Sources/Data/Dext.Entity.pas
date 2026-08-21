@@ -428,6 +428,21 @@ type
   TDextPersistenceServicesHelper = record helper for TDextServices
   public
     /// <summary>
+    ///   Registers a DbContext with the dependency injection container using an options instance.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(const AOptions: TDbContextOptions): TDextServices; overload;
+
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using a fluent options builder.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(const ABuilder: TDbContextOptionsBuilder): TDextServices; overload;
+
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using a fluent builder callback.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(AConfigurator: TProc<TDbContextOptionsBuilder>): TDextServices; overload;
+
+    /// <summary>
     ///   Registers a DbContext with the dependency injection container.
     /// </summary>
     function AddDbContext<T: TDbContext>(Config: TProc<TDbContextOptions>): TDextServices; overload;
@@ -449,10 +464,30 @@ type
   TPersistence = class
   public
     /// <summary>
+    ///   Registers a DbContext with the dependency injection container using an options instance.
+    /// </summary>
+    class procedure AddDbContext<T: TDbContext>(Services: IServiceCollection; const AOptions: TDbContextOptions); overload;
+
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using a fluent options builder.
+    /// </summary>
+    class procedure AddDbContext<T: TDbContext>(Services: IServiceCollection; const ABuilder: TDbContextOptionsBuilder); overload;
+
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using a fluent builder callback.
+    /// </summary>
+    class procedure AddDbContext<T: TDbContext>(Services: IServiceCollection; AConfigurator: TProc<TDbContextOptionsBuilder>); overload;
+
+    /// <summary>
     ///   Registers a DbContext with the dependency injection container.
     /// </summary>
-    class procedure AddDbContext<T: TDbContext>(Services: IServiceCollection; Config: TProc<TDbContextOptions>);
+    class procedure AddDbContext<T: TDbContext>(Services: IServiceCollection; Config: TProc<TDbContextOptions>); overload;
   end;
+
+/// <summary>
+///   Factory function returning a fluent TDbContextOptionsBuilder.
+/// </summary>
+function DbContextOptions: TDbContextOptionsBuilder;
 
 implementation
 
@@ -461,7 +496,30 @@ uses
   Dext.Configuration.Binder,
   Dext.Specifications.OrderBy; // Added for IServiceProvider, TServiceType
 
+function DbContextOptions: TDbContextOptionsBuilder;
+begin
+  Result := Dext.Entity.Setup.DbContextOptions;
+end;
+
 { TDextPersistenceServicesHelper }
+
+function TDextPersistenceServicesHelper.AddDbContext<T>(const AOptions: TDbContextOptions): TDextServices;
+begin
+  TPersistence.AddDbContext<T>(Self.Unwrap, AOptions);
+  Result := Self;
+end;
+
+function TDextPersistenceServicesHelper.AddDbContext<T>(const ABuilder: TDbContextOptionsBuilder): TDextServices;
+begin
+  TPersistence.AddDbContext<T>(Self.Unwrap, ABuilder);
+  Result := Self;
+end;
+
+function TDextPersistenceServicesHelper.AddDbContext<T>(AConfigurator: TProc<TDbContextOptionsBuilder>): TDextServices;
+begin
+  TPersistence.AddDbContext<T>(Self.Unwrap, AConfigurator);
+  Result := Self;
+end;
 
 function TDextPersistenceServicesHelper.AddDbContext<T>(Config: TProc<TDbContextOptions>): TDextServices;
 begin
@@ -486,6 +544,53 @@ begin
 end;
 
 { TPersistence }
+
+class procedure TPersistence.AddDbContext<T>(Services: IServiceCollection; const AOptions: TDbContextOptions);
+begin
+  AddDbContext<T>(Services,
+    procedure(Options: TDbContextOptions)
+    var
+      Pair: TPair<string, string>;
+    begin
+      Options.DriverName := AOptions.DriverName;
+      Options.ConnectionString := AOptions.ConnectionString;
+      Options.ConnectionDefName := AOptions.ConnectionDefName;
+      Options.ConnectionDefString := AOptions.ConnectionDefString;
+      for Pair in AOptions.Params do
+        Options.Params.AddOrSetValue(Pair.Key, Pair.Value);
+      Options.Pooling := AOptions.Pooling;
+      Options.PoolMax := AOptions.PoolMax;
+      Options.Optimizations := AOptions.Optimizations;
+      Options.Dialect := AOptions.Dialect;
+      Options.CustomConnection := AOptions.CustomConnection;
+      Options.NamingStrategy := AOptions.NamingStrategy;
+      Options.Naming := AOptions.Naming;
+      Options.OnLog := AOptions.OnLog;
+      Options.BulkBatchSize := AOptions.BulkBatchSize;
+    end);
+end;
+
+class procedure TPersistence.AddDbContext<T>(Services: IServiceCollection; const ABuilder: TDbContextOptionsBuilder);
+var
+  Options: TDbContextOptions;
+begin
+  Options := ABuilder.Build;
+  try
+    AddDbContext<T>(Services, Options);
+  finally
+    Options.Free;
+  end;
+end;
+
+class procedure TPersistence.AddDbContext<T>(Services: IServiceCollection; AConfigurator: TProc<TDbContextOptionsBuilder>);
+var
+  Builder: TDbContextOptionsBuilder;
+begin
+  Builder := TDbContextOptionsBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  AddDbContext<T>(Services, Builder);
+end;
 
 class procedure TPersistence.AddDbContext<T>(Services: IServiceCollection; Config: TProc<TDbContextOptions>);
 var

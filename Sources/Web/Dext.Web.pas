@@ -65,6 +65,7 @@ uses
   Dext.Web.DataApi,
   {$ENDIF}
   Dext.Web.Extensions,
+  Dext.Web.ForwardedHeaders,
   Dext.Web.Formatters.Interfaces,
   Dext.Web.Formatters.Json,
   Dext.Web.Formatters.Selector,
@@ -615,6 +616,7 @@ type
   // Dext.Entity type aliases for TWebServicesHelper
   TDbContext = Dext.Entity.TDbContext;
   TDbContextOptions = Dext.Entity.TDbContextOptions;
+  TDbContextOptionsBuilder = Dext.Entity.TDbContextOptionsBuilder;
   {$ENDIF}
 
   /// <summary>
@@ -623,6 +625,21 @@ type
   TWebServicesHelper = record helper for TDextServices
   public
     {$IFDEF DEXT_ENABLE_ENTITY}
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using an options instance.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(const AOptions: TDbContextOptions): TDextServices; overload;
+
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using a fluent options builder.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(const ABuilder: TDbContextOptionsBuilder): TDextServices; overload;
+
+    /// <summary>
+    ///   Registers a DbContext with the dependency injection container using a fluent builder callback.
+    /// </summary>
+    function AddDbContext<T: TDbContext>(AConfigurator: TProc<TDbContextOptionsBuilder>): TDextServices; overload;
+
     /// <summary>
     ///   Registers a DbContext with the dependency injection container.
     /// </summary>
@@ -745,9 +762,19 @@ type
     // Extensions
 
     /// <summary>
-    ///   Adds CORS middleware to the pipeline using the provided options.
+    ///   Adds Forwarded Headers middleware to the pipeline with default Zero Trust options.
     /// </summary>
+    function UseForwardedHeaders: TAppBuilder; overload;
+    function UseForwardedHeaders(const AOptions: TForwardedHeadersOptions): TAppBuilder; overload;
+    function UseForwardedHeaders(const AForwardedBuilder: TForwardedHeadersBuilder): TAppBuilder; overload;
+    function UseForwardedHeaders(AConfigurator: TProc<TForwardedHeadersBuilder>): TAppBuilder; overload;
+
+    /// <summary>
+    ///   Adds CORS middleware to the pipeline.
+    /// </summary>
+    function UseCors: TAppBuilder; overload;
     function UseCors(const AOptions: TCorsOptions): TAppBuilder; overload;
+    function UseCors(const ACorsBuilder: TCorsBuilder): TAppBuilder; overload;
     function UseCors(AConfigurator: TProc<TCorsBuilder>): TAppBuilder; overload;
     
     /// <summary>
@@ -862,16 +889,20 @@ type
     function UseStartupLock: TAppBuilder;
     function UseExceptionHandler: TAppBuilder; overload;
     function UseExceptionHandler(const AOptions: TExceptionHandlerOptions): TAppBuilder; overload;
+    function UseExceptionHandler(const AExceptionHandlerBuilder: TExceptionHandlerBuilder): TAppBuilder; overload;
     function UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): TAppBuilder; overload;
     function UseDeveloperExceptionPage: TAppBuilder;
     function UseHttpLogging: TAppBuilder; overload;
     function UseHttpLogging(const AOptions: THttpLoggingOptions): TAppBuilder; overload;
+    function UseHttpLogging(const AHttpLoggingBuilder: THttpLoggingBuilder): TAppBuilder; overload;
     function UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): TAppBuilder; overload;
     function UseCompression: TAppBuilder; overload;
     function UseCompression(const AOptions: TCompressionOptions): TAppBuilder; overload;
+    function UseCompression(const ACompressionBuilder: TCompressionBuilder): TAppBuilder; overload;
     function UseCompression(AConfigurator: TProc<TCompressionBuilder>): TAppBuilder; overload;
     function UseSecurityHeaders: TAppBuilder; overload;
     function UseSecurityHeaders(const AOptions: TSecurityHeadersOptions): TAppBuilder; overload;
+    function UseSecurityHeaders(const ASecurityHeadersBuilder: TSecurityHeadersBuilder): TAppBuilder; overload;
     function UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): TAppBuilder; overload;
 
     // -------------------------------------------------------------------------
@@ -1189,9 +1220,21 @@ begin
   Result := TStaticFileOptions.Create;
 end;
 
+function THttpAppBuilderHelper.UseCors: TAppBuilder;
+begin
+  TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap);
+  Result := Self;
+end;
+
 function THttpAppBuilderHelper.UseCors(const AOptions: TCorsOptions): TAppBuilder;
 begin
   TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap, AOptions);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseCors(const ACorsBuilder: TCorsBuilder): TAppBuilder;
+begin
+  TApplicationBuilderCorsExtensions.UseCors(Self.Unwrap, ACorsBuilder);
   Result := Self;
 end;
 
@@ -1219,6 +1262,11 @@ begin
   Result := Self;
 end;
 
+function THttpAppBuilderHelper.UseExceptionHandler(const AExceptionHandlerBuilder: TExceptionHandlerBuilder): TAppBuilder;
+begin
+  Result := UseExceptionHandler(AExceptionHandlerBuilder.Build);
+end;
+
 function THttpAppBuilderHelper.UseExceptionHandler(AConfigurator: TProc<TExceptionHandlerBuilder>): TAppBuilder;
 var
   Builder: TExceptionHandlerBuilder;
@@ -1241,6 +1289,11 @@ begin
   Result := Self;
 end;
 
+function THttpAppBuilderHelper.UseHttpLogging(const AHttpLoggingBuilder: THttpLoggingBuilder): TAppBuilder;
+begin
+  Result := UseHttpLogging(AHttpLoggingBuilder.Build);
+end;
+
 function THttpAppBuilderHelper.UseHttpLogging(AConfigurator: TProc<THttpLoggingBuilder>): TAppBuilder;
 var
   Builder: THttpLoggingBuilder;
@@ -1255,6 +1308,11 @@ function THttpAppBuilderHelper.UseCompression(const AOptions: TCompressionOption
 begin
   Self.Unwrap.UseMiddleware(TCompressionMiddleware.Create(AOptions));
   Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseCompression(const ACompressionBuilder: TCompressionBuilder): TAppBuilder;
+begin
+  Result := UseCompression(ACompressionBuilder.Build);
 end;
 
 function THttpAppBuilderHelper.UseCompression(AConfigurator: TProc<TCompressionBuilder>): TAppBuilder;
@@ -1276,6 +1334,11 @@ function THttpAppBuilderHelper.UseSecurityHeaders(const AOptions: TSecurityHeade
 begin
   Self.Unwrap.UseMiddleware(TSecurityHeadersMiddleware.Create(AOptions));
   Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseSecurityHeaders(const ASecurityHeadersBuilder: TSecurityHeadersBuilder): TAppBuilder;
+begin
+  Result := UseSecurityHeaders(ASecurityHeadersBuilder.Build);
 end;
 
 function THttpAppBuilderHelper.UseSecurityHeaders(AConfigurator: TProc<TSecurityHeadersBuilder>): TAppBuilder;
@@ -1482,6 +1545,30 @@ end;
 function THttpAppBuilderHelper.UseRateLimiting(const APolicy: TRateLimitPolicy): TAppBuilder;
 begin
   TApplicationBuilderRateLimitExtensions.UseRateLimiting(Self.Unwrap, APolicy);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseForwardedHeaders: TAppBuilder;
+begin
+  TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(Self.Unwrap);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseForwardedHeaders(const AOptions: TForwardedHeadersOptions): TAppBuilder;
+begin
+  TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(Self.Unwrap, AOptions);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseForwardedHeaders(const AForwardedBuilder: TForwardedHeadersBuilder): TAppBuilder;
+begin
+  TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(Self.Unwrap, AForwardedBuilder);
+  Result := Self;
+end;
+
+function THttpAppBuilderHelper.UseForwardedHeaders(AConfigurator: TProc<TForwardedHeadersBuilder>): TAppBuilder;
+begin
+  TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(Self.Unwrap, AConfigurator);
   Result := Self;
 end;
 
@@ -1941,6 +2028,24 @@ end;
 { TWebServicesHelper }
 
 {$IFDEF DEXT_ENABLE_ENTITY}
+function TWebServicesHelper.AddDbContext<T>(const AOptions: TDbContextOptions): TDextServices;
+begin
+  Dext.Entity.TPersistence.AddDbContext<T>(Self.Unwrap, AOptions);
+  Result := Self;
+end;
+
+function TWebServicesHelper.AddDbContext<T>(const ABuilder: TDbContextOptionsBuilder): TDextServices;
+begin
+  Dext.Entity.TPersistence.AddDbContext<T>(Self.Unwrap, ABuilder);
+  Result := Self;
+end;
+
+function TWebServicesHelper.AddDbContext<T>(AConfigurator: TProc<TDbContextOptionsBuilder>): TDextServices;
+begin
+  Dext.Entity.TPersistence.AddDbContext<T>(Self.Unwrap, AConfigurator);
+  Result := Self;
+end;
+
 function TWebServicesHelper.AddDbContext<T>(Config: TProc<TDbContextOptions>): TDextServices;
 begin
   Dext.Entity.TPersistence.AddDbContext<T>(Self.Unwrap, Config);

@@ -74,21 +74,63 @@ type
     function UseDialect(ADialect: TDatabaseDialect): TDbContextOptions;
     function UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptions;
     function UseSnakeCaseNamingConvention: TDbContextOptions;
+    function SnakeCase: TDbContextOptions;
     function LogTo(AProc: TProc<string>): TDbContextOptions;
     function WithBulkBatchSize(ASize: Integer): TDbContextOptions;
   end;
 
   /// <summary>
-  ///   Builder for configuring DbContext options.
+  ///   Fluent builder for configuring DbContext options.
   /// </summary>
-  TDbContextOptionsBuilder = class
+  TDbContextOptionsBuilder = record
   private
-    FOptions: TDbContextOptions;
+    FDriverName: string;
+    FConnectionString: string;
+    FConnectionDefName: string;
+    FConnectionDefString: string;
+    FParams: TArray<TPair<string, string>>;
+    FPooling: Boolean;
+    FPoolMax: Integer;
+    FOptimizations: TFireDACOptimizations;
+    FDialect: ISQLDialect;
+    FCustomConnection: IDbConnection;
+    FNamingStrategy: INamingStrategy;
+    FNaming: string;
+    FOnLog: TProc<string>;
+    FBulkBatchSize: Integer;
   public
-    constructor Create(Options: TDbContextOptions);
-    function UseSQLite(const DatabaseFile: string): TDbContextOptionsBuilder;
+    class function Create: TDbContextOptionsBuilder; static;
+
     function UseDriver(const ADriverName: string): TDbContextOptionsBuilder;
+    function UseConnectionDef(const ADefName: string): TDbContextOptionsBuilder;
+    function UseSQLite(const DatabaseFile: string): TDbContextOptionsBuilder;
+    function UseSQLServer(const AConnectionString: string): TDbContextOptionsBuilder;
+    function UsePostgreSQL(const AConnectionString: string): TDbContextOptionsBuilder;
+    function UseMySQL(const AConnectionString: string): TDbContextOptionsBuilder;
+    function UseFirebird(const AConnectionString: string): TDbContextOptionsBuilder;
+    function UseOracle(const AConnectionString: string): TDbContextOptionsBuilder;
+    function Pooling(Enable: Boolean = True; MaxSize: Integer = 50): TDbContextOptionsBuilder;
+    function WithPooling(Enable: Boolean = True; MaxSize: Integer = 50): TDbContextOptionsBuilder;
+    function Optimizations(AOpts: TFireDACOptimizations): TDbContextOptionsBuilder;
+    function ConfigureOptimizations(AOpts: TFireDACOptimizations): TDbContextOptionsBuilder;
+    function UseCustomDialect(const ADialect: ISQLDialect): TDbContextOptionsBuilder;
+    function UseDialect(ADialect: TDatabaseDialect): TDbContextOptionsBuilder;
+    function UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptionsBuilder;
+    function UseSnakeCaseNamingConvention: TDbContextOptionsBuilder;
+    function SnakeCase: TDbContextOptionsBuilder;
+    function LogTo(AProc: TProc<string>): TDbContextOptionsBuilder;
+    function BulkBatchSize(ASize: Integer): TDbContextOptionsBuilder;
+    function WithBulkBatchSize(ASize: Integer): TDbContextOptionsBuilder;
+    function AddParam(const AKey, AValue: string): TDbContextOptionsBuilder;
+
+    function Build: TDbContextOptions;
+    class operator Implicit(const ABuilder: TDbContextOptionsBuilder): TDbContextOptions;
   end;
+
+/// <summary>
+///   Factory function returning a fluent TDbContextOptionsBuilder.
+/// </summary>
+function DbContextOptions: TDbContextOptionsBuilder;
 
 implementation
 
@@ -222,6 +264,24 @@ begin
   Result := Self;
 end;
 
+function TDbContextOptions.SnakeCase: TDbContextOptions;
+begin
+  Result := UseSnakeCaseNamingConvention;
+end;
+
+function TDbContextOptions.UseSnakeCaseNamingConvention: TDbContextOptions;
+begin
+  FNaming := 'snake_case';
+  FNamingStrategy := TSnakeCaseNamingStrategy.Create;
+  Result := Self;
+end;
+
+function TDbContextOptions.UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptions;
+begin
+  FNamingStrategy := AStrategy;
+  Result := Self;
+end;
+
 function TDbContextOptions.BuildConnection: IDbConnection;
 var
   FDConn: TFDConnection;
@@ -297,35 +357,207 @@ begin
   Result := FNamingStrategy;
 end;
 
-function TDbContextOptions.UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptions;
-begin
-  FNamingStrategy := AStrategy;
-  Result := Self;
-end;
-
-function TDbContextOptions.UseSnakeCaseNamingConvention: TDbContextOptions;
-begin
-  FNamingStrategy := TSnakeCaseNamingStrategy.Create;
-  Result := Self;
-end;
-
 { TDbContextOptionsBuilder }
 
-constructor TDbContextOptionsBuilder.Create(Options: TDbContextOptions);
+class function TDbContextOptionsBuilder.Create: TDbContextOptionsBuilder;
 begin
-  FOptions := Options;
+  Result := Default(TDbContextOptionsBuilder);
+  Result.FPoolMax := 50;
+  Result.FBulkBatchSize := 100;
+  Result.FOptimizations := [optDisableMacros, optDisableEscapes, optDirectExecute];
+end;
+
+function TDbContextOptionsBuilder.AddParam(const AKey, AValue: string): TDbContextOptionsBuilder;
+var
+  i: Integer;
+begin
+  Result := Self;
+  for i := 0 to High(Result.FParams) do
+  begin
+    if SameText(Result.FParams[i].Key, AKey) then
+    begin
+      Result.FParams[i] := TPair<string, string>.Create(AKey, AValue);
+      Exit;
+    end;
+  end;
+  SetLength(Result.FParams, Length(Result.FParams) + 1);
+  Result.FParams[High(Result.FParams)] := TPair<string, string>.Create(AKey, AValue);
 end;
 
 function TDbContextOptionsBuilder.UseDriver(const ADriverName: string): TDbContextOptionsBuilder;
 begin
-  FOptions.UseDriver(ADriverName);
   Result := Self;
+  Result.FDriverName := ADriverName;
+  Result.FConnectionDefName := '';
+end;
+
+function TDbContextOptionsBuilder.UseConnectionDef(const ADefName: string): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FConnectionDefName := ADefName;
+  Result.FDriverName := '';
+  Result.FConnectionString := '';
 end;
 
 function TDbContextOptionsBuilder.UseSQLite(const DatabaseFile: string): TDbContextOptionsBuilder;
 begin
-  FOptions.UseSQLite(DatabaseFile);
   Result := Self;
+  Result.FDriverName := 'SQLite';
+  Result.FConnectionDefName := '';
+  Result := Result.AddParam('Database', DatabaseFile);
+  Result := Result.AddParam('LockingMode', 'Normal');
+end;
+
+function TDbContextOptionsBuilder.UseSQLServer(const AConnectionString: string): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDriverName := 'MSSQL';
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    Result.FConnectionString := 'DriverID=MSSQL;' + AConnectionString
+  else
+    Result.FConnectionString := AConnectionString;
+end;
+
+function TDbContextOptionsBuilder.UsePostgreSQL(const AConnectionString: string): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDriverName := 'PG';
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    Result.FConnectionString := 'DriverID=PG;' + AConnectionString
+  else
+    Result.FConnectionString := AConnectionString;
+end;
+
+function TDbContextOptionsBuilder.UseMySQL(const AConnectionString: string): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDriverName := 'MySQL';
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    Result.FConnectionString := 'DriverID=MySQL;' + AConnectionString
+  else
+    Result.FConnectionString := AConnectionString;
+end;
+
+function TDbContextOptionsBuilder.UseFirebird(const AConnectionString: string): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDriverName := 'FB';
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    Result.FConnectionString := 'DriverID=FB;' + AConnectionString
+  else
+    Result.FConnectionString := AConnectionString;
+end;
+
+function TDbContextOptionsBuilder.UseOracle(const AConnectionString: string): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDriverName := 'Ora';
+  if not SameText(Copy(AConnectionString, 1, 9), 'DriverID=') and not AConnectionString.Contains('DriverID=') then
+    Result.FConnectionString := 'DriverID=Ora;' + AConnectionString
+  else
+    Result.FConnectionString := AConnectionString;
+end;
+
+function TDbContextOptionsBuilder.Pooling(Enable: Boolean; MaxSize: Integer): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FPooling := Enable;
+  Result.FPoolMax := MaxSize;
+end;
+
+function TDbContextOptionsBuilder.WithPooling(Enable: Boolean; MaxSize: Integer): TDbContextOptionsBuilder;
+begin
+  Result := Pooling(Enable, MaxSize);
+end;
+
+function TDbContextOptionsBuilder.Optimizations(AOpts: TFireDACOptimizations): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptimizations := AOpts;
+end;
+
+function TDbContextOptionsBuilder.ConfigureOptimizations(AOpts: TFireDACOptimizations): TDbContextOptionsBuilder;
+begin
+  Result := Optimizations(AOpts);
+end;
+
+function TDbContextOptionsBuilder.UseCustomDialect(const ADialect: ISQLDialect): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDialect := ADialect;
+end;
+
+function TDbContextOptionsBuilder.UseDialect(ADialect: TDatabaseDialect): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FDialect := TDialectFactory.CreateDialect(ADialect);
+end;
+
+function TDbContextOptionsBuilder.UseNamingStrategy(const AStrategy: INamingStrategy): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FNamingStrategy := AStrategy;
+end;
+
+function TDbContextOptionsBuilder.UseSnakeCaseNamingConvention: TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FNaming := 'snake_case';
+  Result.FNamingStrategy := TSnakeCaseNamingStrategy.Create;
+end;
+
+function TDbContextOptionsBuilder.SnakeCase: TDbContextOptionsBuilder;
+begin
+  Result := UseSnakeCaseNamingConvention;
+end;
+
+function TDbContextOptionsBuilder.LogTo(AProc: TProc<string>): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOnLog := AProc;
+end;
+
+function TDbContextOptionsBuilder.BulkBatchSize(ASize: Integer): TDbContextOptionsBuilder;
+begin
+  Result := Self;
+  Result.FBulkBatchSize := ASize;
+end;
+
+function TDbContextOptionsBuilder.WithBulkBatchSize(ASize: Integer): TDbContextOptionsBuilder;
+begin
+  Result := BulkBatchSize(ASize);
+end;
+
+function TDbContextOptionsBuilder.Build: TDbContextOptions;
+var
+  Pair: TPair<string, string>;
+begin
+  Result := TDbContextOptions.Create;
+  Result.DriverName := FDriverName;
+  Result.ConnectionString := FConnectionString;
+  Result.ConnectionDefName := FConnectionDefName;
+  Result.ConnectionDefString := FConnectionDefString;
+  for Pair in FParams do
+    Result.Params.AddOrSetValue(Pair.Key, Pair.Value);
+  Result.Pooling := FPooling;
+  Result.PoolMax := FPoolMax;
+  Result.Optimizations := FOptimizations;
+  Result.Dialect := FDialect;
+  Result.CustomConnection := FCustomConnection;
+  Result.NamingStrategy := FNamingStrategy;
+  Result.Naming := FNaming;
+  Result.OnLog := FOnLog;
+  Result.BulkBatchSize := FBulkBatchSize;
+end;
+
+class operator TDbContextOptionsBuilder.Implicit(const ABuilder: TDbContextOptionsBuilder): TDbContextOptions;
+begin
+  Result := ABuilder.Build;
+end;
+
+function DbContextOptions: TDbContextOptionsBuilder;
+begin
+  Result := TDbContextOptionsBuilder.Create;
 end;
 
 procedure TDbContextOptions.SetConnectionString(const AValue: string);

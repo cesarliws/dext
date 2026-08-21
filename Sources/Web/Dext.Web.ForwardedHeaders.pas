@@ -30,6 +30,7 @@ interface
 uses
   System.SysUtils,
   System.Classes,
+  System.Rtti,
   Dext.Collections,
   Dext.Web.Interfaces;
 
@@ -60,6 +61,36 @@ type
   end;
 
   /// <summary>
+  ///   Fluent builder for TForwardedHeadersOptions.
+  /// </summary>
+  TForwardedHeadersBuilder = record
+  private
+    FOptions: TForwardedHeadersOptions;
+    procedure EnsureOptions;
+  public
+    class function Create: TForwardedHeadersBuilder; static;
+    function KnownProxy(const AProxy: string): TForwardedHeadersBuilder;
+    function KnownProxies(const AProxies: array of string): TForwardedHeadersBuilder;
+    function KnownNetwork(const ACidr: string): TForwardedHeadersBuilder;
+    function KnownNetworks(const ACidrs: array of string): TForwardedHeadersBuilder;
+    function ForwardedHeaders(const AFlags: TForwardedHeaderFlags): TForwardedHeadersBuilder;
+    function ForwardLimit(const ALimit: Integer): TForwardedHeadersBuilder;
+    function Build: TForwardedHeadersOptions;
+    class operator Implicit(const ABuilder: TForwardedHeadersBuilder): TForwardedHeadersOptions;
+  end;
+
+  /// <summary>
+  ///   Extension methods for adding Forwarded Headers middleware to the application pipeline.
+  /// </summary>
+  TApplicationBuilderForwardedHeadersExtensions = class
+  public
+    class function UseForwardedHeaders(const ABuilder: IApplicationBuilder): IApplicationBuilder; overload; static;
+    class function UseForwardedHeaders(const ABuilder: IApplicationBuilder; const AOptions: TForwardedHeadersOptions): IApplicationBuilder; overload; static;
+    class function UseForwardedHeaders(const ABuilder: IApplicationBuilder; const AForwardedBuilder: TForwardedHeadersBuilder): IApplicationBuilder; overload; static;
+    class function UseForwardedHeaders(const ABuilder: IApplicationBuilder; AConfigurator: TProc<TForwardedHeadersBuilder>): IApplicationBuilder; overload; static;
+  end;
+
+  /// <summary>
   ///   Middleware to parse and apply X-Forwarded-* headers from trusted reverse proxies using official IMiddleware contract.
   /// </summary>
   TDextForwardedHeadersMiddleware = class(TInterfacedObject, IMiddleware)
@@ -75,6 +106,8 @@ type
 
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
   end;
+
+function ForwardedHeadersOptions: TForwardedHeadersBuilder;
 
 implementation
 
@@ -279,6 +312,119 @@ begin
 
   if Assigned(ANext) then
     ANext(AContext);
+end;
+
+{ TForwardedHeadersBuilder }
+
+procedure TForwardedHeadersBuilder.EnsureOptions;
+begin
+  if FOptions = nil then
+    FOptions := TForwardedHeadersOptions.Create;
+end;
+
+class function TForwardedHeadersBuilder.Create: TForwardedHeadersBuilder;
+begin
+  Result := Default(TForwardedHeadersBuilder);
+  Result.EnsureOptions;
+end;
+
+function TForwardedHeadersBuilder.KnownProxy(const AProxy: string): TForwardedHeadersBuilder;
+begin
+  EnsureOptions;
+  if not AProxy.IsEmpty then
+    FOptions.KnownProxies.Add(AProxy);
+  Result := Self;
+end;
+
+function TForwardedHeadersBuilder.KnownProxies(const AProxies: array of string): TForwardedHeadersBuilder;
+var
+  Proxy: string;
+begin
+  EnsureOptions;
+  for Proxy in AProxies do
+    if not Proxy.IsEmpty then
+      FOptions.KnownProxies.Add(Proxy);
+  Result := Self;
+end;
+
+function TForwardedHeadersBuilder.KnownNetwork(const ACidr: string): TForwardedHeadersBuilder;
+begin
+  EnsureOptions;
+  if not ACidr.IsEmpty then
+    FOptions.KnownNetworks.Add(ACidr);
+  Result := Self;
+end;
+
+function TForwardedHeadersBuilder.KnownNetworks(const ACidrs: array of string): TForwardedHeadersBuilder;
+var
+  Cidr: string;
+begin
+  EnsureOptions;
+  for Cidr in ACidrs do
+    if not Cidr.IsEmpty then
+      FOptions.KnownNetworks.Add(Cidr);
+  Result := Self;
+end;
+
+function TForwardedHeadersBuilder.ForwardedHeaders(const AFlags: TForwardedHeaderFlags): TForwardedHeadersBuilder;
+begin
+  EnsureOptions;
+  FOptions.ForwardedHeaders := AFlags;
+  Result := Self;
+end;
+
+function TForwardedHeadersBuilder.ForwardLimit(const ALimit: Integer): TForwardedHeadersBuilder;
+begin
+  EnsureOptions;
+  FOptions.ForwardLimit := ALimit;
+  Result := Self;
+end;
+
+function TForwardedHeadersBuilder.Build: TForwardedHeadersOptions;
+begin
+  EnsureOptions;
+  Result := FOptions;
+end;
+
+class operator TForwardedHeadersBuilder.Implicit(const ABuilder: TForwardedHeadersBuilder): TForwardedHeadersOptions;
+begin
+  Result := ABuilder.Build;
+end;
+
+function ForwardedHeadersOptions: TForwardedHeadersBuilder;
+begin
+  Result := TForwardedHeadersBuilder.Create;
+end;
+
+{ TApplicationBuilderForwardedHeadersExtensions }
+
+class function TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(
+  const ABuilder: IApplicationBuilder): IApplicationBuilder;
+begin
+  Result := ABuilder.UseMiddleware(TDextForwardedHeadersMiddleware.Create(TForwardedHeadersOptions.Create));
+end;
+
+class function TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(
+  const ABuilder: IApplicationBuilder; const AOptions: TForwardedHeadersOptions): IApplicationBuilder;
+begin
+  Result := ABuilder.UseMiddleware(TDextForwardedHeadersMiddleware.Create(AOptions));
+end;
+
+class function TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(
+  const ABuilder: IApplicationBuilder; const AForwardedBuilder: TForwardedHeadersBuilder): IApplicationBuilder;
+begin
+  Result := ABuilder.UseMiddleware(TDextForwardedHeadersMiddleware.Create(AForwardedBuilder.Build));
+end;
+
+class function TApplicationBuilderForwardedHeadersExtensions.UseForwardedHeaders(
+  const ABuilder: IApplicationBuilder; AConfigurator: TProc<TForwardedHeadersBuilder>): IApplicationBuilder;
+var
+  Builder: TForwardedHeadersBuilder;
+begin
+  Builder := TForwardedHeadersBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  Result := ABuilder.UseMiddleware(TDextForwardedHeadersMiddleware.Create(Builder.Build));
 end;
 
 end.

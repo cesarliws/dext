@@ -158,7 +158,7 @@ type
   public
     class function Create: TViewOptionsBuilder; static;
     function TemplateRoot(const Value: string): TViewOptionsBuilder;
-    function AutoReload(Value: Boolean): TViewOptionsBuilder;
+    function AutoReload(Value: Boolean = True): TViewOptionsBuilder;
     function DefaultLayout(const Value: string): TViewOptionsBuilder;
     function WhiteList(AClass: TClass): TViewOptionsBuilder; overload;
     function WhiteList(const AClasses: array of TClass): TViewOptionsBuilder; overload;
@@ -166,6 +166,11 @@ type
 
     class operator Implicit(const ABuilder: TViewOptionsBuilder): TViewOptions;
   end;
+
+  /// <summary>
+  ///   Factory function returning a fluent builder for TViewOptions.
+  /// </summary>
+  function ViewOptions: TViewOptionsBuilder;
 
   /// <summary>
   ///   Proxy for IEnumerator to make it compatible with RTTI-based engines like Web Stencils.
@@ -420,6 +425,11 @@ begin
     Result.DefaultLayout := ABuilder.FDefaultLayout;
   Result.WhitelistedClasses := ABuilder.FWhitelistedClasses;
   Result.WhitelistEntities := ABuilder.FWhitelistEntities;
+end;
+
+function ViewOptions: TViewOptionsBuilder;
+begin
+  Result := TViewOptionsBuilder.Create;
 end;
 
 { TStreamingEnumeratorProxy<T> }
