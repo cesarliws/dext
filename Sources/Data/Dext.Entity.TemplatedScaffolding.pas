@@ -19,7 +19,7 @@ type
   private
     FEngine: ITemplateEngine;
     function CleanName(const AName: string; ASingularize: Boolean = False): string;
-    function SQLTypeToDelphiType(const ASQLType: string; AScale: Integer): string;
+    function SQLTypeToDelphiType(const ASQLType: string; APrecision: Integer = 0; AScale: Integer = 0): string;
     function CreateTableViewModel(const AMeta: TMetaTable): TTableViewModel;
   public
     constructor Create;
@@ -66,25 +66,58 @@ begin
   end;
 end;
 
-function TTemplatedEntityGenerator.SQLTypeToDelphiType(const ASQLType: string; AScale: Integer): string;
+function TTemplatedEntityGenerator.SQLTypeToDelphiType(const ASQLType: string; APrecision: Integer; AScale: Integer): string;
 var
   S: string;
 begin
-  S := ASQLType.ToUpper;
-  if S.Contains('INT') then Result := 'Integer'
-  else if S.Contains('BIGINT') then Result := 'Int64'
-  else if S.Contains('SMALLINT') or S.Contains('TINYINT') then Result := 'Integer'
-  else if S.Contains('CHAR') or S.Contains('TEXT') or S.Contains('CLOB') then Result := 'string'
-  else if S.Contains('BOOL') or S.Contains('BIT') then Result := 'Boolean'
-  else if S.Contains('DATE') or S.Contains('TIME') then Result := 'TDateTime'
-  else if S.Contains('FLOAT') or S.Contains('DOUBLE') or S.Contains('REAL') then Result := 'Double'
-  else if S.Contains('DECIMAL') or S.Contains('NUMERIC') or S.Contains('MONEY') then 
+  S := ASQLType.Trim.ToUpper;
+
+  if S.Contains('JSON') then Exit('string');
+
+  if S.Contains('RAW') or S.Contains('GUID') or S.Contains('UUID') then
   begin
-    if AScale = 0 then Result := 'Int64' else Result := 'Currency'; 
-  end
-  else if S.Contains('BLOB') or S.Contains('BINARY') or S.Contains('IMAGE') or S.Contains('VARBINARY') then Result := 'TBytes'
-  else if S.Contains('GUID') or S.Contains('UUID') then Result := 'TGUID'
-  else Result := 'string';
+    if (APrecision = 16) or (S = 'RAW(16)') or S.Contains('GUID') or S.Contains('UUID') then
+      Exit('TGUID');
+    Exit('TBytes');
+  end;
+
+  if S.Contains('NUMBER') or S.Contains('NUMERIC') or S.Contains('DECIMAL') then
+  begin
+    if (APrecision <= 0) and (AScale < 0) then
+      Exit('Double');
+
+    if AScale = 0 then
+    begin
+      if APrecision = 1 then Exit('Boolean')
+      else if (APrecision > 0) and (APrecision <= 4) then Exit('SmallInt')
+      else if (APrecision > 4) and (APrecision <= 9) then Exit('Integer')
+      else Exit('Int64');
+    end
+    else if AScale > 0 then
+    begin
+      if (AScale <= 4) and (APrecision <= 18) then Exit('Currency')
+      else Exit('Double');
+    end;
+  end;
+
+  if S.Contains('INT') or S.Contains('SERIAL') or S.Contains('COUNTER') or S.Contains('ROWID') then
+  begin
+    if S.Contains('64') or S.Contains('BIG') then Exit('Int64');
+    if S.Contains('SMALL') or S.Contains('SHORT') or S.Contains('TINY') then Exit('SmallInt');
+    Exit('Integer');
+  end;
+
+  if S.Contains('BOOL') or S.Contains('BIT') or S.Contains('LOGICAL') then Exit('Boolean');
+
+  if S.Contains('TIMESTAMP') or (S = 'DATE') or (S.Contains('DATE') and S.Contains('TIME')) then Exit('TDateTime');
+  if S.Contains('DATE') then Exit('TDate');
+  if S.Contains('TIME') then Exit('TTime');
+
+  if S.Contains('FLOAT') or S.Contains('DOUBLE') or S.Contains('REAL') then Exit('Double');
+
+  if S.Contains('BLOB') or S.Contains('BYTEA') or S.Contains('BINARY') or S.Contains('IMAGE') or S.Contains('VARBINARY') or S.Contains('BFILE') then Exit('TBytes');
+
+  Result := 'string';
 end;
 
 function TTemplatedEntityGenerator.CreateTableViewModel(const AMeta: TMetaTable): TTableViewModel;
@@ -107,7 +140,7 @@ begin
     Col.Name := MetaCol.Name;
     Col.DelphiName := CleanName(MetaCol.Name);
     Col.DataType := MetaCol.DataType;
-    Col.DelphiType := SQLTypeToDelphiType(MetaCol.DataType, MetaCol.Scale);
+    Col.DelphiType := SQLTypeToDelphiType(MetaCol.DataType, MetaCol.Precision, MetaCol.Scale);
     Col.IsPrimaryKey := MetaCol.IsPrimaryKey;
     Col.IsAutoInc := MetaCol.IsAutoInc;
     Col.IsNullable := MetaCol.IsNullable;

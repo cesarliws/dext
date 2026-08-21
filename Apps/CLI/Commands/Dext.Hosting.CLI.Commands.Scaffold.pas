@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -79,7 +79,7 @@ begin
   SafeWriteLn('');
   SafeWriteLn('Required:');
   SafeWriteLn('  --connection, -c   FireDAC connection string or database path');
-  SafeWriteLn('  --driver, -d       Database driver: sqlite, pg, mssql, firebird, mysql');
+  SafeWriteLn('  --driver, -d       Database driver: sqlite, pg, mssql, firebird, mysql, oracle');
   SafeWriteLn('');
   SafeWriteLn('Options:');
   SafeWriteLn('  --output, -o       Output file path (default: Entities.pas)');
@@ -235,14 +235,17 @@ begin
     // Enable extended metadata to get AutoInc, PK, etc.
     FDConnection.Params.Values['ExtendedMetadata'] := 'True';
     
+    DriverName := LowerCase(Trim(DriverName));
     if SchemaName <> '' then
     begin
+      if (DriverName = 'oracle') or (DriverName = 'ora') then
+        SchemaName := UpperCase(SchemaName);
       FDConnection.Params.Values['Schema'] := SchemaName;
       FDConnection.Params.Values['MetaCurSchema'] := SchemaName;
+      FDConnection.Params.Values['MetaDefSchema'] := SchemaName;
     end;
     
     // Configure driver
-    DriverName := LowerCase(DriverName);
     if DriverName = 'sqlite' then
     begin
       FDConnection.DriverName := 'SQLite';
@@ -267,9 +270,16 @@ begin
     begin
       FDConnection.ConnectionString := 'DriverID=MySQL;' + ConnectionStr;
     end
+    else if (DriverName = 'oracle') or (DriverName = 'ora') then
+    begin
+      if ConnectionStr <> '' then
+        FDConnection.ConnectionString := 'DriverID=Ora;' + ConnectionStr
+      else
+        FDConnection.Params.DriverID := 'Ora';
+    end
     else
     begin
-      SafeWriteLn('Error: Unknown driver "' + DriverName + '". Supported: sqlite, pg, mssql, firebird, mysql');
+      SafeWriteLn('Error: Unknown driver "' + DriverName + '". Supported: sqlite, pg, mssql, firebird, mysql, oracle');
       Exit;
     end;
     

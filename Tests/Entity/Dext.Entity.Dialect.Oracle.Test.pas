@@ -1,4 +1,4 @@
-﻿unit Dext.Entity.Dialect.Oracle.Test;
+unit Dext.Entity.Dialect.Oracle.Test;
 
 interface
 
@@ -6,12 +6,14 @@ uses
   System.SysUtils,
   System.TypInfo,
   Dext.Entity.Dialects,
-  Dext.Entity.Attributes;
+  Dext.Entity.Attributes,
+  Dext.Entity.Scaffolding;
 
 type
   TOracleDialectTest = class
   private
     FDialect: TOracleDialect;
+    FGenerator: TDelphiEntityGenerator;
     procedure AssertEqual(const Expected, Actual, Msg: string);
     procedure Log(const Msg: string);
   public
@@ -27,11 +29,13 @@ implementation
 constructor TOracleDialectTest.Create;
 begin
   FDialect := TOracleDialect.Create;
+  FGenerator := TDelphiEntityGenerator.Create;
 end;
 
 destructor TOracleDialectTest.Destroy;
 begin
   FDialect.Free;
+  FGenerator.Free;
   inherited;
 end;
 
@@ -85,6 +89,46 @@ begin
 
   // 7. UUID Support
   AssertEqual('VARCHAR2(36)', FDialect.GetColumnType(TypeInfo(TGUID)), 'GUID mapping should be VARCHAR2(36)');
+
+  // 8. Returning Clause Support
+  AssertEqual('RETURNING "ID" INTO :RET_VAL', FDialect.GetReturningSQL('ID'), 'Oracle Returning clause should be RETURNING "ID" INTO :RET_VAL');
+
+  // 9. Dialect Identification
+  AssertEqual('ddOracle', GetEnumName(TypeInfo(TDatabaseDialect), Integer(FDialect.GetDialect)), 'Dialect enum should be ddOracle');
+  AssertEqual('ddOracle', GetEnumName(TypeInfo(TDatabaseDialect), Integer(TDialectFactory.DetectDialect('ora'))), 'DetectDialect("ora") should be ddOracle');
+  AssertEqual('ddOracle', GetEnumName(TypeInfo(TDatabaseDialect), Integer(TDialectFactory.DetectDialect('oracle'))), 'DetectDialect("oracle") should be ddOracle');
+
+  Log('');
+  Log('🔮 Testing Oracle Scaffolding Type Inference (Issue #194)');
+  Log('---------------------------------------------------------');
+
+  // POCO Style Type Inference
+  AssertEqual('Boolean', FGenerator.SQLTypeToDelphiType('NUMBER', 1, 0, psPOCO), 'POCO: NUMBER(1,0) -> Boolean');
+  AssertEqual('SmallInt', FGenerator.SQLTypeToDelphiType('NUMBER', 4, 0, psPOCO), 'POCO: NUMBER(4,0) -> SmallInt');
+  AssertEqual('Integer', FGenerator.SQLTypeToDelphiType('NUMBER', 9, 0, psPOCO), 'POCO: NUMBER(9,0) -> Integer');
+  AssertEqual('Int64', FGenerator.SQLTypeToDelphiType('NUMBER', 18, 0, psPOCO), 'POCO: NUMBER(18,0) -> Int64');
+  AssertEqual('Currency', FGenerator.SQLTypeToDelphiType('NUMBER', 15, 2, psPOCO), 'POCO: NUMBER(15,2) -> Currency');
+  AssertEqual('Double', FGenerator.SQLTypeToDelphiType('NUMBER', 20, 6, psPOCO), 'POCO: NUMBER(20,6) -> Double');
+  AssertEqual('Double', FGenerator.SQLTypeToDelphiType('NUMBER', 0, -127, psPOCO), 'POCO: Unconstrained NUMBER -> Double');
+  AssertEqual('TDateTime', FGenerator.SQLTypeToDelphiType('DATE', 0, 0, psPOCO), 'POCO: Oracle DATE -> TDateTime (preserving time)');
+  AssertEqual('TDateTime', FGenerator.SQLTypeToDelphiType('TIMESTAMP', 0, 6, psPOCO), 'POCO: TIMESTAMP -> TDateTime');
+  AssertEqual('TGUID', FGenerator.SQLTypeToDelphiType('RAW', 16, 0, psPOCO), 'POCO: RAW(16) -> TGUID');
+  AssertEqual('TBytes', FGenerator.SQLTypeToDelphiType('RAW', 32, 0, psPOCO), 'POCO: RAW(32) -> TBytes');
+  AssertEqual('string', FGenerator.SQLTypeToDelphiType('JSON', 0, 0, psPOCO), 'POCO: JSON -> string');
+
+  // Smart Style Type Inference
+  AssertEqual('BoolType', FGenerator.SQLTypeToDelphiType('NUMBER', 1, 0, psSmart), 'Smart: NUMBER(1,0) -> BoolType');
+  AssertEqual('Int16Type', FGenerator.SQLTypeToDelphiType('NUMBER', 4, 0, psSmart), 'Smart: NUMBER(4,0) -> Int16Type');
+  AssertEqual('IntType', FGenerator.SQLTypeToDelphiType('NUMBER', 9, 0, psSmart), 'Smart: NUMBER(9,0) -> IntType');
+  AssertEqual('Int64Type', FGenerator.SQLTypeToDelphiType('NUMBER', 18, 0, psSmart), 'Smart: NUMBER(18,0) -> Int64Type');
+  AssertEqual('CurrencyType', FGenerator.SQLTypeToDelphiType('NUMBER', 15, 2, psSmart), 'Smart: NUMBER(15,2) -> CurrencyType');
+  AssertEqual('FloatType', FGenerator.SQLTypeToDelphiType('NUMBER', 20, 6, psSmart), 'Smart: NUMBER(20,6) -> FloatType');
+  AssertEqual('FloatType', FGenerator.SQLTypeToDelphiType('NUMBER', 0, -127, psSmart), 'Smart: Unconstrained NUMBER -> FloatType');
+  AssertEqual('DateTimeType', FGenerator.SQLTypeToDelphiType('DATE', 0, 0, psSmart), 'Smart: Oracle DATE -> DateTimeType');
+  AssertEqual('DateTimeType', FGenerator.SQLTypeToDelphiType('TIMESTAMP', 0, 6, psSmart), 'Smart: TIMESTAMP -> DateTimeType');
+  AssertEqual('GuidType', FGenerator.SQLTypeToDelphiType('RAW', 16, 0, psSmart), 'Smart: RAW(16) -> GuidType');
+  AssertEqual('TBytes', FGenerator.SQLTypeToDelphiType('RAW', 32, 0, psSmart), 'Smart: RAW(32) -> TBytes');
+  AssertEqual('JsonType', FGenerator.SQLTypeToDelphiType('JSON', 0, 0, psSmart), 'Smart: JSON -> JsonType');
 end;
 
 end.

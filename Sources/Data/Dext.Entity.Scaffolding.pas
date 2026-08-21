@@ -1,4 +1,4 @@
-﻿{***************************************************************************}
+{***************************************************************************}
 {                                                                           }
 {           Dext Framework                                                  }
 {                                                                           }
@@ -131,12 +131,12 @@ type
   /// </summary>
   TDelphiEntityGenerator = class(TInterfacedObject, IEntityGenerator)
   private
-    function SQLTypeToDelphiType(const ASQLType: string; AScale: Integer; APropertyStyle: TPropertyStyle = psPOCO): string;
     function CleanName(const AName: string): string;
     function EscapeIdentifier(const AIdentifier: string): string;
     function IsKeyword(const AName: string): Boolean;
     function CleanMappingName(const AName: string): string;
   public
+    function SQLTypeToDelphiType(const ASQLType: string; APrecision: Integer = 0; AScale: Integer = 0; APropertyStyle: TPropertyStyle = psPOCO): string;
     function GenerateUnit(const AUnitName: string; const ATables: TArray<TMetaTable>; 
       AMappingStyle: TMappingStyle = msAttributes;
       APropertyStyle: TPropertyStyle = psPOCO;
@@ -206,6 +206,9 @@ begin
     if LSchema = '' then LSchema := FDConn.Params.Values['Schema'];
     if LSchema = '' then LSchema := FDConn.Params.Values['MetaDefSchema'];
 
+    if (SameText(FDConn.DriverName, 'Ora') or SameText(FDConn.DriverName, 'Oracle')) and (LSchema <> '') then
+      LSchema := UpperCase(LSchema);
+
     if SameText(FDConn.DriverName, 'SQLite') then
     begin
        LCatalog := '';
@@ -218,7 +221,16 @@ begin
     begin
        if List[i].StartsWith('pg_catalog.', True) or 
           List[i].StartsWith('information_schema.', True) or
-          List[i].StartsWith('sys.', True) then
+          List[i].StartsWith('sys.', True) or
+          List[i].StartsWith('system.', True) or
+          List[i].StartsWith('ctxsys.', True) or
+          List[i].StartsWith('mdsys.', True) or
+          List[i].StartsWith('xdb.', True) or
+          List[i].StartsWith('outln.', True) or
+          List[i].StartsWith('dbsnmp.', True) or
+          List[i].StartsWith('appqossys.', True) or
+          List[i].StartsWith('gsmadmin_internal.', True) or
+          List[i].StartsWith('audsys.', True) then
           List.Delete(i);
     end;
     Result := List.ToStringArray;
@@ -840,47 +852,129 @@ begin
   else Result := AIdentifier;
 end;
 
-function TDelphiEntityGenerator.SQLTypeToDelphiType(const ASQLType: string; AScale: Integer; APropertyStyle: TPropertyStyle): string;
+function TDelphiEntityGenerator.SQLTypeToDelphiType(const ASQLType: string; APrecision: Integer; AScale: Integer; APropertyStyle: TPropertyStyle): string;
 var
   LType: string;
 begin
-  LType := ASQLType.ToUpper;
-  if APropertyStyle = psSmart then
+  LType := ASQLType.Trim.ToUpper;
+
+  // JSON
+  if LType.Contains('JSON') then
   begin
-    if LType.Contains('CHAR') or LType.Contains('TEXT') or LType.Contains('STRING') or LType.Contains('UUID') or LType.Contains('GUID') then Exit('StringType');
-    if LType.Contains('INT') or LType.Contains('SERIAL') or LType.Contains('COUNTER') then
-    begin
-       if LType.Contains('64') or LType.Contains('BIG') then Exit('Int64Type');
-       Exit('IntType');
-    end;
-    if LType.Contains('BOOL') or LType.Contains('BIT') or LType.Contains('LOGICAL') then Exit('BoolType');
-    if LType.Contains('DECIMAL') or LType.Contains('NUMERIC') or LType.Contains('MONEY') or LType.Contains('CURRENCY') then Exit('CurrencyType');
-    if LType.Contains('FLOAT') or LType.Contains('DOUBLE') or LType.Contains('REAL') then Exit('FloatType');
-    if (LType.Contains('DATE') and LType.Contains('TIME')) or LType.Contains('TIMESTAMP') then Exit('DateTimeType');
-    if LType.Contains('DATE') then Exit('DateType');
-    if LType.Contains('TIME') then Exit('TimeType');
-    if LType.Contains('BLOB') or LType.Contains('BYTEA') or LType.Contains('BINARY') or LType.Contains('IMAGE') then Exit('TBytes');
-    Exit('StringType');
+    if APropertyStyle = psSmart then Exit('JsonType');
+    Exit('string');
   end;
 
-  if LType.Contains('CHAR') or LType.Contains('TEXT') or LType.Contains('STRING') or LType.Contains('UUID') or LType.Contains('GUID') then Exit('string');
-  if LType.Contains('INT') or LType.Contains('SERIAL') or LType.Contains('COUNTER') then
+  // GUID / UUID / RAW(16)
+  if LType.Contains('RAW') or LType.Contains('GUID') or LType.Contains('UUID') then
   begin
-     if LType.Contains('64') or LType.Contains('BIG') then Exit('Int64');
-     Exit('Integer');
+    if (APrecision = 16) or (LType = 'RAW(16)') or LType.Contains('GUID') or LType.Contains('UUID') then
+    begin
+      if APropertyStyle = psSmart then Exit('GuidType');
+      Exit('TGUID');
+    end;
+    Exit('TBytes');
   end;
-  if LType.Contains('BOOL') or LType.Contains('BIT') or LType.Contains('LOGICAL') then Exit('Boolean');
-  if LType.Contains('DECIMAL') or LType.Contains('NUMERIC') or LType.Contains('MONEY') or LType.Contains('CURRENCY') then
+
+  // NUMBER / NUMERIC / DECIMAL (Oracle / PostgreSQL / Firebird)
+  if LType.Contains('NUMBER') or LType.Contains('NUMERIC') or LType.Contains('DECIMAL') then
   begin
-    if AScale > 0 then Exit('Double');
-    Exit('Currency');
+    // Unconstrained NUMBER (e.g. NUMBER in Oracle without precision/scale -> Double / FloatType)
+    if (APrecision <= 0) and (AScale < 0) then
+    begin
+      if APropertyStyle = psSmart then Exit('FloatType') else Exit('Double');
+    end;
+
+    if AScale = 0 then
+    begin
+      if APrecision = 1 then
+      begin
+        if APropertyStyle = psSmart then Exit('BoolType') else Exit('Boolean');
+      end
+      else if (APrecision > 0) and (APrecision <= 4) then
+      begin
+        if APropertyStyle = psSmart then Exit('Int16Type') else Exit('SmallInt');
+      end
+      else if (APrecision > 4) and (APrecision <= 9) then
+      begin
+        if APropertyStyle = psSmart then Exit('IntType') else Exit('Integer');
+      end
+      else
+      begin
+        // APrecision > 9 or unspecified precision with scale 0
+        if APropertyStyle = psSmart then Exit('Int64Type') else Exit('Int64');
+      end;
+    end
+    else if AScale > 0 then
+    begin
+      if (AScale <= 4) and (APrecision <= 18) then
+      begin
+        if APropertyStyle = psSmart then Exit('CurrencyType') else Exit('Currency');
+      end
+      else
+      begin
+        if APropertyStyle = psSmart then Exit('FloatType') else Exit('Double');
+      end;
+    end;
   end;
-  if LType.Contains('FLOAT') or LType.Contains('DOUBLE') or LType.Contains('REAL') then Exit('Double');
-  if (LType.Contains('DATE') and LType.Contains('TIME')) or LType.Contains('TIMESTAMP') then Exit('TDateTime');
-  if LType.Contains('DATE') then Exit('TDate');
-  if LType.Contains('TIME') then Exit('TTime');
-  if LType.Contains('BLOB') or LType.Contains('BYTEA') or LType.Contains('BINARY') or LType.Contains('IMAGE') then Exit('TBytes');
-  Exit('string');
+
+  // INTEGERS / ROWID / COUNTERS
+  if LType.Contains('INT') or LType.Contains('SERIAL') or LType.Contains('COUNTER') or LType.Contains('ROWID') then
+  begin
+    if LType.Contains('64') or LType.Contains('BIG') then
+    begin
+      if APropertyStyle = psSmart then Exit('Int64Type') else Exit('Int64');
+    end;
+    if LType.Contains('SMALL') or LType.Contains('SHORT') then
+    begin
+      if APropertyStyle = psSmart then Exit('Int16Type') else Exit('SmallInt');
+    end;
+    if APropertyStyle = psSmart then Exit('IntType') else Exit('Integer');
+  end;
+
+  // FLOATING POINT
+  if LType.Contains('FLOAT') or LType.Contains('DOUBLE') or LType.Contains('REAL') then
+  begin
+    if APropertyStyle = psSmart then Exit('FloatType') else Exit('Double');
+  end;
+
+  // BOOLEANS
+  if LType.Contains('BOOL') or LType.Contains('BIT') or LType.Contains('LOGICAL') then
+  begin
+    if APropertyStyle = psSmart then Exit('BoolType') else Exit('Boolean');
+  end;
+
+  // DATES & TIMESTAMPS (Oracle DATE contains time)
+  if LType.Contains('TIMESTAMP') or (LType = 'DATE') or (LType.Contains('DATE') and LType.Contains('TIME')) then
+  begin
+    if APropertyStyle = psSmart then Exit('DateTimeType') else Exit('TDateTime');
+  end;
+
+  if LType.Contains('DATE') then
+  begin
+    if APropertyStyle = psSmart then Exit('DateType') else Exit('TDate');
+  end;
+
+  if LType.Contains('TIME') then
+  begin
+    if APropertyStyle = psSmart then Exit('TimeType') else Exit('TTime');
+  end;
+
+  // BINARY / BLOBS
+  if LType.Contains('BLOB') or LType.Contains('BYTEA') or LType.Contains('BINARY') or
+     LType.Contains('IMAGE') or LType.Contains('BFILE') then
+  begin
+    Exit('TBytes');
+  end;
+
+  // STRINGS / TEXT / CLOB
+  if LType.Contains('CHAR') or LType.Contains('TEXT') or LType.Contains('STRING') or
+     LType.Contains('CLOB') or LType.Contains('NCLOB') or LType.Contains('VARCHAR') then
+  begin
+    if APropertyStyle = psSmart then Exit('StringType') else Exit('string');
+  end;
+
+  if APropertyStyle = psSmart then Exit('StringType') else Exit('string');
 end;
 
 function TDelphiEntityGenerator.GenerateUnit(const AUnitName: string; const ATables: TArray<TMetaTable>; 
@@ -952,7 +1046,7 @@ begin
           if Col.IsArray then Continue; // Skip Firebird array columns (unsupported by scalar SELECT)
           PropName := CleanName(Col.Name);
           FieldName := 'F' + PropName;
-          DelphiType := SQLTypeToDelphiType(Col.DataType, Col.Scale, APropertyStyle);
+          DelphiType := SQLTypeToDelphiType(Col.DataType, Col.Precision, Col.Scale, APropertyStyle);
           if (APropertyStyle = psPOCO) and Col.IsNullable and (DelphiType <> 'string') and (DelphiType <> 'TBytes') then DelphiType := 'Nullable<' + DelphiType + '>';
           SB.AppendLine('    ' + FieldName + ': ' + DelphiType + ';');
           ClassUsedNames.AddOrSetValue(PropName.ToUpper, True);
@@ -1000,7 +1094,7 @@ begin
           PropName := CleanName(Col.Name);
           EscapedPropName := EscapeIdentifier(PropName);
           FieldName := 'F' + PropName;
-          DelphiType := SQLTypeToDelphiType(Col.DataType, Col.Scale, APropertyStyle);
+          DelphiType := SQLTypeToDelphiType(Col.DataType, Col.Precision, Col.Scale, APropertyStyle);
           if (APropertyStyle = psPOCO) and Col.IsNullable and (DelphiType <> 'string') and (DelphiType <> 'TBytes') then DelphiType := 'Nullable<' + DelphiType + '>';
           if AMappingStyle = msAttributes then
           begin

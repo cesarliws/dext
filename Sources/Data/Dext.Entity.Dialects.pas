@@ -1624,7 +1624,7 @@ begin
         else if ATypeInfo = TypeInfo(TTime) then Result := 'TIMESTAMP' // Oracle TIME? usually TIMESTAMP or DATE
         else Result := 'BINARY_DOUBLE';
       end;
-    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'CLOB';
+    tkChar, tkString, tkWChar, tkLString, tkWString, tkUString: Result := 'VARCHAR2(255)';
     tkEnumeration:
       begin
         if ATypeInfo = TypeInfo(Boolean) then Result := 'NUMBER(1)'
