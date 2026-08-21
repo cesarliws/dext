@@ -171,7 +171,7 @@ type
   ///   Factory function returning a fluent builder for TViewOptions.
   /// </summary>
   function ViewOptions: TViewOptionsBuilder;
-
+type
   /// <summary>
   ///   Proxy for IEnumerator to make it compatible with RTTI-based engines like Web Stencils.
   /// </summary>
