@@ -131,7 +131,9 @@ type
     PublicKey: string;
 
     /// <summary>Creates default JWT options.</summary>
-    class function Create(const ASecretKey: string): TJwtOptions; static;
+    class function Create: TJwtOptions; overload; static;
+    /// <summary>Creates JWT options with a secret key.</summary>
+    class function Create(const ASecretKey: string): TJwtOptions; overload; static;
   end;
 
   /// <summary>
@@ -143,8 +145,12 @@ type
     FInitialized: Boolean;
     procedure EnsureInitialized(const ASecretKey: string = '');
   public
+    /// <summary>Creates a new JWT options builder.</summary>
+    class function Create: TJwtOptionsBuilder; overload; static;
     /// <summary>Creates a new JWT options builder with the given secret.</summary>
-    class function Create(const ASecretKey: string): TJwtOptionsBuilder; static;
+    class function Create(const ASecretKey: string): TJwtOptionsBuilder; overload; static;
+    /// <summary>Sets the secret key.</summary>
+    function SecretKey(const ASecret: string): TJwtOptionsBuilder;
     /// <summary>Sets the token issuer.</summary>
     function Issuer(const AIssuer: string): TJwtOptionsBuilder;
     /// <summary>Sets the token audience.</summary>
@@ -235,6 +241,9 @@ type
     /// <summary>Public Key.</summary>
     property PublicKey: string read FPublicKey write FPublicKey;
   end;
+
+/// <summary>Factory function returning a fluent builder for TJwtOptions.</summary>
+function JwtOptions(const ASecretKey: string = ''): TJwtOptionsBuilder;
 
 implementation
 
@@ -757,6 +766,11 @@ end;
 
 { TJwtOptions }
 
+class function TJwtOptions.Create: TJwtOptions;
+begin
+  Result := TJwtOptions.Create('');
+end;
+
 class function TJwtOptions.Create(const ASecretKey: string): TJwtOptions;
 begin
   Result.SecretKey := ASecretKey;
@@ -778,10 +792,22 @@ begin
   end;
 end;
 
+class function TJwtOptionsBuilder.Create: TJwtOptionsBuilder;
+begin
+  Result := TJwtOptionsBuilder.Create('');
+end;
+
 class function TJwtOptionsBuilder.Create(const ASecretKey: string): TJwtOptionsBuilder;
 begin
   Result.FOptions := TJwtOptions.Create(ASecretKey);
   Result.FInitialized := True;
+end;
+
+function TJwtOptionsBuilder.SecretKey(const ASecret: string): TJwtOptionsBuilder;
+begin
+  EnsureInitialized;
+  FOptions.SecretKey := ASecret;
+  Result := Self;
 end;
 
 function TJwtOptionsBuilder.Issuer(const AIssuer: string): TJwtOptionsBuilder;
@@ -843,6 +869,14 @@ end;
 class operator TJwtOptionsBuilder.Implicit(const ABuilder: TJwtOptionsBuilder): TJwtOptions;
 begin
   Result := ABuilder.FOptions;
+end;
+
+function JwtOptions(const ASecretKey: string = ''): TJwtOptionsBuilder;
+begin
+  if ASecretKey <> '' then
+    Result := TJwtOptionsBuilder.Create(ASecretKey)
+  else
+    Result := TJwtOptionsBuilder.Create;
 end;
 
 { TJwtOptionsHelper }

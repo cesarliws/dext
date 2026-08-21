@@ -284,6 +284,10 @@ type
     function Eval(const AScript: string; const AKeys: TArray<string> = []; const AArgs: TArray<string> = []): TDextRedisValue;
   end;
 
+  TDextTLSOptions = Dext.Net.Security.TDextTLSOptions;
+  TDextTLSOptionsBuilder = Dext.Net.Security.TDextTLSOptionsBuilder;
+  TDextTLSBuilder = Dext.Net.Security.TDextTLSBuilder;
+
 /// <summary> Registers the Redis client in the Dependency Injection container. </summary>
 procedure RegisterRedisClient(const AServices: IServiceCollection; const AHost: string = 'localhost'; APort: Word = 6379);
 

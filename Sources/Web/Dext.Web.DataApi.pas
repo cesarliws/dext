@@ -68,6 +68,23 @@ type
     FSql: string;
   public
     constructor Create;
+    function Allow(AMethods: TApiMethods): TDataApiOptions;
+    function RequireTenant(Value: Boolean = True): TDataApiOptions;
+    function RequireAuth(Value: Boolean = True): TDataApiOptions;
+    function RequireRole(const ARoles: string): TDataApiOptions;
+    function RequireReadRole(const ARoles: string): TDataApiOptions;
+    function RequireWriteRole(const ARoles: string): TDataApiOptions;
+    function UseSnakeCase: TDataApiOptions;
+    function UseCamelCase: TDataApiOptions;
+    function UseSwagger(Value: Boolean = True): TDataApiOptions;
+    function Tag(const ATag: string): TDataApiOptions;
+    function Description(const ADescription: string): TDataApiOptions;
+    function DbContext(AContextClass: TClass): TDataApiOptions; overload;
+    function DbContext<TCtx: class>: TDataApiOptions; overload;
+    function UseSql(const ASql: string): TDataApiOptions;
+    function EnumsAsStrings: TDataApiOptions;
+    function EnumsAsNumbers: TDataApiOptions;
+
     property Sql: string read FSql write FSql;
     property AllowedMethods: TApiMethods read FAllowedMethods write FAllowedMethods;
     property TenantIdRequired: Boolean read FTenantIdRequired write FTenantIdRequired;
@@ -85,6 +102,47 @@ type
     class constructor Create;
     class destructor Destroy;
     class function Defaults: TDataApiOptions;
+  end;
+
+  /// <summary>
+  ///   Fluent builder for configuring Data API options.
+  /// </summary>
+  TDataApiOptionsBuilder = record
+  private
+    FAllowedMethods: TApiMethods;
+    FTenantIdRequired: Boolean;
+    FRequireAuthentication: Boolean;
+    FRolesForRead: string;
+    FRolesForWrite: string;
+    FNamingStrategy: TCaseStyle;
+    FEnumStyle: TEnumStyle;
+    FContextClass: TClass;
+    FEnableSwagger: Boolean;
+    FSwaggerTag: string;
+    FSwaggerDescription: string;
+    FSql: string;
+  public
+    class function Create: TDataApiOptionsBuilder; static;
+    function Allow(AMethods: TApiMethods): TDataApiOptionsBuilder;
+    function RequireTenant(Value: Boolean = True): TDataApiOptionsBuilder;
+    function RequireAuth(Value: Boolean = True): TDataApiOptionsBuilder;
+    function RequireRole(const ARoles: string): TDataApiOptionsBuilder;
+    function RequireReadRole(const ARoles: string): TDataApiOptionsBuilder;
+    function RequireWriteRole(const ARoles: string): TDataApiOptionsBuilder;
+    function UseSnakeCase: TDataApiOptionsBuilder;
+    function UseCamelCase: TDataApiOptionsBuilder;
+    function UseSwagger(Value: Boolean = True): TDataApiOptionsBuilder;
+    function Tag(const ATag: string): TDataApiOptionsBuilder;
+    function Description(const ADescription: string): TDataApiOptionsBuilder;
+    function DbContext(AContextClass: TClass): TDataApiOptionsBuilder; overload;
+    function DbContext<TCtx: class>: TDataApiOptionsBuilder; overload;
+    function ContextClass(AContextClass: TClass): TDataApiOptionsBuilder;
+    function UseSql(const ASql: string): TDataApiOptionsBuilder;
+    function EnumsAsStrings: TDataApiOptionsBuilder;
+    function EnumsAsNumbers: TDataApiOptionsBuilder;
+
+    function Build: TDataApiOptions;
+    class operator Implicit(const ABuilder: TDataApiOptionsBuilder): TDataApiOptions;
   end;
 
   /// <summary>
@@ -112,17 +170,18 @@ type
   public
     // Fluent configuration
     function Allow(AMethods: TApiMethods): TDataApiOptions<T>;
-    function RequireTenant: TDataApiOptions<T>;
-    function RequireAuth: TDataApiOptions<T>;
+    function RequireTenant(Value: Boolean = True): TDataApiOptions<T>;
+    function RequireAuth(Value: Boolean = True): TDataApiOptions<T>;
     function RequireRole(const ARoles: string): TDataApiOptions<T>;
     function RequireReadRole(const ARoles: string): TDataApiOptions<T>;
     function RequireWriteRole(const ARoles: string): TDataApiOptions<T>;
     function UseSnakeCase: TDataApiOptions<T>;
     function UseCamelCase: TDataApiOptions<T>;
-    function UseSwagger: TDataApiOptions<T>;
+    function UseSwagger(Value: Boolean = True): TDataApiOptions<T>;
     function Tag(const ATag: string): TDataApiOptions<T>;
     function Description(const ADescription: string): TDataApiOptions<T>;
-    function DbContext<TCtx: class>: TDataApiOptions<T>;
+    function DbContext(AContextClass: TClass): TDataApiOptions<T>; overload;
+    function DbContext<TCtx: class>: TDataApiOptions<T>; overload;
     function UseSql(const ASql: string): TDataApiOptions<T>;
     function EnumsAsStrings: TDataApiOptions<T>;
     function EnumsAsNumbers: TDataApiOptions<T>;
@@ -138,6 +197,7 @@ type
     FDbContext: TDbContext;
     FEntityClass: TClass;
     FSerializer: TDextSerializer;
+
     procedure RegisterRoutes(const ABuilder: IApplicationBuilder);
     function CheckAuthorization(const Context: IHttpContext; AIsWrite: Boolean): IResult;
     function GetJsonSettings: TJsonSettings;
@@ -178,9 +238,8 @@ type
     class procedure MapAll(const ABuilder: IApplicationBuilder);
   end;
 
-
-/// <summary>Factory function for Data API options to simplify syntax.</summary>
-function DataApiOptions: TDataApiOptions<TObject>;
+/// <summary>Factory function returning a fluent builder for Data API options.</summary>
+function DataApiOptions: TDataApiOptionsBuilder;
 
 implementation
 
@@ -243,6 +302,252 @@ begin
   Result := FDefaults;
 end;
 
+function TDataApiOptions.Allow(AMethods: TApiMethods): TDataApiOptions;
+begin
+  FAllowedMethods := AMethods;
+  Result := Self;
+end;
+
+function TDataApiOptions.RequireTenant(Value: Boolean): TDataApiOptions;
+begin
+  FTenantIdRequired := Value;
+  Result := Self;
+end;
+
+function TDataApiOptions.RequireAuth(Value: Boolean): TDataApiOptions;
+begin
+  FRequireAuthentication := Value;
+  Result := Self;
+end;
+
+function TDataApiOptions.RequireRole(const ARoles: string): TDataApiOptions;
+begin
+  FRequireAuthentication := True;
+  FRolesForRead := ARoles;
+  FRolesForWrite := ARoles;
+  Result := Self;
+end;
+
+function TDataApiOptions.RequireReadRole(const ARoles: string): TDataApiOptions;
+begin
+  FRequireAuthentication := True;
+  FRolesForRead := ARoles;
+  Result := Self;
+end;
+
+function TDataApiOptions.RequireWriteRole(const ARoles: string): TDataApiOptions;
+begin
+  FRequireAuthentication := True;
+  FRolesForWrite := ARoles;
+  Result := Self;
+end;
+
+function TDataApiOptions.UseSnakeCase: TDataApiOptions;
+begin
+  FNamingStrategy := TCaseStyle.SnakeCase;
+  Result := Self;
+end;
+
+function TDataApiOptions.UseCamelCase: TDataApiOptions;
+begin
+  FNamingStrategy := TCaseStyle.CamelCase;
+  Result := Self;
+end;
+
+function TDataApiOptions.UseSwagger(Value: Boolean): TDataApiOptions;
+begin
+  FEnableSwagger := Value;
+  Result := Self;
+end;
+
+function TDataApiOptions.Tag(const ATag: string): TDataApiOptions;
+begin
+  FSwaggerTag := ATag;
+  Result := Self;
+end;
+
+function TDataApiOptions.Description(const ADescription: string): TDataApiOptions;
+begin
+  FSwaggerDescription := ADescription;
+  Result := Self;
+end;
+
+function TDataApiOptions.DbContext(AContextClass: TClass): TDataApiOptions;
+begin
+  FContextClass := AContextClass;
+  Result := Self;
+end;
+
+function TDataApiOptions.DbContext<TCtx>: TDataApiOptions;
+begin
+  FContextClass := TCtx;
+  Result := Self;
+end;
+
+function TDataApiOptions.UseSql(const ASql: string): TDataApiOptions;
+begin
+  FSql := ASql;
+  Result := Self;
+end;
+
+function TDataApiOptions.EnumsAsStrings: TDataApiOptions;
+begin
+  FEnumStyle := TEnumStyle.AsString;
+  Result := Self;
+end;
+
+function TDataApiOptions.EnumsAsNumbers: TDataApiOptions;
+begin
+  FEnumStyle := TEnumStyle.AsNumber;
+  Result := Self;
+end;
+
+{ TDataApiOptionsBuilder }
+
+class function TDataApiOptionsBuilder.Create: TDataApiOptionsBuilder;
+begin
+  Result.FAllowedMethods := AllApiMethods;
+  Result.FTenantIdRequired := False;
+  Result.FRequireAuthentication := False;
+  Result.FRolesForRead := '';
+  Result.FRolesForWrite := '';
+  Result.FNamingStrategy := TCaseStyle.CaseInherit;
+  Result.FEnumStyle := TEnumStyle.EnumInherit;
+  Result.FContextClass := nil;
+  Result.FEnableSwagger := True;
+  Result.FSwaggerTag := '';
+  Result.FSwaggerDescription := '';
+  Result.FSql := '';
+end;
+
+function TDataApiOptionsBuilder.Allow(AMethods: TApiMethods): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FAllowedMethods := AMethods;
+end;
+
+function TDataApiOptionsBuilder.RequireTenant(Value: Boolean): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FTenantIdRequired := Value;
+end;
+
+function TDataApiOptionsBuilder.RequireAuth(Value: Boolean): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FRequireAuthentication := Value;
+end;
+
+function TDataApiOptionsBuilder.RequireRole(const ARoles: string): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FRequireAuthentication := True;
+  Result.FRolesForRead := ARoles;
+  Result.FRolesForWrite := ARoles;
+end;
+
+function TDataApiOptionsBuilder.RequireReadRole(const ARoles: string): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FRequireAuthentication := True;
+  Result.FRolesForRead := ARoles;
+end;
+
+function TDataApiOptionsBuilder.RequireWriteRole(const ARoles: string): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FRequireAuthentication := True;
+  Result.FRolesForWrite := ARoles;
+end;
+
+function TDataApiOptionsBuilder.UseSnakeCase: TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FNamingStrategy := TCaseStyle.SnakeCase;
+end;
+
+function TDataApiOptionsBuilder.UseCamelCase: TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FNamingStrategy := TCaseStyle.CamelCase;
+end;
+
+function TDataApiOptionsBuilder.UseSwagger(Value: Boolean): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FEnableSwagger := Value;
+end;
+
+function TDataApiOptionsBuilder.Tag(const ATag: string): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FSwaggerTag := ATag;
+end;
+
+function TDataApiOptionsBuilder.Description(const ADescription: string): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FSwaggerDescription := ADescription;
+end;
+
+function TDataApiOptionsBuilder.DbContext(AContextClass: TClass): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FContextClass := AContextClass;
+end;
+
+function TDataApiOptionsBuilder.DbContext<TCtx>: TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FContextClass := TCtx;
+end;
+
+function TDataApiOptionsBuilder.ContextClass(AContextClass: TClass): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FContextClass := AContextClass;
+end;
+
+function TDataApiOptionsBuilder.UseSql(const ASql: string): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FSql := ASql;
+end;
+
+function TDataApiOptionsBuilder.EnumsAsStrings: TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FEnumStyle := TEnumStyle.AsString;
+end;
+
+function TDataApiOptionsBuilder.EnumsAsNumbers: TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FEnumStyle := TEnumStyle.AsNumber;
+end;
+
+function TDataApiOptionsBuilder.Build: TDataApiOptions;
+begin
+  Result := TDataApiOptions.Create;
+  Result.AllowedMethods := FAllowedMethods;
+  Result.TenantIdRequired := FTenantIdRequired;
+  Result.RequireAuthentication := FRequireAuthentication;
+  Result.RolesForRead := FRolesForRead;
+  Result.RolesForWrite := FRolesForWrite;
+  Result.NamingStrategy := FNamingStrategy;
+  Result.EnumStyle := FEnumStyle;
+  Result.ContextClass := FContextClass;
+  Result.EnableSwagger := FEnableSwagger;
+  Result.SwaggerTag := FSwaggerTag;
+  Result.SwaggerDescription := FSwaggerDescription;
+  Result.Sql := FSql;
+end;
+
+class operator TDataApiOptionsBuilder.Implicit(const ABuilder: TDataApiOptionsBuilder): TDataApiOptions;
+begin
+  Result := ABuilder.Build;
+end;
+
 { TDataApiOptions<T> }
 
 function TDataApiOptions<T>.Allow(AMethods: TApiMethods): TDataApiOptions<T>;
@@ -251,15 +556,15 @@ begin
   Result := Self;
 end;
 
-function TDataApiOptions<T>.RequireTenant: TDataApiOptions<T>;
+function TDataApiOptions<T>.RequireTenant(Value: Boolean): TDataApiOptions<T>;
 begin
-  FTenantIdRequired := True;
+  FTenantIdRequired := Value;
   Result := Self;
 end;
 
-function TDataApiOptions<T>.RequireAuth: TDataApiOptions<T>;
+function TDataApiOptions<T>.RequireAuth(Value: Boolean): TDataApiOptions<T>;
 begin
-  FRequireAuthentication := True;
+  FRequireAuthentication := Value;
   Result := Self;
 end;
 
@@ -297,9 +602,9 @@ begin
   Result := Self;
 end;
 
-function TDataApiOptions<T>.UseSwagger: TDataApiOptions<T>;
+function TDataApiOptions<T>.UseSwagger(Value: Boolean): TDataApiOptions<T>;
 begin
-  FEnableSwagger := True;
+  FEnableSwagger := Value;
   Result := Self;
 end;
 
@@ -312,6 +617,12 @@ end;
 function TDataApiOptions<T>.Description(const ADescription: string): TDataApiOptions<T>;
 begin
   FSwaggerDescription := ADescription;
+  Result := Self;
+end;
+
+function TDataApiOptions<T>.DbContext(AContextClass: TClass): TDataApiOptions<T>;
+begin
+  FContextClass := AContextClass;
   Result := Self;
 end;
 
@@ -339,9 +650,9 @@ begin
   Result := Self;
 end;
 
-function DataApiOptions: TDataApiOptions<TObject>;
+function DataApiOptions: TDataApiOptionsBuilder;
 begin
-  Result := TDataApiOptions<TObject>.Create;
+  Result := TDataApiOptionsBuilder.Create;
 end;
 
 { DataApiAttribute }

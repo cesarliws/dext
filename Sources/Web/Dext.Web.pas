@@ -557,6 +557,13 @@ type
   // Dext.WebHost
   TWebHostBuilder = Dext.WebHost.TWebHostBuilder;
 
+  {$IFDEF DEXT_ENABLE_ENTITY}
+  // Dext.Web.DataApi
+  TDataApiOptions = Dext.Web.DataApi.TDataApiOptions;
+  TDataApiOptionsBuilder = Dext.Web.DataApi.TDataApiOptionsBuilder;
+  TDataApi = Dext.Web.DataApi.TDataApi;
+  {$ENDIF}
+
 const
   // Dext.HealthChecks
   Healthy = Dext.HealthChecks.Healthy;
@@ -1084,13 +1091,12 @@ function CompressionOptions: TCompressionBuilder;
 function ExceptionHandlerOptions: TExceptionHandlerBuilder;
 function HttpLoggingOptions: THttpLoggingBuilder;
 function SecurityHeadersOptions: TSecurityHeadersBuilder;
-function JwtOptions(const ASecretKey: string): TJwtOptionsBuilder;
 function ResponseCacheOptions: TResponseCacheBuilder;
 function SwaggerOptions: TOpenAPIBuilder;
 function ViewOptions: TViewOptionsBuilder;
-
+function JwtOptions(const ASecretKey: string = ''): TJwtOptionsBuilder;
 {$IFDEF DEXT_ENABLE_ENTITY}
-function DataApiOptions: TDataApiOptions<TObject>;
+function DataApiOptions: TDataApiOptionsBuilder;
 {$ENDIF}
 
 implementation
@@ -1130,11 +1136,6 @@ begin
   Result := TSecurityHeadersBuilder.Create;
 end;
 
-function JwtOptions(const ASecretKey: string): TJwtOptionsBuilder;
-begin
-  Result := TJwtOptionsBuilder.Create(ASecretKey);
-end;
-
 function ResponseCacheOptions: TResponseCacheBuilder;
 begin
   Result := TResponseCacheBuilder.Create;
@@ -1150,8 +1151,13 @@ begin
   Result := TViewOptionsBuilder.Create;
 end;
 
+function JwtOptions(const ASecretKey: string = ''): TJwtOptionsBuilder;
+begin
+  Result := Dext.Auth.JWT.JwtOptions(ASecretKey);
+end;
+
 {$IFDEF DEXT_ENABLE_ENTITY}
-function DataApiOptions: TDataApiOptions<TObject>;
+function DataApiOptions: TDataApiOptionsBuilder;
 begin
   Result := Dext.Web.DataApi.DataApiOptions;
 end;

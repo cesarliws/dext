@@ -53,6 +53,34 @@ type
     WorkerCount: Integer;
     PollIntervalInSeconds: Integer;
     constructor Create;
+    function UseSQLite(const AConnectionString: string = 'dext_jobs.db'): TBackgroundJobsOptions;
+    function UseInMemory: TBackgroundJobsOptions;
+    function Workers(Value: Integer): TBackgroundJobsOptions;
+    function PollInterval(Seconds: Integer): TBackgroundJobsOptions;
+  end;
+
+  /// <summary>
+  ///   Fluent builder for configuring background jobs runtime and storage options.
+  /// </summary>
+  TBackgroundJobsOptionsBuilder = record
+  private
+    FProvider: string;
+    FConnectionString: string;
+    FWorkerCount: Integer;
+    FPollIntervalInSeconds: Integer;
+  public
+    class function Create: TBackgroundJobsOptionsBuilder; static;
+    function Provider(const Value: string): TBackgroundJobsOptionsBuilder;
+    function ConnectionString(const Value: string): TBackgroundJobsOptionsBuilder;
+    function UseSQLite(const AConnectionString: string = 'dext_jobs.db'): TBackgroundJobsOptionsBuilder;
+    function UseInMemory: TBackgroundJobsOptionsBuilder;
+    function Workers(Value: Integer): TBackgroundJobsOptionsBuilder;
+    function WorkerCount(Value: Integer): TBackgroundJobsOptionsBuilder;
+    function PollInterval(Seconds: Integer): TBackgroundJobsOptionsBuilder;
+    function PollIntervalInSeconds(Seconds: Integer): TBackgroundJobsOptionsBuilder;
+
+    function Build: TBackgroundJobsOptions;
+    class operator Implicit(const ABuilder: TBackgroundJobsOptionsBuilder): TBackgroundJobsOptions;
   end;
 
   /// <summary>
@@ -75,8 +103,24 @@ type
 
   TDextBackgroundJobsServiceExtensions = class
   public
-    class procedure AddBackgroundJobs(const Services: IServiceCollection; const AOptions: TBackgroundJobsOptions);
+    class procedure AddBackgroundJobs(const Services: IServiceCollection; const AOptions: TBackgroundJobsOptions); overload;
+    class procedure AddBackgroundJobs(const Services: IServiceCollection; const ABuilder: TBackgroundJobsOptionsBuilder); overload;
+    class procedure AddBackgroundJobs(const Services: IServiceCollection; AConfigurator: TProc<TBackgroundJobsOptionsBuilder>); overload;
+    class procedure AddBackgroundJobs(const Services: IServiceCollection; AConfigurator: TProc<TBackgroundJobsOptions>); overload;
   end;
+
+  TDextBackgroundJobsServicesHelper = record helper for TDextServices
+    function AddBackgroundJobs(const AOptions: TBackgroundJobsOptions): TDextServices; overload;
+    function AddBackgroundJobs(const ABuilder: TBackgroundJobsOptionsBuilder): TDextServices; overload;
+    function AddBackgroundJobs(AConfigurator: TProc<TBackgroundJobsOptionsBuilder>): TDextServices; overload;
+    function AddBackgroundJobs(AConfigurator: TProc<TBackgroundJobsOptions>): TDextServices; overload;
+  end;
+
+/// <summary>
+///   Factory function returning a fluent builder for TBackgroundJobsOptions.
+/// </summary>
+function BackgroundJobsOptions: TBackgroundJobsOptionsBuilder; overload;
+function BackgroundJobsOptions(const AProvider: string; const AConnectionString: string = ''): TBackgroundJobsOptionsBuilder; overload;
 
 implementation
 
@@ -119,6 +163,118 @@ begin
   ConnectionString := '';
   WorkerCount := 4;
   PollIntervalInSeconds := 5;
+end;
+
+function TBackgroundJobsOptions.UseSQLite(const AConnectionString: string): TBackgroundJobsOptions;
+begin
+  Result := Self;
+  Provider := 'SQLite';
+  ConnectionString := AConnectionString;
+end;
+
+function TBackgroundJobsOptions.UseInMemory: TBackgroundJobsOptions;
+begin
+  Result := Self;
+  Provider := 'InMemory';
+  ConnectionString := '';
+end;
+
+function TBackgroundJobsOptions.Workers(Value: Integer): TBackgroundJobsOptions;
+begin
+  Result := Self;
+  WorkerCount := Value;
+end;
+
+function TBackgroundJobsOptions.PollInterval(Seconds: Integer): TBackgroundJobsOptions;
+begin
+  Result := Self;
+  PollIntervalInSeconds := Seconds;
+end;
+
+{ TBackgroundJobsOptionsBuilder }
+
+class function TBackgroundJobsOptionsBuilder.Create: TBackgroundJobsOptionsBuilder;
+begin
+  Result.FProvider := 'InMemory';
+  Result.FConnectionString := '';
+  Result.FWorkerCount := 4;
+  Result.FPollIntervalInSeconds := 5;
+end;
+
+function TBackgroundJobsOptionsBuilder.Provider(const Value: string): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FProvider := Value;
+end;
+
+function TBackgroundJobsOptionsBuilder.ConnectionString(const Value: string): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FConnectionString := Value;
+end;
+
+function TBackgroundJobsOptionsBuilder.UseSQLite(const AConnectionString: string): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FProvider := 'SQLite';
+  Result.FConnectionString := AConnectionString;
+end;
+
+function TBackgroundJobsOptionsBuilder.UseInMemory: TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FProvider := 'InMemory';
+  Result.FConnectionString := '';
+end;
+
+function TBackgroundJobsOptionsBuilder.Workers(Value: Integer): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FWorkerCount := Value;
+end;
+
+function TBackgroundJobsOptionsBuilder.WorkerCount(Value: Integer): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FWorkerCount := Value;
+end;
+
+function TBackgroundJobsOptionsBuilder.PollInterval(Seconds: Integer): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FPollIntervalInSeconds := Seconds;
+end;
+
+function TBackgroundJobsOptionsBuilder.PollIntervalInSeconds(Seconds: Integer): TBackgroundJobsOptionsBuilder;
+begin
+  Result := Self;
+  Result.FPollIntervalInSeconds := Seconds;
+end;
+
+function TBackgroundJobsOptionsBuilder.Build: TBackgroundJobsOptions;
+begin
+  Result := TBackgroundJobsOptions.Create;
+  Result.Provider := FProvider;
+  Result.ConnectionString := FConnectionString;
+  Result.WorkerCount := FWorkerCount;
+  Result.PollIntervalInSeconds := FPollIntervalInSeconds;
+end;
+
+class operator TBackgroundJobsOptionsBuilder.Implicit(const ABuilder: TBackgroundJobsOptionsBuilder): TBackgroundJobsOptions;
+begin
+  Result := ABuilder.Build;
+end;
+
+function BackgroundJobsOptions: TBackgroundJobsOptionsBuilder;
+begin
+  Result := TBackgroundJobsOptionsBuilder.Create;
+end;
+
+function BackgroundJobsOptions(const AProvider: string; const AConnectionString: string): TBackgroundJobsOptionsBuilder;
+begin
+  Result := TBackgroundJobsOptionsBuilder.Create;
+  Result.FProvider := AProvider;
+  Result.FConnectionString := AConnectionString;
 end;
 
 { TJobParamSerializer }
@@ -254,6 +410,60 @@ begin
       Result := TJobClient.Create(Storage);
     end
   );
+end;
+
+class procedure TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(
+  const Services: IServiceCollection; const ABuilder: TBackgroundJobsOptionsBuilder);
+begin
+  AddBackgroundJobs(Services, ABuilder.Build);
+end;
+
+class procedure TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(
+  const Services: IServiceCollection; AConfigurator: TProc<TBackgroundJobsOptionsBuilder>);
+var
+  Builder: TBackgroundJobsOptionsBuilder;
+begin
+  Builder := TBackgroundJobsOptionsBuilder.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Builder);
+  AddBackgroundJobs(Services, Builder.Build);
+end;
+
+class procedure TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(
+  const Services: IServiceCollection; AConfigurator: TProc<TBackgroundJobsOptions>);
+var
+  Options: TBackgroundJobsOptions;
+begin
+  Options := TBackgroundJobsOptions.Create;
+  if Assigned(AConfigurator) then
+    AConfigurator(Options);
+  AddBackgroundJobs(Services, Options);
+end;
+
+{ TDextBackgroundJobsServicesHelper }
+
+function TDextBackgroundJobsServicesHelper.AddBackgroundJobs(const AOptions: TBackgroundJobsOptions): TDextServices;
+begin
+  TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(Self.Unwrap, AOptions);
+  Result := Self;
+end;
+
+function TDextBackgroundJobsServicesHelper.AddBackgroundJobs(const ABuilder: TBackgroundJobsOptionsBuilder): TDextServices;
+begin
+  TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(Self.Unwrap, ABuilder);
+  Result := Self;
+end;
+
+function TDextBackgroundJobsServicesHelper.AddBackgroundJobs(AConfigurator: TProc<TBackgroundJobsOptionsBuilder>): TDextServices;
+begin
+  TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(Self.Unwrap, AConfigurator);
+  Result := Self;
+end;
+
+function TDextBackgroundJobsServicesHelper.AddBackgroundJobs(AConfigurator: TProc<TBackgroundJobsOptions>): TDextServices;
+begin
+  TDextBackgroundJobsServiceExtensions.AddBackgroundJobs(Self.Unwrap, AConfigurator);
+  Result := Self;
 end;
 
 end.

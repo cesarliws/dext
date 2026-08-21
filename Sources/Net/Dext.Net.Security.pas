@@ -62,6 +62,40 @@ type
     class function DefaultServer(const ACertFile, AKeyFile: string): TDextTLSOptions; static;
   end;
 
+  /// <summary>Fluent builder for SSL/TLS configuration options.</summary>
+  TDextTLSOptionsBuilder = record
+  private
+    FOptions: TDextTLSOptions;
+  public
+    class function Create(AEnabled: Boolean = True; const AHost: string = ''): TDextTLSOptionsBuilder; static;
+    class function Client(const AHost: string = ''): TDextTLSOptionsBuilder; static;
+    class function Server(const ACertFile: string = ''; const AKeyFile: string = ''): TDextTLSOptionsBuilder; static;
+
+    function Host(const Value: string): TDextTLSOptionsBuilder;
+    function Provider(const Value: string): TDextTLSOptionsBuilder;
+    function UseOpenSSL: TDextTLSOptionsBuilder;
+    function UseHttpSys: TDextTLSOptionsBuilder;
+    function UseIndy: TDextTLSOptionsBuilder;
+    function CertificateFile(const Value: string): TDextTLSOptionsBuilder;
+    function PrivateKeyFile(const Value: string): TDextTLSOptionsBuilder;
+    function CAFile(const Value: string): TDextTLSOptionsBuilder;
+    function CertFile(const Value: string): TDextTLSOptionsBuilder;
+    function KeyFile(const Value: string): TDextTLSOptionsBuilder;
+    function RootCertFile(const Value: string): TDextTLSOptionsBuilder;
+    function CertHash(const Value: string): TDextTLSOptionsBuilder;
+    function StoreName(const Value: string): TDextTLSOptionsBuilder;
+    function Protocols(Value: TDextTLSVersions): TDextTLSOptionsBuilder;
+    function VerifyServerCertificate(Value: Boolean = True): TDextTLSOptionsBuilder;
+    function AllowSelfSigned(Value: Boolean = True): TDextTLSOptionsBuilder;
+    function ALPN(const AProtocols: array of string): TDextTLSOptionsBuilder;
+    function Mode(Value: TDextTLSMode): TDextTLSOptionsBuilder;
+
+    function Build: TDextTLSOptions;
+    class operator Implicit(const ABuilder: TDextTLSOptionsBuilder): TDextTLSOptions;
+  end;
+
+  TDextTLSBuilder = TDextTLSOptionsBuilder;
+
   /// <summary>Status of asynchronous TLS engine processing.</summary>
   TDextTLSEngineStatus = (
     tlsHandshakeNeedRead,
@@ -130,6 +164,11 @@ type
     function Write(const ABuffer: Pointer; ACount: Longint): Longint;
   end;
 
+/// <summary>Factory function returning a fluent builder for SSL/TLS options.</summary>
+function TlsOptions: TDextTLSOptionsBuilder; overload;
+function TlsOptions(const AHost: string): TDextTLSOptionsBuilder; overload;
+function TlsOptions(AEnabled: Boolean; const AHost: string = ''): TDextTLSOptionsBuilder; overload;
+
 implementation
 
 { TDextTLSOptions }
@@ -154,6 +193,163 @@ begin
   Result.Protocols := [tls1_2, tls1_3];
   Result.StoreName := 'MY';
   Result.Provider := 'Auto';
+end;
+
+{ TDextTLSOptionsBuilder }
+
+class function TDextTLSOptionsBuilder.Create(AEnabled: Boolean; const AHost: string): TDextTLSOptionsBuilder;
+begin
+  Result.FOptions := TDextTLSOptions.DefaultClient;
+  Result.FOptions.Enabled := AEnabled;
+  Result.FOptions.Host := AHost;
+end;
+
+class function TDextTLSOptionsBuilder.Client(const AHost: string): TDextTLSOptionsBuilder;
+begin
+  Result.FOptions := TDextTLSOptions.DefaultClient;
+  Result.FOptions.Host := AHost;
+end;
+
+class function TDextTLSOptionsBuilder.Server(const ACertFile, AKeyFile: string): TDextTLSOptionsBuilder;
+begin
+  Result.FOptions := TDextTLSOptions.DefaultServer(ACertFile, AKeyFile);
+end;
+
+function TDextTLSOptionsBuilder.Host(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Host := Value;
+end;
+
+function TDextTLSOptionsBuilder.Provider(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Provider := Value;
+end;
+
+function TDextTLSOptionsBuilder.UseOpenSSL: TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Provider := 'OpenSSL';
+end;
+
+function TDextTLSOptionsBuilder.UseHttpSys: TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Provider := 'HttpSys';
+end;
+
+function TDextTLSOptionsBuilder.UseIndy: TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Provider := 'Indy';
+end;
+
+function TDextTLSOptionsBuilder.CertificateFile(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.CertFile := Value;
+end;
+
+function TDextTLSOptionsBuilder.PrivateKeyFile(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.KeyFile := Value;
+end;
+
+function TDextTLSOptionsBuilder.CAFile(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.RootCertFile := Value;
+end;
+
+function TDextTLSOptionsBuilder.CertFile(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.CertFile := Value;
+end;
+
+function TDextTLSOptionsBuilder.KeyFile(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.KeyFile := Value;
+end;
+
+function TDextTLSOptionsBuilder.RootCertFile(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.RootCertFile := Value;
+end;
+
+function TDextTLSOptionsBuilder.CertHash(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.CertHash := Value;
+end;
+
+function TDextTLSOptionsBuilder.StoreName(const Value: string): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.StoreName := Value;
+end;
+
+function TDextTLSOptionsBuilder.Protocols(Value: TDextTLSVersions): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Protocols := Value;
+end;
+
+function TDextTLSOptionsBuilder.VerifyServerCertificate(Value: Boolean): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.VerifyServerCertificate := Value;
+end;
+
+function TDextTLSOptionsBuilder.AllowSelfSigned(Value: Boolean): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.VerifyServerCertificate := not Value;
+end;
+
+function TDextTLSOptionsBuilder.ALPN(const AProtocols: array of string): TDextTLSOptionsBuilder;
+var
+  I: Integer;
+begin
+  Result := Self;
+  SetLength(Result.FOptions.ALPNProtocols, Length(AProtocols));
+  for I := 0 to High(AProtocols) do
+    Result.FOptions.ALPNProtocols[I] := AProtocols[I];
+end;
+
+function TDextTLSOptionsBuilder.Mode(Value: TDextTLSMode): TDextTLSOptionsBuilder;
+begin
+  Result := Self;
+  Result.FOptions.Mode := Value;
+end;
+
+function TDextTLSOptionsBuilder.Build: TDextTLSOptions;
+begin
+  Result := FOptions;
+end;
+
+class operator TDextTLSOptionsBuilder.Implicit(const ABuilder: TDextTLSOptionsBuilder): TDextTLSOptions;
+begin
+  Result := ABuilder.FOptions;
+end;
+
+function TlsOptions: TDextTLSOptionsBuilder;
+begin
+  Result := TDextTLSOptionsBuilder.Client;
+end;
+
+function TlsOptions(const AHost: string): TDextTLSOptionsBuilder;
+begin
+  Result := TDextTLSOptionsBuilder.Client(AHost);
+end;
+
+function TlsOptions(AEnabled: Boolean; const AHost: string): TDextTLSOptionsBuilder;
+begin
+  Result := TDextTLSOptionsBuilder.Create(AEnabled, AHost);
 end;
 
 end.
