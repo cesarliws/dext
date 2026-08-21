@@ -54,8 +54,24 @@ class TJobStorageRegistry {    +Create()
 }
 TObject <|-- TJobStorageRegistry
 class TBackgroundJobsOptions {    +Create()
+    +UseSQLite()
+    +UseInMemory()
+    +Workers()
+    +PollInterval()
 }
 TObject <|-- TBackgroundJobsOptions
+class TBackgroundJobsOptionsBuilder {    +Create()
+    +Provider()
+    +ConnectionString()
+    +UseSQLite()
+    +UseInMemory()
+    +Workers()
+    +WorkerCount()
+    +PollInterval()
+    +PollIntervalInSeconds()
+    +Build()
+    +Implicit()
+}
 class TJobParamSerializer {    +Serialize()
     +Deserialize()
 }
@@ -69,6 +85,8 @@ IJobClient <|.. TJobClient
 class TDextBackgroundJobsServiceExtensions {    +AddBackgroundJobs()
 }
 TObject <|-- TDextBackgroundJobsServiceExtensions
+class TDextBackgroundJobsServicesHelper {    +AddBackgroundJobs()
+}
 </div>
 </div>
 </details>
@@ -89,6 +107,40 @@ TObject <|-- TDextBackgroundJobsServiceExtensions
 <h3>class TBackgroundJobsOptions</h3><a name="TBackgroundJobsOptions"></a><div class="ancestor">Inherits from: TObject</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSQLite(const const: string): TBackgroundJobsOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function UseInMemory: TBackgroundJobsOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function Workers(Value: Integer): TBackgroundJobsOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function PollInterval(Seconds: Integer): TBackgroundJobsOptions</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TBackgroundJobsOptionsBuilder</h3><a name="TBackgroundJobsOptionsBuilder"></a><div class="description">Fluent builder for configuring background jobs runtime and storage options.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create: TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Provider(const const: string): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function ConnectionString(const const: string): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSQLite(const const: string): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseInMemory: TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Workers(Value: Integer): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function WorkerCount(Value: Integer): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function PollInterval(Seconds: Integer): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function PollIntervalInSeconds(Seconds: Integer): TBackgroundJobsOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TBackgroundJobsOptions</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Implicit(const const: TBackgroundJobsOptionsBuilder)</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -113,8 +165,32 @@ TObject <|-- TDextBackgroundJobsServiceExtensions
 <h3>class TDextBackgroundJobsServiceExtensions</h3><a name="TDextBackgroundJobsServiceExtensions"></a><div class="ancestor">Inherits from: TObject</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">procedure AddBackgroundJobs(const const: IServiceCollection; const const: TBackgroundJobsOptions)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddBackgroundJobs(const const: IServiceCollection; const const: TBackgroundJobsOptionsBuilder)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddBackgroundJobs(const const: IServiceCollection; AConfigurator: TProc)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddBackgroundJobs(const const: IServiceCollection; AConfigurator: TProc)</div></div>
 </div>
 <hr>
+<div class="class-header">
+<h3>record TDextBackgroundJobsServicesHelper</h3><a name="TDextBackgroundJobsServicesHelper"></a></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function AddBackgroundJobs(const const: TBackgroundJobsOptions): TDextServices</div></div>
+<div class="api-item">
+<div class="api-signature">function AddBackgroundJobs(const const: TBackgroundJobsOptionsBuilder): TDextServices</div></div>
+<div class="api-item">
+<div class="api-signature">function AddBackgroundJobs(AConfigurator: TProc): TDextServices</div></div>
+<div class="api-item">
+<div class="api-signature">function AddBackgroundJobs(AConfigurator: TProc): TDextServices</div></div>
+</div>
+<hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function BackgroundJobsOptions: TBackgroundJobsOptionsBuilder</div><div class="description">Factory function returning a fluent builder for TBackgroundJobsOptions.</div></div>
+<div class="api-item">
+<div class="api-signature">function BackgroundJobsOptions(const const: string; const const: string): TBackgroundJobsOptionsBuilder</div></div>
+</div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TJobStorageFactory = Type</div></div>

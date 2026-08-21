@@ -88,6 +88,10 @@ class ISpecification {    +GetExpression()
     +Expression
 }
 class ISpecification~T~ {    +Clone()
+    +AndSpec()
+    +OrSpec()
+    +NotSpec()
+    +IsSatisfiedBy()
 }
 ISpecification <|-- ISpecification~T~
 class IExpressionVisitor {    +Visit()
@@ -188,6 +192,14 @@ class IExpressionVisitor {    +Visit()
 <h3>interface ISpecification&lt;T&gt;</h3><a name="ISpecification_lt_T_gt_"></a><div class="ancestor">Inherits from: ISpecification</div><div class="description">Generic interface for specifications. Encapsulates query logic for an entity type T.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Clone: ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function AndSpec(const const: ISpecification): ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function OrSpec(const const: ISpecification): ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function NotSpec: ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function IsSatisfiedBy(const const: T): Boolean</div></div>
 </div>
 <hr>
 <div class="class-header">

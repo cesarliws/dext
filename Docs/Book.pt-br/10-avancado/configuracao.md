@@ -203,37 +203,64 @@ Config := TConfigurationBuilder.Create
 }
 ```
 
+## Hierarquia de Precedência (Pipeline de 5 Camadas)
+
+O Dext adota o padrão enterprise moderno de configuração (Twelve-Factor App) com 5 camadas de precedência LIFO:
+
+```
+[1] Arquivos Base (appsettings.json / appsettings.yaml)   --> Fallback
+[2] Arquivo de Ambiente (appsettings.{Env}.json / .yaml)   --> Sobrescreve Base
+[3] User Secrets (Somente em ambiente Development)        --> Sobrescreve Arquivo de Ambiente
+[4] Variáveis de Ambiente do S.O.                         --> Sobrescreve Arquivos e Secrets
+[5] Argumentos de Linha de Comando (CLI)                  --> Prioridade Máxima
+```
+
+## Argumentos de Linha de Comando (CLI)
+
+Sobrescreva qualquer parâmetro de configuração diretamente via argumentos de linha de comando no startup da aplicação.
+
+```pascal
+uses
+  Dext.Configuration.CommandLine;
+
+Config := TConfigurationBuilder.Create
+  .Add(TCommandLineConfigurationSource.Create) // Utiliza ParamStr(1..ParamCount)
+  .Build;
+```
+
+Formatos suportados:
+- `--Server:Port=9090` ou `/Server:Port=9090`
+- `--Database__Password=Secret` (converte automaticamente `__` para `:`)
+- `--Server:Port 9090` (chave e valor separados por espaço)
+- Aliases curtos via mapeamento `IDictionary<string, string>` (ex: `-p 8080`).
+
+## User Secrets
+
+Mantenha credenciais e chaves de desenvolvimento isoladas fora da árvore do repositório Git.
+
+```pascal
+uses
+  Dext.Configuration.UserSecrets;
+
+Config := TConfigurationBuilder.Create
+  .Add(TUserSecretsConfigurationSource.Create('meu-app-secrets-guid', True))
+  .Build;
+```
+
+Localização nos sistemas:
+- **Windows**: `%APPDATA%\Dext\UserSecrets\<UserSecretsId>\secrets.json`
+- **Linux/macOS**: `~/.dext/usersecrets/<UserSecretsId>/secrets.json`
+
 ## Boas Práticas
 
 > [!CAUTION]
-> **Nunca commite segredos no controle de versão!** Use variáveis de ambiente ou gerenciadores de segredos para dados sensíveis em produção.
+> **Nunca commite segredos no controle de versão!** Use User Secrets em desenvolvimento e variáveis de ambiente ou gerenciadores de segredos em produção.
 
 1. **Use `IOptions<T>`** - Fornece segurança de tipos em tempo de compilação e IntelliSense
-2. **Configure em camadas** - Arquivo base → Arquivo de ambiente → Variáveis de ambiente
-3. **Mantenha segredos fora do código** - Use variáveis de ambiente para senhas, chaves de API, etc.
+2. **Configure em camadas** - Arquivo base → Arquivo de ambiente → User Secrets → Variáveis de ambiente → Argumentos CLI
+3. **Mantenha segredos fora do código** - Use User Secrets localmente e variáveis de ambiente em produção
 4. **Use flag Optional** - Marque arquivos específicos de ambiente como `Optional := True`
 5. **Valide a configuração** - Verifique valores obrigatórios na inicialização
-
-## Configuração em Web Host
-
-```pascal
-TDextApplication.CreateDefault(nil)
-  .ConfigureAppConfiguration(procedure(Builder: IConfigurationBuilder)
-    begin
-      var Env := GetEnvironmentVariable('DEXT_ENVIRONMENT');
-      Builder
-        .Add(TJsonConfigurationSource.Create('appsettings.json'))
-        .Add(TJsonConfigurationSource.Create('appsettings.' + Env + '.json', True))
-        .Add(TEnvironmentVariablesConfigurationSource.Create);
-    end)
-  .ConfigureServices(procedure(Services: IServiceCollection; Config: IConfiguration)
-    begin
-      Services.Configure<TDatabaseOptions>(Config.GetSection('Database'));
-      Services.Configure<TJwtOptions>(Config.GetSection('Jwt'));
-    end)
-  .Build
-  .Run;
-```
 
 ---
 

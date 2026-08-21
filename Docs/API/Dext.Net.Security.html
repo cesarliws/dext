@@ -50,6 +50,30 @@ classDiagram
 class TDextTLSOptions {    +DefaultClient()
     +DefaultServer()
 }
+class TDextTLSOptionsBuilder {    +Create()
+    +Client()
+    +Server()
+    +Host()
+    +Provider()
+    +UseOpenSSL()
+    +UseHttpSys()
+    +UseIndy()
+    +CertificateFile()
+    +PrivateKeyFile()
+    +CAFile()
+    +CertFile()
+    +KeyFile()
+    +RootCertFile()
+    +CertHash()
+    +StoreName()
+    +Protocols()
+    +VerifyServerCertificate()
+    +AllowSelfSigned()
+    +ALPN()
+    +Mode()
+    +Build()
+    +Implicit()
+}
 class IDextTLSEngine {    +EncryptedIncoming()
     +PlaintextRead()
     +PlaintextWrite()
@@ -79,6 +103,56 @@ class IDextTLSStream {    +GetUnderlyingStream()
 <div class="api-signature">function DefaultClient: TDextTLSOptions</div></div>
 <div class="api-item">
 <div class="api-signature">function DefaultServer(const const: string; const const: string): TDextTLSOptions</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TDextTLSOptionsBuilder</h3><a name="TDextTLSOptionsBuilder"></a><div class="description">Fluent builder for SSL/TLS configuration options.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create(AEnabled: Boolean; const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Client(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Server(const const: string; const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Host(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Provider(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseOpenSSL: TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseHttpSys: TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseIndy: TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function CertificateFile(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function PrivateKeyFile(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function CAFile(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function CertFile(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function KeyFile(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function RootCertFile(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function CertHash(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function StoreName(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Protocols(Value: TDextTLSVersions): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function VerifyServerCertificate(Value: Boolean): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function AllowSelfSigned(Value: Boolean): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function ALPN(const const: array): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Mode(Value: TDextTLSMode): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TDextTLSOptions</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Implicit(const const: TDextTLSOptionsBuilder)</div></div>
 </div>
 <hr>
 <div class="class-header">
@@ -125,6 +199,14 @@ class IDextTLSStream {    +GetUnderlyingStream()
 <div class="api-signature">function Write(const const: Pointer; ACount: Longint): Longint</div></div>
 </div>
 <hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function TlsOptions: TDextTLSOptionsBuilder</div><div class="description">Factory function returning a fluent builder for SSL/TLS options.</div></div>
+<div class="api-item">
+<div class="api-signature">function TlsOptions(const const: string): TDextTLSOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function TlsOptions(AEnabled: Boolean; const const: string): TDextTLSOptionsBuilder</div></div>
+</div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TDextTLSVersion = enumeration</div><div class="enum-values">Values: tls1_0, tls1_1, tls1_2, tls1_3</div><div class="description">Supported TLS protocol versions.</div></div>
@@ -132,6 +214,8 @@ class IDextTLSStream {    +GetUnderlyingStream()
 <div class="api-signature">type TDextTLSVersions = set</div></div>
 <div class="api-item">
 <div class="api-signature">type TDextTLSMode = enumeration</div><div class="enum-values">Values: tlsmClient, tlsmServer</div><div class="description">Operating mode for TLS engine.</div></div>
+<div class="api-item">
+<div class="api-signature">type TDextTLSBuilder = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type TDextTLSEngineStatus = enumeration</div><div class="enum-values">Values: tlsHandshakeNeedRead, tlsHandshakeNeedWrite, tlsHandshakeCompleted, tlsDataReady, tlsError</div><div class="description">Status of asynchronous TLS engine processing.</div></div>
 <div class="api-item">

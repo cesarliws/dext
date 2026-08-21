@@ -55,6 +55,20 @@ class TForwardedHeadersOptions {    +Create()
     +ForwardLimit
 }
 TObject <|-- TForwardedHeadersOptions
+class TForwardedHeadersBuilder {    +EnsureOptions()
+    +Create()
+    +KnownProxy()
+    +KnownProxies()
+    +KnownNetwork()
+    +KnownNetworks()
+    +ForwardedHeaders()
+    +ForwardLimit()
+    +Build()
+    +Implicit()
+}
+class TApplicationBuilderForwardedHeadersExtensions {    +UseForwardedHeaders()
+}
+TObject <|-- TApplicationBuilderForwardedHeadersExtensions
 class TDextForwardedHeadersMiddleware {    +IPv4ToCardinal()
     +MatchIPv4Subnet()
     +IsProxyTrusted()
@@ -86,6 +100,43 @@ IMiddleware <|.. TDextForwardedHeadersMiddleware
 </div>
 <hr>
 <div class="class-header">
+<h3>record TForwardedHeadersBuilder</h3><a name="TForwardedHeadersBuilder"></a><div class="description">Fluent builder for TForwardedHeadersOptions.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create: TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function KnownProxy(const const: string): TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function KnownProxies(const const: array): TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function KnownNetwork(const const: string): TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function KnownNetworks(const const: array): TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function ForwardedHeaders(const const: TForwardedHeaderFlags): TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function ForwardLimit(const const: Integer): TForwardedHeadersBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TForwardedHeadersOptions</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Implicit(const const: TForwardedHeadersBuilder)</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure EnsureOptions</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TApplicationBuilderForwardedHeadersExtensions</h3><a name="TApplicationBuilderForwardedHeadersExtensions"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Extension methods for adding Forwarded Headers middleware to the application pipeline.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(const const: IApplicationBuilder): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(const const: IApplicationBuilder; const const: TForwardedHeadersOptions): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(const const: IApplicationBuilder; const const: TForwardedHeadersBuilder): IApplicationBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(const const: IApplicationBuilder; AConfigurator: TProc): IApplicationBuilder</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class TDextForwardedHeadersMiddleware</h3><a name="TDextForwardedHeadersMiddleware"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Middleware to parse and apply X-Forwarded-* headers from trusted reverse proxies using official IMiddleware contract.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(AOptions: TForwardedHeadersOptions)</div></div>
@@ -104,6 +155,10 @@ IMiddleware <|.. TDextForwardedHeadersMiddleware
 <div class="api-signature">function SanitizeHost(const const: string): string</div></div>
 </div>
 <hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function ForwardedHeadersOptions: TForwardedHeadersBuilder</div></div>
+</div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TForwardedHeaderFlag = enumeration</div><div class="enum-values">Values: fhXForwardedFor, fhXForwardedProto, fhXForwardedHost</div><div class="description">Flags indicating which forwarded headers to process.</div></div>

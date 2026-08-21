@@ -47,26 +47,26 @@
 <div class="mermaid-container">
 <div class="mermaid">
 classDiagram
-class TDextWebApplicationFactory~TApp~ {    +Create()
+class TDextApplicationFactory~TApp~ {    +Create()
     +Destroy()
     +WithTestServices()
     +CreateApplication()
 }
-TObject <|-- TDextWebApplicationFactory~TApp~
+TObject <|-- TDextApplicationFactory~TApp~
 </div>
 </div>
 </details>
 <h2>API Details</h2>
 <div class="class-header">
-<h3>class TDextWebApplicationFactory&lt;TApp&gt;</h3><a name="TDextWebApplicationFactory_lt_TApp_gt_"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Fluent in-memory test host and WebApplicationFactory for integration testing.</div></div>
+<h3>class TDextApplicationFactory&lt;TApp&gt;</h3><a name="TDextApplicationFactory_lt_TApp_gt_"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Fluent in-memory test host and ApplicationFactory for integration testing.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
-<div class="api-signature">function WithTestServices(AProc: TProc): TDextWebApplicationFactory</div><div class="description">Overrides or injects mocks into the DI container prior to server startup.</div></div>
+<div class="api-signature">function WithTestServices(AProc: TProc): TDextApplicationFactory</div><div class="description">Overrides or injects mocks into the DI container prior to server startup.</div></div>
 <div class="api-item">
-<div class="api-signature">function WithTestServices(AProc: TProc): TDextWebApplicationFactory</div></div>
+<div class="api-signature">function WithTestServices(AProc: TProc): TDextApplicationFactory</div></div>
 <div class="api-item">
 <div class="api-signature">function CreateApplication: TWebApplication</div><div class="description">Initializes the in-memory application and returns the configured WebApplication instance.</div></div>
 </div>

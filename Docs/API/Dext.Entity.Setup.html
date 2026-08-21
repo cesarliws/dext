@@ -67,6 +67,7 @@ class TDbContextOptions {    +SetConnectionString()
     +UseDialect()
     +UseNamingStrategy()
     +UseSnakeCaseNamingConvention()
+    +SnakeCase()
     +LogTo()
     +WithBulkBatchSize()
     +DriverName
@@ -86,10 +87,30 @@ class TDbContextOptions {    +SetConnectionString()
 }
 TObject <|-- TDbContextOptions
 class TDbContextOptionsBuilder {    +Create()
-    +UseSQLite()
     +UseDriver()
+    +UseConnectionDef()
+    +UseSQLite()
+    +UseSQLServer()
+    +UsePostgreSQL()
+    +UseMySQL()
+    +UseFirebird()
+    +UseOracle()
+    +Pooling()
+    +WithPooling()
+    +Optimizations()
+    +ConfigureOptimizations()
+    +UseCustomDialect()
+    +UseDialect()
+    +UseNamingStrategy()
+    +UseSnakeCaseNamingConvention()
+    +SnakeCase()
+    +LogTo()
+    +BulkBatchSize()
+    +WithBulkBatchSize()
+    +AddParam()
+    +Build()
+    +Implicit()
 }
-TObject <|-- TDbContextOptionsBuilder
 </div>
 </div>
 </details>
@@ -135,6 +156,8 @@ TObject <|-- TDbContextOptionsBuilder
 <div class="api-item">
 <div class="api-signature">function UseSnakeCaseNamingConvention: TDbContextOptions</div></div>
 <div class="api-item">
+<div class="api-signature">function SnakeCase: TDbContextOptions</div></div>
+<div class="api-item">
 <div class="api-signature">function LogTo(AProc: TProc): TDbContextOptions</div></div>
 <div class="api-item">
 <div class="api-signature">function WithBulkBatchSize(ASize: Integer): TDbContextOptions</div></div>
@@ -172,15 +195,61 @@ TObject <|-- TDbContextOptionsBuilder
 </div>
 <hr>
 <div class="class-header">
-<h3>class TDbContextOptionsBuilder</h3><a name="TDbContextOptionsBuilder"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Builder for configuring DbContext options.</div></div>
+<h3>record TDbContextOptionsBuilder</h3><a name="TDbContextOptionsBuilder"></a><div class="description">Fluent builder for configuring DbContext options.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">constructor Create(Options: TDbContextOptions)</div></div>
+<div class="api-signature">function Create: TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseDriver(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseConnectionDef(const const: string): TDbContextOptionsBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSQLite(const const: string): TDbContextOptionsBuilder</div></div>
 <div class="api-item">
-<div class="api-signature">function UseDriver(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-signature">function UseSQLServer(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UsePostgreSQL(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseMySQL(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseFirebird(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseOracle(const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Pooling(Enable: Boolean; MaxSize: Integer): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function WithPooling(Enable: Boolean; MaxSize: Integer): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Optimizations(AOpts: TFireDACOptimizations): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function ConfigureOptimizations(AOpts: TFireDACOptimizations): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseCustomDialect(const const: ISQLDialect): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseDialect(ADialect: TDatabaseDialect): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseNamingStrategy(const const: INamingStrategy): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSnakeCaseNamingConvention: TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function SnakeCase: TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function LogTo(AProc: TProc): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function BulkBatchSize(ASize: Integer): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function WithBulkBatchSize(ASize: Integer): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function AddParam(const const: string; const const: string): TDbContextOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TDbContextOptions</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Implicit(const const: TDbContextOptionsBuilder)</div></div>
 </div>
 <hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function DbContextOptions: TDbContextOptionsBuilder</div><div class="description">Factory function returning a fluent TDbContextOptionsBuilder.</div></div>
+</div>
 
         </div>
     </div>

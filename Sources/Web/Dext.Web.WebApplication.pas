@@ -135,7 +135,9 @@ uses
   Dext.Web.Indy.SSL.OpenSSL,
   Dext.Web.Indy.SSL.Taurus,
   Dext.Configuration.Core,
+  Dext.Configuration.CommandLine,
   Dext.Configuration.Json,
+  Dext.Configuration.UserSecrets,
   Dext.Configuration.Yaml,
   Dext.Configuration.EnvironmentVariables,
   Dext.HealthChecks,
@@ -153,6 +155,7 @@ constructor TWebApplication.Create;
 var
   ConfigBuilder: IConfigurationBuilder;
   Env: string;
+  SecretsId: string;
   LConfig: IConfiguration;
 begin
   inherited Create;
@@ -162,7 +165,7 @@ begin
   SetTextCodePage(Output, CP_UTF8);
   {$ENDIF}
 
-  // Initialize Configuration
+  // Initialize Configuration (5-layer precedence pipeline)
   ConfigBuilder := TConfigurationBuilder.Create;
   
   // 1. Base appsettings
@@ -181,8 +184,19 @@ begin
     ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.' + Env + '.yml', True));
   end;
 
-  // 3. Environment Variables
+  // 3. User Secrets (Active only in Development environment)
+  if SameText(Env, 'Development') then
+  begin
+    SecretsId := GetEnvironmentVariable('DEXT_USERSECRETS_ID');
+    if SecretsId <> '' then
+      ConfigBuilder.Add(TUserSecretsConfigurationSource.Create(SecretsId, True));
+  end;
+
+  // 4. Environment Variables
   ConfigBuilder.Add(TEnvironmentVariablesConfigurationSource.Create);
+
+  // 5. Command Line Arguments (Highest precedence)
+  ConfigBuilder.Add(TCommandLineConfigurationSource.Create);
     
   FConfiguration := ConfigBuilder.Build;
   

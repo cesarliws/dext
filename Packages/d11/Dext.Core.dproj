@@ -111,9 +111,11 @@
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.Pool.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Collections.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Configuration.Binder.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Configuration.CommandLine.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Configuration.EnvironmentVariables.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Configuration.Interfaces.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.Configuration.Json.pas"/>
+        <DCCReference Include="..\..\Sources\Core\Dext.Configuration.UserSecrets.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.DI.Comparers.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.DI.Core.pas"/>
         <DCCReference Include="..\..\Sources\Core\Dext.DI.Interfaces.pas"/>

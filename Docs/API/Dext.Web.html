@@ -59,6 +59,7 @@ class TWebServicesHelper {    +AddControllers()
 class THttpAppBuilderHelper {    +CreateCorsOptions()
     +CreateJwtOptions()
     +CreateStaticFileOptions()
+    +UseForwardedHeaders()
     +UseCors()
     +UseJwtAuthentication()
     +UseBasicAuthentication()
@@ -189,7 +190,19 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-item">
 <div class="api-signature">function CreateStaticFileOptions: TStaticFileOptions</div><div class="description">Creates a new instance of TStaticFileOptions with default settings.</div></div>
 <div class="api-item">
-<div class="api-signature">function UseCors(const const: TCorsOptions): TAppBuilder</div><div class="description">Adds CORS middleware to the pipeline using the provided options.</div></div>
+<div class="api-signature">function UseForwardedHeaders: TAppBuilder</div><div class="description">Adds Forwarded Headers middleware to the pipeline with default Zero Trust options.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(const const: TForwardedHeadersOptions): TAppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(const const: TForwardedHeadersBuilder): TAppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseForwardedHeaders(AConfigurator: TProc): TAppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseCors: TAppBuilder</div><div class="description">Adds CORS middleware to the pipeline.</div></div>
+<div class="api-item">
+<div class="api-signature">function UseCors(const const: TCorsOptions): TAppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseCors(const const: TCorsBuilder): TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseCors(AConfigurator: TProc): TAppBuilder</div></div>
 <div class="api-item">
@@ -245,6 +258,8 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-item">
 <div class="api-signature">function UseExceptionHandler(const const: TExceptionHandlerOptions): TAppBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function UseExceptionHandler(const const: TExceptionHandlerBuilder): TAppBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function UseExceptionHandler(AConfigurator: TProc): TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseDeveloperExceptionPage: TAppBuilder</div></div>
@@ -253,17 +268,23 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-item">
 <div class="api-signature">function UseHttpLogging(const const: THttpLoggingOptions): TAppBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function UseHttpLogging(const const: THttpLoggingBuilder): TAppBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function UseHttpLogging(AConfigurator: TProc): TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseCompression: TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseCompression(const const: TCompressionOptions): TAppBuilder</div></div>
 <div class="api-item">
+<div class="api-signature">function UseCompression(const const: TCompressionBuilder): TAppBuilder</div></div>
+<div class="api-item">
 <div class="api-signature">function UseCompression(AConfigurator: TProc): TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSecurityHeaders: TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSecurityHeaders(const const: TSecurityHeadersOptions): TAppBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSecurityHeaders(const const: TSecurityHeadersBuilder): TAppBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSecurityHeaders(AConfigurator: TProc): TAppBuilder</div></div>
 <div class="api-item">
@@ -422,13 +443,13 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-item">
 <div class="api-signature">function SecurityHeadersOptions: TSecurityHeadersBuilder</div></div>
 <div class="api-item">
-<div class="api-signature">function JwtOptions(const const: string): TJwtOptionsBuilder</div></div>
-<div class="api-item">
 <div class="api-signature">function ResponseCacheOptions: TResponseCacheBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function SwaggerOptions: TOpenAPIBuilder</div></div>
 <div class="api-item">
 <div class="api-signature">function ViewOptions: TViewOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function JwtOptions(const const: string): TJwtOptionsBuilder</div></div>
 </div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
@@ -889,6 +910,8 @@ class THttpAppBuilderHelper {    +CreateCorsOptions()
 <div class="api-signature">type TContentResult = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type TStreamResult = Type</div></div>
+<div class="api-item">
+<div class="api-signature">type TContextualResults = Type</div></div>
 <div class="api-item">
 <div class="api-signature">type Results = Type</div></div>
 <div class="api-item">

@@ -60,6 +60,12 @@ TObject <|-- TPersistence
 <div class="class-header">
 <h3>record TDextPersistenceServicesHelper</h3><a name="TDextPersistenceServicesHelper"></a><div class="description">Helper for TDextServices to add Persistence features.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function AddDbContext&lt;T&gt;(const const: TDbContextOptions): TDextServices</div><div class="description">Registers a DbContext with the dependency injection container using an options instance.</div></div>
+<div class="api-item">
+<div class="api-signature">function AddDbContext&lt;T&gt;(const const: TDbContextOptionsBuilder): TDextServices</div><div class="description">Registers a DbContext with the dependency injection container using a fluent options builder.</div></div>
+<div class="api-item">
+<div class="api-signature">function AddDbContext&lt;T&gt;(AConfigurator: TProc): TDextServices</div><div class="description">Registers a DbContext with the dependency injection container using a fluent builder callback.</div></div>
+<div class="api-item">
 <div class="api-signature">function AddDbContext&lt;T&gt;(Config: TProc): TDextServices</div><div class="description">Registers a DbContext with the dependency injection container.</div></div>
 <div class="api-item">
 <div class="api-signature">function AddDbContext&lt;T&gt;(const const: IConfigurationSection): TDextServices</div><div class="description">Registers a DbContext using configuration section.</div></div>
@@ -70,9 +76,19 @@ TObject <|-- TPersistence
 <div class="class-header">
 <h3>class TPersistence</h3><a name="TPersistence"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Helper class for DbContext dependency injection registration.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">procedure AddDbContext&lt;T&gt;(Services: IServiceCollection; const const: TDbContextOptions)</div><div class="description">Registers a DbContext with the dependency injection container using an options instance.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddDbContext&lt;T&gt;(Services: IServiceCollection; const const: TDbContextOptionsBuilder)</div><div class="description">Registers a DbContext with the dependency injection container using a fluent options builder.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure AddDbContext&lt;T&gt;(Services: IServiceCollection; AConfigurator: TProc)</div><div class="description">Registers a DbContext with the dependency injection container using a fluent builder callback.</div></div>
+<div class="api-item">
 <div class="api-signature">procedure AddDbContext&lt;T&gt;(Services: IServiceCollection; Config: TProc)</div><div class="description">Registers a DbContext with the dependency injection container.</div></div>
 </div>
 <hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function DbContextOptions: TDbContextOptionsBuilder</div><div class="description">Factory function returning a fluent TDbContextOptionsBuilder.</div></div>
+</div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TFDConnection = Type</div></div>

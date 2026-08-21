@@ -113,6 +113,33 @@ class THtmxResponse {    +Create()
 }
 TInterfacedObject <|-- THtmxResponse
 IHtmxResponse <|.. THtmxResponse
+class TContextualResults {    +Create()
+    +Ok()
+    +Ok~T~()
+    +Created()
+    +Created~T~()
+    +BadRequest()
+    +BadRequest~T~()
+    +NotFound()
+    +Conflict()
+    +Conflict~T~()
+    +NoContent()
+    +Unauthorized()
+    +Unauthorized~T~()
+    +Forbidden()
+    +Forbidden~T~()
+    +InternalServerError()
+    +Problem()
+    +ValidationProblem()
+    +Redirect()
+    +LocalRedirect()
+    +SendFile()
+    +Json()
+    +Json~T~()
+    +Text()
+    +Html()
+    +StatusCode()
+}
 class Results {    +GetFullViewPath()
     +SetViewsPath()
     +SetAppPath()
@@ -123,6 +150,8 @@ class Results {    +GetFullViewPath()
     +BadRequest()
     +BadRequest~T~()
     +NotFound()
+    +Conflict()
+    +Conflict~T~()
     +NoContent()
     +Unauthorized()
     +Unauthorized~T~()
@@ -151,6 +180,7 @@ class Results {    +GetFullViewPath()
     +View~T~()
     +ViewPart()
     +ViewPart~T~()
+    +Context()
 }
 TObject <|-- Results
 </div>
@@ -286,6 +316,80 @@ TObject <|-- Results
 </div>
 <hr>
 <div class="class-header">
+<h3>record TContextualResults</h3><a name="TContextualResults"></a><div class="description">Contextual results dispatcher that executes the semantic HTTP result immediately on the specified HTTP context, eliminating the need to call .Execute(Ctx).</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: IHttpContext)</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Ok</div><div class="description">Dispatches 200 OK.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Ok(const const: string)</div><div class="description">Dispatches 200 OK with string body or pre-formatted JSON.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Ok&lt;T&gt;(const const: T)</div><div class="description">Dispatches 200 OK with object serialized via Content Negotiation.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Created(const const: string)</div><div class="description">Dispatches 201 Created.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Created(const const: string; const const: string)</div><div class="description">Dispatches 201 Created with created resource URI.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Created&lt;T&gt;(const const: string; const const: T)</div><div class="description">Dispatches 201 Created with object serialized via Content Negotiation.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure BadRequest</div><div class="description">Dispatches 400 Bad Request.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure BadRequest(const const: string)</div><div class="description">Dispatches 400 Bad Request with an error message.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure BadRequest&lt;T&gt;(const const: T)</div><div class="description">Dispatches 400 Bad Request with a serialized error object.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure NotFound</div><div class="description">Dispatches 404 Not Found.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure NotFound(const const: string)</div><div class="description">Dispatches 404 Not Found with a detailed message.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Conflict</div><div class="description">Dispatches 409 Conflict.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Conflict(const const: string)</div><div class="description">Dispatches 409 Conflict with a detailed message.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Conflict&lt;T&gt;(const const: T)</div><div class="description">Dispatches 409 Conflict with a serialized object.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure NoContent</div><div class="description">Dispatches 204 No Content.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Unauthorized</div><div class="description">Dispatches 401 Unauthorized.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Unauthorized(const const: string)</div><div class="description">Dispatches 401 Unauthorized with a detailed message.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Unauthorized&lt;T&gt;(const const: T)</div><div class="description">Dispatches 401 Unauthorized with a serialized object.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Forbidden</div><div class="description">Dispatches 403 Forbidden.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Forbidden(const const: string)</div><div class="description">Dispatches 403 Forbidden with a detailed message.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Forbidden&lt;T&gt;(const const: T)</div><div class="description">Dispatches 403 Forbidden with a serialized object.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure InternalServerError(const const: string)</div><div class="description">Dispatches 500 Internal Server Error with a friendly message.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure InternalServerError(const const: Exception)</div><div class="description">Dispatches 500 Internal Server Error from a captured exception.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Problem(const const: string; AStatusCode: Integer)</div><div class="description">Dispatches standardized RFC 7807 Problem Details.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure ValidationProblem(const const: TValidationResult)</div><div class="description">Dispatches standardized RFC 7807 Validation Problem.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Redirect(const const: string; APermanent: Boolean; APreserveMethod: Boolean)</div><div class="description">Dispatches a 302 Found redirect.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure LocalRedirect(const const: string; APermanent: Boolean; APreserveMethod: Boolean)</div><div class="description">Dispatches a 302 Found redirect to a local URL.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure SendFile(const const: string; const const: string; const const: string)</div><div class="description">Dispatches a file response from a physical path.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Json(const const: string; AStatusCode: Integer)</div><div class="description">Dispatches an explicit JSON result.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Json&lt;T&gt;(const const: T; AStatusCode: Integer)</div><div class="description">Dispatches object directly to JSON.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Text(const const: string; AStatusCode: Integer)</div><div class="description">Dispatches plain text.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Html(const const: string; AStatusCode: Integer)</div><div class="description">Dispatches pure HTML.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure StatusCode(ACode: Integer)</div><div class="description">Dispatches arbitrary HTTP status code.</div></div>
+<div class="api-item">
+<div class="api-signature">procedure StatusCode(ACode: Integer; const const: string)</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class Results</h3><a name="Results"></a><div class="ancestor">Inherits from: TObject</div><div class="description">Static helper class (Factory) for creating common HTTP results. Mainly used in Minimal APIs and Controllers to return standardized responses.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">procedure SetViewsPath(const const: string)</div><div class="description">Sets the root directory for View files (HTML).</div></div>
@@ -313,6 +417,12 @@ TObject <|-- Results
 <div class="api-signature">function NotFound: IResult</div><div class="description">Returns 404 Not Found.</div></div>
 <div class="api-item">
 <div class="api-signature">function NotFound(const const: string): IResult</div><div class="description">Returns 404 Not Found with a detailed message.</div></div>
+<div class="api-item">
+<div class="api-signature">function Conflict: IResult</div><div class="description">Returns 409 Conflict.</div></div>
+<div class="api-item">
+<div class="api-signature">function Conflict(const const: string): IResult</div><div class="description">Returns 409 Conflict with a detailed message.</div></div>
+<div class="api-item">
+<div class="api-signature">function Conflict&lt;T&gt;(const const: T): IResult</div><div class="description">Returns 409 Conflict with a serialized object.</div></div>
 <div class="api-item">
 <div class="api-signature">function NoContent: IResult</div><div class="description">Returns 204 No Content.</div></div>
 <div class="api-item">
@@ -383,6 +493,8 @@ TObject <|-- Results
 <div class="api-signature">function ViewPart&lt;T&gt;(const const: string; const const: TFluentQuery): TDextViewResult</div></div>
 <div class="api-item">
 <div class="api-signature">function ViewPart(const const: string; AData: TObject; AOwns: Boolean): TDextViewResult</div></div>
+<div class="api-item">
+<div class="api-signature">function Context(const const: IHttpContext): TContextualResults</div><div class="description">Returns a contextual results dispatcher bound to the given HTTP context.</div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">function GetFullViewPath(const const: string): string</div></div>

@@ -39,7 +39,9 @@ uses
   Dext.Collections.Pool in '..\..\..\Sources\Core\Dext.Collections.Pool.pas',
   Dext.Collections.Pool.Tests in 'Dext.Collections.Pool.Tests.pas',
   Dext.Bcd.Tests in 'Dext.Bcd.Tests.pas',
-  Dext.FeatureFlags.Tests in '..\Dext.FeatureFlags.Tests.pas';
+  Dext.FeatureFlags.Tests in '..\Dext.FeatureFlags.Tests.pas',
+  Dext.Configuration.CommandLine.Tests in 'Dext.Configuration.CommandLine.Tests.pas',
+  Dext.Configuration.UserSecrets.Tests in 'Dext.Configuration.UserSecrets.Tests.pas';
 
 begin
   SetConsoleCharSet();
@@ -54,6 +56,8 @@ begin
       .RegisterFixtures([
         TConfigFeaturesTests,
         TConfigurationHashingTests,
+        TCommandLineConfigurationTests,
+        TUserSecretsConfigurationTests,
         TEntityMappingWarningTests,
         TJsonBugReproTests,
         TJsonInterfaceListTests,

@@ -70,6 +70,7 @@ class TJwtOptions {    +Create()
 }
 class TJwtOptionsBuilder {    +EnsureInitialized()
     +Create()
+    +SecretKey()
     +Issuer()
     +Audience()
     +ExpirationMinutes()
@@ -160,13 +161,19 @@ IJwtTokenHandler <|.. TJwtTokenHandler
 <div class="class-header">
 <h3>record TJwtOptions</h3><a name="TJwtOptions"></a><div class="description">JWT configuration options (Secret, Issuer, Audience, Algorithm, PublicKey).</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
-<div class="api-signature">function Create(const const: string): TJwtOptions</div><div class="description">Creates default JWT options.</div></div>
+<div class="api-signature">function Create: TJwtOptions</div><div class="description">Creates default JWT options.</div></div>
+<div class="api-item">
+<div class="api-signature">function Create(const const: string): TJwtOptions</div><div class="description">Creates JWT options with a secret key.</div></div>
 </div>
 <hr>
 <div class="class-header">
 <h3>record TJwtOptionsBuilder</h3><a name="TJwtOptionsBuilder"></a><div class="description">Fluent builder for creating TJwtOptions objects.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create: TJwtOptionsBuilder</div><div class="description">Creates a new JWT options builder.</div></div>
+<div class="api-item">
 <div class="api-signature">function Create(const const: string): TJwtOptionsBuilder</div><div class="description">Creates a new JWT options builder with the given secret.</div></div>
+<div class="api-item">
+<div class="api-signature">function SecretKey(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the secret key.</div></div>
 <div class="api-item">
 <div class="api-signature">function Issuer(const const: string): TJwtOptionsBuilder</div><div class="description">Sets the token issuer.</div></div>
 <div class="api-item">
@@ -253,6 +260,10 @@ IJwtTokenHandler <|.. TJwtTokenHandler
 <div class="api-signature">procedure SetExpirationMinutes(const const: Integer)</div></div>
 </div>
 <hr>
+<h2>Global Routines</h2>
+<div class="visibility-group"><h5>Routines</h5><div class="api-item">
+<div class="api-signature">function JwtOptions(const const: string): TJwtOptionsBuilder</div><div class="description">Factory function returning a fluent builder for TJwtOptions.</div></div>
+</div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">
 <div class="api-signature">type TJwtBuilderProc = Type</div><div class="description">Delegate for configuring JWT options via builder.</div></div>

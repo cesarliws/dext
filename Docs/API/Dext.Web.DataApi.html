@@ -48,6 +48,22 @@
 <div class="mermaid">
 classDiagram
 class TDataApiOptions {    +Create()
+    +Allow()
+    +RequireTenant()
+    +RequireAuth()
+    +RequireRole()
+    +RequireReadRole()
+    +RequireWriteRole()
+    +UseSnakeCase()
+    +UseCamelCase()
+    +UseSwagger()
+    +Tag()
+    +Description()
+    +DbContext()
+    +DbContext~TCtx~()
+    +UseSql()
+    +EnumsAsStrings()
+    +EnumsAsNumbers()
     +Destroy()
     +Defaults()
     +Sql
@@ -64,6 +80,27 @@ class TDataApiOptions {    +Create()
     +EnumStyle
 }
 TObject <|-- TDataApiOptions
+class TDataApiOptionsBuilder {    +Create()
+    +Allow()
+    +RequireTenant()
+    +RequireAuth()
+    +RequireRole()
+    +RequireReadRole()
+    +RequireWriteRole()
+    +UseSnakeCase()
+    +UseCamelCase()
+    +UseSwagger()
+    +Tag()
+    +Description()
+    +DbContext()
+    +DbContext~TCtx~()
+    +ContextClass()
+    +UseSql()
+    +EnumsAsStrings()
+    +EnumsAsNumbers()
+    +Build()
+    +Implicit()
+}
 class DataApiAttribute {    +Create()
     +Route
     +DbContext
@@ -82,6 +119,7 @@ class TDataApiOptions~T~ {    +Allow()
     +UseSwagger()
     +Tag()
     +Description()
+    +DbContext()
     +DbContext~TCtx~()
     +UseSql()
     +EnumsAsStrings()
@@ -122,6 +160,38 @@ TObject <|-- TDataApi
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create</div></div>
 <div class="api-item">
+<div class="api-signature">function Allow(AMethods: TApiMethods): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireTenant(Value: Boolean): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireAuth(Value: Boolean): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireRole(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireReadRole(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireWriteRole(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSnakeCase: TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function UseCamelCase: TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSwagger(Value: Boolean): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function Tag(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function Description(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function DbContext(AContextClass: TClass): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function DbContext&lt;TCtx&gt;: TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSql(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function EnumsAsStrings: TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function EnumsAsNumbers: TDataApiOptions</div></div>
+<div class="api-item">
 <div class="api-signature">constructor Create</div></div>
 <div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
@@ -154,6 +224,50 @@ TObject <|-- TDataApi
 </div>
 <hr>
 <div class="class-header">
+<h3>record TDataApiOptionsBuilder</h3><a name="TDataApiOptionsBuilder"></a><div class="description">Fluent builder for configuring Data API options.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function Create: TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Allow(AMethods: TApiMethods): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireTenant(Value: Boolean): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireAuth(Value: Boolean): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireRole(const const: string): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireReadRole(const const: string): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function RequireWriteRole(const const: string): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSnakeCase: TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseCamelCase: TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSwagger(Value: Boolean): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Tag(const const: string): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Description(const const: string): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function DbContext(AContextClass: TClass): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function DbContext&lt;TCtx&gt;: TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function ContextClass(AContextClass: TClass): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function UseSql(const const: string): TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function EnumsAsStrings: TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function EnumsAsNumbers: TDataApiOptionsBuilder</div></div>
+<div class="api-item">
+<div class="api-signature">function Build: TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Implicit(const const: TDataApiOptionsBuilder)</div></div>
+</div>
+<hr>
+<div class="class-header">
 <h3>class DataApiAttribute</h3><a name="DataApiAttribute"></a><div class="ancestor">Inherits from: TCustomAttribute</div><div class="description">Attribute to mark an entity class for automatic Data API generation.</div></div>
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">constructor Create(const const: string; ADbContext: TClass)</div></div>
@@ -171,9 +285,9 @@ TObject <|-- TDataApi
 <div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
 <div class="api-signature">function Allow(AMethods: TApiMethods): TDataApiOptions</div></div>
 <div class="api-item">
-<div class="api-signature">function RequireTenant: TDataApiOptions</div></div>
+<div class="api-signature">function RequireTenant(Value: Boolean): TDataApiOptions</div></div>
 <div class="api-item">
-<div class="api-signature">function RequireAuth: TDataApiOptions</div></div>
+<div class="api-signature">function RequireAuth(Value: Boolean): TDataApiOptions</div></div>
 <div class="api-item">
 <div class="api-signature">function RequireRole(const const: string): TDataApiOptions</div></div>
 <div class="api-item">
@@ -185,11 +299,13 @@ TObject <|-- TDataApi
 <div class="api-item">
 <div class="api-signature">function UseCamelCase: TDataApiOptions</div></div>
 <div class="api-item">
-<div class="api-signature">function UseSwagger: TDataApiOptions</div></div>
+<div class="api-signature">function UseSwagger(Value: Boolean): TDataApiOptions</div></div>
 <div class="api-item">
 <div class="api-signature">function Tag(const const: string): TDataApiOptions</div></div>
 <div class="api-item">
 <div class="api-signature">function Description(const const: string): TDataApiOptions</div></div>
+<div class="api-item">
+<div class="api-signature">function DbContext(AContextClass: TClass): TDataApiOptions</div></div>
 <div class="api-item">
 <div class="api-signature">function DbContext&lt;TCtx&gt;: TDataApiOptions</div></div>
 <div class="api-item">
@@ -255,7 +371,7 @@ TObject <|-- TDataApi
 <hr>
 <h2>Global Routines</h2>
 <div class="visibility-group"><h5>Routines</h5><div class="api-item">
-<div class="api-signature">function DataApiOptions: TDataApiOptions</div><div class="description">Factory function for Data API options to simplify syntax.</div></div>
+<div class="api-signature">function DataApiOptions: TDataApiOptionsBuilder</div><div class="description">Factory function returning a fluent builder for Data API options.</div></div>
 </div>
 <h2>Types</h2>
 <div class="visibility-group"><div class="api-item">

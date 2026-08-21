@@ -47,6 +47,7 @@ Status | Task | Spec | Description
 ✅ | **Forwarded Headers Middleware** | [S64](../../Docs/Specs/S64-Forwarded-Headers.md) | Zero-Trust reverse proxy header parsing (X-Forwarded-For/Proto/Host).
 ✅ | **Antiforgery CSRF Protection** | [S65](../../Docs/Specs/S65-Antiforgery-CSRF.md) | HMAC-SHA256 tokens, constant-time validation, and Origin/Host verification.
 ✅ | **Testing WebApp Factory** | [S66](../../Docs/Specs/S66-WebApplicationFactory.md) | Lightweight integration testing factory for Dext Web Applications.
+✅ | **CommandLine & UserSecrets Config** | [S67](../../Docs/Specs/S67-CommandLine-UserSecrets-Configuration.md) | Enterprise 5-layer configuration pipeline with CLI argument parsing and isolated developer secrets.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 ✅ | **Production Middleware** | [S06](Specs/S06-Middlewares-Security-Cache-Cors.md) | Hardened Web Middlewares: HTTP Logging redaction, Problem Details RFC 9457, strict CORS preflight & Vary merge, RFC 9333 Rate Limiting, and secure Response Cache.
 
@@ -118,6 +119,7 @@ Status | Tarefa | Spec | Descrição
 🟡 | **Dext IDE Explorer** | [S05](Specs/S05-Advanced-Tooling.md) | Ferramenta visual inicial para Migrations na IDE (Somente scaffolding de TFDConnection implementado).
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Expert visual na IDE para mapeamento de schema e sync contínuo via YAML.
 🟡 | **Middleware Pack** | - | SPA Fallback, Forwarded Headers e Resiliência.
+✅ | **Provedores CommandLine & UserSecrets** | [S67](../../Docs/Specs/S67-CommandLine-UserSecrets-Configuration.md) | Pipeline enterprise de configuração em 5 camadas com parsing de argumentos CLI e segredos de desenvolvimento isolados.
 
 ## 🔴 Onda 3: Enterprise & Modernização (Estabilidade)
 Status | Tarefa | Spec | Descrição

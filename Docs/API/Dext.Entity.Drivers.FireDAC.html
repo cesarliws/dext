@@ -91,6 +91,7 @@ class TFireDACCommand {    +LogSqlCommand()
     +SetArraySize()
     +SetParamArray()
     +ExecuteBatch()
+    +Query
 }
 TInterfacedObject <|-- TFireDACCommand
 IDbCommand <|.. TFireDACCommand
@@ -204,6 +205,8 @@ IDbConnection <|.. TFireDACConnection
 <div class="api-signature">procedure SetParamArray(const const: string; const const: TArray)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure ExecuteBatch(const const: Integer; const const: Integer)</div></div>
+<div class="api-item">
+<div class="api-signature">property Query: </div></div>
 </div>
 <div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
 <div class="api-signature">procedure LogSqlCommand(const const: string; AParams: TFDParams)</div></div>

@@ -203,37 +203,64 @@ Config := TConfigurationBuilder.Create
 }
 ```
 
+## Precedence Hierarchy (5-Layer Pipeline)
+
+Dext follows the standard modern Twelve-Factor App configuration pipeline with 5 layers of precedence (LIFO):
+
+```
+[1] Base Files (appsettings.json / appsettings.yaml)   --> Fallback
+[2] Environment File (appsettings.{Env}.json / .yaml)   --> Overrides Base
+[3] User Secrets (Development environment only)         --> Overrides Env Files
+[4] OS Environment Variables                            --> Overrides Files & Secrets
+[5] Command Line Arguments (CLI)                        --> Highest Precedence
+```
+
+## Command Line Arguments
+
+Override any configuration parameter via startup command-line arguments.
+
+```pascal
+uses
+  Dext.Configuration.CommandLine;
+
+Config := TConfigurationBuilder.Create
+  .Add(TCommandLineConfigurationSource.Create) // Uses ParamStr(1..ParamCount)
+  .Build;
+```
+
+Supported formats:
+- `--Server:Port=9090` or `/Server:Port=9090`
+- `--Database__Password=Secret` (automatically maps `__` to `:`)
+- `--Server:Port 9090` (space-separated key and value)
+- Short switch aliases via `IDictionary<string, string>` mappings (e.g., `-p 8080`).
+
+## User Secrets
+
+Keep sensitive development keys outside your Git repository.
+
+```pascal
+uses
+  Dext.Configuration.UserSecrets;
+
+Config := TConfigurationBuilder.Create
+  .Add(TUserSecretsConfigurationSource.Create('my-app-secrets-guid', True))
+  .Build;
+```
+
+Location:
+- **Windows**: `%APPDATA%\Dext\UserSecrets\<UserSecretsId>\secrets.json`
+- **Linux/macOS**: `~/.dext/usersecrets/<UserSecretsId>/secrets.json`
+
 ## Best Practices
 
 > [!CAUTION]
-> **Never commit secrets to source control!** Use environment variables or secret managers for sensitive data in production.
+> **Never commit secrets to source control!** Use User Secrets in development, and environment variables or secret managers in production.
 
 1. **Use `IOptions<T>`** - Provides compile-time type safety and IntelliSense
-2. **Layer your configuration** - Base file → Environment file → Environment variables
-3. **Keep secrets out of code** - Use environment variables for passwords, API keys, etc.
+2. **Layer your configuration** - Base file → Environment file → User Secrets → Environment variables → CLI args
+3. **Keep secrets out of code** - Use User Secrets for local dev and environment variables for production
 4. **Use Optional flag** - Mark environment-specific files as `Optional := True`
 5. **Validate configuration** - Check required values at startup
-
-## Configuration in Web Host
-
-```pascal
-TDextApplication.CreateDefault(nil)
-  .ConfigureAppConfiguration(procedure(Builder: IConfigurationBuilder)
-    begin
-      var Env := GetEnvironmentVariable('DEXT_ENVIRONMENT');
-      Builder
-        .Add(TJsonConfigurationSource.Create('appsettings.json'))
-        .Add(TJsonConfigurationSource.Create('appsettings.' + Env + '.json', True))
-        .Add(TEnvironmentVariablesConfigurationSource.Create);
-    end)
-  .ConfigureServices(procedure(Services: IServiceCollection; Config: IConfiguration)
-    begin
-      Services.Configure<TDatabaseOptions>(Config.GetSection('Database'));
-      Services.Configure<TJwtOptions>(Config.GetSection('Jwt'));
-    end)
-  .Build
-  .Run;
-```
 
 ---
 

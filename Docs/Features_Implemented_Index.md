@@ -75,9 +75,12 @@ Dext was designed to leverage modern Object Pascal features while maintaining a 
 - **Record Mapping** — Maps matching fields and properties between classes and records.
 - **Default Value Optimization** — Support for mapping only non-default values using the `AOnlyNonDefault` parameter to avoid overwriting initialized destination values.
 
-### 1.5 Configuration System (`Dext.Configuration.Core`)
-- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine`, `.AddInMemoryCollection`.
+### 1.5 Configuration System (`Dext.Configuration.*`)
+- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine(args, mappings)`, `.AddUserSecrets(secretsId)`, `.AddInMemoryCollection`.
 - **TConfigurationRoot** — Multi-provider aggregator with LIFO precedence (last registered wins). Implements `IConfiguration`.
+- **5-Layer Standard Precedence Pipeline** — (1) Base JSON/YAML $\rightarrow$ (2) Environment JSON/YAML $\rightarrow$ (3) User Secrets (Development only) $\rightarrow$ (4) OS Environment Variables $\rightarrow$ (5) Command-line Arguments (CLI).
+- **CommandLine Configuration Provider** (`Dext.Configuration.CommandLine`) — High-performance argument parsing supporting `--Key=Value`, `/Key=Value`, space-delimited `--Key Value`, double-underscore mapping (`--Key__SubKey=Value` $\rightarrow$ `Key:SubKey`), boolean flags, and custom switch aliases dictionary (`-p` $\rightarrow$ `Server:Port`).
+- **User Secrets Configuration Provider** (`Dext.Configuration.UserSecrets`) — Storage and isolation of development credentials outside git repository (`%APPDATA%\Dext\UserSecrets\<Id>\secrets.json` on Windows, `~/.dext/usersecrets/<Id>/secrets.json` on Linux/macOS).
 - **Hierarchical Keys** — Access via `:` separator (e.g., `Database:ConnectionString`). `GetSection(key)` returns sub-tree.
 - **Options Pattern** — `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` for typed binding of configuration sections to records/classes.
 - **Section Validators** — `AddSectionValidator(section, validator)` for startup configuration validation.

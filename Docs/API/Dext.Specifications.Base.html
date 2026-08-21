@@ -90,6 +90,10 @@ class TSpecification~T~ {    +GetExpression()
     +Skip()
     +EnableTracking()
     +AsNoTracking()
+    +AndSpec()
+    +OrSpec()
+    +NotSpec()
+    +IsSatisfiedBy()
 }
 TInterfacedObject <|-- TSpecification~T~
 ISpecification <|.. TSpecification~T~
@@ -156,6 +160,14 @@ ISpecification <|.. TSpecification~T~
 <div class="api-signature">procedure EnableTracking(const const: Boolean)</div></div>
 <div class="api-item">
 <div class="api-signature">procedure AsNoTracking</div></div>
+<div class="api-item">
+<div class="api-signature">function AndSpec(const const: ISpecification): ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function OrSpec(const const: ISpecification): ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function NotSpec: ISpecification</div></div>
+<div class="api-item">
+<div class="api-signature">function IsSatisfiedBy(const const: T): Boolean</div></div>
 </div>
 <div class="visibility-group"><h5>PROTECTED</h5><div class="api-item">
 <div class="api-signature">function GetExpression: IExpression</div></div>

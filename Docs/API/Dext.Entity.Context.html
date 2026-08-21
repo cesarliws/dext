@@ -120,6 +120,8 @@ class TDbContext {    +SetOnLog()
     +ResetState()
     +DataSet()
     +UseSql()
+    +SqlQuery~T~()
+    +SqlQueryFirst~T~()
     +PreloadDbSets()
     +EnsureCreated()
     +ExecuteSchemaSetup()
@@ -230,6 +232,8 @@ IPoolable <|.. TDbContext
 <div class="api-item">
 <div class="api-signature">constructor Create(const const: TDbContextOptions; const const: ITenantProvider)</div><div class="description">Initializes the context based on a configurable options object.</div></div>
 <div class="api-item">
+<div class="api-signature">constructor Create(const const: TDbContextOptionsBuilder; const const: ITenantProvider)</div><div class="description">Initializes the context based on a fluent options builder.</div></div>
+<div class="api-item">
 <div class="api-signature">destructor Destroy</div></div>
 <div class="api-item">
 <div class="api-signature">constructor Create</div></div>
@@ -263,6 +267,14 @@ IPoolable <|.. TDbContext
 <div class="api-signature">function DataSet(AEntityType: PTypeInfo): IDbSet</div><div class="description">Gets the weakly typed interface of a DbSet for the provided entity type.</div></div>
 <div class="api-item">
 <div class="api-signature">function UseSql(const const: string): IDextFastQuery</div><div class="description">Creates a fast SQL query execution pipeline directly streaming UTF-8 JSON output.</div></div>
+<div class="api-item">
+<div class="api-signature">function SqlQuery&lt;T&gt;(const const: string; const const: array): IList</div><div class="description">Executes a raw SQL query and hydrates the results into a typed list of DTOs/POCO objects.</div></div>
+<div class="api-item">
+<div class="api-signature">function SqlQuery&lt;T&gt;(const const: string): IList</div></div>
+<div class="api-item">
+<div class="api-signature">function SqlQueryFirst&lt;T&gt;(const const: string; const const: array): T</div><div class="description">Executes a raw SQL query and returns the first hydrated result, or nil if no records match.</div></div>
+<div class="api-item">
+<div class="api-signature">function SqlQueryFirst&lt;T&gt;(const const: string): T</div></div>
 <div class="api-item">
 <div class="api-signature">procedure PreloadDbSets</div><div class="description">Preloads the DbSet cache to optimize future resolutions.</div></div>
 <div class="api-item">

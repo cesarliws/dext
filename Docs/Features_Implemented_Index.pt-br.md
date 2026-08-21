@@ -75,9 +75,12 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Mapeamento de Records** — Copia campos e propriedades equivalentes entre classes e records.
 - **Otimização de Valores Padrão** — Parâmetro `AOnlyNonDefault` para mapear apenas valores não-padrão (evitando sobrescrever valores previamente inicializados no destino).
 
-### 1.5 Configuration System (`Dext.Configuration.Core`)
-- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine`, `.AddInMemoryCollection`.
+### 1.5 Configuration System (`Dext.Configuration.*`)
+- **TDextConfiguration (Fluent Builder)** — `.AddJsonFile(path)`, `.AddYamlFile(path)`, `.AddEnvironmentVariables(prefix)`, `.AddCommandLine(args, mappings)`, `.AddUserSecrets(secretsId)`, `.AddInMemoryCollection`.
 - **TConfigurationRoot** — Agregador multi-provider com precedência LIFO (último provider registrado vence). Implementa `IConfiguration`.
+- **Pipeline Padrão de 5 Camadas de Precedência** — (1) Arquivos Base JSON/YAML $\rightarrow$ (2) Arquivos de Ambiente JSON/YAML $\rightarrow$ (3) User Secrets (Apenas em Development) $\rightarrow$ (4) Variáveis de Ambiente do S.O. $\rightarrow$ (5) Argumentos de Linha de Comando (CLI).
+- **CommandLine Configuration Provider** (`Dext.Configuration.CommandLine`) — Parsing de argumentos de alta performance suportando `--Key=Value`, `/Key=Value`, valores separados por espaço `--Key Value`, conversão de duplo sublinhado (`--Key__SubKey=Value` $\rightarrow$ `Key:SubKey`), flags booleanas e mapeamento customizado de switches/aliases (`-p` $\rightarrow$ `Server:Port`).
+- **User Secrets Configuration Provider** (`Dext.Configuration.UserSecrets`) — Armazenamento e isolamento de credenciais de desenvolvimento fora do repositório git (`%APPDATA%\Dext\UserSecrets\<Id>\secrets.json` no Windows, `~/.dext/usersecrets/<Id>/secrets.json` no Linux/macOS).
 - **Hierarchical Keys** — Acesso via `:` separator (ex: `Database:ConnectionString`). `GetSection(key)` retorna sub-árvore.
 - **Options Pattern** — `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` para binding tipado de seções de configuração em records/classes.
 - **Section Validators** — `AddSectionValidator(section, validator)` para validação de configuração no startup.

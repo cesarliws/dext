@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dext.Configuration.CommandLine - Dext Framework 1.0</title>
+    
+    <!-- Blocking script to avoid theme flicker --> 
+    <script>
+        (function() {
+            const storedTheme = localStorage.getItem('dext-theme') || 'dark';
+            document.documentElement.setAttribute('data-theme', storedTheme);
+        })();
+    </script>
+    
+    <!-- Theme & Layout (Separate files for internal Dext Tooling) -->
+    <link rel="stylesheet" href="theme.css">
+    <link rel="stylesheet" href="layout.css">
+    
+    <!-- Mermaid for Diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Dext Framework 1.0</h3>
+            <small>Documentation</small>
+        </div>
+        <div class="search-box">
+            <input type="text" class="search-input" placeholder="Search API..." id="searchInput">
+        </div>
+        <div class="nav-list" id="navList">
+            <!-- Sidebar Content Loaded Dynamically via toc.json -->
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header-actions">
+            <button class="theme-toggle" id="themeToggle" title="Toggle Dark/Light Mode">&#x1F313;</button>
+        </div>
+        
+        <div id="contentArea">
+            <!-- Main Documentation Content Injected Here -->
+            <h1>Unit Dext.Configuration.CommandLine</h1><h2>Classes</h2>
+<details class="mermaid-details" open>
+<summary>Class Diagram <span class="collapse-text">(Click to collapse)</span><span class="expand-text">(Click to expand)</span></summary>
+<div class="mermaid-container">
+<div class="mermaid">
+classDiagram
+class TCommandLineConfigurationProvider {    +ParseArgs()
+    +NormalizeKey()
+    +Create()
+    +Destroy()
+    +Load()
+}
+TConfigurationProvider <|-- TCommandLineConfigurationProvider
+class TCommandLineConfigurationSource {    +Create()
+    +Destroy()
+    +Build()
+}
+TInterfacedObject <|-- TCommandLineConfigurationSource
+IConfigurationSource <|.. TCommandLineConfigurationSource
+class TDextConfigurationCommandLineExtensions {    +AddCommandLine()
+}
+</div>
+</div>
+</details>
+<h2>API Details</h2>
+<div class="class-header">
+<h3>class TCommandLineConfigurationProvider</h3><a name="TCommandLineConfigurationProvider"></a><div class="ancestor">Inherits from: TConfigurationProvider</div><div class="description">Configuration provider that reads and parses command-line arguments.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: TArray; const const: IDictionary)</div><div class="description">Initializes a new instance of TCommandLineConfigurationProvider.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">procedure Load</div><div class="description">Loads and parses command-line arguments into configuration key-value pairs.</div></div>
+</div>
+<div class="visibility-group"><h5>PRIVATE</h5><div class="api-item">
+<div class="api-signature">procedure ParseArgs</div></div>
+<div class="api-item">
+<div class="api-signature">function NormalizeKey(const const: string): string</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>class TCommandLineConfigurationSource</h3><a name="TCommandLineConfigurationSource"></a><div class="ancestor">Inherits from: TInterfacedObject</div><div class="description">Configuration source for command-line arguments.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">constructor Create(const const: TArray; const const: IDictionary)</div><div class="description">Initializes a new instance of TCommandLineConfigurationSource.</div></div>
+<div class="api-item">
+<div class="api-signature">destructor Destroy</div></div>
+<div class="api-item">
+<div class="api-signature">function Build(Builder: IConfigurationBuilder): IConfigurationProvider</div><div class="description">Builds and returns the IConfigurationProvider instance.</div></div>
+</div>
+<hr>
+<div class="class-header">
+<h3>record TDextConfigurationCommandLineExtensions</h3><a name="TDextConfigurationCommandLineExtensions"></a><div class="description">Extensions for TDextConfiguration to support command-line arguments.</div></div>
+<div class="visibility-group"><h5>PUBLIC</h5><div class="api-item">
+<div class="api-signature">function AddCommandLine(const const: TArray; const const: IDictionary): TDextConfiguration</div><div class="description">Adds command-line arguments configuration source to the configuration builder.</div></div>
+</div>
+<hr>
+
+        </div>
+    </div>
+
+    <script src="toc.js"></script>
+    <script src="viewer.js"></script>
+</body>
+</html>

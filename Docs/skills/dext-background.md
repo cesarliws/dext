@@ -90,7 +90,9 @@ project/
 ```pascal
 uses
   Dext.Configuration.Json,
-  Dext.Configuration.EnvironmentVariables;
+  Dext.Configuration.UserSecrets,
+  Dext.Configuration.EnvironmentVariables,
+  Dext.Configuration.CommandLine;
 
 var Env := GetEnvironmentVariable('DEXT_ENVIRONMENT');
 if Env = '' then Env := 'Development';
@@ -98,7 +100,9 @@ if Env = '' then Env := 'Development';
 var Config := TConfigurationBuilder.Create
   .Add(TJsonConfigurationSource.Create('appsettings.json'))
   .Add(TJsonConfigurationSource.Create('appsettings.' + Env + '.json', True)) // optional
-  .Add(TEnvironmentVariablesConfigurationSource.Create)  // highest priority
+  .Add(TUserSecretsConfigurationSource.Create('app-secrets-id', True))       // dev secrets
+  .Add(TEnvironmentVariablesConfigurationSource.Create)                       // env vars
+  .Add(TCommandLineConfigurationSource.Create)                                // CLI args (highest)
   .Build;
 ```
 

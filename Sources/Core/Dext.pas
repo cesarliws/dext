@@ -35,10 +35,12 @@ uses
   Dext.Collections,
   Dext.Collections.Pool,
   Dext.Configuration.Binder,
+  Dext.Configuration.CommandLine,
   Dext.Configuration.Core,
   Dext.Configuration.EnvironmentVariables,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Json,
+  Dext.Configuration.UserSecrets,
   Dext.Configuration.Yaml,
   Dext.Core.SmartTypes,
   Dext.DI.Attributes,
@@ -104,6 +106,10 @@ type
   // Dext.Configuration.Binder
   TConfigurationBinder = Dext.Configuration.Binder.TConfigurationBinder;
 
+  // Dext.Configuration.CommandLine
+  TCommandLineConfigurationProvider = Dext.Configuration.CommandLine.TCommandLineConfigurationProvider;
+  TCommandLineConfigurationSource = Dext.Configuration.CommandLine.TCommandLineConfigurationSource;
+
   // Dext.Configuration.Core
   TConfigurationProvider = Dext.Configuration.Core.TConfigurationProvider;
   TConfigurationSection = Dext.Configuration.Core.TConfigurationSection;
@@ -131,6 +137,10 @@ type
   TJsonConfigurationBuilder = Dext.Configuration.Json.TJsonConfigurationBuilder;
   TJsonConfigurationProvider = Dext.Configuration.Json.TJsonConfigurationProvider;
   TJsonConfigurationSource = Dext.Configuration.Json.TJsonConfigurationSource;
+
+  // Dext.Configuration.UserSecrets
+  TUserSecretsConfigurationProvider = Dext.Configuration.UserSecrets.TUserSecretsConfigurationProvider;
+  TUserSecretsConfigurationSource = Dext.Configuration.UserSecrets.TUserSecretsConfigurationSource;
 
   // Dext.Configuration.Yaml
   TYamlConfigurationBuilder = Dext.Configuration.Yaml.TYamlConfigurationBuilder;
