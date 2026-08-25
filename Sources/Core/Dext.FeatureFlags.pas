@@ -73,6 +73,17 @@ type
   end;
 
   /// <summary>
+  ///   Reloads configuration providers so FeatureManagement keys refresh without redeploy.
+  /// </summary>
+  TFeatureConfiguration = record
+    /// <summary>
+    ///   Invokes <c>IConfigurationRoot.Reload</c> when the configuration root supports it.
+    ///   Returns True when reload ran; False when AConfiguration is not an IConfigurationRoot.
+    /// </summary>
+    class function Reload(const AConfiguration: IConfiguration): Boolean; static;
+  end;
+
+  /// <summary>
   ///   Attribute to declare feature gate requirements on controllers or actions.
   /// </summary>
   FeatureGateAttribute = class(TCustomAttribute)
@@ -214,6 +225,20 @@ begin
       Exit(False); // Security rule: Invalid date format MUST deny feature
     if NowDt > EndDt then
       Exit(False);
+  end;
+end;
+
+{ TFeatureConfiguration }
+
+class function TFeatureConfiguration.Reload(const AConfiguration: IConfiguration): Boolean;
+var
+  Root: IConfigurationRoot;
+begin
+  Result := False;
+  if (AConfiguration <> nil) and Supports(AConfiguration, IConfigurationRoot, Root) then
+  begin
+    Root.Reload;
+    Result := True;
   end;
 end;
 

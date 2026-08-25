@@ -206,6 +206,30 @@ begin
       Generator.Free;
     end;
 
+    WriteLn('--- Case 8: UPDATE/DELETE include TenantId (S68) ---');
+    Provider.Tenant := TenantA;
+    Generator := TSqlGenerator<TProduct>.Create(TSQLiteDialect.Create, nil, Provider);
+    try
+      P := TProduct.Create;
+      try
+        P.Id := 1;
+        P.Name := 'Product A';
+        P.TenantId := 'TENANT-A';
+        SQL := Generator.GenerateUpdate(P);
+        WriteLn('UPDATE SQL: ', SQL);
+        if Pos('TenantId', SQL) = 0 then
+          raise Exception.Create('UPDATE must include TenantId filter');
+        SQL := Generator.GenerateDelete(P);
+        WriteLn('DELETE SQL: ', SQL);
+        if Pos('TenantId', SQL) = 0 then
+          raise Exception.Create('DELETE must include TenantId filter');
+      finally
+        P.Free;
+      end;
+    finally
+      Generator.Free;
+    end;
+
     WriteLn('SUCCESS: All Multi-Tenancy tests (including Schema-based) passed.');
     
   finally

@@ -358,6 +358,40 @@ dext test --html --output report.html  # HTML report
 
 Or via Delphi IDE: Run the test console project directly.
 
+## Integration Testing — WebApplicationFactory (S66 / S68)
+
+```pascal
+uses
+  Dext.Testing,
+  Dext.Testing.WebApplicationFactory,
+  Dext.Web,
+  Dext.Web.Results;
+
+var
+  Factory: TDextApplicationFactory<TObject>;
+  Client: IDextTestHttpClient;
+  Response: IDextTestHttpResponse;
+begin
+  Factory := TDextApplicationFactory<TObject>.Create
+    .WithConfigure(
+      procedure(App: TWebApplication)
+      begin
+        App.Builder.MapGet('/api/ping',
+          procedure(Ctx: IHttpContext)
+          begin
+            Results.Ok('pong').Execute(Ctx);
+          end);
+      end);
+  try
+    Client := Factory.CreateClient; // in-process, no TCP
+    Response := Client.Get('/api/ping');
+    Should(Response.StatusCode).Be(200);
+  finally
+    Factory.Free;
+  end;
+end;
+```
+
 ## Integration Testing (PowerShell)
 
 Every Web API should have a PowerShell integration test script (e.g., `Test.MyApi.ps1`):

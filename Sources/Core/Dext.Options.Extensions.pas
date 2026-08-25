@@ -40,19 +40,91 @@ type
   /// </summary>
   TOptionsServiceCollectionExtensions = class
   public
+    /// <summary>Registers the options infrastructure (reserved for future shared services).</summary>
     class procedure AddOptions(Services: IServiceCollection);
-    class procedure Configure<T: class, constructor>(Services: IServiceCollection; Configuration: IConfiguration); overload;
-    class procedure Configure<T: class, constructor>(Services: IServiceCollection; Configuration: IConfiguration;
-      const Validator: TFunc<T, string>); overload;
-    class procedure Configure<T: class, constructor>(Services: IServiceCollection; Section: IConfigurationSection); overload;
-    class procedure Configure<T: class, constructor>(Services: IServiceCollection; Section: IConfigurationSection;
-      const Validator: TFunc<T, string>); overload;
+
+    /// <summary>Binds <typeparamref name="T"/> from the root configuration.</summary>
+    class procedure Configure<T: class, constructor>(Services: IServiceCollection;
+      Configuration: IConfiguration); overload;
+
+    /// <summary>
+    ///   Binds <typeparamref name="T"/> from the root configuration with a validator.
+    ///   When <paramref name="AValidateOnStart"/> is True, validation runs during host
+    ///   service-provider build (before listening), raising <see cref="EConfigurationException"/> on failure.
+    /// </summary>
+    class procedure Configure<T: class, constructor>(Services: IServiceCollection;
+      Configuration: IConfiguration; const Validator: TFunc<T, string>;
+      AValidateOnStart: Boolean = False); overload;
+
+    /// <summary>Binds <typeparamref name="T"/> from a configuration section.</summary>
+    class procedure Configure<T: class, constructor>(Services: IServiceCollection;
+      Section: IConfigurationSection); overload;
+
+    /// <summary>
+    ///   Binds <typeparamref name="T"/> from a section with a validator.
+    ///   When <paramref name="AValidateOnStart"/> is True, validation runs at host build time.
+    /// </summary>
+    class procedure Configure<T: class, constructor>(Services: IServiceCollection;
+      Section: IConfigurationSection; const Validator: TFunc<T, string>;
+      AValidateOnStart: Boolean = False); overload;
+
+    /// <summary>
+    ///   Resolves every options registration marked with ValidateOnStart.
+    ///   Called automatically by <c>TWebApplication.BuildServices</c>.
+    /// </summary>
+    class procedure ValidateOptionsOnStart(const AProvider: IServiceProvider);
   end;
+
+/// <summary>
+///   Registers an action to resolve options eagerly at host build time.
+///   Declared in the interface so generic Configure&lt;T&gt; methods may call it (E2506).
+/// </summary>
+procedure RegisterOptionsValidateOnStart(const AAction: TProc<IServiceProvider>);
 
 implementation
 
 uses
+  Dext.Collections,
   Dext.Configuration.Binder;
+
+type
+  TOptionsValidateOnStartRegistry = class
+  private
+    class var FActions: IList<TProc<IServiceProvider>>;
+    class constructor Create;
+  public
+    class procedure Register(const AAction: TProc<IServiceProvider>);
+    class procedure Run(const AProvider: IServiceProvider);
+  end;
+
+{ TOptionsValidateOnStartRegistry }
+
+class constructor TOptionsValidateOnStartRegistry.Create;
+begin
+  FActions := TCollections.CreateList<TProc<IServiceProvider>>;
+end;
+
+class procedure TOptionsValidateOnStartRegistry.Register(
+  const AAction: TProc<IServiceProvider>);
+begin
+  if Assigned(AAction) then
+    FActions.Add(AAction);
+end;
+
+class procedure TOptionsValidateOnStartRegistry.Run(const AProvider: IServiceProvider);
+var
+  Action: TProc<IServiceProvider>;
+begin
+  if AProvider = nil then
+    Exit;
+  for Action in FActions do
+    Action(AProvider);
+end;
+
+procedure RegisterOptionsValidateOnStart(const AAction: TProc<IServiceProvider>);
+begin
+  TOptionsValidateOnStartRegistry.Register(AAction);
+end;
 
 { TOptionsServiceCollectionExtensions }
 
@@ -60,7 +132,8 @@ class procedure TOptionsServiceCollectionExtensions.AddOptions(Services: IServic
 begin
 end;
 
-class procedure TOptionsServiceCollectionExtensions.Configure<T>(Services: IServiceCollection; Configuration: IConfiguration);
+class procedure TOptionsServiceCollectionExtensions.Configure<T>(Services: IServiceCollection;
+  Configuration: IConfiguration);
 begin
   Services.AddSingleton(
     TServiceType.FromInterface(TypeInfo(IOptions<T>)),
@@ -76,7 +149,8 @@ begin
 end;
 
 class procedure TOptionsServiceCollectionExtensions.Configure<T>(Services: IServiceCollection;
-  Configuration: IConfiguration; const Validator: TFunc<T, string>);
+  Configuration: IConfiguration; const Validator: TFunc<T, string>;
+  AValidateOnStart: Boolean);
 begin
   Services.AddSingleton(
     TServiceType.FromInterface(TypeInfo(IOptions<T>)),
@@ -101,9 +175,22 @@ begin
       Result := TOptions<T>.Create(Value);
     end
   );
+
+  if AValidateOnStart then
+  begin
+    RegisterOptionsValidateOnStart(
+      procedure(Provider: IServiceProvider)
+      var
+        Options: IInterface;
+      begin
+        Options := Provider.GetServiceAsInterface(
+          TServiceType.FromInterface(TypeInfo(IOptions<T>)));
+      end);
+  end;
 end;
 
-class procedure TOptionsServiceCollectionExtensions.Configure<T>(Services: IServiceCollection; Section: IConfigurationSection);
+class procedure TOptionsServiceCollectionExtensions.Configure<T>(Services: IServiceCollection;
+  Section: IConfigurationSection);
 begin
   Services.AddSingleton(
     TServiceType.FromInterface(TypeInfo(IOptions<T>)),
@@ -119,7 +206,8 @@ begin
 end;
 
 class procedure TOptionsServiceCollectionExtensions.Configure<T>(Services: IServiceCollection;
-  Section: IConfigurationSection; const Validator: TFunc<T, string>);
+  Section: IConfigurationSection; const Validator: TFunc<T, string>;
+  AValidateOnStart: Boolean);
 begin
   Services.AddSingleton(
     TServiceType.FromInterface(TypeInfo(IOptions<T>)),
@@ -144,7 +232,24 @@ begin
       Result := TOptions<T>.Create(Value);
     end
   );
+
+  if AValidateOnStart then
+  begin
+    RegisterOptionsValidateOnStart(
+      procedure(Provider: IServiceProvider)
+      var
+        Options: IInterface;
+      begin
+        Options := Provider.GetServiceAsInterface(
+          TServiceType.FromInterface(TypeInfo(IOptions<T>)));
+      end);
+  end;
+end;
+
+class procedure TOptionsServiceCollectionExtensions.ValidateOptionsOnStart(
+  const AProvider: IServiceProvider);
+begin
+  TOptionsValidateOnStartRegistry.Run(AProvider);
 end;
 
 end.
-

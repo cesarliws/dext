@@ -103,6 +103,8 @@ end;
   - These are also records on the stack. **Never** free them.
   - E.g.: `App.Builder.UseCors(CorsOptions.AllowAnyOrigin.AllowAnyMethod)`
 - `ConfigureServices` receives `(const Services: TDextServices; const Configuration: IConfiguration)`.
+- **Feature flags (S68):** host registers JSON/YAML with `ReloadOnChange`; call `TFeatureConfiguration.Reload(Configuration)` to force an immediate refresh of `FeatureManagement:*` keys.
+- **Options ValidateOnStart (S68):** `Configure<T>(..., Validator, True)` fails fast in `BuildServices` before the server listens.
 - `Configure` receives `IWebApplication`, not `IApplicationBuilder`.
 - Use `App.Builder` for the fluent middleware pipeline.
 - Database configuration **must** be in a separate private method.

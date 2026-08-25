@@ -82,7 +82,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **CommandLine Configuration Provider** (`Dext.Configuration.CommandLine`) — Parsing de argumentos de alta performance suportando `--Key=Value`, `/Key=Value`, valores separados por espaço `--Key Value`, conversão de duplo sublinhado (`--Key__SubKey=Value` $\rightarrow$ `Key:SubKey`), flags booleanas e mapeamento customizado de switches/aliases (`-p` $\rightarrow$ `Server:Port`).
 - **User Secrets Configuration Provider** (`Dext.Configuration.UserSecrets`) — Armazenamento e isolamento de credenciais de desenvolvimento fora do repositório git (`%APPDATA%\Dext\UserSecrets\<Id>\secrets.json` no Windows, `~/.dext/usersecrets/<Id>/secrets.json` no Linux/macOS).
 - **Hierarchical Keys** — Acesso via `:` separator (ex: `Database:ConnectionString`). `GetSection(key)` retorna sub-árvore.
-- **Options Pattern** — `IOptions<T>`, `IOptionsSnapshot<T>`, `IOptionsMonitor<T>` para binding tipado de seções de configuração em records/classes.
+- **Options Pattern** — `IOptions<T>` para binding tipado de seções de configuração em classes; callback de validação opcional em `Configure<T>`; **ValidateOnStart** (S68) resolve e valida eagerly em `TWebApplication.BuildServices` antes de abrir a porta (`EConfigurationException`).
 - **Section Validators** — `AddSectionValidator(section, validator)` para validação de configuração no startup.
 - **Change Tracking** — `IChangeToken` com `OnReload` callback para hot-reload de configuração.
 
@@ -153,6 +153,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Scoping Suport** — Handlers respeitam o ciclo de vida do DI (Scoped handlers recebem o mesmo contexto da request original).
 
 ### 1.12 Feature Flags, Zero-Trust Proxies & Antiforgery (`Dext.FeatureFlags`, `Dext.Web.ForwardedHeaders`, `Dext.Web.Antiforgery`)
+- **Feature Flags** — `IFeatureManager` / `TFeatureManager` lê `FeatureManagement:*` ao vivo da configuração; o host habilita JSON/YAML com **ReloadOnChange**; `TFeatureConfiguration.Reload` força `IConfigurationRoot.Reload` (S68).
 - **Dext.FeatureFlags (`IFeatureManager`)** — Gerenciamento dinâmico de chaves operacionais e rollouts graduais. Suporta flags booleanas, `TPercentageFilter` (rollout percentual determinístico por usuário/tenant), `TTimeWindowFilter` (janela temporal ISO-8601), filtros customizados (`IFeatureFilter`) e anotação `[FeatureGate('NomeFeature')]`.
 - **Dext.Web.ForwardedHeaders (`TForwardedHeadersMiddleware`)** — Middleware de segurança Zero-Trust para processamento de cabeçalhos `X-Forwarded-For`, `X-Forwarded-Proto` e `X-Forwarded-Host` oriundos de proxies reversos confiáveis (NGINX, Caddy, Cloudflare, Traefik).
 - **Dext.Web.Antiforgery (`IAntiforgery`)** — Proteção contra Cross-Site Request Forgery (CSRF) com tokens HMAC-SHA256, tempo constante de comparação contra ataques de timing, validação de Origin/Host e suporte a cookies e cabeçalhos `X-CSRF-TOKEN`.
@@ -257,7 +258,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Chain of Responsibility** — Middlewares funcionais (delegates anônimos) e baseados em classe com injeção de dependência via construtor.
 - **Built-in Middlewares**:
   - **HTTP Logging (`THttpLoggingMiddleware`)** — Registro de requisições e respostas com mascaramento configurável case-insensitive (`RedactHeaders`) de cabeçalhos sensíveis (`Authorization`, `Cookie`, `Set-Cookie`, `X-API-Key`).
-  - **Exception Handling (`TExceptionHandlerMiddleware`)** — Tratamento global de exceções formatado conforme **RFC 9457** (Problem Details, substituindo RFC 7807), geração de `TraceId` via UUIDv7 para rastreabilidade e omissão automática de `E.Message` em produção em erros status `500`.
+  - **Exception Handling (`TExceptionHandlerMiddleware`)** — Tratamento global de exceções formatado conforme **RFC 9457** (Problem Details, substituindo RFC 7807), geração de `TraceId` via UUIDv7 para rastreabilidade e omissão automática de `E.Message` em produção em erros status `500`. Violações de regra de domínio via **`EDomainException` / `EDomainValidationException`** mapeiam para **HTTP 422** com `type` `https://dext.dev/errors/domain-validation` (S68).
   - **DeveloperExceptionPage (`TDeveloperExceptionPageMiddleware`)** — Exibição detalhada de erros e stack trace exclusiva para ambiente de desenvolvimento.
   - **CORS (`TCorsMiddleware`)** — Suporte estrito a preflight CORS (`OPTIONS` com `Origin` e `Access-Control-Request-Method`), validação rigorosa de Origens, Métodos e Cabeçalhos solicitados com rejeição status `403 Forbidden`, fail-fast no startup contra `AllowAnyOrigin + AllowCredentials` e mesclagem limpa de `Vary: Origin`.
   - **Rate Limiting (`TRateLimitMiddleware`)** — Controle de tráfego com cabeçalhos padronizados da **RFC 9333** (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, `Retry-After`) emitidos em requisições permitidas e rejeitadas (status `429`).
@@ -279,7 +280,10 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
 - **Zero-Allocation** — Deserialização UTF-8 direta para records e classes via `TByteSpan`.
 - **Multipart/Form-Data** — Processamento de uploads via abstração `IFormFile`.
 - **Object Lifecycle Management** — Tracking de objetos criados por Model Binding com integração ao **ChangeTracker** do ORM para transferência automática de ownership.
-
+- **Binding Problem Details (S68)** — Falhas de conversão retornam **HTTP 400** com `application/problem+json` (`Results.BindingProblem` / RFC 9457: `type`, `title`, `status`, `detail`, `instance`).
+- **Auto-Validation Problem Details (S68)** — Validação automática (atributos/fluente) no `THandlerInvoker` emite `Results.ValidationProblem` (`application/problem+json` com mapa `errors`).
+- **Results.Accepted (S68)** — Factory semântica **HTTP 202** com cabeçalho `Location` opcional (mesmo padrão de `Created`).
+- **Results.UnsupportedMediaType (S68 P2-05 parcial)** — Factory semântica **HTTP 415** para rejeição de mídia no código da aplicação (ex.: extensão de upload).
 ### 3.5 Hosting
 - **IWebHost / IWebHostBuilder** — Abstrações de hospedagem. Suporte a **Portas Dinâmicas (Porta 0)** com atribuição automática pelo SO.
 - **Server Adapters** — Indy (padrão, OpenSSL/Taurus SSL), **WebBroker Adapter** (ISAPI/CGI para IIS/Apache), **DCS Adapter** (Delphi-Cross-Socket, non-blocking) e **Native Server Engine** (kernel-mode `http.sys` no Windows e sockets `epoll` não-bloqueantes no Linux).
@@ -300,7 +304,7 @@ O Dext foi desenhado para alavancar recursos modernos da linguagem Object Pascal
   - **Hubs Transport (`Dext.Web.Hubs.Transport.WebSocket.pas`)**: Integração completa com `Dext.Web.Hubs` para mensageria bidirecional em tempo real, dispatching de grupos (`IHubClients`), reconexão automática e heartbeats ping/pong.
   - **Cross-Platform I/O**: Executa sobre raw sockets com `epoll` no Linux e `WSAPoll` / `IOCP` no Windows.
 - **Cliente Hub Delphi (SignalR-compatible)** — Biblioteca cliente nativa em Delphi (`Dext.Web.Hubs.Client`) de alta performance, com suporte a transportes WebSocket e SSE, protocolos de negociação/handshake automáticos, heartbeat via ping e dispatches thread-safe com marshaling opcional para a thread principal (UI).
-- **Caching** — Motor de cache em memória e provedor de cache Redis nativo (`TRedisCacheStore`). Gera chaves de cache exclusivas para requisições HTTP QUERY calculando um hash `THashSHA1` do stream de corpo da requisição. Suporte para registro de cache de resposta no pipeline via `.UseRedisCache` no `TAppBuilder`. **Health Checks** detalhados (com plano de expansão no roadmap).
+- **Caching** — Motor de cache em memória e provedor de cache Redis nativo (`TRedisCacheStore`). Gera chaves de cache exclusivas para requisições HTTP QUERY calculando um hash `THashSHA1` do stream de corpo da requisição. Suporte para registro de cache de resposta no pipeline via `.UseRedisCache` no `TAppBuilder`. **Health Checks** com probes `/health`, `/health/live` (liveness) e `/health/ready` (readiness) via `THealthCheckMiddleware` / `THealthCheckOptions` (S68).
 
 ### 3.8 API Documentation & Scaffolding
 - **OpenAPI / Swagger** — Geração automática de especificação.
@@ -326,7 +330,7 @@ Uma das features mais poderosas do Dext: **geração automática de APIs REST co
 
 #### Dynamic Specification Mapping (Filtros via QueryString)
 - **11 operadores** parseados automaticamente da URL: `_eq`, `_neq`, `_gt`, `_gte`, `_lt`, `_lte`, `_cont` (LIKE %x%), `_sw` (LIKE x%), `_ew` (LIKE %x), `_in` (IN), `_null` (IS NULL).
-- **Paginação** — `?_limit=20&_offset=40`.
+- **Paginação** — `?_limit=20&_offset=40` com teto **MaxPageSize** (default 100; fluente `.MaxPageSize(N)`, `0` desativa) — S68.
 - **Ordenação** — `?_orderby=price desc,name asc`.
 - **Resolução de nomes** — `ResolvePropertyName` via `TReflection.GetMetadata().GetHandlerBySnakeCase` para converter snake_case da URL para PascalCase da propriedade Delphi.
 - Cada filtro gera um `IExpression` via `TStringExpressionParser.Parse` e é injetado no `ISpecification` — a mesma AST usada pelas Smart Properties.
@@ -566,6 +570,11 @@ API fluente baseada no padrão `Should(Value)`.
 - **Soft Asserts** — `Assert.Multiple(procedure ... end)` to collect multiple failures in a block before interrupting the test.
 - **Action Assertions** — `Should(Proc).Throw<EException>().WithMessageContaining('...')`.
 
+### 7.3b Web Application Factory (S66 / S68)
+- **`TDextApplicationFactory<TApp>`** / **`TDextWebApplicationFactory<TApp>`** — Monta `TWebApplication` com `WithTestServices` / `WithConfigure`.
+- **`CreateClient: IDextTestHttpClient`** — GET/POST/PUT/DELETE in-process (sem TCP); despacha via `TWebApplication.BuildRequestPipeline`.
+- **`IDextTestHttpResponse`** — StatusCode, ContentType, Body, headers.
+
 ### 7.4 Snapshot Testing
 - **`MatchSnapshot('name')`** — Verificação de objetos complexos e payloads JSON via comparação de baselines em disco.
 - **Structural JSON Compare** — Comparação inteligente que ignora formatação e ordem de propriedades em JSON.
@@ -655,6 +664,7 @@ API fluente baseada no padrão `Should(Value)`.
 - **ITenantProvider** — Abstração para identificação do tenant atual.
 - **ITenantConnectionStringProvider** — Resolução dinâmica de connection strings por tenant.
 - **Estratégias** — Shared Database (discriminador TenantId), Schema Isolation (`search_path` no PostgreSQL), Database per Tenant.
+- **Filtros Tenant em DML (S68)** — `GenerateUpdate` / `GenerateDelete` (e templates batch) acrescentam `AND TenantId = :…` para entidades `ITenantAware` via `ITenantProvider` (respeita `.IgnoreQueryFilters`).
 - **Integração DI** — Registro como serviço Scoped para resolução por request.
 
 ---

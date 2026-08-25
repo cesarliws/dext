@@ -111,6 +111,11 @@ type
     function GetProperties: IDictionary<string, TObject>;
     
     function Add(Source: IConfigurationSource): IConfigurationBuilder;
+    /// <summary>
+    ///   Enables polling of file providers marked ReloadOnChange and rebuilds
+    ///   the configuration cache when files change (used by FeatureManagement hot-reload).
+    /// </summary>
+    function ReloadOnChange(AEnabled: Boolean = True; AIntervalMs: Integer = 1000): IConfigurationBuilder;
     function Build: IConfigurationRoot;
     
     property Sources: IList<IConfigurationSource> read GetSources;

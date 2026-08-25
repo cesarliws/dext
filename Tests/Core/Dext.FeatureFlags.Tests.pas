@@ -46,16 +46,23 @@ type
     procedure Test_Custom_Feature_Filter_Registration;
     [Test]
     procedure Test_IsEnabled_With_Context_Object_Extracts_UserId_Via_RTTI;
+    [Test]
+    procedure Test_FeatureConfiguration_Reload_On_Root_Returns_True;
+    [Test]
+    procedure Test_FeatureConfiguration_Reload_Picks_Up_Json_Change;
   end;
 
 implementation
 
 uses
   System.SysUtils,
+  System.Classes,
+  System.IOUtils,
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.Configuration.Interfaces,
   Dext.Configuration.Core,
+  Dext.Configuration.Json,
   Dext.FeatureFlags;
 
 type
@@ -216,6 +223,55 @@ begin
   finally
     UserCtx.Free;
     Mgr.Free;
+  end;
+end;
+
+procedure TDextFeatureFlagsTests.Test_FeatureConfiguration_Reload_On_Root_Returns_True;
+var
+  Config: IConfiguration;
+begin
+  Config := TDextConfiguration.New
+    .AddValues([TPair<string, string>.Create('FeatureManagement:X', 'True')])
+    .Build;
+  Should(TFeatureConfiguration.Reload(Config)).BeTrue;
+end;
+
+procedure TDextFeatureFlagsTests.Test_FeatureConfiguration_Reload_Picks_Up_Json_Change;
+var
+  Path: string;
+  Config: IConfiguration;
+  Mgr: IFeatureManager;
+  Lines: TStringList;
+begin
+  Path := TPath.Combine(TPath.GetTempPath, 'dext-s68-feature-reload.json');
+  Lines := TStringList.Create;
+  try
+    Lines.Text := '{"FeatureManagement":{"HotFlag":true}}';
+    Lines.SaveToFile(Path, TEncoding.UTF8);
+  finally
+    Lines.Free;
+  end;
+
+  try
+    Config := TDextConfiguration.New
+      .Add(TJsonConfigurationSource.Create(Path, False, True))
+      .Build;
+    Mgr := TFeatureManager.Create(Config);
+    Should(Mgr.IsEnabled('HotFlag')).BeTrue;
+
+    Lines := TStringList.Create;
+    try
+      Lines.Text := '{"FeatureManagement":{"HotFlag":false}}';
+      Lines.SaveToFile(Path, TEncoding.UTF8);
+    finally
+      Lines.Free;
+    end;
+
+    Should(TFeatureConfiguration.Reload(Config)).BeTrue;
+    Should(Mgr.IsEnabled('HotFlag')).BeFalse;
+  finally
+    if TFile.Exists(Path) then
+      TFile.Delete(Path);
   end;
 end;
 

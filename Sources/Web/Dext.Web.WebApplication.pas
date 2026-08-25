@@ -82,6 +82,11 @@ type
     function GetBuilder: TAppBuilder;
     /// <summary>Builds the final ServiceProvider by integrating all registered dependencies.</summary>
     function BuildServices: IServiceProvider; // ?
+    /// <summary>
+    ///   Builds the middleware/routing pipeline without starting a TCP host.
+    ///   Used by <c>TDextApplicationFactory.CreateClient</c> for in-process integration tests.
+    /// </summary>
+    function BuildRequestPipeline: TRequestDelegate;
     /// <summary>Registers a class-based middleware in the pipeline.</summary>
     function UseMiddleware(Middleware: TClass): IWebApplication;
     /// <summary>Configures the base path prefix (e.g. /myapp).</summary>
@@ -112,6 +117,12 @@ type
     function GetPort: Integer;
     property DefaultPort: Integer read FDefaultPort write FDefaultPort;
     property Port: Integer read GetPort;
+    /// <summary>Fluent pipeline builder (routes and middleware).</summary>
+    property Builder: TAppBuilder read GetBuilder;
+    /// <summary>Unified application configuration.</summary>
+    property Configuration: IConfiguration read GetConfiguration;
+    /// <summary>DI service registration facade.</summary>
+    property Services: TDextServices read GetServices;
   end;
 
   /// <deprecated>Use TWebApplication instead</deprecated>
@@ -142,7 +153,8 @@ uses
   Dext.Configuration.EnvironmentVariables,
   Dext.HealthChecks,
   Dext.Hosting.ApplicationLifetime,
-  Dext.Hosting.AppState
+  Dext.Hosting.AppState,
+  Dext.Options.Extensions
   {$IFDEF DEXT_ENABLE_ENTITY},
   Dext.Entity.Core,
   Dext.Entity.Migrations.Runner,
@@ -168,10 +180,10 @@ begin
   // Initialize Configuration (5-layer precedence pipeline)
   ConfigBuilder := TConfigurationBuilder.Create;
   
-  // 1. Base appsettings
-  ConfigBuilder.Add(TJsonConfigurationSource.Create('appsettings.json', True));
-  ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.yaml', True));
-  ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.yml', True));
+  // 1. Base appsettings (ReloadOnChange enabled so FeatureManagement can hot-reload)
+  ConfigBuilder.Add(TJsonConfigurationSource.Create('appsettings.json', True, True));
+  ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.yaml', True, True));
+  ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.yml', True, True));
 
   // 2. Environment specific appsettings.{Env}
   Env := GetEnvironmentVariable('DEXT_ENVIRONMENT');
@@ -179,9 +191,9 @@ begin
   
   if Env <> '' then
   begin
-    ConfigBuilder.Add(TJsonConfigurationSource.Create('appsettings.' + Env + '.json', True));
-    ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.' + Env + '.yaml', True));
-    ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.' + Env + '.yml', True));
+    ConfigBuilder.Add(TJsonConfigurationSource.Create('appsettings.' + Env + '.json', True, True));
+    ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.' + Env + '.yaml', True, True));
+    ConfigBuilder.Add(TYamlConfigurationSource.Create('appsettings.' + Env + '.yml', True, True));
   end;
 
   // 3. User Secrets (Active only in Development environment)
@@ -197,6 +209,9 @@ begin
 
   // 5. Command Line Arguments (Highest precedence)
   ConfigBuilder.Add(TCommandLineConfigurationSource.Create);
+
+  // Poll file providers so FeatureManagement / YAML-JSON changes apply without redeploy
+  ConfigBuilder.ReloadOnChange(True);
     
   FConfiguration := ConfigBuilder.Build;
   
@@ -306,12 +321,22 @@ begin
   // Set as global default provider for record-based service resolution (TDextServices.GetService<T>)
   TDextServices.DefaultProvider := FServiceProvider;
 
+  // Fail-fast: resolve options registered with ValidateOnStart before listening
+  TOptionsServiceCollectionExtensions.ValidateOptionsOnStart(FServiceProvider);
+
   // Ensure AppBuilder is updated or created with the new provider
   GetApplicationBuilder.SetServiceProvider(FServiceProvider);
   // Force logger resolution to initialize Telemetry Bridge
   ResolveLogger;
 
   Result := FServiceProvider;
+end;
+
+function TWebApplication.BuildRequestPipeline: TRequestDelegate;
+begin
+  BuildServices;
+  GetApplicationBuilder.SetServiceProvider(FServiceProvider);
+  Result := GetApplicationBuilder.Build;
 end;
 
 function TWebApplication.MapControllers: IWebApplication;

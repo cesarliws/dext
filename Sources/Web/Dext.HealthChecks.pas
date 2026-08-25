@@ -87,16 +87,37 @@ type
   end;
 
   /// <summary>
-  ///   Middleware that intercepts "/health" endpoint requests and returns system status in JSON.
+  ///   Path options for health probe endpoints (Kubernetes-style live/ready + aggregate).
+  /// </summary>
+  THealthCheckOptions = record
+    /// <summary>Aggregate health endpoint (runs all registered checks). Default: /health</summary>
+    HealthPath: string;
+    /// <summary>Liveness probe (process up). Default: /health/live</summary>
+    LivePath: string;
+    /// <summary>Readiness probe (dependencies). Default: /health/ready</summary>
+    ReadyPath: string;
+    /// <summary>Returns the framework defaults for health probe paths.</summary>
+    class function Default: THealthCheckOptions; static;
+  end;
+
+  /// <summary>
+  ///   Middleware that intercepts health probe paths and returns system status in JSON.
+  ///   Defaults: <c>/health</c> (aggregate), <c>/health/live</c> (liveness), <c>/health/ready</c> (readiness).
   ///   Registered as Singleton in the DI container.
   ///   Receives IHealthCheckService via constructor injection.
   /// </summary>
   THealthCheckMiddleware = class(TMiddleware)
   private
     FService: IHealthCheckService;
+    FOptions: THealthCheckOptions;
+    procedure WriteLiveResponse(AContext: IHttpContext);
+    procedure WriteChecksResponse(AContext: IHttpContext);
   public
+    /// <summary>Creates middleware with default probe paths.</summary>
     [ServiceConstructor]
-    constructor Create(AService: IHealthCheckService);
+    constructor Create(AService: IHealthCheckService); overload;
+    /// <summary>Creates middleware with custom probe paths.</summary>
+    constructor Create(AService: IHealthCheckService; const AOptions: THealthCheckOptions); overload;
     procedure Invoke(AContext: IHttpContext; ANext: TRequestDelegate); override;
   end;
 
@@ -200,17 +221,46 @@ begin
   end;
 end;
 
+{ THealthCheckOptions }
+
+class function THealthCheckOptions.Default: THealthCheckOptions;
+begin
+  Result.HealthPath := '/health';
+  Result.LivePath := '/health/live';
+  Result.ReadyPath := '/health/ready';
+end;
+
 { THealthCheckMiddleware }
 
 constructor THealthCheckMiddleware.Create(AService: IHealthCheckService);
+begin
+  Create(AService, THealthCheckOptions.Default);
+end;
+
+constructor THealthCheckMiddleware.Create(AService: IHealthCheckService;
+  const AOptions: THealthCheckOptions);
 begin
   inherited Create;
   if AService = nil then
     raise Exception.Create('THealthCheckMiddleware: IHealthCheckService is nil! Dependency Injection failed.');
   FService := AService;
+  FOptions := AOptions;
+  if FOptions.HealthPath = '' then
+    FOptions.HealthPath := '/health';
+  if FOptions.LivePath = '' then
+    FOptions.LivePath := '/health/live';
+  if FOptions.ReadyPath = '' then
+    FOptions.ReadyPath := '/health/ready';
 end;
 
-procedure THealthCheckMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
+procedure THealthCheckMiddleware.WriteLiveResponse(AContext: IHttpContext);
+begin
+  AContext.Response.StatusCode := 200;
+  AContext.Response.SetContentType('application/json');
+  AContext.Response.Write('{"status":"Healthy","probe":"live"}');
+end;
+
+procedure THealthCheckMiddleware.WriteChecksResponse(AContext: IHttpContext);
 var
   Results: IDictionary<string, THealthCheckResult>;
   OverallStatus: THealthStatus;
@@ -220,67 +270,81 @@ var
   Res: THealthCheckResult;
   First: Boolean;
 begin
-  if AContext.Request.Path <> '/health' then
+  Results := FService.CheckHealth(AContext.Services);
+  OverallStatus := THealthStatus.Healthy;
+  for Key in Results.Keys do
   begin
-    ANext(AContext);
+    Res := Results[Key];
+    if Res.Status = THealthStatus.Unhealthy then
+      OverallStatus := THealthStatus.Unhealthy
+    else if (Res.Status = THealthStatus.Degraded) and (OverallStatus = THealthStatus.Healthy) then
+      OverallStatus := THealthStatus.Degraded;
+  end;
+
+  Json := TStringBuilder.Create;
+  try
+    Json.Append('{');
+
+    case OverallStatus of
+      THealthStatus.Healthy: Json.Append('"status": "Healthy",');
+      THealthStatus.Degraded: Json.Append('"status": "Degraded",');
+      THealthStatus.Unhealthy: Json.Append('"status": "Unhealthy",');
+    end;
+
+    Json.Append('"checks": {');
+
+    First := True;
+    for Key in Results.Keys do
+    begin
+      if not First then
+        Json.Append(',');
+      First := False;
+
+      Res := Results[Key];
+      case Res.Status of
+        THealthStatus.Healthy: StatusStr := 'Healthy';
+        THealthStatus.Degraded: StatusStr := 'Degraded';
+        THealthStatus.Unhealthy: StatusStr := 'Unhealthy';
+      end;
+
+      Json.AppendFormat('"%s": {"status": "%s", "description": "%s"}',
+        [Key, StatusStr, Res.Description]);
+    end;
+
+    Json.Append('}}');
+
+    AContext.Response.SetContentType('application/json');
+    case OverallStatus of
+      THealthStatus.Healthy: AContext.Response.StatusCode := 200;
+      THealthStatus.Degraded: AContext.Response.StatusCode := 200;
+      THealthStatus.Unhealthy: AContext.Response.StatusCode := 503;
+    end;
+
+    AContext.Response.Write(Json.ToString);
+  finally
+    Json.Free;
+  end;
+end;
+
+procedure THealthCheckMiddleware.Invoke(AContext: IHttpContext; ANext: TRequestDelegate);
+var
+  Path: string;
+begin
+  Path := AContext.Request.Path;
+
+  if SameText(Path, FOptions.LivePath) then
+  begin
+    WriteLiveResponse(AContext);
     Exit;
   end;
 
-  // Use the scoped provider from the context to resolve health checks
-  Results := FService.CheckHealth(AContext.Services);
-  OverallStatus := THealthStatus.Healthy;
-    for Key in Results.Keys do
-    begin
-      Res := Results[Key];
-      if Res.Status = THealthStatus.Unhealthy then
-        OverallStatus := THealthStatus.Unhealthy
-      else if (Res.Status = THealthStatus.Degraded) and (OverallStatus = THealthStatus.Healthy) then
-        OverallStatus := THealthStatus.Degraded;
-    end;
+  if SameText(Path, FOptions.ReadyPath) or SameText(Path, FOptions.HealthPath) then
+  begin
+    WriteChecksResponse(AContext);
+    Exit;
+  end;
 
-    Json := TStringBuilder.Create;
-    try
-      Json.Append('{');
-      
-      case OverallStatus of
-        THealthStatus.Healthy: Json.Append('"status": "Healthy",');
-        THealthStatus.Degraded: Json.Append('"status": "Degraded",');
-        THealthStatus.Unhealthy: Json.Append('"status": "Unhealthy",');
-      end;
-        
-      Json.Append('"checks": {');
-      
-      First := True;
-      for Key in Results.Keys do
-      begin
-        if not First then Json.Append(',');
-        First := False;
-        
-        Res := Results[Key];
-        case Res.Status of
-          THealthStatus.Healthy: StatusStr := 'Healthy';
-          THealthStatus.Degraded: StatusStr := 'Degraded';
-          THealthStatus.Unhealthy: StatusStr := 'Unhealthy';
-        end;
-        
-        Json.AppendFormat('"%s": {"status": "%s", "description": "%s"}', 
-          [Key, StatusStr, Res.Description]);
-      end;
-      
-      Json.Append('}}');
-      
-      AContext.Response.SetContentType('application/json');
-      case OverallStatus of
-        THealthStatus.Healthy: AContext.Response.StatusCode := 200;
-        THealthStatus.Degraded: AContext.Response.StatusCode := 200;
-        THealthStatus.Unhealthy: AContext.Response.StatusCode := 503;
-      end;
-        
-      AContext.Response.Write(Json.ToString);
-    finally
-      Json.Free;
-    end;
-  // Results is ARC
+  ANext(AContext);
 end;
 
 { THealthCheckBuilder }

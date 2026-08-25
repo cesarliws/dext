@@ -71,7 +71,9 @@ type
   end;
 
   /// <summary>
-  ///   Validates model state (can be extended).
+  ///   Validates bound action arguments (records/classes) using attribute validators
+  ///   and optional DI <c>IValidator</c> implementations. On failure, short-circuits
+  ///   with <c>Results.ValidationProblem</c> (<c>application/problem+json</c>).
   /// </summary>
   ValidateModelAttribute = class(ActionFilterAttribute)
   public
@@ -93,8 +95,13 @@ type
 implementation
 
 uses
+  System.Rtti,
+  System.TypInfo,
   Dext.Utils,
-  Dext.Logging;
+  Dext.Logging,
+  Dext.Validation,
+  Dext.Core.Reflection,
+  Dext.DI.Interfaces;
 
 { LogActionAttribute }
 
@@ -180,10 +187,50 @@ end;
 { ValidateModelAttribute }
 
 procedure ValidateModelAttribute.OnActionExecuting(AContext: IActionExecutingContext);
+var
+  Arg: TValue;
+  i: Integer;
+  Meta: TTypeMetadata;
+  ValidatorIntf: IInterface;
+  Validator: IValidator;
+  ValidationResult: TValidationResult;
+  Args: TArray<TValue>;
 begin
-  // Placeholder: In a real implementation, this would check model validation errors
-  // For now, it's a no-op since validation happens in model binding
-  // You could extend this to add custom validation logic
+  Args := AContext.ActionArguments;
+  for i := 0 to High(Args) do
+  begin
+    Arg := Args[i];
+    if (Arg.Kind <> tkRecord) and (Arg.Kind <> tkClass) then
+      Continue;
+    if (Arg.Kind = tkClass) and (Arg.AsObject = nil) then
+      Continue;
+
+    Meta := TReflection.GetMetadata(Arg.TypeInfo);
+    ValidatorIntf := nil;
+    if (Meta.ValidatorInterfaceType <> nil) and (AContext.HttpContext.Services <> nil) then
+    begin
+      try
+        ValidatorIntf := AContext.HttpContext.Services.GetServiceAsInterface(
+          TServiceType.FromInterface(Meta.ValidatorInterfaceType));
+      except
+        // DI resolution failed — fall back to attribute validation
+      end;
+    end;
+
+    if (ValidatorIntf <> nil) and Supports(ValidatorIntf, IValidator, Validator) then
+      ValidationResult := Validator.ValidateInstance(Arg)
+    else
+      ValidationResult := TValidator.Validate(Arg);
+    try
+      if not ValidationResult.IsValid then
+      begin
+        AContext.Result := Results.ValidationProblem(ValidationResult);
+        Exit;
+      end;
+    finally
+      ValidationResult.Free;
+    end;
+  end;
 end;
 
 { AddHeaderAttribute }

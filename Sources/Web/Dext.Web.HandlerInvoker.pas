@@ -32,10 +32,12 @@ uses
   System.SyncObjs,
   System.Rtti,
   System.TypInfo,
+  System.Classes,
   Dext.Types.UUID,
   Dext.Web.Interfaces,
   Dext.Web.Controllers,
   Dext.Web.ModelBinding,
+  Dext.Filters,
   Dext.Utils;
 
 type
@@ -133,7 +135,16 @@ type
     ///   Dynamically invokes a controller action method using RTTI.
     ///   Supports parameter injection, auto-validation, and automatic result serialization.
     /// </summary>
-    function InvokeAction(AInstance: TObject; AMethod: TRttiMethod): Boolean;
+    function InvokeAction(AInstance: TObject; AMethod: TRttiMethod): Boolean; overload;
+    /// <summary>
+    ///   Invokes a controller action after binding, then runs action filters
+    ///   (with bound <c>ActionArguments</c>) before the method body.
+    /// </summary>
+    function InvokeAction(AInstance: TObject; AMethod: TRttiMethod;
+      const AFilters: TArray<TCustomAttribute>;
+      const ADescriptor: TActionDescriptor): Boolean; overload;
+  private
+    procedure WriteBindingProblem(const ADetail: string);
   end;
 
 implementation
@@ -145,7 +156,8 @@ uses
   {$ENDIF}
   ,Dext.Validation
   ,Dext.Core.Reflection
-  ,Dext.DI.Interfaces;
+  ,Dext.DI.Interfaces
+  ,Dext.Web.Results;
 
 threadvar
   FInvokerPoolHead: THandlerInvoker;
@@ -389,12 +401,17 @@ begin
   try
     if not ValidationResult.IsValid then
     begin
-      FContext.Response.Status(400).Json(TDextJson.Serialize(ValidationResult.Errors));
+      Results.ValidationProblem(ValidationResult).Execute(FContext);
       Result := False;
     end;
   finally
     ValidationResult.Free;
   end;
+end;
+
+procedure THandlerInvoker.WriteBindingProblem(const ADetail: string);
+begin
+  Results.BindingProblem(ADetail, FContext.Request.Path).Execute(FContext);
 end;
 
 function THandlerInvoker.Invoke(AHandler: TStaticHandler): Boolean;
@@ -419,7 +436,7 @@ begin
       on E: Exception do
       begin
         SafeWriteln('[Dext.Web] Binding/Validation Error: ' + E.ClassName + ': ' + E.Message);
-        FContext.Response.Status(400).Json(Format('{"error": "Binding error: %s"}', [E.Message]));
+        WriteBindingProblem(E.Message);
         Result := False;
       end;
     end;
@@ -447,7 +464,7 @@ begin
       on E: Exception do
       begin
         SafeWriteln('[Dext.Web] Binding/Validation Error: ' + E.ClassName + ': ' + E.Message);
-        FContext.Response.Status(400).Json(Format('{"error": "Binding error: %s"}', [E.Message]));
+        WriteBindingProblem(E.Message);
         Result := False;
       end;
     end;
@@ -463,16 +480,25 @@ var
   Arg3: T3;
 begin
   try
-    Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
-    Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
-    Arg3 := TDextBinderFactory<T3>.Bind(Self).AsType<T3>;
+    try
+      Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
+      Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
+      Arg3 := TDextBinderFactory<T3>.Bind(Self).AsType<T3>;
 
-    if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
-    if not Validate(TValue.From<T2>(Arg2)) then Exit(False);
-    if not Validate(TValue.From<T3>(Arg3)) then Exit(False);
+      if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
+      if not Validate(TValue.From<T2>(Arg2)) then Exit(False);
+      if not Validate(TValue.From<T3>(Arg3)) then Exit(False);
 
-    AHandler(Arg1, Arg2, Arg3);
-    Result := True;
+      AHandler(Arg1, Arg2, Arg3);
+      Result := True;
+    except
+      on E: Exception do
+      begin
+        SafeWriteln('[Dext.Web] Binding/Validation Error: ' + E.ClassName + ': ' + E.Message);
+        WriteBindingProblem(E.Message);
+        Result := False;
+      end;
+    end;
   finally
     CleanupBoundObjects;
   end;
@@ -514,7 +540,7 @@ begin
       on E: Exception do
       begin
         SafeWriteln('[Dext.Web] Binding/Validation Error: ' + E.ClassName + ': ' + E.Message);
-        FContext.Response.Status(400).Json(Format('{"error": "Binding error: %s"}', [E.Message]));
+        WriteBindingProblem(E.Message);
         Result := False;
       end;
     end;
@@ -552,7 +578,7 @@ begin
       on E: Exception do
       begin
         SafeWriteln('[Dext.Web] Binding/Validation Error: ' + E.ClassName + ': ' + E.Message);
-        FContext.Response.Status(400).Json(Format('{"error": "Binding error: %s"}', [E.Message]));
+        WriteBindingProblem(E.Message);
         Result := False;
       end;
     end;
@@ -570,27 +596,36 @@ var
   ResIntf: IResult;
 begin
   try
-    Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
-    Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
-    Arg3 := TDextBinderFactory<T3>.Bind(Self).AsType<T3>;
+    try
+      Arg1 := TDextBinderFactory<T1>.Bind(Self).AsType<T1>;
+      Arg2 := TDextBinderFactory<T2>.Bind(Self).AsType<T2>;
+      Arg3 := TDextBinderFactory<T3>.Bind(Self).AsType<T3>;
 
-    if (TypeInfo(T1) <> TypeInfo(TGUID)) and (TypeInfo(T1) <> TypeInfo(TUUID)) then
-    begin
-      if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
-    end;
-    if (TypeInfo(T2) <> TypeInfo(TGUID)) and (TypeInfo(T2) <> TypeInfo(TUUID)) then
-    begin
-      if not Validate(TValue.From<T2>(Arg2)) then Exit(False);
-    end;
-    if (TypeInfo(T3) <> TypeInfo(TGUID)) and (TypeInfo(T3) <> TypeInfo(TUUID)) then
-    begin
-      if not Validate(TValue.From<T3>(Arg3)) then Exit(False);
-    end;
+      if (TypeInfo(T1) <> TypeInfo(TGUID)) and (TypeInfo(T1) <> TypeInfo(TUUID)) then
+      begin
+        if not Validate(TValue.From<T1>(Arg1)) then Exit(False);
+      end;
+      if (TypeInfo(T2) <> TypeInfo(TGUID)) and (TypeInfo(T2) <> TypeInfo(TUUID)) then
+      begin
+        if not Validate(TValue.From<T2>(Arg2)) then Exit(False);
+      end;
+      if (TypeInfo(T3) <> TypeInfo(TGUID)) and (TypeInfo(T3) <> TypeInfo(TUUID)) then
+      begin
+        if not Validate(TValue.From<T3>(Arg3)) then Exit(False);
+      end;
 
-    Res := AHandler(Arg1, Arg2, Arg3);
-    if TValue.From<TResult>(Res).TryAsType<IResult>(ResIntf) then
-      ResIntf.Execute(FContext);
-    Result := True;
+      Res := AHandler(Arg1, Arg2, Arg3);
+      if TValue.From<TResult>(Res).TryAsType<IResult>(ResIntf) then
+        ResIntf.Execute(FContext);
+      Result := True;
+    except
+      on E: Exception do
+      begin
+        SafeWriteln('[Dext.Web] Binding/Validation Error: ' + E.ClassName + ': ' + E.Message);
+        WriteBindingProblem(E.Message);
+        Result := False;
+      end;
+    end;
   finally
     CleanupBoundObjects;
   end;
@@ -598,56 +633,76 @@ end;
 
 function THandlerInvoker.InvokeAction(AInstance: TObject; AMethod: TRttiMethod): Boolean;
 var
+  EmptyFilters: TArray<TCustomAttribute>;
+  EmptyDescriptor: TActionDescriptor;
+begin
+  SetLength(EmptyFilters, 0);
+  EmptyDescriptor := Default(TActionDescriptor);
+  Result := InvokeAction(AInstance, AMethod, EmptyFilters, EmptyDescriptor);
+end;
+
+function THandlerInvoker.InvokeAction(AInstance: TObject; AMethod: TRttiMethod;
+  const AFilters: TArray<TCustomAttribute>;
+  const ADescriptor: TActionDescriptor): Boolean;
+var
   ResultValue: TValue;
   ResIntf: IResult;
-  I: Integer;
+  i: Integer;
+  FilterAttr: TCustomAttribute;
+  Filter: IActionFilter;
+  ExecutingContext: IActionExecutingContext;
 begin
-  // ? VERIFICAÇÃO DE SEGURANÇA APRIMORADA
   if not Assigned(AMethod) then
   begin
     FContext.Response.Status(500).Json('{"error": "Internal server error: Method reference lost"}');
     Exit(False);
   end;
 
-  // ? DYNAMIC BINDING: Use ModelBinder to resolve all parameters
-  // This supports: IHttpContext, Route Params, Query Params, Body (Records), Services (Interfaces)
   try
     FModelBinder.BindMethodParameters(AMethod, FContext, FArgsBuffer);
   except
     on E: Exception do
     begin
-      FContext.Response.Status(400).Json(Format('{"error": "Bad Request: %s"}', [E.Message]));
+      WriteBindingProblem(E.Message);
       Exit(False);
     end;
   end;
 
-  // VALIDATION: Validate all record parameters
-  for I := 0 to High(FArgsBuffer) do
+  if Length(AFilters) > 0 then
   begin
-    if not Validate(FArgsBuffer[I]) then Exit(False);
+    ExecutingContext := TActionExecutingContext.Create(FContext, ADescriptor);
+    ExecutingContext.ActionArguments := FArgsBuffer;
+    for FilterAttr in AFilters do
+    begin
+      if Supports(FilterAttr, IActionFilter, Filter) then
+      begin
+        Filter.OnActionExecuting(ExecutingContext);
+        if Assigned(ExecutingContext.Result) then
+        begin
+          ExecutingContext.Result.Execute(FContext);
+          Exit(False);
+        end;
+      end;
+    end;
+  end;
+
+  for i := 0 to High(FArgsBuffer) do
+  begin
+    if not Validate(FArgsBuffer[i]) then
+      Exit(False);
   end;
 
   try
     ResultValue := AMethod.Invoke(AInstance, FArgsBuffer);
 
-    // LIDAR COM PROCEDURES (SEM RETORNO)
     if ResultValue.IsEmpty then
     begin
-      // Não faz nada - o controller já setou a resposta via Ctx.Response
+      // Controller already wrote the response via Ctx.Response
     end
+    else if ResultValue.TryAsType<IResult>(ResIntf) then
+      ResIntf.Execute(FContext)
     else
-    begin
-      // VERIFICAR SE RETORNOU IResult (APENAS SE NÃO ESTIVER VAZIO)
-      if ResultValue.TryAsType<IResult>(ResIntf) then
-      begin
-        ResIntf.Execute(FContext);
-      end
-      else
-      begin
-        // AUTO-SERIALIZATION
-        FContext.Response.Json(TDextJson.Serialize(ResultValue));
-      end;
-    end;
+      FContext.Response.Json(TDextJson.Serialize(ResultValue));
 
   except
     on E: Exception do
@@ -661,4 +716,3 @@ begin
 end;
 
 end.
-

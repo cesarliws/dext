@@ -144,9 +144,11 @@ Services
 Result := Results.Ok(Data);                        // 200 + JSON
 Result := Results.Ok<TMyDto>(Dto);                 // 200 + typed serialization
 Result := Results.Created('/path', Data);          // 201 + Location header
+Result := Results.Accepted('/jobs/1', Data);       // 202 + Location header
 Result := Results.NoContent;                        // 204
 Result := Results.BadRequest('Invalid data');       // 400
 Result := Results.NotFound('Not found');            // 404
+Result := Results.ValidationProblem(Validation);    // 400 problem+json
 Result := Results.StatusCode(401);                  // Custom status
 Result := Results.Json<TMyDto>(Dto);               // Explicit JSON
 ```

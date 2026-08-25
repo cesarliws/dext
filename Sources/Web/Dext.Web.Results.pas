@@ -117,6 +117,20 @@ type
   end;
 
   /// <summary>
+  ///   Result that returns HTTP 202 Accepted and optionally sets the Location header
+  ///   to a status/monitor URI for an asynchronous operation.
+  /// </summary>
+  TAcceptedResult = class(TResult)
+  private
+    FLocation: string;
+    FBody: IResult;
+  public
+    /// <summary>Creates an Accepted result with optional Location and body.</summary>
+    constructor Create(const ALocation: string; const ABody: IResult = nil);
+    procedure Execute(AContext: IHttpContext); override;
+  end;
+
+  /// <summary>
   ///   Generic result that uses content negotiation to format an object.
   ///   Attempts to find a registered formatter (JSON, XML) that accepts type T.
   /// </summary>
@@ -171,13 +185,30 @@ type
   end;
 
   /// <summary>
-  ///   Result that returns a standardized validation error response (RFC 7807).
+  ///   Result that returns a standardized validation error response (RFC 7807/9457).
+  ///   Copies field errors so the source TValidationResult may be freed immediately.
   /// </summary>
   TValidationProblemResult = class(TResult)
   private
-    FValidation: TValidationResult;
+    FErrors: TArray<TValidationError>;
   public
     constructor Create(const AValidation: TValidationResult);
+    procedure Execute(AContext: IHttpContext); override;
+  end;
+
+  /// <summary>
+  ///   Result that returns an RFC 9457 Problem Details document
+  ///   with Content-Type application/problem+json.
+  /// </summary>
+  TProblemDetailsResult = class(TResult)
+  private
+    FType: string;
+    FTitle: string;
+    FStatus: Integer;
+    FDetail: string;
+    FInstance: string;
+  public
+    constructor Create(const AType, ATitle, ADetail, AInstance: string; AStatus: Integer);
     procedure Execute(AContext: IHttpContext); override;
   end;
 
@@ -247,6 +278,13 @@ type
     /// <summary>Dispatches 201 Created with object serialized via Content Negotiation.</summary>
     procedure Created<T>(const AUri: string; const AValue: T); overload;
 
+    /// <summary>Dispatches 202 Accepted.</summary>
+    procedure Accepted(const AUri: string = ''); overload;
+    /// <summary>Dispatches 202 Accepted with a JSON/string body.</summary>
+    procedure Accepted(const AUri, AValue: string); overload;
+    /// <summary>Dispatches 202 Accepted with object serialized via Content Negotiation.</summary>
+    procedure Accepted<T>(const AUri: string; const AValue: T); overload;
+
     /// <summary>Dispatches 400 Bad Request.</summary>
     procedure BadRequest; overload;
     /// <summary>Dispatches 400 Bad Request with an error message.</summary>
@@ -265,6 +303,11 @@ type
     procedure Conflict(const AMessage: string); overload;
     /// <summary>Dispatches 409 Conflict with a serialized object.</summary>
     procedure Conflict<T>(const AValue: T); overload;
+
+    /// <summary>Dispatches 415 Unsupported Media Type.</summary>
+    procedure UnsupportedMediaType; overload;
+    /// <summary>Dispatches 415 Unsupported Media Type with a detailed message.</summary>
+    procedure UnsupportedMediaType(const AMessage: string); overload;
 
     /// <summary>Dispatches 204 No Content.</summary>
     procedure NoContent;
@@ -346,6 +389,13 @@ type
     /// <summary>Returns 201 Created with the object serialized via Content Negotiation.</summary>
     class function Created<T>(const AUri: string; const AValue: T): IResult; overload;
 
+    /// <summary>Returns 202 Accepted (optional Location for async status URI).</summary>
+    class function Accepted(const AUri: string = ''): IResult; overload;
+    /// <summary>Returns 202 Accepted with Location and a JSON/string body.</summary>
+    class function Accepted(const AUri: string; const AValue: string): IResult; overload;
+    /// <summary>Returns 202 Accepted with Location and a negotiated object body.</summary>
+    class function Accepted<T>(const AUri: string; const AValue: T): IResult; overload;
+
     /// <summary>Returns 400 Bad Request.</summary>
     class function BadRequest: IResult; overload;
     /// <summary>Returns 400 Bad Request with an error message.</summary>
@@ -364,6 +414,11 @@ type
     class function Conflict(const AMessage: string): IResult; overload;
     /// <summary>Returns 409 Conflict with a serialized object.</summary>
     class function Conflict<T>(const AValue: T): IResult; overload;
+
+    /// <summary>Returns 415 Unsupported Media Type.</summary>
+    class function UnsupportedMediaType: IResult; overload;
+    /// <summary>Returns 415 Unsupported Media Type with a detailed message.</summary>
+    class function UnsupportedMediaType(const AMessage: string): IResult; overload;
 
     /// <summary>Returns 204 No Content.</summary>
     class function NoContent: IResult;
@@ -393,6 +448,13 @@ type
     /// <param name="ADetail">Detailed error message.</param>
     /// <param name="AStatusCode">HTTP status code (default 500).</param>
     class function Problem(const ADetail: string; AStatusCode: Integer = 500): IResult; overload;
+
+    /// <summary>Returns a full RFC 9457 Problem Details document with application/problem+json.</summary>
+    class function ProblemDetails(const AType, ATitle, ADetail, AInstance: string;
+      AStatusCode: Integer = 400): IResult;
+
+    /// <summary>Returns Problem Details for model-binding failures (400).</summary>
+    class function BindingProblem(const ADetail, AInstance: string): IResult;
     
     /// <summary>Returns a standardized validation error response (RFC 7807).</summary>
     class function ValidationProblem(const AValidation: TValidationResult): IResult;
@@ -607,6 +669,26 @@ begin
     AContext.Response.StatusCode := HttpStatus.Created;
 end;
 
+{ TAcceptedResult }
+
+constructor TAcceptedResult.Create(const ALocation: string; const ABody: IResult);
+begin
+  inherited Create;
+  FLocation := ALocation;
+  FBody := ABody;
+end;
+
+procedure TAcceptedResult.Execute(AContext: IHttpContext);
+begin
+  if FLocation <> '' then
+    AContext.Response.AddHeader('Location', FLocation);
+
+  if FBody <> nil then
+    FBody.Execute(AContext)
+  else
+    AContext.Response.StatusCode := HttpStatus.Accepted;
+end;
+
 { TObjectResult<T> }
 
 constructor TObjectResult<T>.Create(const AValue: T; AStatusCode: Integer);
@@ -718,6 +800,21 @@ begin
   Result := TCreatedResult.Create(AUri, TObjectResult<T>.Create(AValue, HttpStatus.Created));
 end;
 
+class function Results.Accepted(const AUri: string): IResult;
+begin
+  Result := TAcceptedResult.Create(AUri);
+end;
+
+class function Results.Accepted(const AUri, AValue: string): IResult;
+begin
+  Result := TAcceptedResult.Create(AUri, TJsonResult.Create(AValue, HttpStatus.Accepted));
+end;
+
+class function Results.Accepted<T>(const AUri: string; const AValue: T): IResult;
+begin
+  Result := TAcceptedResult.Create(AUri, TObjectResult<T>.Create(AValue, HttpStatus.Accepted));
+end;
+
 class function Results.BadRequest: IResult;
 begin
   Result := TStatusCodeResult.Create(HttpStatus.BadRequest);
@@ -756,6 +853,17 @@ end;
 class function Results.Conflict<T>(const AValue: T): IResult;
 begin
   Result := TObjectResult<T>.Create(AValue, HttpStatus.Conflict);
+end;
+
+class function Results.UnsupportedMediaType: IResult;
+begin
+  Result := TStatusCodeResult.Create(HttpStatus.UnsupportedMediaType);
+end;
+
+class function Results.UnsupportedMediaType(const AMessage: string): IResult;
+begin
+  Result := TJsonResult.Create(Format('{"error": "%s"}', [AMessage]),
+    HttpStatus.UnsupportedMediaType);
 end;
 
 class function Results.NoContent: IResult;
@@ -815,19 +923,29 @@ begin
 end;
 
 class function Results.Problem(const ADetail: string; AStatusCode: Integer): IResult;
-var
-  Builder: TJsonBuilder;
 begin
-  Builder := TJsonBuilder.NewBuilder
-    .Add('type', 'https://tools.ietf.org/html/rfc7231#section-6.6.1')
-    .Add('title', HttpStatus.GetReasonPhrase(AStatusCode))
-    .Add('status', AStatusCode)
-    .Add('detail', ADetail);
-  try
-    Result := TJsonResult.Create(Builder.ToString, AStatusCode);
-  finally
-    Builder.Free;
-  end;
+  Result := ProblemDetails(
+    'https://tools.ietf.org/html/rfc7231#section-6.6.1',
+    HttpStatus.GetReasonPhrase(AStatusCode),
+    ADetail,
+    '',
+    AStatusCode);
+end;
+
+class function Results.ProblemDetails(const AType, ATitle, ADetail, AInstance: string;
+  AStatusCode: Integer): IResult;
+begin
+  Result := TProblemDetailsResult.Create(AType, ATitle, ADetail, AInstance, AStatusCode);
+end;
+
+class function Results.BindingProblem(const ADetail, AInstance: string): IResult;
+begin
+  Result := ProblemDetails(
+    'https://dext.dev/errors/model-binding',
+    'Falha de Model Binding',
+    ADetail,
+    AInstance,
+    HttpStatus.BadRequest);
 end;
 
 class function Results.ValidationProblem(const AValidation: TValidationResult): IResult;
@@ -1090,7 +1208,10 @@ end;
 constructor TValidationProblemResult.Create(const AValidation: TValidationResult);
 begin
   inherited Create;
-  FValidation := AValidation;
+  if AValidation <> nil then
+    FErrors := AValidation.Errors
+  else
+    SetLength(FErrors, 0);
 end;
 
 procedure TValidationProblemResult.Execute(AContext: IHttpContext);
@@ -1105,11 +1226,45 @@ begin
     .Add('status', HttpStatus.BadRequest);
 
   Builder.AddObject('errors');
-  for Err in FValidation.Errors do
+  for Err in FErrors do
     Builder.Add(Err.FieldName, Err.ErrorMessage);
   Builder.EndObject;
   try
-    AContext.Response.Json(Builder.ToString);
+    AContext.Response.SetContentType('application/problem+json');
+    AContext.Response.Write(Builder.ToString);
+  finally
+    Builder.Free;
+  end;
+end;
+
+{ TProblemDetailsResult }
+
+constructor TProblemDetailsResult.Create(const AType, ATitle, ADetail, AInstance: string;
+  AStatus: Integer);
+begin
+  inherited Create;
+  FType := AType;
+  FTitle := ATitle;
+  FDetail := ADetail;
+  FInstance := AInstance;
+  FStatus := AStatus;
+end;
+
+procedure TProblemDetailsResult.Execute(AContext: IHttpContext);
+var
+  Builder: TJsonBuilder;
+begin
+  AContext.Response.StatusCode := FStatus;
+  Builder := TJsonBuilder.NewBuilder
+    .Add('type', FType)
+    .Add('title', FTitle)
+    .Add('status', FStatus)
+    .Add('detail', FDetail);
+  if FInstance <> '' then
+    Builder.Add('instance', FInstance);
+  try
+    AContext.Response.SetContentType('application/problem+json');
+    AContext.Response.Write(Builder.ToString);
   finally
     Builder.Free;
   end;
@@ -1250,6 +1405,21 @@ begin
   Results.Created<T>(AUri, AValue).Execute(FCtx);
 end;
 
+procedure TContextualResults.Accepted(const AUri: string);
+begin
+  Results.Accepted(AUri).Execute(FCtx);
+end;
+
+procedure TContextualResults.Accepted(const AUri, AValue: string);
+begin
+  Results.Accepted(AUri, AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.Accepted<T>(const AUri: string; const AValue: T);
+begin
+  Results.Accepted<T>(AUri, AValue).Execute(FCtx);
+end;
+
 procedure TContextualResults.BadRequest;
 begin
   Results.BadRequest.Execute(FCtx);
@@ -1288,6 +1458,16 @@ end;
 procedure TContextualResults.Conflict<T>(const AValue: T);
 begin
   Results.Conflict<T>(AValue).Execute(FCtx);
+end;
+
+procedure TContextualResults.UnsupportedMediaType;
+begin
+  Results.UnsupportedMediaType.Execute(FCtx);
+end;
+
+procedure TContextualResults.UnsupportedMediaType(const AMessage: string);
+begin
+  Results.UnsupportedMediaType(AMessage).Execute(FCtx);
 end;
 
 procedure TContextualResults.NoContent;

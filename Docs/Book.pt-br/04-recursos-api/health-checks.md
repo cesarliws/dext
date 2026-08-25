@@ -1,6 +1,6 @@
 # Health Checks
 
-Monitore a saúde da aplicação com endpoints dedicados.
+Monitore a saúde da aplicação com endpoints dedicados. Prefira o middleware nativo (`UseHealthChecks` / `THealthCheckMiddleware`): padrões **`/health`** (agregado), **`/health/live`** (liveness — processo no ar) e **`/health/ready`** (readiness — dependências).
 
 ## Health Check Básico
 

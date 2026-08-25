@@ -60,6 +60,8 @@ GET /api/products?_limit=20&_offset=40
 GET /api/products?_orderby=Price desc,Name asc
 ```
 
+`_limit` is capped by **MaxPageSize** (default **100**). Configure with `.MaxPageSize(N)` on `DataApiOptions`; `0` disables the cap.
+
 ### Filtering (Dynamic Specification)
 
 Filters are applied using property names suffixed with operators:

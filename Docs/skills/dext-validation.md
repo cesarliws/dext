@@ -136,12 +136,14 @@ Predefined patterns include:
 
 ## 5. Web Auto-Validation Integration
 
-1. Register your validator in your DI configuration at startup:
+1. Register your validator in DI at startup:
    ```pascal
    Builder.Services.AddSingleton<IValidator<TUser>, TUserValidator>;
    ```
-2. When the model binding pipeline parses incoming request JSON, it queries DI for `IValidator<TUser>`.
-3. If found, validation executes automatically. If it fails, a `TWebValidationException` triggers, returning HTTP `400 Bad Request` with structured JSON detailing the validation errors.
+2. When Minimal API / controller binding resolves a class or record parameter, `THandlerInvoker` runs attribute validation and, if registered, `IValidator<T>`.
+3. On failure, the pipeline short-circuits with **HTTP 400** and `Results.ValidationProblem` (`Content-Type: application/problem+json`, fields `type`/`title`/`status`/`errors`).
+4. Model-binding conversion failures use `Results.BindingProblem` (same media type; `type` = `https://dext.dev/errors/model-binding`).
+5. Prefer `Results.ValidationProblem` in handlers when validating manually outside the auto path.
 
 ---
 

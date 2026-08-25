@@ -80,6 +80,19 @@ type
     constructor Create(const AMessage: string = 'Validation Failed');
   end;
 
+  /// <summary>
+  ///   Domain invariant / business-rule violation mapped to HTTP 422 Unprocessable Entity
+  ///   by <see cref="TExceptionHandlerMiddleware"/> (RFC 9457 Problem Details).
+  /// </summary>
+  EDomainException = class(EHttpException)
+  public
+    /// <summary>Creates a domain exception (HTTP 422).</summary>
+    constructor Create(const AMessage: string = 'Domain rule violated');
+  end;
+
+  /// <summary>Alias for <see cref="EDomainException"/> emphasizing validation semantics.</summary>
+  EDomainValidationException = EDomainException;
+
   // --- Exception Handling ---
 
   /// <summary> Options for configuring global exception handling middleware. </summary>
@@ -263,6 +276,13 @@ begin
   inherited Create(AMessage, 400);
 end;
 
+{ EDomainException }
+
+constructor EDomainException.Create(const AMessage: string);
+begin
+  inherited Create(AMessage, 422);
+end;
+
 { TExceptionHandlerOptions }
 
 class function TExceptionHandlerOptions.Development: TExceptionHandlerOptions;
@@ -379,7 +399,12 @@ begin
         if E is ENotFoundException then Problem.Title := 'Not Found'
         else if E is EUnauthorizedException then Problem.Title := 'Unauthorized'
         else if E is EForbiddenException then Problem.Title := 'Forbidden'
-        else if E is EValidationException then Problem.Title := 'Validation Failed';
+        else if E is EValidationException then Problem.Title := 'Validation Failed'
+        else if E is EDomainException then
+        begin
+          Problem.Title := 'Unprocessable Entity';
+          Problem.&Type := 'https://dext.dev/errors/domain-validation';
+        end;
       end;
 
       if not FOptions.IsDevelopment then

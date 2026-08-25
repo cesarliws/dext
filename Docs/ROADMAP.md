@@ -50,6 +50,7 @@ Status | Task | Spec | Description
 ✅ | **CommandLine & UserSecrets Config** | [S67](../../Docs/Specs/S67-CommandLine-UserSecrets-Configuration.md) | Enterprise 5-layer configuration pipeline with CLI argument parsing and isolated developer secrets.
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Visual IDE Expert for schema mapping and continuous syncing via YAML.
 ✅ | **Production Middleware** | [S06](Specs/S06-Middlewares-Security-Cache-Cors.md) | Hardened Web Middlewares: HTTP Logging redaction, Problem Details RFC 9457, strict CORS preflight & Vary merge, RFC 9333 Rate Limiting, and secure Response Cache.
+🟡 | **Book Review Framework Gaps** | [S68](Specs/S68-Book-Review-Framework-Gaps.md) | P0+P1 executable backlog delivered (Problem Details, Accepted, ValidateModel, ValidateOnStart, Domain 422, health probes, TestClient, MaxPageSize, feature reload, tenant DML filters). P2 remains design-review only.
 
 ## 🔴 Wave 3: Enterprise & Modernization (Stability)
 Status | Task | Spec | Description
@@ -120,6 +121,7 @@ Status | Tarefa | Spec | Descrição
 🔴 | **Dext Studio (Expert)**| [S15](Specs/S15-Dext-Studio-IDE-Expert.md) | Expert visual na IDE para mapeamento de schema e sync contínuo via YAML.
 🟡 | **Middleware Pack** | - | SPA Fallback, Forwarded Headers e Resiliência.
 ✅ | **Provedores CommandLine & UserSecrets** | [S67](../../Docs/Specs/S67-CommandLine-UserSecrets-Configuration.md) | Pipeline enterprise de configuração em 5 camadas com parsing de argumentos CLI e segredos de desenvolvimento isolados.
+🟡 | **Gaps da revisão do livro** | [S68](Specs/S68-Book-Review-Framework-Gaps.md) | Backlog executável P0+P1 entregue (Problem Details, Accepted, ValidateModel, ValidateOnStart, Domain 422, health probes, TestClient, MaxPageSize, reload de features, filtros tenant em DML). P2 só com design review.
 
 ## 🔴 Onda 3: Enterprise & Modernização (Estabilidade)
 Status | Tarefa | Spec | Descrição

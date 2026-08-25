@@ -53,10 +53,14 @@ type
     function GetActionDescriptor: TActionDescriptor;
     function GetResult: IResult;
     procedure SetResult(const AValue: IResult);
+    function GetActionArguments: TArray<TValue>;
+    procedure SetActionArguments(const AValue: TArray<TValue>);
     
     property HttpContext: IHttpContext read GetHttpContext;
     property ActionDescriptor: TActionDescriptor read GetActionDescriptor;
     property Result: IResult read GetResult write SetResult;
+    /// <summary>Bound action parameters available after model binding.</summary>
+    property ActionArguments: TArray<TValue> read GetActionArguments write SetActionArguments;
   end;
 
   /// <summary>
@@ -112,6 +116,7 @@ type
     FHttpContext: IHttpContext;
     FActionDescriptor: TActionDescriptor;
     FResult: IResult;
+    FActionArguments: TArray<TValue>;
   public
     constructor Create(AHttpContext: IHttpContext; const ADescriptor: TActionDescriptor);
     
@@ -119,7 +124,10 @@ type
     function GetActionDescriptor: TActionDescriptor;
     function GetResult: IResult;
     procedure SetResult(const AValue: IResult);
+    function GetActionArguments: TArray<TValue>;
+    procedure SetActionArguments(const AValue: TArray<TValue>);
     property Result: IResult read GetResult write SetResult;
+    property ActionArguments: TArray<TValue> read GetActionArguments write SetActionArguments;
   end;
 
   /// <summary>
@@ -209,6 +217,16 @@ end;
 procedure TActionExecutingContext.SetResult(const AValue: IResult);
 begin
   FResult := AValue;
+end;
+
+function TActionExecutingContext.GetActionArguments: TArray<TValue>;
+begin
+  Result := FActionArguments;
+end;
+
+procedure TActionExecutingContext.SetActionArguments(const AValue: TArray<TValue>);
+begin
+  FActionArguments := AValue;
 end;
 
 { TActionExecutedContext }

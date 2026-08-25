@@ -154,13 +154,29 @@ Builder.MapPost<TUpdateTicketRequest, ITicketService, IResult>(
 Results.Ok(Data)             // 200 + JSON body
 Results.Ok<T>(Data)          // 200 + typed serialization
 Results.Created('/path', E)  // 201 + Location header
+Results.Accepted('/jobs/1')  // 202 + optional Location
+Results.Accepted('/jobs/1', JsonBody) // 202 + Location + body
 Results.NoContent            // 204
 Results.BadRequest('msg')    // 400
 Results.NotFound('msg')      // 404
+Results.Conflict('msg')      // 409
+Results.UnsupportedMediaType // 415
+Results.UnsupportedMediaType('Only PDF') // 415 + body
+Results.ValidationProblem(V) // 400 application/problem+json (also used by auto-validation)
+Results.BindingProblem(D, P) // 400 model-binding Problem Details
+Results.ProblemDetails(...)  // RFC 9457 application/problem+json
 Results.StatusCode(401)      // Use instead of Results.Unauthorized
 Results.StatusCode(418, 'msg') // Custom status
 Results.Ok                   // 200 without body
 ```
+
+Raise `EDomainException` / `EDomainValidationException` for business rules → HTTP **422** `application/problem+json`.
+
+Health probes (defaults): `/health`, `/health/live` (liveness), `/health/ready` (readiness).
+
+Options fail-fast: `Configure<T>(Services, Config, Validator, ValidateOnStart := True)`.
+
+Data API: `.MaxPageSize(100)` clamps `_limit` (0 disables).
 
 ## Endpoints Module Pattern
 

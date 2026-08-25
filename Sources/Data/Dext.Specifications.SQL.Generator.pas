@@ -166,6 +166,10 @@ type
     function QuoteColumnOrAlias(const AName: string): string;
     function QualifyBaseColumn(const AColumnName, ABaseTableName: string; AHasJoins: Boolean): string;
     function TryUnwrapSmartValue(var AValue: TValue): Boolean;
+    function IsTenantAwareEntity: Boolean;
+    procedure AppendTenantWhereParams(SBWhere: TStringBuilder; var AFirstWhere: Boolean);
+    procedure AppendTenantWhereTemplate(SBWhere: TStringBuilder; var AFirstWhere: Boolean;
+      AWhereProps: IList<TPair<TRttiProperty, string>>);
   public
     constructor Create(ADialect: ISQLDialect; AMap: TEntityMap = nil; ATenantProvider: ITenantProvider = nil); overload;
     constructor Create(AContext: IDbContext; AMap: TEntityMap = nil; ATenantProvider: ITenantProvider = nil); overload;
@@ -216,7 +220,8 @@ type
 implementation
 
 uses
-  Dext.Entity.Context;
+  Dext.Entity.Context,
+  Dext.Entity.Tenancy;
 
 { TSQLParamCollector }
 
@@ -896,6 +901,66 @@ begin
   Result := 'p' + IntToStr(FParamCount);
 end;
 
+function TSQLGenerator<T>.IsTenantAwareEntity: Boolean;
+begin
+  Result := (PTypeInfo(TypeInfo(T)).Kind = tkClass) and
+    (GetTypeData(TypeInfo(T))^.ClassType.GetInterfaceEntry(ITenantAware) <> nil);
+end;
+
+procedure TSQLGenerator<T>.AppendTenantWhereParams(SBWhere: TStringBuilder;
+  var AFirstWhere: Boolean);
+var
+  ParamName: string;
+begin
+  if FIgnoreQueryFilters then
+    Exit;
+  if not IsTenantAwareEntity then
+    Exit;
+  if (FTenantProvider = nil) or (FTenantProvider.Tenant = nil) then
+    Exit;
+
+  ParamName := GetNextParamName;
+  FParams.Add(ParamName, FTenantProvider.Tenant.Id);
+  if not AFirstWhere then
+    SBWhere.Append(' AND ');
+  AFirstWhere := False;
+  SBWhere.Append(FDialect.QuoteIdentifier('TenantId')).Append(' = :').Append(ParamName);
+end;
+
+procedure TSQLGenerator<T>.AppendTenantWhereTemplate(SBWhere: TStringBuilder;
+  var AFirstWhere: Boolean; AWhereProps: IList<TPair<TRttiProperty, string>>);
+var
+  Typ: TRttiType;
+  Prop: TRttiProperty;
+  TenantProp: TRttiProperty;
+begin
+  if FIgnoreQueryFilters then
+    Exit;
+  if not IsTenantAwareEntity then
+    Exit;
+  if (FTenantProvider = nil) or (FTenantProvider.Tenant = nil) then
+    Exit;
+  if AWhereProps = nil then
+    Exit;
+
+  TenantProp := nil;
+  Typ := TReflection.Context.GetType(TypeInfo(T));
+  for Prop in Typ.GetProperties do
+    if SameText(Prop.Name, 'TenantId') then
+    begin
+      TenantProp := Prop;
+      Break;
+    end;
+  if TenantProp = nil then
+    Exit;
+
+  if not AFirstWhere then
+    SBWhere.Append(' AND ');
+  AFirstWhere := False;
+  SBWhere.Append(FDialect.QuoteIdentifier('TenantId')).Append(' = :TenantId');
+  AWhereProps.Add(TPair<TRttiProperty, string>.Create(TenantProp, 'TenantId'));
+end;
+
 function TSQLGenerator<T>.GetTableName: string;
 var
   Typ: TRttiType;
@@ -1559,6 +1624,8 @@ begin
     
     if SBWhere.Length = 0 then
       raise Exception.Create('Cannot generate UPDATE template: No Primary Key defined.');
+
+    AppendTenantWhereTemplate(SBWhere, FirstWhere, AWhereProps);
       
     Result := Format('UPDATE %s SET %s WHERE %s', 
       [GetTableName, SBSet.ToString, SBWhere.ToString]);
@@ -1612,6 +1679,8 @@ begin
     
     if SBWhere.Length = 0 then
       raise Exception.Create('Cannot generate DELETE template: No Primary Key defined.');
+
+    AppendTenantWhereTemplate(SBWhere, FirstWhere, AWhereProps);
       
     Result := Format('DELETE FROM %s WHERE %s', 
       [GetTableName, SBWhere.ToString]);
@@ -1905,6 +1974,8 @@ begin
       end;
     end;
 
+    AppendTenantWhereParams(SBWhere, FirstWhere);
+
     Result := Format('UPDATE %s SET %s WHERE %s', 
       [GetTableName, SBSet.ToString, SBWhere.ToString]);
       
@@ -1999,6 +2070,8 @@ begin
     
     if SBWhere.Length = 0 then
       raise Exception.Create('Cannot generate DELETE: No Primary Key defined.');
+
+    AppendTenantWhereParams(SBWhere, FirstWhere);
       
     Result := Format('DELETE FROM %s WHERE %s', 
       [GetTableName, SBWhere.ToString]);

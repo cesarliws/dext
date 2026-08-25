@@ -599,10 +599,9 @@ var
   Binder: IModelBinder;
   ControllerInstance: TObject;
   ExecutedContext: IActionExecutedContext;
-  ExecutingContext: IActionExecutingContext;
   Filter: IActionFilter;
   FilterAttr: TCustomAttribute;
-  I: Integer;
+  i: Integer;
   Invoker: THandlerInvoker;
 begin
   SafeWriteLn('🚀 ' + Format('Executing: %s -> %s.%s', [CachedMethod.FullPath, CachedMethod.TypeName, CachedMethod.MethodName]));
@@ -655,33 +654,7 @@ begin
     end;
   end;
 
-  // Use the pre-compiled action descriptor, filters, and RTTI method
-  ExecutingContext := TActionExecutingContext.Create(Context, CachedMethod.ActionDescriptor);
-  try
-    for FilterAttr in CachedMethod.Filters do
-    begin
-      if Supports(FilterAttr, IActionFilter, Filter) then
-      begin
-        Filter.OnActionExecuting(ExecutingContext);
-
-        // Check for short-circuit
-        if Assigned(ExecutingContext.Result) then
-        begin
-          SafeWriteLn('⚠️ Filter short-circuited execution');
-          ExecutingContext.Result.Execute(Context);
-          Exit;
-        end;
-      end;
-    end;
-  except
-    on E: Exception do
-    begin
-      SafeWriteLn('❌ Error in OnActionExecuting filter: ' + E.Message);
-      raise;
-    end;
-  end;
-
-  // EXECUTE CONTROLLER METHOD
+  // EXECUTE CONTROLLER METHOD (binds args, runs OnActionExecuting filters, validates, invokes)
   try
     if CachedMethod.IsClass then
     begin
@@ -699,7 +672,8 @@ begin
       Binder := TModelBinder.Default;
       Invoker := THandlerInvoker.Acquire(Context, Binder);
       try
-        Invoker.InvokeAction(ControllerInstance, CachedMethod.RttiMethod);
+        Invoker.InvokeAction(ControllerInstance, CachedMethod.RttiMethod,
+          CachedMethod.Filters, CachedMethod.ActionDescriptor);
       finally
         Invoker.Release;
         Binder := nil;
@@ -716,7 +690,8 @@ begin
       Binder := TModelBinder.Default;
       Invoker := THandlerInvoker.Acquire(Context, Binder);
       try
-        Invoker.InvokeAction(nil, CachedMethod.RttiMethod);
+        Invoker.InvokeAction(nil, CachedMethod.RttiMethod,
+          CachedMethod.Filters, CachedMethod.ActionDescriptor);
       finally
         Invoker.Release;
         Binder := nil;
@@ -726,9 +701,9 @@ begin
     // ? EXECUTE ACTION FILTERS - OnActionExecuted
     ExecutedContext := TActionExecutedContext.Create(Context, CachedMethod.ActionDescriptor, nil, nil);
     // Execute filters in reverse order
-    for I := Length(CachedMethod.Filters) - 1 downto 0 do
+    for i := Length(CachedMethod.Filters) - 1 downto 0 do
     begin
-      FilterAttr := CachedMethod.Filters[I];
+      FilterAttr := CachedMethod.Filters[i];
       if Supports(FilterAttr, IActionFilter, Filter) then
         Filter.OnActionExecuted(ExecutedContext);
     end;
@@ -740,9 +715,9 @@ begin
 
       // ? EXECUTE ACTION FILTERS - OnActionExecuted (with exception)
       ExecutedContext := TActionExecutedContext.Create(Context, CachedMethod.ActionDescriptor, nil, E);
-      for I := Length(CachedMethod.Filters) - 1 downto 0 do
+      for i := Length(CachedMethod.Filters) - 1 downto 0 do
       begin
-        FilterAttr := CachedMethod.Filters[I];
+        FilterAttr := CachedMethod.Filters[i];
         if Supports(FilterAttr, IActionFilter, Filter) then
         begin
           Filter.OnActionExecuted(ExecutedContext);

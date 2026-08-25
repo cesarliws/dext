@@ -172,6 +172,7 @@ type
     function GetItem(Index: Integer): T;
 
     procedure ApplyTenantFilter(var ASpec: ISpecification<T>);
+    procedure StampCurrentTenant(const AEntity: TObject);
     procedure DoLoadIncludes(const AEntities: IList<T>; const AIncludes: TArray<string>);
   public
     constructor Create(const AContext: IDbContext); reintroduce;
@@ -936,7 +937,7 @@ end;
 
 function TDbSet<T>.CreateGenerator: TSqlGenerator<T>;
 begin
-  Result := TSqlGenerator<T>.Create(FContext, FMap);
+  Result := TSqlGenerator<T>.Create(FContext, FMap, FContext.GetTenantProvider);
   Result.NamingStrategy := FContext.NamingStrategy;
   Result.IgnoreQueryFilters := FIgnoreQueryFilters;
   Result.OnlyDeleted := FOnlyDeleted;
@@ -1844,6 +1845,7 @@ begin
   begin
     EntitiesT[i] := T(Pointer(AEntities[i]));
     HandleTimestamps(AEntities[i], False);
+    StampCurrentTenant(AEntities[i]);
   end;
   
   Generator := CreateGenerator;
@@ -1890,7 +1892,10 @@ begin
   TotalCount := Length(AEntities);
   SetLength(EntitiesT, TotalCount);
   for i := 0 to High(AEntities) do
+  begin
     EntitiesT[i] := T(Pointer(AEntities[i]));
+    StampCurrentTenant(AEntities[i]);
+  end;
     
   Generator := CreateGenerator;
   try
@@ -2037,6 +2042,7 @@ begin
   Span := TTracer.BeginSpan('DbSet.Update', 'SQL');
   Span.SetAttribute('entity', string(PTypeInfo(TypeInfo(T)).Name));
   HandleTimestamps(AEntity, False);
+  StampCurrentTenant(AEntity);
   Generator := CreateGenerator;
   try
     Sql := Generator.GenerateUpdate(T(AEntity));
@@ -2715,6 +2721,23 @@ begin
     
   // Append TenantId filter
   ASpec.Where(TBinaryExpression.Create('TenantId', boEqual, Provider.Tenant.Id));
+end;
+
+procedure TDbSet<T>.StampCurrentTenant(const AEntity: TObject);
+var
+  Aware: ITenantAware;
+  Provider: ITenantProvider;
+begin
+  if FIgnoreQueryFilters then
+    Exit;
+  if AEntity = nil then
+    Exit;
+  if not Supports(AEntity, ITenantAware, Aware) then
+    Exit;
+  Provider := FContext.TenantProvider;
+  if (Provider = nil) or (Provider.Tenant = nil) then
+    Exit;
+  Aware.TenantId := Provider.Tenant.Id;
 end;
 
 procedure TDbSet<T>.ExtractForeignKeys(const AEntities: IList<T>; PropertyToCheck: string;

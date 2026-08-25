@@ -148,9 +148,14 @@ Use o helper `Results` para respostas consistentes:
 Results.Ok(Data)             // 200 com corpo JSON
 Results.Ok<T>(Data)          // 200 com serialização tipada
 Results.Created('/path', E)  // 201 com Header Location
+Results.Accepted('/jobs/1')  // 202 com Location opcional
+Results.Accepted('/jobs/1', JsonBody) // 202 + Location + corpo
 Results.NoContent            // 204
 Results.BadRequest('msg')    // 400
 Results.NotFound('msg')      // 404
+Results.ValidationProblem(V) // 400 application/problem+json
+Results.BindingProblem(D, P) // 400 Problem Details de model binding
+Results.ProblemDetails(...)  // RFC 9457 application/problem+json
 Results.StatusCode(401)      // Unauthorized (alternativa segura)
 Results.StatusCode(418, '..') // Status Customizado
 Results.Ok                   // 200 sem corpo (overload parameterless)

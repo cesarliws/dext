@@ -66,6 +66,7 @@ type
     FSwaggerTag: string;
     FSwaggerDescription: string;
     FSql: string;
+    FMaxPageSize: Integer;
   public
     constructor Create;
     function Allow(AMethods: TApiMethods): TDataApiOptions;
@@ -84,6 +85,8 @@ type
     function UseSql(const ASql: string): TDataApiOptions;
     function EnumsAsStrings: TDataApiOptions;
     function EnumsAsNumbers: TDataApiOptions;
+    /// <summary>Caps <c>_limit</c> query values (default 100). Use 0 to disable the cap.</summary>
+    function MaxPageSize(AValue: Integer): TDataApiOptions;
 
     property Sql: string read FSql write FSql;
     property AllowedMethods: TApiMethods read FAllowedMethods write FAllowedMethods;
@@ -97,6 +100,7 @@ type
     property SwaggerDescription: string read FSwaggerDescription write FSwaggerDescription;
     property NamingStrategy: TCaseStyle read FNamingStrategy write FNamingStrategy;
     property EnumStyle: TEnumStyle read FEnumStyle write FEnumStyle;
+    property MaxPageSizeValue: Integer read FMaxPageSize write FMaxPageSize;
     
     class var FDefaults: TDataApiOptions;
     class constructor Create;
@@ -121,6 +125,7 @@ type
     FSwaggerTag: string;
     FSwaggerDescription: string;
     FSql: string;
+    FMaxPageSize: Integer;
   public
     class function Create: TDataApiOptionsBuilder; static;
     function Allow(AMethods: TApiMethods): TDataApiOptionsBuilder;
@@ -140,6 +145,8 @@ type
     function UseSql(const ASql: string): TDataApiOptionsBuilder;
     function EnumsAsStrings: TDataApiOptionsBuilder;
     function EnumsAsNumbers: TDataApiOptionsBuilder;
+    /// <summary>Caps <c>_limit</c> query values (default 100).</summary>
+    function MaxPageSize(AValue: Integer): TDataApiOptionsBuilder;
 
     function Build: TDataApiOptions;
     class operator Implicit(const ABuilder: TDataApiOptionsBuilder): TDataApiOptions;
@@ -185,6 +192,7 @@ type
     function UseSql(const ASql: string): TDataApiOptions<T>;
     function EnumsAsStrings: TDataApiOptions<T>;
     function EnumsAsNumbers: TDataApiOptions<T>;
+    function MaxPageSize(AValue: Integer): TDataApiOptions<T>;
   end;
 
   /// <summary>
@@ -285,6 +293,7 @@ begin
   FNamingStrategy := TCaseStyle.CaseInherit;
   FEnumStyle := TEnumStyle.EnumInherit;
   FEnableSwagger := True;
+  FMaxPageSize := 100;
 end;
 
 class constructor TDataApiOptions.Create;
@@ -402,6 +411,12 @@ begin
   Result := Self;
 end;
 
+function TDataApiOptions.MaxPageSize(AValue: Integer): TDataApiOptions;
+begin
+  FMaxPageSize := AValue;
+  Result := Self;
+end;
+
 { TDataApiOptionsBuilder }
 
 class function TDataApiOptionsBuilder.Create: TDataApiOptionsBuilder;
@@ -418,6 +433,7 @@ begin
   Result.FSwaggerTag := '';
   Result.FSwaggerDescription := '';
   Result.FSql := '';
+  Result.FMaxPageSize := 100;
 end;
 
 function TDataApiOptionsBuilder.Allow(AMethods: TApiMethods): TDataApiOptionsBuilder;
@@ -526,6 +542,12 @@ begin
   Result.FEnumStyle := TEnumStyle.AsNumber;
 end;
 
+function TDataApiOptionsBuilder.MaxPageSize(AValue: Integer): TDataApiOptionsBuilder;
+begin
+  Result := Self;
+  Result.FMaxPageSize := AValue;
+end;
+
 function TDataApiOptionsBuilder.Build: TDataApiOptions;
 begin
   Result := TDataApiOptions.Create;
@@ -541,6 +563,7 @@ begin
   Result.SwaggerTag := FSwaggerTag;
   Result.SwaggerDescription := FSwaggerDescription;
   Result.Sql := FSql;
+  Result.MaxPageSizeValue := FMaxPageSize;
 end;
 
 class operator TDataApiOptionsBuilder.Implicit(const ABuilder: TDataApiOptionsBuilder): TDataApiOptions;
@@ -647,6 +670,12 @@ end;
 function TDataApiOptions<T>.EnumsAsNumbers: TDataApiOptions<T>;
 begin
   FEnumStyle := TEnumStyle.AsNumber;
+  Result := Self;
+end;
+
+function TDataApiOptions<T>.MaxPageSize(AValue: Integer): TDataApiOptions<T>;
+begin
+  FMaxPageSize := AValue;
   Result := Self;
 end;
 
@@ -772,11 +801,23 @@ var
   Param: TPair<string, string>;
   ActualName: string;
   Expr: IExpression;
+  LimitValue: Integer;
+  MaxLimit: Integer;
 begin
   for Param in Context.Request.Query.ToArray do
   begin
     // Reservas de paginação
-    if Param.Key = '_limit' then begin ASpec.Take(StrToIntDef(Param.Value, 50)); Continue; end;
+    if Param.Key = '_limit' then
+    begin
+      LimitValue := StrToIntDef(Param.Value, 50);
+      MaxLimit := FOptions.MaxPageSizeValue;
+      if (MaxLimit > 0) and (LimitValue > MaxLimit) then
+        LimitValue := MaxLimit;
+      if LimitValue < 0 then
+        LimitValue := 0;
+      ASpec.Take(LimitValue);
+      Continue;
+    end;
     if Param.Key = '_offset' then begin ASpec.Skip(StrToIntDef(Param.Value, 0)); Continue; end;
     
     // Filtros dinâmicos

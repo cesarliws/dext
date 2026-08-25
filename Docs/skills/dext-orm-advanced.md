@@ -594,6 +594,8 @@ App.Builder.UseMultiTenancy(procedure(Options: TMultiTenancyOptions)
 
 All queries automatically get `WHERE TenantId = 'current-tenant'`.
 
+**S68:** `GenerateUpdate` / `GenerateDelete` (and batch templates) also append `AND TenantId = :…` for `ITenantAware` / `TTenantEntity` when an `ITenantProvider` is set. Use `.IgnoreQueryFilters` to bypass.
+
 ### Strategy 2: Schema Isolation
 
 ```pascal

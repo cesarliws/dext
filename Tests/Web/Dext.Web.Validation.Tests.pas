@@ -34,9 +34,17 @@ type
   public
     [Test]
     procedure Test_HandlerInvoker_AutoValidation_Fluent;
+    [Test]
+    procedure Test_HandlerInvoker_AutoValidation_ProblemJson;
+    [Test]
+    procedure Test_HandlerInvoker_BindingFailure_ProblemDetails;
   end;
 
 implementation
+
+uses
+  Dext.Collections,
+  Dext.Collections.Dict;
 
 { TWebTestModelValidator }
 
@@ -78,6 +86,65 @@ begin
     end;
   finally
     Provider := nil;
+  end;
+end;
+
+procedure TWebValidationTests.Test_HandlerInvoker_AutoValidation_ProblemJson;
+var
+  Services: TDextServices;
+  Provider: IServiceProvider;
+  Context: IHttpContext;
+  Invoker: THandlerInvoker;
+  Binder: IModelBinder;
+begin
+  Services := TDextServices.New;
+  Services.AddTransient<IValidator<TWebTestModel>, TWebTestModelValidator>;
+  Provider := Services.BuildServiceProvider;
+  try
+    Context := TMockFactory.CreateHttpContextWithServices('Name=Ab&Email=invalid-email', Provider);
+    Binder := TModelBinder.Create;
+    Invoker := THandlerInvoker.Create(Context, Binder);
+    try
+      Invoker.Invoke<TWebTestModel>(
+        procedure(Arg: TWebTestModel)
+        begin
+        end
+      );
+
+      Should(Context.Response.StatusCode).Be(400);
+      Should(Context.Response.ContentType).Contain('application/problem+json');
+    finally
+      Invoker.Free;
+    end;
+  finally
+    Provider := nil;
+  end;
+end;
+
+procedure TWebValidationTests.Test_HandlerInvoker_BindingFailure_ProblemDetails;
+var
+  Context: IHttpContext;
+  Invoker: THandlerInvoker;
+  Binder: IModelBinder;
+  RouteParams: IDictionary<string, string>;
+begin
+  RouteParams := TCollections.CreateDictionary<string, string>;
+  RouteParams.Add('id', 'abc');
+  Context := TMockFactory.CreateHttpContextWithRoute('', RouteParams);
+  Binder := TModelBinder.Create;
+  Invoker := THandlerInvoker.Create(Context, Binder);
+  try
+    Invoker.Invoke<Integer>(
+      procedure(Arg: Integer)
+      begin
+        raise Exception.Create('Handler should not run on binding failure');
+      end
+    );
+
+    Should(Context.Response.StatusCode).Be(400);
+    Should(Context.Response.ContentType).Contain('application/problem+json');
+  finally
+    Invoker.Free;
   end;
 end;
 

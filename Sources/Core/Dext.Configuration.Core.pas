@@ -140,6 +140,8 @@ type
     
     /// <summary>Adds a data source (JSON, YAML, Env, etc.) to the construction pipeline.</summary>
     function Add(Source: IConfigurationSource): IConfigurationBuilder;
+    /// <summary>Enables change polling for file providers with ReloadOnChange.</summary>
+    function ReloadOnChange(AEnabled: Boolean = True; AIntervalMs: Integer = 1000): IConfigurationBuilder;
     /// <summary>Consolidates all sources and generates the root provider for consumption by the application.</summary>
     function Build: IConfigurationRoot;
   end;
@@ -676,6 +678,39 @@ end;
 function TConfigurationBuilder.Add(Source: IConfigurationSource): IConfigurationBuilder;
 begin
   FSources.Add(Source);
+  Result := Self;
+end;
+
+function TConfigurationBuilder.ReloadOnChange(AEnabled: Boolean; AIntervalMs: Integer): IConfigurationBuilder;
+var
+  ReloadObj: TObject;
+  ReloadBox: TBooleanBox;
+  IntervalObj: TObject;
+  IntervalBox: TIntBox;
+begin
+  if not FProperties.TryGetValue(CConfigReloadOnChangeKey, ReloadObj) or
+     not (ReloadObj is TBooleanBox) then
+  begin
+    ReloadBox := TBooleanBox.Create;
+    FProperties.AddOrSetValue(CConfigReloadOnChangeKey, ReloadBox);
+  end
+  else
+    ReloadBox := TBooleanBox(ReloadObj);
+  ReloadBox.Value := AEnabled;
+
+  if not FProperties.TryGetValue(CConfigReloadIntervalKey, IntervalObj) or
+     not (IntervalObj is TIntBox) then
+  begin
+    IntervalBox := TIntBox.Create;
+    FProperties.AddOrSetValue(CConfigReloadIntervalKey, IntervalBox);
+  end
+  else
+    IntervalBox := TIntBox(IntervalObj);
+
+  if AIntervalMs <= 0 then
+    AIntervalMs := 1000;
+  IntervalBox.Value := AIntervalMs;
+
   Result := Self;
 end;
 

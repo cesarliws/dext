@@ -1,6 +1,6 @@
 # Health Checks
 
-Monitor application health with dedicated endpoints.
+Monitor application health with dedicated endpoints. Prefer the built-in middleware (`UseHealthChecks` / `THealthCheckMiddleware`): defaults are **`/health`** (aggregate), **`/health/live`** (liveness — process up), and **`/health/ready`** (readiness — dependency checks).
 
 ## Basic Health Check
 
