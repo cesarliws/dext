@@ -191,7 +191,23 @@ type
     [HttpPost]
     [Authorize('Admin')]        // Require 'Admin' role
     function RestrictedAction: IResult;
+
+    [HttpDelete('{id}')]
+    [AuthorizePolicy('HighValueCancel')] // Named policy (see below)
+    function CancelCritical(Id: Integer): IResult;
   end;
+```
+
+> **Delphi note:** Attributes do not support named arguments. Use `[Authorize('Admin')]` for roles/schemes and `[AuthorizePolicy('PolicyName')]` for policies — never `[Authorize(Policy = '...')]`.
+
+Register the policy once (typically in startup):
+
+```pascal
+TAuthorizationPolicyRegistry.RegisterPolicy('HighValueCancel',
+  function(const Principal: IClaimsPrincipal): Boolean
+  begin
+    Result := (Principal <> nil) and Principal.IsInRole('Director');
+  end);
 ```
 
 ## OpenAPI Metadata

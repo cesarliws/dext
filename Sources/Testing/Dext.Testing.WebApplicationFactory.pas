@@ -27,6 +27,8 @@ unit Dext.Testing.WebApplicationFactory;
 
 interface
 
+{$I Dext.inc}
+
 uses
   System.SysUtils,
   System.Classes,
@@ -34,8 +36,10 @@ uses
   Dext.Collections,
   Dext.Collections.Dict,
   Dext.DI.Interfaces,
+  Dext.Server.Engine.Interfaces,
   Dext.Web.Interfaces,
-  Dext.Web.WebApplication;
+  Dext.Web.WebApplication,
+  Dext.Web;
 
 type
   /// <summary>Captured HTTP response from an in-process test request.</summary>
@@ -97,6 +101,13 @@ type
 
   /// <summary>Alias aligning with S66 naming.</summary>
   TDextWebApplicationFactory<TApp: class> = class(TDextApplicationFactory<TApp>);
+
+/// <summary>
+///   Creates an in-process test client. Exposed at unit scope so generic
+///   factory methods (E2506) do not reference implementation-only types.
+/// </summary>
+function CreateDextTestHttpClient(APipeline: TRequestDelegate;
+  AServices: IServiceProvider): IDextTestHttpClient;
 
 implementation
 
@@ -685,6 +696,12 @@ end;
 
 { TDextTestHttpClient }
 
+function CreateDextTestHttpClient(APipeline: TRequestDelegate;
+  AServices: IServiceProvider): IDextTestHttpClient;
+begin
+  Result := TDextTestHttpClient.Create(APipeline, AServices);
+end;
+
 constructor TDextTestHttpClient.Create(APipeline: TRequestDelegate; AServices: IServiceProvider);
 begin
   inherited Create;
@@ -815,8 +832,10 @@ begin
   if FClient = nil then
   begin
     CreateApplication;
-    FPipeline := FApp.BuildRequestPipeline;
-    FClient := TDextTestHttpClient.Create(FPipeline, FApp.BuildServices);
+    // Explicit () required: BuildRequestPipeline returns TRequestDelegate;
+    // without (), Delphi treats it as a method pointer.
+    FPipeline := FApp.BuildRequestPipeline();
+    FClient := CreateDextTestHttpClient(FPipeline, FApp.BuildServices);
   end;
   Result := FClient;
 end;

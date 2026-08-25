@@ -323,6 +323,10 @@ type
     [HttpPost]
     [Authorize('Admin')]          // Requires 'Admin' role
     function AdminAction: IResult;
+
+    [HttpDelete('{id}')]
+    [AuthorizePolicy('HighValue')] // Named policy — not [Authorize(Policy=...)]
+    function Cancel: IResult;
   end;
 ```
 

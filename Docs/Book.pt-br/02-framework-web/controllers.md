@@ -191,7 +191,23 @@ type
     [HttpPost]
     [Authorize('Admin')]        // Exige role 'Admin'
     function RestrictedAction: IResult;
+
+    [HttpDelete('{id}')]
+    [AuthorizePolicy('CancelamentoAltoValor')] // Política nomeada (veja abaixo)
+    function CancelarCritico(Id: Integer): IResult;
   end;
+```
+
+> **Nota Delphi:** Atributos não têm named arguments. Use `[Authorize('Admin')]` para roles/schemes e `[AuthorizePolicy('NomeDaPolitica')]` para políticas — nunca `[Authorize(Policy = '...')]`.
+
+Registre a política uma vez (em geral no startup):
+
+```pascal
+TAuthorizationPolicyRegistry.RegisterPolicy('CancelamentoAltoValor',
+  function(const Principal: IClaimsPrincipal): Boolean
+  begin
+    Result := (Principal <> nil) and Principal.IsInRole('Diretoria');
+  end);
 ```
 
 ## Metadados OpenAPI

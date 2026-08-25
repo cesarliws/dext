@@ -127,8 +127,10 @@ type
   TPathBaseMiddleware = Dext.Web.PathBase.TPathBaseMiddleware;
 
   // Dext.Auth.Attributes
-  /// <summary> Attribute to require authentication or a specific policy. </summary>
+  /// <summary> Attribute to require authentication or a specific role/scheme. </summary>
   AuthorizeAttribute = Dext.Auth.Attributes.AuthorizeAttribute;
+  /// <summary> Attribute to require a named authorization policy. </summary>
+  AuthorizePolicyAttribute = Dext.Auth.Attributes.AuthorizePolicyAttribute;
   /// <summary> Attribute to skip authentication for a controller or method. </summary>
   AllowAnonymousAttribute = Dext.Auth.Attributes.AllowAnonymousAttribute;
 

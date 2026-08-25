@@ -52,6 +52,31 @@ App.MapGet('/me', procedure(Ctx: IHttpContext)
   .RequireAuthorization;
 ```
 
+## Policy-Based Authorization
+
+For logic beyond a single role, register a named policy and apply `[AuthorizePolicy]` on controllers (Delphi has no `Policy =` named arguments on `[Authorize]`):
+
+```pascal
+TAuthorizationPolicyRegistry.RegisterPolicy('Over18',
+  function(const Principal: IClaimsPrincipal): Boolean
+  var
+    AgeClaim: TClaim;
+  begin
+    AgeClaim := Principal.FindClaim('age');
+    Result := (AgeClaim.ClaimType <> '') and (StrToIntDef(AgeClaim.Value, 0) >= 18);
+  end);
+
+// On a controller action:
+// [AuthorizePolicy('Over18')]
+```
+
+Evaluate manually when needed:
+
+```pascal
+if TAuthorizationPolicyRegistry.Evaluate('Over18', Ctx.User) then
+  // allowed
+```
+
 ---
 
 [← JWT Authentication](jwt-auth.md) | [Next: API Features →](../04-api-features/README.md)

@@ -153,7 +153,7 @@ Builder.MapDelete<IOrderService, Integer, IResult>('/api/orders/{id}',
   .RequireAuthorization('Admin');  // Requires 'Admin' role
 ```
 
-### Controller — `[Authorize]` / `[AllowAnonymous]`
+### Controller — `[Authorize]` / `[AuthorizePolicy]` / `[AllowAnonymous]`
 
 ```pascal
 type
@@ -171,6 +171,10 @@ type
     [HttpDelete('/{id}')]
     [Authorize('Admin')]             // Requires 'Admin' role
     function DeleteOrder(Id: Integer): IResult;
+
+    [HttpPost('/{id}/approve')]
+    [AuthorizePolicy('Over18')]      // Named policy — not [Authorize(Policy=...)]
+    function ApproveOrder(Id: Integer): IResult;
   end;
 ```
 
@@ -262,10 +266,10 @@ TAuthorizationPolicyRegistry.RegisterPolicy('Over18',
   end);
 ```
 
-Then require it on endpoints:
+Then require it on controllers with a dedicated attribute (Delphi has no named arguments on attributes; do not use `[Authorize(Policy = '...')]`):
 
-* Minimal APIs: `.RequirePolicy('Over18')`
-* Controllers: `[Authorize(Policy := 'Over18')]`
+* Controllers: `[AuthorizePolicy('Over18')]`
+* Evaluate in code: `TAuthorizationPolicyRegistry.Evaluate('Over18', Ctx.User)`
 
 ### Asymmetric Cryptography (RS256)
 When integrating with identity providers (Google, Azure AD, Keycloak), use RS256 signature validation. Load options with the public JWK key:

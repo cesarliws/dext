@@ -1043,7 +1043,7 @@ Dext features a native, high-performance security and identity engine based on i
 - **TJwtAuthenticationMiddleware** — HTTP pipeline middleware that extracts tokens from the `Authorization: Bearer` header, validates signatures, expiration times (`exp`), issuer (`iss`), and audience (`aud`), then injects the claims principal (`IClaimsPrincipal`) directly into the request context (`IHttpContext.User`).
 
 ### 22.3 Declarative and Policy-Based Authorization (`Dext.Auth.Attributes`, `Dext.Auth.Identity`)
-- **Authorization Attributes** — `[Authorize]` and `[AllowAnonymous]` attributes for declarative protection of controllers and actions.
+- **Authorization Attributes** — `[Authorize]`, `[AuthorizePolicy]`, and `[AllowAnonymous]` for declarative protection of controllers and actions (`[Authorize('Admin')]` for roles/schemes; `[AuthorizePolicy('Name')]` for named policies — Delphi has no attribute named arguments).
 - **Role Validation** — Role-based access control evaluated dynamically inside the route execution and controller scanning dispatch flow.
 - **Policy Engine** — Runtime registration and evaluation of complex custom policies through the `TAuthorizationPolicyRegistry` (e.g., minimum age requirements or custom scope checks).
 

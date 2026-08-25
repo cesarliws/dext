@@ -27,7 +27,7 @@ Establish a top-tier security layer for Dext applications. Provide native suppor
     - OIDC compatible servers (Keycloak, Auth0).
 
 ### 2.4. Policy-Based Authorization
-- Move beyond simple Roles to **Policies** (e.g., `[Authorize(Policy = "MinimumAge21")]`).
+- Move beyond simple Roles to **Policies** (e.g., `[AuthorizePolicy('MinimumAge21')]`).
 
 ---
 

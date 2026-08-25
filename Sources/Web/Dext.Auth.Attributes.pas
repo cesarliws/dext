@@ -70,6 +70,22 @@ type
   end;
 
   /// <summary>
+  ///   Requires authentication and evaluates a named authorization policy.
+  ///   Use this instead of named arguments (Delphi has no <c>Policy =</c> syntax).
+  ///   Does not collide with <see cref="AuthorizeAttribute.Create(string)"/> (roles/scheme).
+  /// </summary>
+  /// <example>
+  ///   <c>[AuthorizePolicy('CancelamentoAltoValor')]</c>
+  /// </example>
+  AuthorizePolicyAttribute = class(AuthorizeAttribute)
+  public
+    /// <summary>
+    ///   Initializes a new instance requiring the given policy name.
+    /// </summary>
+    constructor Create(const APolicy: string);
+  end;
+
+  /// <summary>
   ///   Marks a handler or controller as allowing anonymous access (bypasses authentication).
   /// </summary>
   AllowAnonymousAttribute = class(TCustomAttribute)
@@ -110,6 +126,14 @@ begin
   FRoles := ARoles;
   FScheme := AScheme;
   FPolicy := '';
+end;
+
+{ AuthorizePolicyAttribute }
+
+constructor AuthorizePolicyAttribute.Create(const APolicy: string);
+begin
+  inherited Create;
+  Policy := APolicy;
 end;
 
 end.

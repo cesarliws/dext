@@ -857,7 +857,7 @@ O Dext possui um motor nativo de segurança e identidade baseado nos padrões de
 - **TJwtAuthenticationMiddleware** — Middleware de pipeline HTTP que extrai o token do cabeçalho `Authorization: Bearer`, valida sua assinatura, tempo de expiração (`exp`), emissor (`iss`) e audiência (`aud`), e injeta o principal (`IClaimsPrincipal`) no contexto da requisição (`IHttpContext.User`).
 
 ### 22.3 Autorização Declarativa e Baseada em Políticas (`Dext.Auth.Attributes`, `Dext.Auth.Identity`)
-- **Atributos de Autorização** — Atributos `[Authorize]` e `[AllowAnonymous]` para proteção declarativa de controllers e actions.
+- **Atributos de Autorização** — `[Authorize]`, `[AuthorizePolicy]` e `[AllowAnonymous]` para proteção declarativa de controllers e actions (`[Authorize('Admin')]` para roles/schemes; `[AuthorizePolicy('Nome')]` para políticas nomeadas — Delphi não tem named arguments em atributos).
 - **Validação de Roles** — Controle de acesso baseado em roles diretamente no fluxo de execução do dispatcher de rotas.
 - **Motor de Políticas** — Registro e avaliação de políticas customizadas em runtime através do `TAuthorizationPolicyRegistry` (ex: política de idade mínima ou escopos de acesso).
 
