@@ -141,12 +141,117 @@ type
 /// <summary> Factory function returning a fluent TStaticFileBuilder instance. </summary>
 function StaticFileOptions: TStaticFileBuilder;
 
+/// <summary>
+///   Safely maps a request path to a physical file path contained within
+///   ARootPath. Returns False when the request path cannot be served safely;
+///   in that case AFilePath is empty and the caller must NOT touch the disk.
+/// </summary>
+/// <remarks>
+///   Containment is enforced twice, on purpose:
+///   <para>1. A cheap syntactic rejection of path segments equal to '..',
+///   of NUL, and of ':' (drive letters and NTFS alternate data streams).
+///   The request path is also percent-decoded before this check, so that an
+///   engine which does not decode the path cannot smuggle '%2e%2e%2f'.</para>
+///   <para>2. A canonical containment check: the fully resolved path must sit
+///   under the canonical root. The root carries a trailing path delimiter, so
+///   the comparison lands on a segment boundary and 'C:\wwwroot_backup' is not
+///   accepted as being inside 'C:\wwwroot'.</para>
+///   The second check is the one that has to be right; the first only avoids
+///   filesystem work for obviously hostile input.
+/// </remarks>
+function TryResolveStaticFilePath(const ARootPath, ARequestPath: string;
+  out AFilePath: string): Boolean;
+
 implementation
 
 uses
   System.Rtti,
+  System.NetEncoding,
   Dext.Json,
   Dext.Json.Types;
+
+{ Path containment }
+
+/// Absolute, canonical root with a trailing delimiter, used as the prefix that
+/// every served file must start with.
+function CanonicalRootPath(const ARoot: string): string;
+var
+  Full: string;
+begin
+  Full := ARoot;
+  if not TPath.IsPathRooted(Full) then
+    Full := TPath.Combine(ExtractFilePath(ParamStr(0)), Full);
+  Result := IncludeTrailingPathDelimiter(TPath.GetFullPath(Full));
+end;
+
+/// True when the request path is hostile on its face: an exact '..' segment, a
+/// NUL, or a ':'. Percent-decoded first, because engines differ on whether the
+/// path they hand over is already decoded (Indy and HTTP.sys decode it, others
+/// may not) and the guard must not depend on that.
+function IsUnsafeRequestPath(const ARequestPath: string): Boolean;
+var
+  Decoded: string;
+  Segment: string;
+begin
+  if ARequestPath.Contains(#0) then
+    Exit(True);
+
+  Decoded := ARequestPath;
+  try
+    Decoded := TNetEncoding.URL.Decode(Decoded);
+  except
+    // Undecodable input: keep the raw form and let the checks below run on it.
+    Decoded := ARequestPath;
+  end;
+
+  // ':' rejects both drive letters ('/C:/Windows/win.ini') and NTFS alternate
+  // data streams ('/app.config::$DATA'). Neither has a legitimate use here.
+  if Decoded.Contains(#0) or Decoded.Contains(':') then
+    Exit(True);
+
+  // Segment-exact, so a file honestly named 'notes..txt' still works.
+  for Segment in Decoded.Replace('\', '/').Split(['/']) do
+    if Segment = '..' then
+      Exit(True);
+
+  Result := False;
+end;
+
+function TryResolveStaticFilePath(const ARootPath, ARequestPath: string;
+  out AFilePath: string): Boolean;
+var
+  Root: string;
+  Rel: string;
+  Full: string;
+begin
+  AFilePath := '';
+
+  if IsUnsafeRequestPath(ARequestPath) then
+    Exit(False);
+
+  Rel := ARequestPath.Replace('/', PathDelim);
+  while Rel.StartsWith(PathDelim) do
+    Rel := Rel.Substring(1);
+  if Rel = '' then
+    Exit(False);
+
+  Root := CanonicalRootPath(ARootPath);
+
+  // Deliberately NOT TPath.Combine: when its second argument is rooted it
+  // returns that argument verbatim and silently drops the root.
+  try
+    Full := TPath.GetFullPath(Root + Rel);
+  except
+    // Invalid characters for the platform: refuse rather than surface a 500.
+    Exit(False);
+  end;
+
+  if not Full.StartsWith(Root, True) then
+    Exit(False);
+
+  AFilePath := Full;
+  Result := True;
+end;
 
 { TContentTypeProvider }
 
@@ -372,24 +477,24 @@ var
   FilePath: string;
 begin
   RequestPath := AContext.Request.Path;
-  
+
   // Normalize path
   if RequestPath = '/' then
     RequestPath := '/' + FOptions.DefaultFile;
-    
-  // Remove leading slash for combination
-  if RequestPath.StartsWith('/') then
-    RequestPath := RequestPath.Substring(1);
-    
-  FilePath := TPath.Combine(FOptions.RootPath, RequestPath);
-  
-  if FileExists(FilePath) then
+
+  // A request that cannot be mapped safely is treated exactly like a request
+  // for a file that is not there: fall through to the rest of the pipeline.
+  // Answering it differently (400, or 403) would tell someone walking the tree
+  // when a guess had landed on something real, which is the thing this guard
+  // exists to prevent.
+  if TryResolveStaticFilePath(FOptions.RootPath, RequestPath, FilePath) and
+    FileExists(FilePath) then
   begin
     ServeFile(AContext, FilePath);
     // Terminate pipeline (do not call Next)
     Exit;
   end;
-  
+
   // Not found, continue pipeline
   ANext(AContext);
 end;
