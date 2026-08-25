@@ -48,7 +48,7 @@ type
     FCachedJson: string;
     // Removed FAppBuilder to break circular reference - routes cached in constructor
     
-    function GetSwaggerUIHtml: string;
+    function GetSwaggerUIHtml(const AJsonUrl: string): string;
     function ShouldHandleRequest(const APath: string): Boolean;
     procedure HandleSwaggerUI(AContext: IHttpContext);
     procedure HandleSwaggerJson(AContext: IHttpContext);
@@ -116,7 +116,10 @@ begin
   Result := APath.Equals(FSwaggerPath) or APath.Equals(FJsonPath);
 end;
 
-function TSwaggerMiddleware.GetSwaggerUIHtml: string;
+// AJsonUrl is passed in rather than read from FJsonPath, because the URL the
+// browser has to request depends on the request: under a PathBase the spec
+// lives at <base>/swagger.json, not at /swagger.json.
+function TSwaggerMiddleware.GetSwaggerUIHtml(const AJsonUrl: string): string;
 begin
   Result := 
     '<!DOCTYPE html>' + sLineBreak +
@@ -139,7 +142,7 @@ begin
     '  <script>' + sLineBreak +
     '    window.onload = function() {' + sLineBreak +
     '      window.ui = SwaggerUIBundle({' + sLineBreak +
-    '        url: "' + FJsonPath + '",' + sLineBreak +
+    '        url: "' + AJsonUrl + '",' + sLineBreak +
     '        dom_id: "#swagger-ui",' + sLineBreak +
     '        deepLinking: true,' + sLineBreak +
     '        presets: [' + sLineBreak +
@@ -161,7 +164,11 @@ procedure TSwaggerMiddleware.HandleSwaggerUI(AContext: IHttpContext);
 begin
   AContext.Response.StatusCode := 200;
   AContext.Response.SetContentType('text/html; charset=utf-8');
-  AContext.Response.Write(GetSwaggerUIHtml);
+  // ToAppUrl puts the PathBase back on: the comparisons above work on the
+  // stripped path, but this string is consumed by the BROWSER, which knows
+  // nothing about the stripping and would ask the origin for /swagger.json.
+  AContext.Response.Write
+    (GetSwaggerUIHtml(AContext.Request.ToAppUrl(FJsonPath)));
 end;
 
 procedure TSwaggerMiddleware.HandleSwaggerJson(AContext: IHttpContext);
