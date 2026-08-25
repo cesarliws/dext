@@ -104,6 +104,19 @@ type
   end;
 
   /// <summary>
+  ///   Result that returns HTTP 201 Created and sets the Location header to the resource URI.
+  ///   Optionally wraps a body result (JSON string or negotiated object payload).
+  /// </summary>
+  TCreatedResult = class(TResult)
+  private
+    FLocation: string;
+    FBody: IResult;
+  public
+    constructor Create(const ALocation: string; const ABody: IResult = nil);
+    procedure Execute(AContext: IHttpContext); override;
+  end;
+
+  /// <summary>
   ///   Generic result that uses content negotiation to format an object.
   ///   Attempts to find a registered formatter (JSON, XML) that accepts type T.
   /// </summary>
@@ -574,6 +587,26 @@ begin
   AContext.Response.Write(FContent);
 end;
 
+{ TCreatedResult }
+
+constructor TCreatedResult.Create(const ALocation: string; const ABody: IResult);
+begin
+  inherited Create;
+  FLocation := ALocation;
+  FBody := ABody;
+end;
+
+procedure TCreatedResult.Execute(AContext: IHttpContext);
+begin
+  if FLocation <> '' then
+    AContext.Response.AddHeader('Location', FLocation);
+
+  if FBody <> nil then
+    FBody.Execute(AContext)
+  else
+    AContext.Response.StatusCode := HttpStatus.Created;
+end;
+
 { TObjectResult<T> }
 
 constructor TObjectResult<T>.Create(const AValue: T; AStatusCode: Integer);
@@ -672,17 +705,17 @@ end;
 
 class function Results.Created(const AUri: string): IResult;
 begin
-  Result := TStatusCodeResult.Create(HttpStatus.Created);
+  Result := TCreatedResult.Create(AUri);
 end;
 
 class function Results.Created(const AUri, AValue: string): IResult;
 begin
-  Result := TJsonResult.Create(AValue, HttpStatus.Created);
+  Result := TCreatedResult.Create(AUri, TJsonResult.Create(AValue, HttpStatus.Created));
 end;
 
 class function Results.Created<T>(const AUri: string; const AValue: T): IResult;
 begin
-  Result := TObjectResult<T>.Create(AValue, HttpStatus.Created);
+  Result := TCreatedResult.Create(AUri, TObjectResult<T>.Create(AValue, HttpStatus.Created));
 end;
 
 class function Results.BadRequest: IResult;
