@@ -27,6 +27,7 @@ uses
   Dext.Logging.Sinks.APM.Tests in 'Dext.Logging.Sinks.APM.Tests.pas',
   Dext.WebSocket.Tests in 'Dext.WebSocket.Tests.pas',
   Dext.Web.PathBase.Tests in 'Dext.Web.PathBase.Tests.pas',
+  Dext.Web.StaticFiles.Security.Tests in 'Dext.Web.StaticFiles.Security.Tests.pas',
   Dext.Web.Mocks in '..\Common\Dext.Web.Mocks.pas',
   Test_Dext.Http2.Connection in 'Test_Dext.Http2.Connection.pas',
   Test_Dext.Http2.Framing in 'Test_Dext.Http2.Framing.pas',
@@ -60,6 +61,7 @@ begin
         TAPMSinksTests,
         TWebSocketTests,
         TPathBaseTests,
+        TStaticFilesSecurityTests,
         TDextNewFeaturesTests,
         // HTTP/2 and HPACK Tests
         THpackStaticTableTests,
