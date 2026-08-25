@@ -1225,13 +1225,15 @@ begin
 
   try
     if Tracking and (PKVal <> '') then
-    begin
       FIdentityMap.Add(PKVal, Result);
+    
+    HydrateTarget(Reader, Result, Plan);
+
+    if Tracking and (PKVal <> '') then
+    begin
       if (FContext <> nil) and (FContext.ChangeTracker <> nil) then
         FContext.ChangeTracker.Track(Result, esUnchanged);
     end;
-    
-    HydrateTarget(Reader, Result, Plan);
   except
     on E: Exception do
     begin
@@ -1457,12 +1459,13 @@ end;
 function TDbSet<T>.Update(const AEntity: T): IDbSet<T>;
 var
   Id: string;
+  Tracked: T;
 begin
   FContext.ChangeTracker.Track(AEntity, esModified);
   
-  // Ensure the DbSet owns this entity if it's not already tracked
+  // Ensure the DbSet owns this entity if it's not already the instance in the identity map
   Id := GetEntityId(AEntity);
-  if (Id <> '') and (not FIdentityMap.ContainsKey(Id)) then
+  if not (FIdentityMap.TryGetValue(Id, Tracked) and (TObject(Tracked) = TObject(AEntity))) then
   begin
     if not FOrphans.Contains(AEntity) then
       FOrphans.Add(AEntity);
