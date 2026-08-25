@@ -144,6 +144,31 @@ type
     property RemoteIpAddress: string read GetRemoteIpAddress;
   end;
 
+  TDextNativeHttpResponse = class;
+
+  /// <summary>
+  ///   Write-only stream handed out by GetOutputStream. Every write is
+  ///   forwarded straight to the response sink, so a caller that prefers a
+  ///   TStream gets the same zero-copy path as SendJsonUtf8, with no
+  ///   intermediate buffer.
+  /// </summary>
+  /// <remarks>
+  ///   Deliberately neither readable nor seekable: the bytes are already on
+  ///   their way out, so a Position that could be moved would be lying. Seek
+  ///   answers the current write count for the no-op forms the RTL relies on
+  ///   (offset 0 from soCurrent or soEnd) and refuses the rest.
+  /// </remarks>
+  TDextResponseSinkStream = class(TStream)
+  private
+    FOwner: TDextNativeHttpResponse;
+    FWritten: Int64;
+  public
+    constructor Create(AOwner: TDextNativeHttpResponse);
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+  end;
+
   /// <summary>
   ///   Dext native implementation of IHttpResponse.
   /// </summary>
@@ -155,6 +180,7 @@ type
     FHeaders: IStringDictionary;
     FStreamBuffer: TBytes;
     FStatusCode: Integer;
+    FOutputStream: TDextResponseSinkStream;
   public
     /// <summary>Initializes a new instance of the native HTTP response adapter.</summary>
     constructor Create(const ARawResponse: IDextRawResponse);
@@ -653,6 +679,7 @@ end;
 
 destructor TDextNativeHttpResponse.Destroy;
 begin
+  FOutputStream.Free;
   FHeaders := nil;
   FHtmx := nil;
   FStreamBuffer := nil;
@@ -931,8 +958,48 @@ end;
 function TDextNativeHttpResponse.GetOutputStream: TStream;
 begin
   SetContentType('application/json; charset=utf-8');
-  // Return dummy or memory wrapper stream connected to WriteUtf8 if called directly
-  Result := nil;
+  // Lazily created and owned by the response: handing out a fresh stream per
+  // call would make interleaved writes from two callers unpredictable, and
+  // leaves the caller wondering who frees it.
+  if FOutputStream = nil then
+    FOutputStream := TDextResponseSinkStream.Create(Self);
+  Result := FOutputStream;
+end;
+
+{ TDextResponseSinkStream }
+
+constructor TDextResponseSinkStream.Create(AOwner: TDextNativeHttpResponse);
+begin
+  inherited Create;
+  FOwner := AOwner;
+end;
+
+function TDextResponseSinkStream.Read(var Buffer; Count: Longint): Longint;
+begin
+  // A response body cannot be read back: it has already gone out.
+  Result := 0;
+end;
+
+function TDextResponseSinkStream.Write(const Buffer; Count: Longint): Longint;
+begin
+  Result := 0;
+  if Count <= 0 then
+    Exit;
+  FOwner.WriteUtf8(@Buffer, Count);
+  Inc(FWritten, Count);
+  Result := Count;
+end;
+
+function TDextResponseSinkStream.Seek(const Offset: Int64;
+  Origin: TSeekOrigin): Int64;
+begin
+  // Only the no-op forms the RTL uses to ask "where am I" are answered; an
+  // actual seek is refused rather than silently ignored, because pretending to
+  // rewind a socket would corrupt the response in a way nothing would report.
+  if (Offset = 0) and (Origin in [soCurrent, soEnd]) then
+    Exit(FWritten);
+  raise EStreamError.Create('The HTTP response output stream cannot seek: ' +
+    'the bytes have already been sent.');
 end;
 
 function TDextNativeHttpResponse.GetContentType: string;
