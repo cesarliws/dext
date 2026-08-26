@@ -81,9 +81,9 @@ Um whitepaper focado na avaliação jurídica e de compliance corporativo. Cobre
 
 ## Referências Externas
 
-- 📘 [Visão Geral do Ecossistema Dext](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.pt-br.md) — Deep-dive arquitetônico: pipelines de alocação zero, coleções SIMD e Binary Code Folding.
-- 📗 [Índice de Recursos Implementados](https://github.com/cesarliws/dext/blob/main/Docs/Features_Implemented_Index.pt-br.md) — Lista completa de funcionalidades implementadas e especificações técnicas de design.
-- 🗺️ [Roadmap](https://github.com/cesarliws/dext/blob/main/Docs/ROADMAP.md) — Cronograma de entrega planejado por ondas (Waves).
+- 📘 [Visão Geral do Ecossistema Dext](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.pt-br.md) — Deep-dive arquitetônico: pipelines de alocação zero, coleções SIMD e Binary Code Folding.
+- 📗 [Índice de Recursos Implementados](https://github.com/dotpas/dext/blob/main/Docs/Features_Implemented_Index.pt-br.md) — Lista completa de funcionalidades implementadas e especificações técnicas de design.
+- 🗺️ [Roadmap](https://github.com/dotpas/dext/blob/main/Docs/ROADMAP.md) — Cronograma de entrega planejado por ondas (Waves).
 
 ---
 

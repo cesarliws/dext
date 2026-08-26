@@ -7,7 +7,7 @@ Ao participar deste projeto, você concorda em cumprir seus termos e diretrizes.
 ## Como Posso Contribuir?
 
 ### Reportando Bugs
-*   Verifique o [rastreador de problemas (issues)](https://github.com/cesarliws/dext/issues) para ver se o bug já foi relatado.
+*   Verifique o [rastreador de problemas (issues)](https://github.com/dotpas/dext/issues) para ver se o bug já foi relatado.
 *   Caso contrário, abra uma nova issue. Descreva claramente o problema e inclua passos para reproduzi-lo.
 
 ### Sugerindo Melhorias

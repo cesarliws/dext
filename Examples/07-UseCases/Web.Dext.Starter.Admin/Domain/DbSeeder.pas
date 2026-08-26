@@ -91,7 +91,7 @@ begin
       
       C1 := TCustomer.Create; C1.Name := 'Alice Corp'; C1.Email := 'alice@corp.com'; C1.Status := TCustomerStatus.Active; C1.TotalSpent := 1200;
       C2 := TCustomer.Create; C2.Name := 'Bob Ltd'; C2.Email := 'bob@ltd.com'; C2.Status := TCustomerStatus.Inactive; C2.TotalSpent := 0;
-      C3 := TCustomer.Create; C3.Name := 'Cesar Romero Silva'; C3.Email := 'cesarliws@gmail.com'; C3.Status := TCustomerStatus.Active; C3.TotalSpent := 100;
+      C3 := TCustomer.Create; C3.Name := 'Dext'; C3.Email := 'dext.dotpas@gmail.com'; C3.Status := TCustomerStatus.Active; C3.TotalSpent := 100;
       Db.Entities<TCustomer>.Add(C1);
       Db.Entities<TCustomer>.Add(C2);
       Db.Entities<TCustomer>.Add(C3);

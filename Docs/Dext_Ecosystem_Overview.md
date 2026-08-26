@@ -428,7 +428,7 @@ The ecosystem is sustained by hundreds of test suites and thousands of assertion
 
 Dext is the definitive answer to the fragmentation of the Delphi ecosystem. It provides the **Industrial Foundation** required to build mission-critical, high-scale applications with the rapid productivity of 2026.
 
-For a detailed feature comparison with .NET/EF Core, see: [`Docs/Marketing/Feature_Comparison_Dext_vs_DotNet.md`](https://github.com/cesarliws/dext/blob/main/Docs/Marketing/Feature_Comparison_Dext_vs_DotNet.md)
+For a detailed feature comparison with .NET/EF Core, see: [`Docs/Marketing/Feature_Comparison_Dext_vs_DotNet.md`](https://github.com/dotpas/dext/blob/main/Docs/Marketing/Feature_Comparison_Dext_vs_DotNet.md)
 
 ---
 

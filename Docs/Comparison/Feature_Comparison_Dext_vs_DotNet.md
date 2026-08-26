@@ -197,7 +197,7 @@ This comparison is structured into four logical blocks:
 
 To understand how these functional parity points and exclusive features are implemented at a lower level, refer to our comprehensive architectural guide. It covers compiler-level optimizations, memory footprints, and low-level performance benchmarks:
 
-* 👉 **[Dext Framework Ecosystem Overview](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.md)**: Deep dive into the *Zero-Allocation Web Pipeline*, *Binary Code Folding (Generic Bloom Cure)*, and *SIMD-Accelerated Collections*.
+* 👉 **[Dext Framework Ecosystem Overview](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.md)**: Deep dive into the *Zero-Allocation Web Pipeline*, *Binary Code Folding (Generic Bloom Cure)*, and *SIMD-Accelerated Collections*.
 
 ---
 
@@ -210,7 +210,7 @@ This document is a **reference table** — use it to look up specific features o
 | Understand *why* Dext was built and get the big picture | [Dext vs .NET — Architecture Narrative](./Dext_vs_DotNet_Narrative.md) |
 | Deep-dive into the ORM with code examples (Delphi vs C#) | [Dext ORM — Complete Capabilities Reference](./Dext_ORM_Capabilities.md) |
 | Understand Apache 2.0 licensing and enterprise compliance | [Open Source Licensing for Enterprise](./Open_Source_Licensing_Enterprise.md) |
-| Read the full Dext ecosystem architecture | [Dext Ecosystem Overview](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.md) |
+| Read the full Dext ecosystem architecture | [Dext Ecosystem Overview](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.md) |
 
 ---
 

@@ -544,7 +544,7 @@ While functional capabilities are crucial, Dext's ultimate differentiator is **h
 * **SIMD-Accelerated Collections**: Vectorized AVX2/SSE2 lookups making `TRawDictionary` up to 6.6x faster than standard RTL dictionaries.
 * **In-Memory Expression Evaluator**: Direct reuse of the ORM's `Prop<T>` AST to evaluate complex queries against standard in-memory lists with zero database trips.
 
-For a comprehensive technical deep-dive into Dext's zero-allocation design, compiler optimizations, and low-level performance benchmarks, refer to the [Dext Framework Ecosystem Overview](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.md).
+For a comprehensive technical deep-dive into Dext's zero-allocation design, compiler optimizations, and low-level performance benchmarks, refer to the [Dext Framework Ecosystem Overview](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.md).
 
 ---
 

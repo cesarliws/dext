@@ -81,9 +81,9 @@ A whitepaper-style document for enterprise and legal evaluation. Covers the stra
 
 ## External References
 
-- 📘 [Dext Ecosystem Overview](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.md) — Architecture deep-dive: zero-allocation pipeline, SIMD collections, Binary Code Folding
-- 📗 [Features Implemented Index](https://github.com/cesarliws/dext/blob/main/Docs/Features_Implemented_Index.md) — Complete feature implementation index with spec links
-- 🗺️ [Roadmap](https://github.com/cesarliws/dext/blob/main/Docs/ROADMAP.md) — Planned features and Wave delivery schedule
+- 📘 [Dext Ecosystem Overview](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.md) — Architecture deep-dive: zero-allocation pipeline, SIMD collections, Binary Code Folding
+- 📗 [Features Implemented Index](https://github.com/dotpas/dext/blob/main/Docs/Features_Implemented_Index.md) — Complete feature implementation index with spec links
+- 🗺️ [Roadmap](https://github.com/dotpas/dext/blob/main/Docs/ROADMAP.md) — Planned features and Wave delivery schedule
 
 ---
 

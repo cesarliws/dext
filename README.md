@@ -352,10 +352,10 @@ The easiest way to install Dext is using **TMS Smart Setup**. Alternatively, you
 
 ### 1. Automated Installation (TMS Smart Setup - Recommended)
 You can install Dext either via the graphical user interface (GUI) or the command line:
-* **GUI**: Open the **TMS Smart Setup** client, search for `cesarliws.dext` (Dext Framework), select it, and click **Install**.
+* **GUI**: Open the **TMS Smart Setup** client, search for `dotpas.dext` (Dext Framework), select it, and click **Install**.
 * **CLI**: Run the following command in your terminal:
   ```bash
-  tms install cesarliws.dext
+  tms install dotpas.dext
   ```
 
 > [!TIP]
@@ -402,7 +402,7 @@ It is fully and unconditionally free (for open-source scenarios or strict enterp
 Dext is driven by the community. Whether you are an enthusiastic user or an infrastructure-focused developer, there are many ways to help:
 
 * **Spread the word:** If Dext is useful to you, please consider **leaving a star** on the repository. This helps the project gain visibility and attract more contributors.
-* **Share your Success:** Built something amazing with Dext? We would love to hear about your use case. Share your story in the [Discussions](https://github.com/cesarliws/dext/discussions).
+* **Share your Success:** Built something amazing with Dext? We would love to hear about your use case. Share your story in the [Discussions](https://github.com/dotpas/dext/discussions).
 * **For Users:** Start using the framework in your projects and give us real feedback on your experience.
 * **For Contributors:** Report instabilities (*issues*), suggest improvements, or send a pull request.
   * Follow the [Contribution Instructions](CONTRIBUTING.md)

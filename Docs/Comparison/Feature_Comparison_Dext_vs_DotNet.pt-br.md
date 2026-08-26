@@ -199,7 +199,7 @@ Esta comparação está estruturada em quatro blocos lógicos:
 
 Para compreender como estes pontos de paridade funcional e os recursos exclusivos de arquitetura são implementados no nível mais baixo (otimizações do compilador, uso de memória e benchmarks físicos), consulte o nosso guia técnico principal de engenharia:
 
-* 👉 **[Visão Geral do Ecossistema Dext](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.pt-br.md)**: Estudo detalhado sobre o *Zero-Allocation Web Pipeline*, a técnica de *Binary Code Folding* (que resolve oGeneric Bloom em Delphi) e as *Coleções Otimizadas por SIMD*.
+* 👉 **[Visão Geral do Ecossistema Dext](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.pt-br.md)**: Estudo detalhado sobre o *Zero-Allocation Web Pipeline*, a técnica de *Binary Code Folding* (que resolve oGeneric Bloom em Delphi) e as *Coleções Otimizadas por SIMD*.
 
 ---
 
@@ -212,7 +212,7 @@ Este documento é uma **tabela de referência rápida** — utilize-a para busca
 | Compreender *por que* o Dext foi construído e obter a visão geral narrativa | [Dext vs .NET — Narrativa de Arquitetura](./Dext_vs_DotNet_Narrative.pt-br.md) |
 | Aprofundar-me nas capacidades do ORM com exemplos de código reais (Delphi vs C#) | [Dext ORM — Referência Completa de Recursos](./Dext_ORM_Capabilities.pt-br.md) |
 | Compreender o licenciamento sob Apache 2.0 e conformidade jurídica corporativa | [Licenciamento Open Source para Empresas](./Open_Source_Licensing_Enterprise.pt-br.md) |
-| Ler sobre a engenharia de baixo nível do ecossistema do Dext | [Visão Geral do Ecossistema Dext](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.pt-br.md) |
+| Ler sobre a engenharia de baixo nível do ecossistema do Dext | [Visão Geral do Ecossistema Dext](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.pt-br.md) |
 
 ---
 

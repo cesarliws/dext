@@ -352,10 +352,10 @@ A maneira mais fácil de instalar o Dext é usando o **TMS Smart Setup**. Altern
 
 ### 1. Instalação Automatizada (TMS Smart Setup - Recomendado)
 Você pode instalar o Dext tanto pela interface gráfica (GUI) quanto pela linha de comando:
-* **GUI**: Abra o cliente do **TMS Smart Setup**, pesquise por `cesarliws.dext` (Dext Framework), selecione-o e clique em **Install**.
+* **GUI**: Abra o cliente do **TMS Smart Setup**, pesquise por `dotpas.dext` (Dext Framework), selecione-o e clique em **Install**.
 * **CLI**: Execute o seguinte comando no seu terminal:
   ```bash
-  tms install cesarliws.dext
+  tms install dotpas.dext
   ```
 
 > [!TIP]
@@ -402,7 +402,7 @@ O Delphi historicamente foi escolhido para domínios que não toleravam overhead
 O Dext é movido pela comunidade. Seja você um usuário entusiasta ou um desenvolvedor focado em infraestrutura, há várias formas de ajudar:
 
 * **Espalhe a palavra:** Se o Dext é útil para você, considere **deixar uma estrela (Star)** no repositório. Isso ajuda o projeto a ganhar visibilidade e atrair mais contribuidores.
-* **Compartilhe seu Sucesso:** Criou algo incrível com Dext? Adoraríamos conhecer seu caso de uso. Envie um relato nas [Discussions](https://github.com/cesarliws/dext/discussions).
+* **Compartilhe seu Sucesso:** Criou algo incrível com Dext? Adoraríamos conhecer seu caso de uso. Envie um relato nas [Discussions](https://github.com/dotpas/dext/discussions).
 * **Para Usuários:** Comece a usar o framework em seus projetos e nos dê feedback real sobre a experiência de uso.
 * **Para Contribuidores:** Registre instabilidades (*issues*), sugira melhorias ou envie um *pull-request*.
   * Siga as [Instruções de Contribuição](CONTRIBUTING.md)

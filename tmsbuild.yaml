@@ -8,9 +8,9 @@ minimum required tmsbuild version: 3.4
 
 # General information about the product.
 application:
-  id: cesarliws.dext
+  id: dotpas.dext
   name: Dext Framework
-  url: https://github.com/cesarliws/dext
+  url: https://github.com/dotpas/dext
 
 # Frameworks are just a group of supported IDEs and platforms. You can define as much as you want with any name you desire, and then combine them to specify what platforms and IDEs the packages support.
 supported frameworks:

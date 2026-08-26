@@ -24,14 +24,14 @@ Uma vez habilitado o Community Server, você pode instalar o Dext tanto pela int
 
 ### 1.1. Instalação via GUI
 1. Abra o aplicativo **TMS Smart Setup** (`tmsgui.exe`).
-2. No campo de busca, digite `cesarliws.dext`.
+2. No campo de busca, digite `dotpas.dext`.
 3. Selecione **Dext Framework** na lista de produtos.
 4. Clique no botão **Install**.
 
 ### 1.2. Instalação via CLI
 Basta executar o seguinte comando no seu terminal:
 ```bash
-tms install cesarliws.dext
+tms install dotpas.dext
 ```
 
 O Smart Setup lerá o manifesto `tmsbuild.yaml`, compilará todos os pacotes para as plataformas suportadas e configurará automaticamente todos os Library Paths, Browsing Paths, variáveis de ambiente e diretórios das BPLs na IDE do Delphi.

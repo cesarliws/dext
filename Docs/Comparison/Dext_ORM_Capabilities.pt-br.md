@@ -544,7 +544,7 @@ Embora as capacidades funcionais sejam cruciais, o grande diferencial do Dext é
 * **Coleções Aceleradas por SIMD**: Buscas vetorizadas via AVX2/SSE2 que tornam o `TRawDictionary` até 6.6x mais rápido que os dicionários padrão da RTL.
 * **Avaliador de Expressões em Memória**: Reutilização direta da AST `Prop<T>` do ORM para avaliar consultas complexas contra listas padrão em memória com zero chamadas ao banco de dados.
 
-Para um mergulho técnico completo no design de alocação zero do Dext, otimizações de compilador e benchmarks detalhados de baixo nível, consulte o [Visão Geral do Ecossistema Dext Framework](https://github.com/cesarliws/dext/blob/main/Docs/Dext_Ecosystem_Overview.md).
+Para um mergulho técnico completo no design de alocação zero do Dext, otimizações de compilador e benchmarks detalhados de baixo nível, consulte o [Visão Geral do Ecossistema Dext Framework](https://github.com/dotpas/dext/blob/main/Docs/Dext_Ecosystem_Overview.md).
 
 ---
 

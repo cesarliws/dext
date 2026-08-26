@@ -24,14 +24,14 @@ Once the Community Server is enabled, you can install Dext using either the Grap
 
 ### 1.1. GUI Installation
 1. Open the **TMS Smart Setup** application (`tmsgui.exe`).
-2. In the search box, type `cesarliws.dext`.
+2. In the search box, type `dotpas.dext`.
 3. Select **Dext Framework** from the product list.
 4. Click the **Install** button.
 
 ### 1.2. CLI Installation
 Simply run the following command in your terminal:
 ```bash
-tms install cesarliws.dext
+tms install dotpas.dext
 ```
 
 The Smart Setup tool will read the `tmsbuild.yaml` manifest, build all packages for all supported platforms, and automatically configure all Library Paths, Browsing Paths, environment variables, and BPL directory path overrides in your Delphi IDE.
