@@ -9,9 +9,6 @@
 
 ---
 
-> [!IMPORTANT]
-> Dext Framework is currently in **Version 1 Release Candidate (RC2)**.
-
 **Dext Framework** is a native and integrated ecosystem for Delphi development.
 
 It brings together Dependency Injection, ORM, Web Pipeline, and Testing into a single, high-performance architecture. Designed to eliminate the need for connecting isolated libraries and to drastically reduce boilerplate code, Dext handles the infrastructure complexity so your team can focus strictly on business logic.
