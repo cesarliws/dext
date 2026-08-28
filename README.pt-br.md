@@ -1,50 +1,83 @@
-[🇺🇸 English](README.md)
+> **Reading this in English?** This page is the Portuguese README for Dext 1.0. The full English version — same examples, the book, and the complete feature map — is in [README.md](README.md). If English is more comfortable, click through and read that document instead of skimming a flag.
 
-# Dext Framework
-**Modern Full-Stack Development for Delphi**
+# Dext Framework 1.0
+**Full-stack nativo para Delphi.**
 
 <p align="center">
-  <img src="Docs/Images/dext-mascot.png" alt="Dext Framework Mascot">
+  <img src="Docs/Images/dext-mascot.png" alt="Mascote do Dext Framework">
 </p>
 
----
+O compilador Delphi nunca foi o problema. O problema era o chão.
 
-O **Dext Framework** é um ecossistema nativo e integrado para o desenvolvimento em Delphi.
+Durante anos, um backend moderno em Object Pascal significava costurar dezenas de bibliotecas: uma para injeção de dependência, outra para HTTP, outra para ORM, outra para testes. Cada uma com um jeito. Nenhuma dormia junto.
 
-Ele une Injeção de Dependência, ORM, Web Pipeline e Testes em uma arquitetura única de altíssima performance. Desenvolvido para eliminar a necessidade de conectar bibliotecas isoladas e reduzir drasticamente o código *boilerplate*, o Dext resolve a complexidade da infraestrutura base para que a sua equipe escreva estritamente a regra de negócio.
+O **Dext 1.0** é esse chão. Um ecossistema só — DI, ORM, pipeline web, telemetria e testes — compilado nativo. Sem JIT. Sem cold start. Sem colcha de retalhos.
 
-## Modernização do Delphi & Paridade com o .NET
-
-O Dext foi construído para fechar o abismo de percepção e arquitetura entre o Delphi e plataformas modernas como o .NET Core. Se a sua equipe está considerando migrar um sistema legado VCL/FMX para outra stack moderna devido à falta de padrões corporativos modernos, o Dext oferece uma alternativa nativa completa sem o custo, risco e tempo de reescrever todo o seu código do zero.
-
-Oferecemos paridade funcional completa com os padrões do ASP.NET Core e Entity Framework Core, aproveitando as vantagens da compilação nativa (sem JIT, sem cold starts e com baixíssimo consumo de memória).
-
-Explore nossos guias detalhados de comparação e capacidades:
-*   [**Dext vs .NET: Uma Comparação de Arquitetura**](Docs/Comparison/Dext_vs_DotNet_Narrative.pt-br.md) — Como o Dext une padrões modernos com compilação nativa.
-*   [**Matriz de Paridade Recurso por Recurso**](Docs/Comparison/Feature_Comparison_Dext_vs_DotNet.pt-br.md) — Mais de 60 recursos comparados diretamente entre o ASP.NET/EF Core e o Dext.
-*   [**Referência Completa de Recursos do ORM**](Docs/Comparison/Dext_ORM_Capabilities.pt-br.md) — DbContext, Change Tracking, colunas JSON e estratégias Lazy/Eager.
-*   [**Guia de Licenciamento Corporativo**](Docs/Comparison/Open_Source_Licensing_Enterprise.pt-br.md) — Por que o Dext é 100% gratuito e seguro para uso comercial sob a Licença Apache 2.0.
-
-## Onde Usar?
-
-O Dext foi desenhado especificamente para resolver as dores reais enfrentadas pelos desenvolvedores Delphi:
-
-* **Web Applications:** Desenvolva aplicações web completas com renderização Server-Side, utilizando WebStencils ou templates nativos integrados ao pipeline.
-* **APIs de Alta Performance:** Construa backends RESTful robustos usando *Minimal APIs*, *Controllers* ou gerando endpoints diretos com o atributo `[DataApi]`.
-* **Concorrência e Assincronismo:** Utilize o *Dext Threading* (Async Task, Cancellation Token, Async Rest Client) para criar rotinas em *background* e fluxos de trabalho não-bloqueantes, substituindo o uso manual e complexo da classe `TThread`.
-* **Backend Mobile (iOS/Android):** Forneça a infraestrutura de integração, conectividade e segurança necessária para suportar aplicativos mobile de forma eficiente.
-* **Modernização de Legados:** Integre-se gradualmente a sistemas de 3 camadas antigos (como DataSnap), middlewares ISAPI/Apache ou monolitos Desktop (VCL) sem precisar reescrever seu ERP de 20 anos. O Dext atua como uma fundação moderna dentro de sistemas existentes.
-* **Serviços Background e Microserviços:** Extração de dados robusta, tarefas agendadas de alta performance e conectividade entre aplicações.
+E é **Apache 2.0**: gratuito para o ERP de vinte anos e para o produto que ainda não tem nome.
 
 ---
 
-## Quick Start
+## Por que isso importa agora
 
-Veja como a estrutura do Dext simplifica fluxos complexos em código limpo, tipado e orientado a objetos. Explorando os pilares do framework:
+Se a equipe está olhando para C# porque “no Delphi não tem o padrão da indústria”, o Dext fecha esse abismo sem reescrever o sistema.
+
+Paridade funcional com ASP.NET Core e Entity Framework Core, na linguagem que vocês já dominam, com as vantagens que o .NET não entrega de graça: binário nativo, memória enxuta, startup instantâneo.
+
+- [**Dext vs .NET: arquitetura**](Docs/Comparison/Dext_vs_DotNet_Narrative.pt-br.md) — como o Dext une padrão moderno e compilação nativa.
+- [**Matriz recurso por recurso**](Docs/Comparison/Feature_Comparison_Dext_vs_DotNet.pt-br.md) — mais de 60 itens lado a lado.
+- [**Capacidades do ORM**](Docs/Comparison/Dext_ORM_Capabilities.pt-br.md) — DbContext, Change Tracking, JSON, Lazy/Eager.
+- [**Licenciamento corporativo**](Docs/Comparison/Open_Source_Licensing_Enterprise.pt-br.md) — por que Apache 2.0 é seguro para uso comercial.
+
+---
+
+## O livro
+
+Não é um catálogo de features. É um produto corporativo real — o **Dext Faturamento** — construído do zero em cinco laboratórios: Minimal APIs, persistência, SaaS multi-tenant, JWT, jobs, Redis, Hubs, Docker, gRPC e ferramentas para agentes de IA. Sem deixar a IA gerar SQL arbitrário.
+
+<p align="center">
+  <img src="Docs/Images/dext-web-book-mockup.png" alt="Livro Desenvolvimento Web Profissional com Delphi e Dext Framework" width="70%">
+</p>
+
+**Desenvolvimento Web Profissional com Delphi e Dext Framework** — Cesar Romero, 1ª edição, 2026. ISBN 978-65-02-32503-2.
+
+- **Impresso no Brasil (UICLAP):** [loja.uiclap.com/titulo/ua197387](https://loja.uiclap.com/titulo/ua197387)
+- **Paperback na Amazon:** [amazon.com/dp/6502325033](https://www.amazon.com/dp/6502325033)
+- **Kindle (Brasil):** [amazon.com.br/dp/B0HGYTSYYY](https://www.amazon.com.br/dp/B0HGYTSYYY)
+- **Kindle (global):** [amazon.com/dp/B0HGYTSYYY](https://www.amazon.com/dp/B0HGYTSYYY)
+- **Código dos laboratórios:** [github.com/dotpas/book-dext-web](https://github.com/dotpas/book-dext-web)
+
+A edição em inglês está em revisão final.
+
+---
+
+## Para onde ir depois deste README
+
+O README mostra o sabor. O mapa está na pasta `Docs`.
+
+1. **[O Livro do Dext](Docs/Book.pt-br/README.md)** — o guia oficial: instalação, Minimal APIs, ORM, segurança, tempo real, CLI, MCP. Comece por [Por onde começar](Docs/Book.pt-br/01-primeiros-passos/por-onde-comecar.md) e [Instalação](Docs/Book.pt-br/01-primeiros-passos/instalacao.md).
+2. **[Índice completo de features](Docs/Features_Implemented_Index.pt-br.md)** — tudo o que o 1.0 entrega, organizado por módulo, com a unit de implementação.
+3. **[Comparativos com .NET](Docs/Comparison/README.pt-br.md)** — para levar à reunião em que alguém perguntar “por que não migrar?”.
+
+English editions of the same docs live under [`Docs/Book`](Docs/Book/README.md) and [`Docs/Features_Implemented_Index.md`](Docs/Features_Implemented_Index.md).
+
+---
+
+## Onde o Dext entra
+
+- **APIs de alta performance** — Minimal APIs, Controllers ou `[DataApi]` gerando REST a partir da entidade.
+- **Aplicações web** — SSR com o template engine nativo ou Web Stencils, HTMX sem SPA pesado.
+- **Concorrência de verdade** — `TAsyncTask`, cancellation tokens, Rest Client assíncrono. Sem `TThread` na unha.
+- **Backend mobile** — a mesma API para iOS e Android, com JWT, rate limit e health checks.
+- **Legado que precisa viver** — DataSnap, ISAPI/Apache, VCL. O Dext entra como fundação moderna sem apagar vinte anos de ERP.
+- **Jobs, microserviços, IoT** — background jobs persistentes, MQTT, gRPC, Redis.
+
+---
+
+## Cinco minutos de código
 
 ### Minimal API
 
-Criar um endpoint de alta performance e integrado com Injeção de Dependências exige o mínimo de esforço:
+Um endpoint com DI e model binding não pede cerimônia:
 
 ```pascal
 program MyAPI;
@@ -53,14 +86,12 @@ uses Dext.Web;
 
 begin
   var App := WebApplication;
-  
-  // Endpoint simples
+
   App.MapGet('/hello', function: string
   begin
     Result := 'Hello from Dext! Modern full-stack for Delphi.';
   end);
 
-  // Endpoint com Injeção Automática (DI) e Model Binding nativos
   App.MapPost<TUserDto, IEmailService, IResult>('/register',
     function(Dto: TUserDto; EmailService: IEmailService): IResult
     begin
@@ -72,13 +103,13 @@ begin
 end.
 ```
 
-### Entidade Simples (COC, DataApi e Smart Properties)
+### Entidade, DataAPI e Smart Properties
 
-Mapeamento automático via *Convention over Configuration* e propriedades estruturadas para mapeamento relacional avançado:
+Convention over Configuration. A classe vira tabela — e, se você quiser, vira API:
 
 ```pascal
 [Table]
-[DataApi('/api/orders')] // Exposto automaticamente como REST API (Zero-Code API)!
+[DataApi('/api/orders')]
 TOrder = class
 private
   FId: IntType;
@@ -91,39 +122,35 @@ public
   property Id: IntType read FId write FId;
   property Status: Prop<TOrderStatus> read FStatus write FStatus;
   property Notes: StringType read FNotes write FNotes;
-  
-  // Smart Types para lidar nativamente com nulos, validação e Lazy Loading
   property Total: Nullable<CurrencyType> read FTotal write FTotal;
   property Items: Lazy<IList<TOrderItem>> read FItems write FItems;
 end;
 ```
 
-### ORM e Queries Fortemente Tipadas (Type-Safe)
+### ORM type-safe
 
-Chega de *magic strings* ou queries quebradas em runtime. O Dext gera a árvore sintática abstrata (AST) do seu código:
+Chega de magic string que quebra em produção. O Dext monta a AST da query no próprio Pascal:
 
 ```pascal
-// Consulta complexa com Joins e Filtros interpretada como código limpo
 var O := Prototype.Entity<TOrder>;
 
 var Orders := DbContext.Orders
   .Where((O.Status = TOrderStatus.Paid) and (O.Total > 1000))
-  .Include('Customer') // Eager Loading
+  .Include('Customer')
   .Include('Items')
   .OrderBy(O.Date.Desc)
   .Take(50)
   .ToList;
 
-// Bulk Update direto no SGBD sem carregar registros em memória
 DbContext.Products
   .Where(Prototype.Entity<TProduct>.Category = 'Outdated')
   .Update
   .Execute;
 ```
 
-### Processamento Assíncrono (Fluent Tasks)
+### Tasks fluentes
 
-A abstração `Fluent Async Tasks` entrega superpoderes sobre a `PPL` (*Parallel Programming Library*) e `Future<T>`, permitindo pipelines encadeados baseados no *Thread Pool*:
+A complexidade de `TThread` vira pipeline. Thread pool, encadeamento, volta segura para a UI:
 
 ```pascal
 var CTS := TCancellationTokenSource.Create;
@@ -131,20 +158,17 @@ var CTS := TCancellationTokenSource.Create;
 TAsyncTask.Run<TStream>(
   function: TStream
   begin
-    // Solicita uma Task livre ao Thread Pool para download via rede
     Result := AsyncClient.DownloadStream('https://api.empresa.com/dados', CTS.Token);
   end)
   .Then<TReport>(
     function(Stream: TStream): TReport
     begin
-      // Encadeia uma nova Task de processamento assim que a anterior terminar
       Result := JsonSerializer.Deserialize<TReport>(Stream);
       Stream.Free;
     end)
   .OnComplete(
     procedure(Report: TReport)
     begin
-      // Sincroniza o retorno com a Thread Original (UI) de forma automática e segura
       ShowReport(Report);
     end)
   .OnException(
@@ -155,44 +179,39 @@ TAsyncTask.Run<TStream>(
   .Start;
 ```
 
-### Configuration, Options & DI
+### Configuration, Options e DI
 
-Ambiente estruturado para registro de serviços e configurações externas consumindo `JSON`, `YAML` ou variáveis de ambiente:
+JSON, YAML, User Secrets, variáveis de ambiente, linha de comando — na ordem Twelve-Factor:
 
 ```pascal
   var Builder := WebApplication.CreateBuilder;
-  
-  // Carrega fontes de configuração hierárquicas
+
   Builder.Configuration
     .AddJsonFile('appsettings.json')
     .AddYamlFile('config.yaml')
     .AddEnvironmentVariables;
-  
+
   Builder.Services
-    // Vincula as variáveis lidas nativamente para uma classe estrita
     .Configure<TDatabaseSettings>(Builder.Configuration.GetSection('Database'))
-    
-    // Injeção de dependência completa de repositórios e serviços
     .AddSingleton<IEmailService, TSmtpEmailService>
     .AddScoped<IOrderRepository, TDbOrderRepository>;
-    
+
   var App := Builder.Build;
 ```
 
-### Compatibilidade Total com VCL (TEntityDataSet)
+### VCL sem abrir mão do ORM
 
-O `TEntityDataSet` converte a orientação a objetos do ORM (POCOs) para estruturas *DataSet-compatible* consumíveis pelas suas grids VCL, componentes data-aware e relatórios criados em *Design Time*, sem perder performance!
-
-> Suporte Design-Time: Criação de *TFields* a partir do código das entidades e visualização dos registros diretamente na IDE.
+`TEntityDataSet` coloca POCOs no DBGrid, no FastReport e no Object Inspector. Design-time de verdade: *TFields* e dados vivos na IDE, sem compilar o projeto.
 
 ---
 
-## ⚡ Poder de Nível Enterprise: O Dext vai Muito Além do Básico
+## O Dext não é só CRUD
 
-Muitos frameworks focam apenas em soluções simples de CRUD. O Dext foi projetado para arquiteturas corporativas complexas e de alta escala. Veja recursos avançados que mostram o poder real da nossa infraestrutura:
+CRUD todo mundo faz. O 1.0 foi desenhado para o que vem depois: escala, governança e o restante da semana.
 
-### 1. Database as API (REST CRUD Zero-Code)
-Gere uma API REST CRUD completa diretamente das suas entidades de domínio com suporte a paginação, ordenação, segurança granular e OpenAPI/Swagger com apenas um atributo:
+### Database as API
+
+REST completo a partir da entidade — paginação, filtros, papéis e Swagger — com um atributo:
 
 ```pascal
 [Table, DataApi('/api/products')]
@@ -209,14 +228,14 @@ public
   property Price: CurrencyType read FPrice write FPrice;
 end;
 
-// Configuração granular de segurança e inicialização em uma única linha:
 App.MapDataApis.Configure<TProduct>(
   DataApiOptions.RequireAuth.RequireWriteRole(['admin'])
 );
 ```
 
-### 2. Servidor MCP Nativo (Seu Delphi Pronto para IAs)
-O Dext é o primeiro framework do planeta com suporte nativo e integrado ao **Model Context Protocol (MCP)**. Exponha a lógica e as consultas do seu sistema corporativo diretamente como ferramentas para agentes de IA (como Claude, Cursor ou Antigravity) consumirem de forma segura:
+### Servidor MCP nativo
+
+O Dext expõe a regra de negócio Delphi como ferramenta para agentes (Claude, Cursor, Antigravity), no protocolo **MCP**, sem um processo separado:
 
 ```pascal
 type
@@ -229,52 +248,44 @@ type
   end;
 ```
 
-### 3. Clean Architecture & Design-Time VCL
-Desenvolva projetos seguindo os padrões de Clean Architecture, garantindo alto desacoplamento e testabilidade sem perder a produtividade visual do RAD tradicional:
+### Clean Architecture na IDE
 
-*   **Design-Time Preview:** Conecte o dataset visualmente na IDE, crie campos estáticos (TFields) dinamicamente e pré-visualize dados reais do banco *sem precisar compilar o projeto*.
-*   **Desacoplamento Real:** Remova conexões diretas do banco e queries espalhadas pelas suas telas, mantendo sua UI focada na apresentação enquanto consome entidades puras sob uma arquitetura limpa.
+Desacoplar não precisa matar o RAD. Scaffolding no menu de contexto, metadados no Object Inspector, DBGrid com dados reais *antes* de apertar F9.
 
 <details>
-<summary><b>📸 Veja o Fluxo Completo de Design-Time em Ação (Scaffolding ➡️ Conexão ➡️ Live Data)</b></summary>
+<summary><b>📸 Do banco físico ao live data no formulário</b></summary>
 <br>
 
-Para demonstrar que a modernização não quebra a produtividade visual clássica do Delphi RAD, o Dext se integra nativamente ao ecossistema da IDE. Veja o passo a passo interativo de como sair do banco físico para dados vivos no formulário em segundos:
-
-#### 1. Geração de Entidades via Context Menu
-Diga adeus ao mapeamento manual. Clique com o botão direito no formulário e acesse a ferramenta de geração integrada:
+#### 1. Geração de entidades no menu de contexto
 <p align="center">
-  <img src="Docs/Images/dext-design-time-step1-menu.webp" alt="Passo 1: Menu de Contexto do Dext" width="90%">
+  <img src="Docs/Images/dext-design-time-step1-menu.webp" alt="Passo 1: Menu de contexto do Dext" width="90%">
 </p>
 
-#### 2. Seleção Inteligente de Tabelas
-Selecione quais tabelas do seu banco de dados físico você deseja trazer para o seu modelo de domínio:
+#### 2. Seleção das tabelas
 <p align="center">
-  <img src="Docs/Images/dext-design-time-step2-tables.webp" alt="Passo 2: Seleção de Tabelas" width="90%">
+  <img src="Docs/Images/dext-design-time-step2-tables.webp" alt="Passo 2: Seleção de tabelas" width="90%">
 </p>
 
-#### 3. Visualização do Código Gerado
-O Dext gera unidades Object Pascal limpas, elegantes, fortemente tipadas e decoradas com atributos inteligentes:
+#### 3. Preview do código gerado
 <p align="center">
-  <img src="Docs/Images/dext-design-time-step3-preview.webp" alt="Passo 3: Código de Entidades Gerado" width="90%">
+  <img src="Docs/Images/dext-design-time-step3-preview.webp" alt="Passo 3: Código de entidades gerado" width="90%">
 </p>
 
-#### 4. Inspeção Visual das Propriedades RTTI
-Conecte o `TEntityDataProvider` ao seu banco. O Dext varre o seu executável via RTTI e mapeia dinamicamente as classes de entidades diretamente no Object Inspector da IDE:
+#### 4. Metadados via RTTI no Object Inspector
 <p align="center">
-  <img src="Docs/Images/dext-design-time-step4-metadata.webp" alt="Passo 4: Editor de Metadados de Entidades" width="90%">
+  <img src="Docs/Images/dext-design-time-step4-metadata.webp" alt="Passo 4: Editor de metadados" width="90%">
 </p>
 
-#### 5. Dados Vivos em Tempo de Design
-Conecte o `TEntityDataSet` ao provider, defina a classe alvo e marque `Active = True`. Seu DBGrid se popula instantaneamente com dados reais do banco *sem precisar rodar o aplicativo*:
+#### 5. DBGrid com dados vivos em design-time
 <p align="center">
-  <img src="Docs/Images/dext-design-time-step5-active.webp" alt="Passo 5: DBGrid com Dados Vivos na IDE" width="90%">
+  <img src="Docs/Images/dext-design-time-step5-active.webp" alt="Passo 5: DBGrid com dados vivos na IDE" width="90%">
 </p>
 
 </details>
 
-### 4. CQRS Stored Procedures
-Esqueça a vinculação manual de parâmetros e queries SQL manuais para execução de procedures. O Dext gerencia procedures complexas como comandos fortemente tipados e verificados em tempo de compilação:
+### Stored procedures como comandos
+
+Sem amarrar parâmetro na unha. A procedure vira um objeto verificado em compilação:
 
 ```pascal
 type
@@ -286,7 +297,7 @@ type
   public
     [DbParam('StartDate')]
     property StartDate: TDateTime read FStartDate write FStartDate;
-    
+
     [DbParam('ProcessedCount', pdOutput)]
     property ProcessedCount: Integer read FProcessedCount write FProcessedCount;
   end;
@@ -294,121 +305,120 @@ type
 
 ---
 
-## 📊 Telemetria Visual e Diagnósticos Integrados
+## Telemetria que não pede Grafana no notebook
 
-Esqueça a necessidade de configurar infraestruturas complexas de APM (como Prometheus e Grafana) para ambientes locais de desenvolvimento. O Dext inclui um **Dashboard Visual de Telemetria** integrado de forma nativa e assíncrona.
-
-Ele coleta (com zero impacto de thread e sem alocação bloqueante) logs estruturados, profiling completo de consultas SQL físicas, tempos de resposta HTTP e spans detalhados de Gantt para depuração rápida de gargalos de rede e banco de dados:
+O dashboard nativo coleta logs estruturados, SQL físico, latência HTTP e spans em Gantt — em background, sem travar a request.
 
 <p align="center">
-  <img src="Docs/Images/dext-telemetry-live-split.jfif" alt="Integração de Telemetria em Tempo Real com Aplicação VCL" width="90%">
+  <img src="Docs/Images/dext-telemetry-live-split.jfif" alt="Telemetria em tempo real com aplicação VCL" width="90%">
 </p>
 
 <details>
-<summary><b>📸 Ver Visão Geral do Painel e Rastreamento Detalhado de SQL (Traces)</b></summary>
+<summary><b>📸 Painel e tracing SQL</b></summary>
 <br>
 
-#### Visão Geral do Painel (Painel de Métricas e Logs em Tempo Real)
-Monitore throughput (RPS), latência média, consumo de CPU/Memória, conexões ativas de banco de dados e logs do sistema em uma única tela unificada:
+#### Métricas, RPS, CPU e logs
 <p align="center">
-  <img src="Docs/Images/dext-telemetry-dashboard.jfif" alt="Visão Geral do Painel de Telemetria Dext" width="90%">
+  <img src="Docs/Images/dext-telemetry-dashboard.jfif" alt="Painel de telemetria Dext" width="90%">
 </p>
 
-#### Rastreamento Detalhado de Consultas SQL (Tracing & Spans)
-Analise o fluxo interno de execução do ORM em formato Gantt, visualizando exatamente a query SQL gerada, parâmetros injetados e tempo de resposta de cada transação física:
+#### SQL gerado, parâmetros e tempo
 <p align="center">
-  <img src="Docs/Images/dext-telemetry-sql-trace.jfif" alt="Dext ORM SQL Tracing & Spans" width="90%">
+  <img src="Docs/Images/dext-telemetry-sql-trace.jfif" alt="Dext ORM SQL tracing" width="90%">
 </p>
 
 </details>
 
+Há também sinks para **Seq** e **OpenTelemetry** (SigNoz, Datadog) quando a operação cresce.
+
 ---
 
-## Features Principais
+## O ecossistema, em uma página
 
 <p align="center">
-  <img src="Docs/Images/dext_ecosystem.png" alt="Dext Ecosystem Architecture" width="80%">
+  <img src="Docs/Images/dext_ecosystem.png" alt="Arquitetura do ecossistema Dext" width="80%">
 </p>
 
-O Dext é composto por módulos flexíveis e minimalistas. Você retém total controle sobre a arquitetura e inclui apenas os componentes vitais para sua solução:
+Você inclui o que a solução precisa. O restante fica de fora.
 
-* **Core Technologies:** Injeção de dependência de classe Enterprise (Singleton, Transient, Scoped), cache de Reflexão otimizado, suporte avançado a eventos e IOptions.
-* **Coleções Nativas Limpas:** Extinção de *memory leaks* utilizando interfaces (`IList`, `IDictionary`). O Dext resolve o clássico *Generic Bloat* com Binary Code Folding, reduzindo significativamente binários enormes.
-* **Data Access (ORM):** Gerenciamento robusto via *Unit of Work*, controle automático de transações (DAO support), e suporte multi-banco.
-* **Web Frameworks:** Servidor HTTP incrustado, *Minimal APIs*, *Controllers*, gerador REST *DataAPI*, middlewares modulares, *WebSockets* (Hubs), CORS nativo, *Suporte HTMX nativo*, **HTTP/2 Framing** (HPACK + Streams Multiplexados) e renderização extremamente ágil.
-* **Inteligência Artificial e Agentes:** Servidor **MCP (Model Context Protocol)** nativo para integração perfeita com assistentes de IA (como o Claude), expondo sua regra de negócio Delphi como ferramentas de IA via sessões HTTP Streamable.
-* **Testing & Qualidade:** Framework TestContext acoplado, *Mock Objects* automatizados (`TAutoMocker`), cobertura de testes e relatórios.
+- **Core** — DI (Singleton, Transient, Scoped), RTTI em cache, `IOptions`, Smart Properties.
+- **Coleções** — `IList` / `IDictionary` sem vazamento clássico; Binary Code Folding contra *generic bloat*.
+- **ORM** — Unit of Work, transações, sete dialetos, JSON/JSONB, soft delete, batch.
+- **Web** — Minimal APIs, Controllers, DataAPI, middlewares, Hubs/WebSockets, HTTP/2, HTMX, http.sys / epoll.
+- **IA** — servidor MCP nativo; skills para Cursor, Claude e Copilot em `Docs`.
+- **Testes** — `TAutoMocker`, snapshots, WebApplicationFactory, Test Explorer na IDE.
 
-**[Ver a lista de features completas e módulos do Dext](Docs/Features_Implemented_Index.pt-br.md)**
+**[Lista completa de features e módulos](Docs/Features_Implemented_Index.pt-br.md)** — o índice que acompanha o 1.0, capítulo por capítulo.
 
 ---
 
 ## Instalação
 
-A maneira mais fácil de instalar o Dext é usando o **TMS Smart Setup**. Alternativamente, você pode fazer a instalação manual diretamente na IDE.
+O caminho curto é o **TMS Smart Setup**. O caminho longo está no Book.
 
-### 1. Instalação Automatizada (TMS Smart Setup - Recomendado)
-Você pode instalar o Dext tanto pela interface gráfica (GUI) quanto pela linha de comando:
-* **GUI**: Abra o cliente do **TMS Smart Setup**, pesquise por `dotpas.dext` (Dext Framework), selecione-o e clique em **Install**.
-* **CLI**: Execute o seguinte comando no seu terminal:
-  ```bash
-  tms install dotpas.dext
-  ```
+### 1. TMS Smart Setup (recomendado)
+
+O Dext é pacote da comunidade. Ative o Community Server uma vez:
+
+```bash
+tms server-enable community
+tms install dotpas.dext
+```
+
+Na GUI: abra o TMS Smart Setup, habilite **Community Server** nas configurações, busque `dotpas.dext` e clique em **Install**.
 
 > [!TIP]
-> Não tem o TMS Smart Setup instalado? Baixe-o na [Página de Download do TMS Smart Setup](https://doc.tmssoftware.com/smartsetup/download/).
+> Sem o Smart Setup? [Página de download](https://doc.tmssoftware.com/smartsetup/download/).
 
-### 2. Instalação Manual
-Para compilação manual, configuração de variáveis de ambiente/paths, personalização através do `Dext.inc` e instalação de pacotes de design-time diretamente na IDE do Delphi:
+### 2. Instalação manual
 
-*   **[Ler as Instruções Detalhadas de Setup e Instalação](Docs/Book.pt-br/01-primeiros-passos/instalacao.md)**
+Paths, `Dext.inc`, pacotes de design-time:
 
+- **[Guia completo de instalação](Docs/Book.pt-br/01-primeiros-passos/instalacao.md)**
 
-### Requisitos e Compatibilidade
-* **Delphi:** 10.3 Rio ou superior (Suporte completo a 10.4, 11 e 12 Athens).
-* **Versões Legadas:** Pode ser compilado no 10.1 Berlin com limitações.
-* **Dependências:** Nenhuma dependência externa obrigatória (usa componentes nativos).
-  * **Camada HTTP:** Utiliza componentes Indy (já incluídos no Delphi) para a camada de transporte HTTP — sujeito a substituição futura / otimizações adicionais.
+### Requisitos
 
-**[Matriz de Compatibilidade Detalhada](Docs/Delphi_Compatibility_Matrix.md)**
+- **Tier 1:** Delphi 10.4 Sydney, 11 Alexandria, 12 Athens.
+- **Tier 2:** 10.1 Berlin – 10.3 Rio, com limitações (sem inline vars).
+- **Piso de compilação:** XE2+, com fallback Indy abaixo do XE8.
+- **Dependências:** nenhuma obrigatória. HTTP usa Indy (já vem no Delphi) — sujeito a evolução.
+- **Web Stencils:** Delphi 12.2+ (Windows).
+
+**[Matriz de compatibilidade](Docs/Delphi_Compatibility_Matrix.md)**
 
 ---
 
-## Design e Filosofia: Nascido para Performance
+## Nascido para performance
 
-O Delphi historicamente foi escolhido para domínios que não toleravam overheads, entretanto frameworks recentes adotaram padrões de alocação desenfreada baseados na facilidade do desenvolvedor. **O Dext devolve a performance, mas mantém a facilidade moderna:**
+Frameworks recentes em Delphi adotaram alocação desenfreada em nome da conveniência. O Dext devolve o ritmo sem devolver a dor.
 
 <p align="center">
-  <img src="Docs/Images/dext_performance_graph.png" alt="Dext Performance Graph" width="80%">
+  <img src="Docs/Images/dext_performance_graph.png" alt="Gráfico de performance do Dext" width="80%">
 </p>
 
-1. **Zero-Allocation Pipeline:** Quando o servidor expõe um JSON ou dados, componentes comuns instanciam e processam gigabytes de `string` provisórias causando picos mortais no Memory Manager e pausas forçadas. O Dext contorna a conversão clássica através de *Direct-to-JSON streaming*, lendo blocos inteiros via estruturas de memória imutável (`TSpan`). 
-2. **Hardware Affinity (SIMD):** As camadas subjacentes se beneficiam de computação paralela usando SIMD (Single Instruction, Multiple Data) no parseamento para garantir resposta em pouquíssimos *ticks* de CPU.
+1. **Pipeline zero-allocation** — JSON direto via `TSpan` / UTF-8, sem gigabytes de `string` temporária no Memory Manager.
+2. **SIMD** — parse e comparação em blocos AVX2/SSE2, resposta em poucos ticks de CPU.
 
 ---
 
-## Open Source e Licença
+## Licença
 
-**Dext** é desenvolvido e mantido publicamente e fornecido sob a **Licença Apache 2.0**.
-É integralmente e incondicionalmente gratuito (para cenários *open-source* ou desenvolvimento estrito *enterprise*/comercial). Crie softwares bilionários, distribua ou encapsule à vontade. Sem pegadinhas.
+**Apache License 2.0.** Gratuito para open source e para software comercial. Crie, distribua, encapsule. Sem pegadinha.
 
 ---
 
-## Faça Parte da Comunidade
+## Comunidade
 
-O Dext é movido pela comunidade. Seja você um usuário entusiasta ou um desenvolvedor focado em infraestrutura, há várias formas de ajudar:
+O Dext cresce com quem usa.
 
-* **Espalhe a palavra:** Se o Dext é útil para você, considere **deixar uma estrela (Star)** no repositório. Isso ajuda o projeto a ganhar visibilidade e atrair mais contribuidores.
-* **Compartilhe seu Sucesso:** Criou algo incrível com Dext? Adoraríamos conhecer seu caso de uso. Envie um relato nas [Discussions](https://github.com/dotpas/dext/discussions).
-* **Para Usuários:** Comece a usar o framework em seus projetos e nos dê feedback real sobre a experiência de uso.
-* **Para Contribuidores:** Registre instabilidades (*issues*), sugira melhorias ou envie um *pull-request*.
-  * Siga as [Instruções de Contribuição](CONTRIBUTING.md)
-  * Quer enviar novas Features? Siga o documento do [Workflow de Features e Melhorias](Docs/CONTRIBUTING_IMPROVEMENTS.md)
+- **Estrela no repositório** — o sinal mais simples de que o projeto existe.
+- **Histórias reais** — o que você construiu cabe nas [Discussions](https://github.com/dotpas/dext/discussions).
+- **Issues e PRs** — [CONTRIBUTING.md](CONTRIBUTING.md) e o [workflow de features](Docs/CONTRIBUTING_IMPROVEMENTS.md).
 
-Conheça as métricas e passos do nosso [Roadmap](Docs/ROADMAP.md) e veja nosso documento de **[Código de Conduta](./CODE_OF_CONDUCT.md)** para manter este *hub* receptivo.
+Roadmap: [Docs/ROADMAP.md](Docs/ROADMAP.md). Conduta: [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md).
 
 <br>
 <p align="center">
-  <i>Pare de reconstruir fundações e gaste energia nos problemas dos seus clientes. Dext cuida do resto.</i><br>
-  <b>Feito com orgulho para todo o Ecossistema Delphi.</b>
+  <i>Pare de reconstruir fundações. Gaste energia no problema do cliente. O Dext cuida do resto.</i><br>
+  <b>Feito com orgulho para o ecossistema Delphi.</b>
 </p>
