@@ -152,6 +152,9 @@ If you want to manually bind an existing certificate to your port in the Kernel:
 
 On Linux (WSL2, Ubuntu, Debian, or RHEL), Dext leverages the **`epoll`** engine paired with the **OpenSSL 3.x Memory BIO Engine** in a fully decoupled architecture, delivering zero-copy TLS encryption at maximum performance without requiring reverse proxies (Nginx/HAProxy).
 
+> [!IMPORTANT]
+> Native OpenSSL is **off** by default (`{.$DEFINE DEXT_ENABLE_SSL}` in `Sources/Common/Dext.inc`). Linux64 install does not need `libssl` in the SDK until you enable it. For HTTPS, uncomment `{$DEFINE DEXT_ENABLE_SSL}`, install `libssl-dev`, update the SDK Manager cache, and rebuild. See [cannot find -lcrypto](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
+
 ### 1. Required Linux Packages
 
 Install the OpenSSL development libraries:

@@ -152,6 +152,9 @@ Caso deseje vincular um certificado manual existente à porta no Kernel:
 
 No Linux (WSL2, Ubuntu, Debian ou RHEL), o Dext utiliza o motor **`epoll`** combinado com o **OpenSSL 3.x Memory BIO Engine** de forma totalmente desacoplada, garantindo criptografia TLS zero-copy de alta performance sem depender de proxies reversos (Nginx/HAProxy).
 
+> [!IMPORTANT]
+> O OpenSSL nativo vem **desligado** por padrão (`{.$DEFINE DEXT_ENABLE_SSL}` em `Sources/Common/Dext.inc`). Sem essa diretiva a instalação Linux64 não pede `libssl` no SDK. Para HTTPS, descomente `{$DEFINE DEXT_ENABLE_SSL}`, instale `libssl-dev`, atualize o cache do SDK Manager e recompile. Detalhes: [cannot find -lcrypto](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
+
 ### 1. Pacotes Necessários no Linux
 
 Instale as bibliotecas de desenvolvimento do OpenSSL:

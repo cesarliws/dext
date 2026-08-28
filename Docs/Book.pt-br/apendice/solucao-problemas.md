@@ -10,6 +10,11 @@ Encontre soluções para os erros mais comuns ao trabalhar com o Dext.
 ### Erro ao carregar pacotes (BPL)
 - **Solução**: Certifique-se de que a pasta `Output` onde as BPLs são geradas está no seu **System PATH**.
 
+### `cannot find -lcrypto` / `cannot find -lssl` (Linux64, TMS Setup)
+- **Causa**: o linker (`ld-linux.exe`) não acha `libssl.so` / `libcrypto.so` no SDK do RAD Studio. Acontece se `DEXT_ENABLE_SSL` estiver ligado sem `libssl-dev` no cache do SDK.
+- **Solução (iniciante)**: deixe `{.$DEFINE DEXT_ENABLE_SSL}` em `Sources/Common/Dext.inc` (desligado) e reinstale. HTTPS nativo fica opt-in.
+- **Solução (HTTPS)**: descomente a diretiva, instale `libssl-dev` no Ubuntu do PAServer, **Update Local File Cache** no SDK Manager, recompile. Guia: [cannot find -lcrypto](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
+
 ## Erros de ORM
 
 ### "Entity TUser not found in context"

@@ -36,6 +36,9 @@ tms install dotpas.dext
 
 O Smart Setup lerá o manifesto `tmsbuild.yaml`, compilará todos os pacotes para as plataformas suportadas e configurará automaticamente todos os Library Paths, Browsing Paths, variáveis de ambiente e diretórios das BPLs na IDE do Delphi.
 
+> [!NOTE]
+> **Linux64 e OpenSSL.** HTTPS nativo vem **desligado** por padrão (`DEXT_ENABLE_SSL` em `Dext.inc`). Assim a instalação via TMS Setup não exige `libssl-dev` no SDK do RAD Studio. Se o linker falhar com `cannot find -lcrypto` / `cannot find -lssl`, veja o [artigo sobre OpenSSL no Linux](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
+
 > [!TIP]
 > Você pode baixar a versão mais recente do TMS Smart Setup na [Página de Download do TMS Smart Setup](https://doc.tmssoftware.com/smartsetup/download/).
 
@@ -86,6 +89,21 @@ Caso você possua outras bibliotecas instaladas (como o Devart EntityDAC) que ut
 ```pascal
 {.$DEFINE DEXT_USE_ENTITY_PREFIX}
 ```
+
+#### E. HTTPS / OpenSSL nativo (`DEXT_ENABLE_SSL`)
+Por padrão o Dext **não** vincula `libssl`/`libcrypto` na compilação (Instalação Linux64 via TMS Smart Setup funciona sem o SDK OpenSSL). HTTP, `http.sys` no Windows e o restante do framework seguem disponíveis.
+
+Para HTTPS nativo (servidor `epoll`, Redis `rediss://`, motor Memory BIO), descomente em `Sources\Common\Dext.inc` e **recompile** os pacotes:
+
+```pascal
+{$DEFINE DEXT_ENABLE_SSL}
+```
+
+No **Windows**, coloque `libssl-3.dll` e `libcrypto-3.dll` ao lado do executável.
+
+No **Linux**, o linker do Delphi usa o SDK em cache no Windows. Instale `libssl-dev` na máquina do PAServer (Ubuntu/WSL2), garanta que existam `libssl.so` e `libcrypto.so` (não só `.so.3`) e em **Tools → Options → Deployment → SDK Manager** clique em **Update Local File Cache**. Sem isso o build Linux64 falha com `E2597 cannot find -lcrypto` / `-lssl`.
+
+Guia completo: [HTTPS no Dext e o erro cannot find -lcrypto](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
 
 ---
 

@@ -111,12 +111,14 @@ SSL is configured via `appsettings.json`. Two SSL providers are supported.
 | `OpenSSL` | `DEXT_ENABLE_SSL` | `Dext.Web.Indy.SSL.OpenSSL` | 1.0.x / 1.1.x |
 | `Taurus` | `DEXT_ENABLE_TAURUS_TLS` | `Dext.Web.Indy.SSL.Taurus` | 1.1.x / 3.x |
 
-Enable in `Sources\Dext.inc`:
+Enable in `Sources\Common\Dext.inc`:
 
 ```pascal
-{.$DEFINE DEXT_ENABLE_SSL}         // Uncomment for OpenSSL
+{.$DEFINE DEXT_ENABLE_SSL}         // Uncomment for OpenSSL (Indy HTTPS + native epoll/Redis TLS)
 {.$DEFINE DEXT_ENABLE_TAURUS_TLS}  // Uncomment for Taurus TLS (OpenSSL 3.x)
 ```
+
+Native OpenSSL (`Dext.Net.Security.OpenSSL`) is also gated by `DEXT_ENABLE_SSL`. Leave it commented so Linux64 TMS Setup does not need `libssl-dev` in the RAD Studio SDK. If the linker reports `cannot find -lcrypto` / `-lssl`, see [this article](../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
 
 > For OpenSSL, copy `ssleay32.dll` + `libeay32.dll` (v1.0.2) to the app output directory.
 > For Taurus, use the matching Taurus DLLs for OpenSSL 1.1.x/3.x.

@@ -2,6 +2,9 @@
 
 O Dext Framework oferece um subsistema avançado de **Segurança SSL/TLS Nativo** (`Dext.Net.Security`) e **Otimizações de Protocolo de Rede**, projetado para fornecer criptografia transparente, compactação de alta performance e serialização binária em todas as camadas da aplicação (Web Servers, WebSocket Hubs, Clientes HTTP, Clientes Redis e Sockets TCP assíncronos).
 
+> [!NOTE]
+> O motor OpenSSL 3.x nativo e o HTTPS do Indy exigem `{$DEFINE DEXT_ENABLE_SSL}` em `Sources/Common/Dext.inc` (desligado por padrão). Sem isso, o TMS Smart Setup instala Linux64 sem pedir `libssl` no SDK. Guia: [HTTPS no Dext e cannot find -lcrypto](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
+
 ---
 
 ## 🎯 Principais Recursos da Spec S43

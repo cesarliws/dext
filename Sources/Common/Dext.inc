@@ -72,8 +72,13 @@
   {$UNDEF DEXT_HAS_SYSTEM_HASH}
 {$ENDIF}
 
-// Define DEXT_ENABLE_SSL to enable HTTPS/SSL support in the framework.
-// Note: Requires OpenSSL libraries (libeay32.dll, ssleay32.dll) or compatible provider.
+// Native OpenSSL 3.x (Dext.Net.Security.OpenSSL) and Indy HTTPS.
+// Disabled by default so Linux64 installs via TMS Smart Setup do not require
+// libssl-dev in the RAD Studio SDK cache (ld-linux: cannot find -lcrypto / -lssl).
+// Uncomment to enable HTTPS, Redis TLS, and the native epoll TLS engine, then rebuild.
+// Windows runtime: libssl-3.dll + libcrypto-3.dll next to the executable.
+// Linux: install libssl-dev on the PAServer machine, then SDK Manager >
+// Update Local File Cache so libssl.so and libcrypto.so exist in the SDK.
 {.$DEFINE DEXT_ENABLE_SSL}
 // Define DEXT_ENABLE_TAURUS_TLS to enable Taurus TLS support (OpenSSL 1.1.x / 3.x)
 {.$DEFINE DEXT_ENABLE_TAURUS_TLS}

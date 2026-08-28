@@ -140,6 +140,9 @@ var
   Provider: IDextTLSContextProvider;
   Engine: IDextTLSEngine;
 begin
+{$IFNDEF DEXT_ENABLE_SSL}
+  Exit;
+{$ENDIF}
   EnsureTestCertificates(CertFile, KeyFile);
   Opts := TDextTLSOptions.DefaultServer(CertFile, KeyFile);
   Provider := TDextOpenSSLContextProvider.Create(Opts);
@@ -167,6 +170,9 @@ var
   WireCount: Integer;
   Iteration: Integer;
 begin
+{$IFNDEF DEXT_ENABLE_SSL}
+  Exit;
+{$ENDIF}
   EnsureTestCertificates(CertFile, KeyFile);
   ServerOptions := TDextTLSOptions.DefaultServer(CertFile, KeyFile);
   ServerOptions.ALPNProtocols := ['h2', 'http/1.1'];

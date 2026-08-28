@@ -36,6 +36,9 @@ tms install dotpas.dext
 
 The Smart Setup tool will read the `tmsbuild.yaml` manifest, build all packages for all supported platforms, and automatically configure all Library Paths, Browsing Paths, environment variables, and BPL directory path overrides in your Delphi IDE.
 
+> [!NOTE]
+> **Linux64 and OpenSSL.** Native HTTPS is **off** by default (`DEXT_ENABLE_SSL` in `Dext.inc`) so TMS Setup does not require `libssl-dev` in the RAD Studio SDK. If the linker fails with `cannot find -lcrypto` / `cannot find -lssl`, see the [OpenSSL on Linux article](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
+
 > [!TIP]
 > You can download the latest version of TMS Smart Setup from the [TMS Smart Setup Download Page](https://doc.tmssoftware.com/smartsetup/download/).
 
@@ -88,6 +91,21 @@ If you have other libraries installed (such as Devart EntityDAC) that use the sa
 {.$DEFINE DEXT_USE_ENTITY_PREFIX}
 ```
 This registers them as **`TDextEntityDataSet`** and **`TDextEntityDataProvider`**.
+
+#### E. Native HTTPS / OpenSSL (`DEXT_ENABLE_SSL`)
+By default Dext does **not** link `libssl`/`libcrypto` at build time, so Linux64 installs via TMS Smart Setup work without an OpenSSL SDK. HTTP, Windows `http.sys`, and the rest of the framework remain available.
+
+To enable native HTTPS (epoll server, Redis `rediss://`, Memory BIO engine), uncomment this in `Sources\Common\Dext.inc` and **rebuild** the packages:
+
+```pascal
+{$DEFINE DEXT_ENABLE_SSL}
+```
+
+On **Windows**, place `libssl-3.dll` and `libcrypto-3.dll` next to the executable.
+
+On **Linux**, the Delphi linker uses the SDK cached on Windows. Install `libssl-dev` on the PAServer machine (Ubuntu/WSL2), ensure `libssl.so` and `libcrypto.so` exist (not only `.so.3`), then in **Tools → Options → Deployment → SDK Manager** click **Update Local File Cache**. Otherwise Linux64 fails with `E2597 cannot find -lcrypto` / `-lssl`.
+
+Full walkthrough: [HTTPS in Dext and cannot find -lcrypto](../../Articles/2026-08-28-dext-openssl-linux-sdk-cannot-find-lcrypto-pt-br.md).
 
 ---
 
