@@ -181,8 +181,8 @@ Implement integration tests running the ORM test suite against Docker containers
 | **SQL Server** | ✅ Yes | ✅ Yes | 🟢 Stable |
 | **Firebird** | ✅ Yes | ✅ Yes | 🟢 Stable |
 | **MySQL / MariaDB** | ✅ Yes | ✅ Yes | 🟢 Stable |
-| **Oracle** | ✅ Yes | ❌ No (Manual) | 🟡 Beta (Needs Validation) |
-| **InterBase** | ✅ Yes | ❌ No (Manual) | 🟡 Beta (Needs Validation) |
+| **Oracle** | ✅ Yes | ✅ Yes | ✅ Yes | 🟢 Stable |
+| **InterBase** | ✅ Yes | ✅ Yes | ✅ Yes | 🟢 Stable |
 
 > **Immediate Action**: Create `Docker-Compose` environment to spin up all databases and unified test script.
 

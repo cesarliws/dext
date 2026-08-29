@@ -85,7 +85,7 @@ end;
 | SQLite | ✅ Estável |
 | Firebird | ✅ Estável |
 | MySQL / MariaDB | ✅ Estável |
-| Oracle | 🟡 Beta |
+| Oracle | ✅ Stable |
 
 ---
 

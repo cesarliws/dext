@@ -168,8 +168,8 @@ Implementar testes de integração rodando a suite de testes do ORM contra conta
 | **SQL Server** | ✅ Sim | ✅ Sim | 🟢 Estável |
 | **Firebird** | ✅ Sim | ✅ Sim | 🟢 Estável |
 | **MySQL / MariaDB** | ✅ Sim | ✅ Sim | 🟢 Estável |
-| **Oracle** | ✅ Sim | ❌ Não (Manual) | 🟡 Beta (Precisa de Validação) |
-| **InterBase** | ✅ Sim | ❌ Não (Manual) | 🟡 Beta (Precisa de Validação) |
+| **Oracle** | ✅ Sim |✅ Sim | ✅ Sim | 🟢 Estável |
+| **InterBase** | ✅ Sim | ✅ Sim | ✅ Sim | 🟢 Estável |
 
 > **Ação Imediata**: Criar `Docker-Compose` environment para subir todos os bancos e script de teste unificado.
 
