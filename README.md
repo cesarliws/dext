@@ -7,11 +7,19 @@
   <img src="Docs/Images/dext-mascot.png" alt="Dext Framework mascot">
 </p>
 
-The Delphi compiler was never the bottleneck. The missing piece was the floor.
+The Delphi compiler was never the bottleneck. The missing piece was the infrastructure.
 
 For years, a modern Object Pascal backend meant stitching a dozen libraries: one for DI, one for HTTP, one for ORM, one for tests. Each with its own dialect. None of them slept in the same house.
 
-**Dext 1.0** is that floor. One ecosystem — dependency injection, ORM, web pipeline, telemetry, and testing — compiled native. No JIT. No cold start. No patchwork.
+**Dext 1.0** is that infrastructure. One ecosystem — dependency injection, ORM, web pipeline, telemetry, and testing — compiled native. No JIT. No cold start. No patchwork.
+
+> **"Simplicity is Complicated."** — *Rob Pike*
+
+A Minimal API fits on one screen because the engine underneath does not. UTF-8 JSON, DI, binding, validation, Direct-to-JSON: the ceremony lives in the framework.
+
+> **"Make what is right easy and what is wrong difficult."** — *Steve "Ardalis" Smith*
+
+Reading a catalog is an entity. Changing the world is a command with a rule. The test is born in the constructor. With Dext, the right path is the short one.
 
 And it is **Apache 2.0**: free for the twenty-year ERP and for the product that does not have a name yet.
 

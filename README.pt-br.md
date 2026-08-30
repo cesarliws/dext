@@ -7,11 +7,19 @@
   <img src="Docs/Images/dext-mascot.png" alt="Mascote do Dext Framework">
 </p>
 
-O compilador Delphi nunca foi o problema. O problema era o chão.
+O compilador Delphi nunca foi o problema. O problema era a infraestrutura.
 
 Durante anos, um backend moderno em Object Pascal significava costurar dezenas de bibliotecas: uma para injeção de dependência, outra para HTTP, outra para ORM, outra para testes. Cada uma com um jeito. Nenhuma dormia junto.
 
-O **Dext 1.0** é esse chão. Um ecossistema só — DI, ORM, pipeline web, telemetria e testes — compilado nativo. Sem JIT. Sem cold start. Sem colcha de retalhos.
+O **Dext 1.0** é essa infraestrutura. Um ecossistema só — DI, ORM, pipeline web, telemetria e testes — compilado nativo. Sem JIT. Sem cold start. Sem colcha de retalhos.
+
+> **"Simplicity is Complicated."** — *Rob Pike*
+
+A Minimal API cabe numa tela porque o motor por baixo não cabe. JSON UTF-8, DI, binding, validação, Direct-to-JSON: a cerimônia ficou no framework.
+
+> **"Make what is right easy and what is wrong difficult."** — *Steve "Ardalis" Smith*
+
+Ler o catálogo é uma entidade. Mudar o mundo é um comando com regra. O teste nasce no construtor. Com o Dext, o caminho certo é o curto.
 
 E é **Apache 2.0**: gratuito para o ERP de vinte anos e para o produto que ainda não tem nome.
 
