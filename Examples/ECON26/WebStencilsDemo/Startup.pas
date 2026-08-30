@@ -54,7 +54,7 @@ begin
       end)
     .AddScoped<ICustomerSearch, TCustomerSearch>
     .AddWebStencils;
-//     .AddDextTemplating(ViewOptions.TemplateRoot(TPath.GetFullPath('wwwroot/views-native')));
+//    .AddDextTemplating(ViewOptions.TemplateRoot(TPath.GetFullPath('wwwroot/views-native')));
 end;
 
 procedure TStartup.Configure(const App: IWebApplication);

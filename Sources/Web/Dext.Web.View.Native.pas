@@ -40,6 +40,7 @@ type
   TDextNativeViewEngine = class(TInterfacedObject, IViewEngine)
   private
     FOptions: TViewOptions;
+    FEngine: ITemplateEngine;
   public
     constructor Create(const AOptions: TViewOptions);
     destructor Destroy; override;
@@ -54,10 +55,15 @@ constructor TDextNativeViewEngine.Create(const AOptions: TViewOptions);
 begin
   inherited Create;
   FOptions := AOptions;
+  FEngine := TTemplating.CreateEngine;
+  FEngine.IsHtmlMode := True;
+  FEngine.TemplateLoader := TFileSystemTemplateLoader.Create(FOptions.TemplateRoot);
+  (FEngine as TDextTemplateEngine).TemplateRoot := FOptions.TemplateRoot;
 end;
 
 destructor TDextNativeViewEngine.Destroy;
 begin
+  FEngine := nil;
   FOptions.Free;
   inherited;
 end;
@@ -65,34 +71,31 @@ end;
 function TDextNativeViewEngine.Render(AContext: IHttpContext; const AViewName: string; AViewData: IViewData): string;
 var
   Context: ITemplateContext;
-  Engine: ITemplateEngine;
   LViewPath: string;
   ObjPair: TPair<string, TObject>;
   Pair: TPair<string, TValue>;
 begin
-  Engine := TTemplating.CreateEngine;
-  Engine.IsHtmlMode := True;
-  Engine.TemplateLoader := TFileSystemTemplateLoader.Create(FOptions.TemplateRoot);
-  
   Context := TTemplating.CreateContext;
-  
-  // Map Values (TValue)
+
   for Pair in AViewData.Values do
   begin
     if not Pair.Value.IsEmpty then
       Context.SetValue(Pair.Key, Pair.Value.ToString);
   end;
-    
-  // Map Objects
+
   for ObjPair in AViewData.Objects do
     Context.SetObject(ObjPair.Key, ObjPair.Value);
-    
-  // Handle file extension automatically if missing
+
   LViewPath := AViewName;
   if not LViewPath.Contains('.') then
     LViewPath := LViewPath + '.html';
-    
-  Result := Engine.RenderTemplate(LViewPath, Context);
+
+  TMonitor.Enter(Self);
+  try
+    Result := FEngine.RenderTemplate(LViewPath, Context);
+  finally
+    TMonitor.Exit(Self);
+  end;
 end;
 
 end.

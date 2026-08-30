@@ -45,6 +45,7 @@ type
   TCollectionNotification = (cnAdded, cnRemoved, cnExtracted);
 
   IObjectList = Dext.Collections.Base.IObjectList;
+  IStreamingSequence = Dext.Collections.Base.IStreamingSequence;
 
   {$M+}
   /// <summary>Generic interface for sequential lists with LINQ support.</summary>

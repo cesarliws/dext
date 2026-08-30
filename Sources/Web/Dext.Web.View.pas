@@ -190,36 +190,24 @@ type
 
   /// <summary>
   ///   Makes IEnumerator compatible with Web Stencils @For (GetEnumerator) and
-  ///   the native engine @foreach (IObjectList). Streaming iterators reuse one
-  ///   instance; IObjectList materializes a snapshot so each row stays distinct.
+  ///   native @foreach (IStreamingSequence). Both paths render during MoveNext
+  ///   so the flyweight ORM iterator keeps O(1) memory.
   /// </summary>
-  TStreamingListWrapper<T: class> = class(TInterfacedPersistent, IObjectList)
+  TStreamingListWrapper<T: class> = class(TInterfacedPersistent, IStreamingSequence)
   private
     FEnumerator: IEnumerator<T>;
     FIsEvaluated: Boolean;
     FIsEmpty: Boolean;
-    FItems: TArray<T>;
-    FMaterialized: Boolean;
-    FOwnsItems: Boolean;
+    FSeqStarted: Boolean;
     procedure EnsureEvaluated;
-    procedure Materialize;
-    function CloneItem(const Source: T): T;
-    function GetCount: Integer;
-    function GetItem(Index: Integer): TObject;
-    procedure SetItem(Index: Integer; Value: TObject);
   public
     constructor Create(AEnum: IEnumerator<T>);
     destructor Destroy; override;
     function GetEnumerator: TStreamingEnumeratorProxy<T>;
     function GetIsEmpty: Boolean;
+    function MoveNext: Boolean;
+    function GetCurrent: TObject;
     property IsEmpty: Boolean read GetIsEmpty;
-    procedure Add(Value: TObject);
-    procedure Clear;
-    procedure Delete(Index: Integer);
-    procedure Insert(Index: Integer; Value: TObject);
-    function IndexOf(Value: TObject): Integer;
-    property Count: Integer read GetCount;
-    property Items[Index: Integer]: TObject read GetItem write SetItem; default;
   end;
 
 implementation
@@ -493,15 +481,7 @@ end;
 destructor TStreamingListWrapper<T>.Destroy;
 var
   Enum: IInterface;
-  I: Integer;
 begin
-  if FOwnsItems then
-  begin
-    for I := 0 to High(FItems) do
-      FItems[I].Free;
-    SetLength(FItems, 0);
-    FOwnsItems := False;
-  end;
   if Assigned(FEnumerator) then
   begin
     Enum := FEnumerator;
@@ -535,113 +515,23 @@ begin
   Result := FIsEmpty;
 end;
 
-function TStreamingListWrapper<T>.CloneItem(const Source: T): T;
-var
-  Ctx: TRttiContext;
-  Dest: TObject;
-  ObjSource: TObject;
-  Prop: TRttiProperty;
-  RttiType: TRttiType;
+function TStreamingListWrapper<T>.MoveNext: Boolean;
 begin
-  Result := Default(T);
-  ObjSource := TValue.From<T>(Source).AsObject;
-  if ObjSource = nil then
-    Exit;
-  Ctx := TRttiContext.Create;
-  try
-    RttiType := Ctx.GetType(TypeInfo(T));
-    if (RttiType = nil) or not RttiType.IsInstance then
-      raise ENotSupportedException.Create('Cannot snapshot streaming view item');
-    Dest := RttiType.AsInstance.MetaclassType.Create;
-    try
-      for Prop in RttiType.GetProperties do
-        if Prop.IsReadable and Prop.IsWritable then
-          Prop.SetValue(Dest, Prop.GetValue(ObjSource));
-      Result := TValue.From<TObject>(Dest).AsType<T>;
-    except
-      Dest.Free;
-      raise;
-    end;
-  finally
-    Ctx.Free;
-  end;
-end;
-
-procedure TStreamingListWrapper<T>.Materialize;
-var
-  Enum: IInterface;
-  Proxy: TStreamingEnumeratorProxy<T>;
-begin
-  if FMaterialized then
-    Exit;
-  FMaterialized := True;
-  SetLength(FItems, 0);
-  Proxy := GetEnumerator;
-  try
-    while Proxy.MoveNext do
-    begin
-      SetLength(FItems, Length(FItems) + 1);
-      FItems[High(FItems)] := CloneItem(Proxy.Current);
-    end;
-  finally
-    Proxy.Free;
-  end;
-  FOwnsItems := True;
-  FIsEmpty := Length(FItems) = 0;
-  if Assigned(FEnumerator) then
+  EnsureEvaluated;
+  if not FSeqStarted then
   begin
-    Enum := FEnumerator;
-    FEnumerator := nil;
-    Enum := nil;
-  end;
+    FSeqStarted := True;
+    Result := not FIsEmpty;
+  end
+  else if Assigned(FEnumerator) then
+    Result := FEnumerator.MoveNext
+  else
+    Result := False;
 end;
 
-function TStreamingListWrapper<T>.GetCount: Integer;
+function TStreamingListWrapper<T>.GetCurrent: TObject;
 begin
-  Materialize;
-  Result := Length(FItems);
-end;
-
-function TStreamingListWrapper<T>.GetItem(Index: Integer): TObject;
-begin
-  Materialize;
-  Result := FItems[Index];
-end;
-
-procedure TStreamingListWrapper<T>.SetItem(Index: Integer; Value: TObject);
-begin
-  raise ENotSupportedException.Create('Streaming view model is read-only');
-end;
-
-procedure TStreamingListWrapper<T>.Add(Value: TObject);
-begin
-  raise ENotSupportedException.Create('Streaming view model is read-only');
-end;
-
-procedure TStreamingListWrapper<T>.Clear;
-begin
-  raise ENotSupportedException.Create('Streaming view model is read-only');
-end;
-
-procedure TStreamingListWrapper<T>.Delete(Index: Integer);
-begin
-  raise ENotSupportedException.Create('Streaming view model is read-only');
-end;
-
-procedure TStreamingListWrapper<T>.Insert(Index: Integer; Value: TObject);
-begin
-  raise ENotSupportedException.Create('Streaming view model is read-only');
-end;
-
-function TStreamingListWrapper<T>.IndexOf(Value: TObject): Integer;
-var
-  I: Integer;
-begin
-  Materialize;
-  for I := 0 to High(FItems) do
-    if TObject(FItems[I]) = Value then
-      Exit(I);
-  Result := -1;
+  Result := TValue.From<T>(FEnumerator.GetCurrent).AsObject;
 end;
 
 { TDextViewResult }

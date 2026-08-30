@@ -91,6 +91,7 @@ type
   ITemplateLoader = interface
     ['{5C6D7E8F-9A0B-1C2D-3E4F-5A6B7C8D9E0F}']
     function Load(const ATemplateName: string): string;
+    function Exists(const ATemplateName: string): Boolean;
   end;
 
   /// <summary>
@@ -209,9 +210,11 @@ type
   TFileSystemTemplateLoader = class(TInterfacedObject, ITemplateLoader)
   private
     FRoot: string;
+    function TryResolvePath(const ATemplateName: string; out AFileName: string): Boolean;
   public
     constructor Create(const ARoot: string);
     function Load(const ATemplateName: string): string;
+    function Exists(const ATemplateName: string): Boolean;
     property Root: string read FRoot;
   end;
 
@@ -222,6 +225,7 @@ type
     constructor Create;
     procedure AddTemplate(const AName, AContent: string);
     function Load(const ATemplateName: string): string;
+    function Exists(const ATemplateName: string): Boolean;
   end;
 
   /// <summary>
@@ -274,6 +278,7 @@ type
     FFilters: IDictionary<string, System.SysUtils.TFunc<string, string>>;
     FIsHtmlMode: Boolean;
     FTemplateAstCache: IDictionary<string, TTemplateNodeList>;
+    FResolvedNameCache: IDictionary<string, string>;
     FTemplateLoader: ITemplateLoader;
     FTemplateRoot: string;
 
@@ -290,6 +295,7 @@ type
     function RenderTemplateInternal(const ATemplateName: string; const AContext: ITemplateContext): string;
     function RenderResolvedTemplate(const ATemplateName, AResolvedName: string; const AContext: ITemplateContext): string;
     function ResolveTemplateName(const ACurrentTemplate, ARequestedName: string): string;
+    function TemplateExists(const AName: string): Boolean;
     function MergeSectionContent(const AChildContent, AParentContent: string): string;
     function ResolveNodeOutput(ANode: TTemplateNode; const AContext: ITemplateContext): string;
 
@@ -696,6 +702,8 @@ var
   Meta: TTypeMetadata;
   Obj: TObject;
   ObjectList: IObjectList;
+  Sequence: IStreamingSequence;
+  First: Boolean;
   P: TRttiIndexedProperty;
   RttiType: TRttiType;
   Source: TValue;
@@ -775,13 +783,36 @@ begin
         end
         else
         begin
+          Sequence := nil;
           ObjectList := nil;
           if Assigned(Obj) then
-            Supports(Obj, IObjectList, ObjectList)
+          begin
+            if not Supports(Obj, IStreamingSequence, Sequence) then
+              Supports(Obj, IObjectList, ObjectList);
+          end
           else if Source.Kind = tkInterface then
-            Supports(Source.AsInterface, IObjectList, ObjectList);
+          begin
+            if not Supports(Source.AsInterface, IStreamingSequence, Sequence) then
+              Supports(Source.AsInterface, IObjectList, ObjectList);
+          end;
 
-          if Assigned(ObjectList) then
+          if Assigned(Sequence) then
+          begin
+            if Sequence.IsEmpty then
+              Builder.Append(FEngine.RenderNodes(FElseNodes, AContext))
+            else
+            begin
+              I := 0;
+              First := True;
+              while Sequence.MoveNext do
+              begin
+                Inc(I);
+                RenderItem(TValue.From<TObject>(Sequence.Current), I, First, False);
+                First := False;
+              end;
+            end;
+          end
+          else if Assigned(ObjectList) then
           begin
             if ObjectList.Count = 0 then
               Builder.Append(FEngine.RenderNodes(FElseNodes, AContext))
@@ -931,24 +962,41 @@ begin
   FRoot := TPath.GetFullPath(ARoot);
 end;
 
+function TFileSystemTemplateLoader.TryResolvePath(const ATemplateName: string; out AFileName: string): Boolean;
+begin
+  AFileName := ATemplateName;
+  if not TPath.IsPathRooted(AFileName) then
+    AFileName := TPath.Combine(FRoot, AFileName);
+
+  if TFile.Exists(AFileName) then
+    Exit(True);
+  if TFile.Exists(AFileName + '.html') then
+  begin
+    AFileName := AFileName + '.html';
+    Exit(True);
+  end;
+  if TFile.Exists(AFileName + '.template') then
+  begin
+    AFileName := AFileName + '.template';
+    Exit(True);
+  end;
+  Result := False;
+end;
+
+function TFileSystemTemplateLoader.Exists(const ATemplateName: string): Boolean;
+var
+  FileName: string;
+begin
+  Result := TryResolvePath(ATemplateName, FileName);
+end;
+
 function TFileSystemTemplateLoader.Load(const ATemplateName: string): string;
 var
   FileName: string;
 begin
-  FileName := ATemplateName;
-  if not TPath.IsPathRooted(FileName) then
-    FileName := TPath.Combine(FRoot, FileName);
-
-  if TFile.Exists(FileName) then
-    Exit(TFile.ReadAllText(FileName, TEncoding.UTF8));
-
-  if TFile.Exists(FileName + '.html') then
-    Exit(TFile.ReadAllText(FileName + '.html', TEncoding.UTF8));
-
-  if TFile.Exists(FileName + '.template') then
-    Exit(TFile.ReadAllText(FileName + '.template', TEncoding.UTF8));
-
-  raise EFileNotFoundException.CreateFmt('Template not found: %s', [ATemplateName]);
+  if not TryResolvePath(ATemplateName, FileName) then
+    raise EFileNotFoundException.CreateFmt('Template not found: %s', [ATemplateName]);
+  Result := TFile.ReadAllText(FileName, TEncoding.UTF8);
 end;
 
 { TInMemoryTemplateLoader }
@@ -968,6 +1016,11 @@ function TInMemoryTemplateLoader.Load(const ATemplateName: string): string;
 begin
   if not FTemplates.TryGetValue(ATemplateName, Result) then
     raise EFileNotFoundException.CreateFmt('Template not found: %s', [ATemplateName]);
+end;
+
+function TInMemoryTemplateLoader.Exists(const ATemplateName: string): Boolean;
+begin
+  Result := FTemplates.ContainsKey(ATemplateName);
 end;
 
 { TDextTemplateEngine.TTemplateDocument }
@@ -1012,6 +1065,7 @@ begin
   FFilters := TCollections.CreateDictionaryIgnoreCase<string, System.SysUtils.TFunc<string, string>>;
   FAdvancedFilters := TCollections.CreateDictionaryIgnoreCase<string, TTemplateFilterFunc>;
   FTemplateAstCache := TCollections.CreateDictionary<string, TTemplateNodeList>(True);
+  FResolvedNameCache := TCollections.CreateDictionaryIgnoreCase<string, string>;
   FTemplateLoader := ALoader;
   FIsHtmlMode := False;
 
@@ -3074,6 +3128,11 @@ begin
     Result := AChildContent;
 end;
 
+function TDextTemplateEngine.TemplateExists(const AName: string): Boolean;
+begin
+  Result := Assigned(FTemplateLoader) and FTemplateLoader.Exists(AName);
+end;
+
 function TDextTemplateEngine.ResolveTemplateName(const ACurrentTemplate, ARequestedName: string): string;
 var
   LCandidates: TArray<string>;
@@ -3081,12 +3140,25 @@ var
   LPrefix: string;
   LCandName, LCandidate: string;
   LFinalPath: string;
+  LCacheKey: string;
 begin
   if ARequestedName = '' then
     Exit('');
 
   if TPath.IsPathRooted(ARequestedName) then
     Exit(ARequestedName);
+
+  LCacheKey := ACurrentTemplate + '|' + ARequestedName;
+  if Assigned(FResolvedNameCache) and FResolvedNameCache.TryGetValue(LCacheKey, Result) then
+    Exit;
+
+  if TemplateExists(ARequestedName) then
+  begin
+    Result := ARequestedName;
+    if Assigned(FResolvedNameCache) then
+      FResolvedNameCache.AddOrSetValue(LCacheKey, Result);
+    Exit;
+  end;
 
   LName := ARequestedName;
   SetLength(LCandidates, 0);
@@ -3119,18 +3191,19 @@ begin
     for LPrefix in ['', '.html', '.dext', '.htm'] do
     begin
       LFinalPath := LCandidate + LPrefix;
-      try
-        if Assigned(FTemplateLoader) then
-        begin
-          FTemplateLoader.Load(LFinalPath);
-          Exit(LFinalPath);
-        end;
-      except
+      if TemplateExists(LFinalPath) then
+      begin
+        Result := LFinalPath;
+        if Assigned(FResolvedNameCache) then
+          FResolvedNameCache.AddOrSetValue(LCacheKey, Result);
+        Exit;
       end;
     end;
   end;
 
   Result := ARequestedName;
+  if Assigned(FResolvedNameCache) then
+    FResolvedNameCache.AddOrSetValue(LCacheKey, Result);
 end;
 
 function TDextTemplateEngine.RenderResolvedTemplate(const ATemplateName, AResolvedName: string; const AContext: ITemplateContext): string;

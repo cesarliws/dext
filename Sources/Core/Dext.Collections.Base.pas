@@ -65,6 +65,19 @@ type
     property Items[Index: Integer]: TObject read GetItem write SetItem; default;
   end;
 
+  /// <summary>
+  ///   Single-pass flyweight sequence for SSR @foreach. Render Current before
+  ///   the next MoveNext — the same instance may be reused (streaming ORM).
+  /// </summary>
+  {$M+}
+  IStreamingSequence = interface
+    ['{C4D8A2F1-6E3B-4A90-8D15-9B7E2C1F4A60}']
+    function GetIsEmpty: Boolean;
+    function MoveNext: Boolean;
+    function GetCurrent: TObject;
+    property IsEmpty: Boolean read GetIsEmpty;
+    property Current: TObject read GetCurrent;
+  end;
 
   {$M+}
   IDextBufferProvider = interface

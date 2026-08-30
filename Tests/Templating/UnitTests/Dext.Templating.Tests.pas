@@ -32,6 +32,7 @@ type
     [Test] procedure Test_Html_Escaping;
     [Test] procedure Test_Inline_Define_And_Macro_Call;
     [Test] procedure Test_Loop_ForEach;
+    [Test] procedure Test_Loop_Flyweight_Streaming_Sequence;
     [Test] procedure Test_Loop_TDataSet;
     [Test] procedure Test_Loop_With_Else_And_Pseudo_Variables;
     [Test] procedure Test_Nested_Control_Flow;
@@ -49,7 +50,60 @@ type
 implementation
 
 uses
-  Data.DB, Datasnap.DBClient;
+  Data.DB, Datasnap.DBClient, Dext.Collections, System.Classes;
+
+type
+  TFlyRow = class
+  private
+    FName: string;
+  public
+    property Name: string read FName write FName;
+  end;
+
+  TFlyweightSeq = class(TInterfacedPersistent, IStreamingSequence)
+  private
+    FNames: TArray<string>;
+    FIndex: Integer;
+    FRow: TFlyRow;
+  public
+    constructor Create(const ANames: TArray<string>);
+    destructor Destroy; override;
+    function GetIsEmpty: Boolean;
+    function MoveNext: Boolean;
+    function GetCurrent: TObject;
+  end;
+
+constructor TFlyweightSeq.Create(const ANames: TArray<string>);
+begin
+  inherited Create;
+  FNames := ANames;
+  FIndex := -1;
+  FRow := TFlyRow.Create;
+end;
+
+destructor TFlyweightSeq.Destroy;
+begin
+  FRow.Free;
+  inherited;
+end;
+
+function TFlyweightSeq.GetIsEmpty: Boolean;
+begin
+  Result := Length(FNames) = 0;
+end;
+
+function TFlyweightSeq.MoveNext: Boolean;
+begin
+  Inc(FIndex);
+  Result := FIndex <= High(FNames);
+  if Result then
+    FRow.Name := FNames[FIndex];
+end;
+
+function TFlyweightSeq.GetCurrent: TObject;
+begin
+  Result := FRow;
+end;
 
 { TTemplatingTests }
 
@@ -191,6 +245,40 @@ begin
     Should(Output).Contain('Name: string;');
   finally
     Model.Free;
+  end;
+end;
+
+procedure TTemplatingTests.Test_Loop_Flyweight_Streaming_Sequence;
+var
+  Engine: ITemplateEngine;
+  Context: ITemplateContext;
+  Seq: TFlyweightSeq;
+  Output: string;
+begin
+  Engine := TTemplating.CreateEngine;
+  Context := TTemplating.CreateContext;
+
+  Seq := TFlyweightSeq.Create(['Ada', 'Hopper']);
+  try
+    Context.SetObject('Model', Seq);
+    Output := Engine.Render(
+      '@foreach (var item in Model)@item.Name @endforeach', Context);
+    Should(Output).Contain('Ada');
+    Should(Output).Contain('Hopper');
+    Should(Output).NotContain('Hopper Hopper');
+  finally
+    Seq.Free;
+  end;
+
+  Seq := TFlyweightSeq.Create([]);
+  try
+    Context := TTemplating.CreateContext;
+    Context.SetObject('Model', Seq);
+    Output := Engine.Render(
+      '@foreach (var item in Model)X@elseEMPTY@endforeach', Context);
+    Should(Output).Be('EMPTY');
+  finally
+    Seq.Free;
   end;
 end;
 
