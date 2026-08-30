@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECON26 · WebStencils + Dext</title>
+    <!-- Tailwind CSS para um design premium instântaneo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX para interatividade sem JS complexo -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+
+<body class="bg-slate-900 text-slate-100 font-sans min-h-screen">
+    <nav class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                ECON26 · WebStencils + Dext
+            </h1>
+            <div class="space-x-6">
+                <a href="/" class="hover:text-cyan-400 transition-colors">Home</a>
+                <a href="/customers" class="hover:text-cyan-400 transition-colors">Clientes</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto py-12 px-4">
+        <!-- O Web Stencils injetará o conteúdo aqui -->
+        @RenderBody
+    </main>
+
+    <footer class="text-center py-8 text-slate-500 text-sm border-t border-slate-800 mt-20">
+        <p>&copy; 2026 Dext Framework - SSR & Web Stencils Edition</p>
+    </footer>
+</body>
+
+</html>

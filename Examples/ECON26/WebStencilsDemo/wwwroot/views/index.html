@@ -1,0 +1,51 @@
+@LayoutPage _Layout.html
+<div class="max-w-4xl mx-auto space-y-8">
+    <section class="text-center space-y-4">
+        <h2 class="text-5xl font-extrabold text-white">Full Stack Delphi com <span class="text-cyan-400">SSR</span></h2>
+        <p class="text-xl text-slate-400">
+            Renderize milhões de registros com consumo de memória O(1) usando o novo padrão <strong>Flyweight
+                6: Streaming</strong>.
+        </p>
+    </section>
+
+    <div class="grid md:grid-cols-2 gap-6 mt-12">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 hover:border-cyan-500/50 transition-all group">
+            <div
+                class="w-12 h-12 bg-cyan-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-cyan-400" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold mb-4">Alta Performance</h3>
+            <p class="text-slate-400">O Dext reutiliza o mesmo objeto durante o loop de renderização, evitando o
+                overhead do GC e alocações massivas.</p>
+        </div>
+
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 hover:border-blue-500/50 transition-all group">
+            <div
+                class="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-blue-400" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                </svg>
+            </div>
+            <h3 class="text-2xl font-bold mb-4">Interatividade HTMX</h3>
+            <p class="text-slate-400">Dê vida à sua aplicação SSR com trocas parciais de HTML, sem precisar criar APIs
+                JSON complexas ou state management no front.</p>
+        </div>
+    </div>
+
+    <div class="text-center pt-12">
+        <a href="/customers"
+            class="inline-flex items-center px-8 py-4 bg-cyan-500 hover:bg-cyan-600 text-slate-900 font-bold rounded-xl transition-colors">
+            Ver Listagem de Clientes
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 ml-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                    d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z"
+                    clip-rule="evenodd" />
+            </svg>
+        </a>
+    </div>
+</div>

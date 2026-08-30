@@ -1,0 +1,17 @@
+@foreach (var item in Model) {
+<tr class="border-t border-slate-700 hover:bg-slate-700/30 transition-colors">
+    <td class="px-6 py-4 font-mono text-cyan-500">@(Prop(item.Id))</td>
+    <td class="px-6 py-4 font-medium">@(Prop(item.Name))</td>
+    <td class="px-6 py-4 text-slate-400">@(Prop(item.Email))</td>
+    <td class="px-6 py-4">
+        <button class="text-blue-400 hover:text-blue-300 font-semibold">Editar</button>
+    </td>
+</tr>
+}
+@if Model.IsEmpty {
+<tr>
+    <td colspan="4" class="px-6 py-12 text-center text-slate-500 italic">
+        Nenhum cliente encontrado.
+    </td>
+</tr>
+}
