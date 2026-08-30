@@ -54,16 +54,7 @@ begin
       end)
     .AddScoped<ICustomerSearch, TCustomerSearch>
     .AddWebStencils;
-
-  { Palco, troca de motor: comente AddWebStencils e descomente o nativo.
-    Nao mexa em Dext.inc. Rebuild so deste demo.
-
-    .AddDextTemplating(
-      procedure(Opts: TViewOptions)
-      begin
-        Opts.TemplateRoot := TPath.GetFullPath('wwwroot/views-native');
-      end);
-  }
+//     .AddDextTemplating(ViewOptions.TemplateRoot(TPath.GetFullPath('wwwroot/views-native')));
 end;
 
 procedure TStartup.Configure(const App: IWebApplication);
