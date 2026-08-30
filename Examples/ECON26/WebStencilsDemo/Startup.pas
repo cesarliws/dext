@@ -2,6 +2,8 @@ unit Startup;
 
 interface
 
+{$I Dext.inc}
+
 uses
   System.SysUtils,
   System.Classes,
@@ -18,8 +20,11 @@ uses
   Dext.Web.View,
   {$IFDEF DEXT_ENABLE_WEB_STENCILS}
   Web.Stencils,
+  {$ELSE}
+  {$MESSAGE FATAL 'Ligue DEXT_ENABLE_WEB_STENCILS em Dext.inc e recompile o Dext.Web. Sem isso este demo cai no motor nativo e o @LayoutPage vira texto.'}
   {$ENDIF}
   Dext.Web.View.WebStencils,
+  Dext.Web.StaticFiles,
   Dext,
   Dext.Entity,
   Dext.Web,
@@ -48,14 +53,10 @@ begin
         Opts.UseSqlite('webstencils-customers.db');
       end)
     .AddScoped<ICustomerSearch, TCustomerSearch>
-    {$IFDEF DEXT_ENABLE_WEB_STENCILS}
     .AddWebStencils;
-    {$ELSE}
-    .AddDextTemplating;
-    {$ENDIF}
 
-  { Slide 6 — troca ao vivo: comente AddWebStencils e use só o nativo.
-    Não mexa em Dext.inc. Rebuild só deste demo.
+  { Palco, troca de motor: comente AddWebStencils e descomente o nativo.
+    Nao mexa em Dext.inc. Rebuild so deste demo.
 
     .AddDextTemplating(
       procedure(Opts: TViewOptions)
@@ -73,7 +74,8 @@ begin
     .UseDeveloperExceptionPage
     .UseHttpLogging
     .UseViewEngine
-    .UseStaticFiles('wwwroot')
+    { Sem DefaultFile: o / e a view index, nao o index.html que sobrou no Output. }
+    .UseStaticFiles(TStaticFileBuilder.Create.RootPath('wwwroot').DefaultFile(''))
     .MapGetResult<IResult>('/',
       function: IResult
       begin

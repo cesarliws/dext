@@ -1,6 +1,7 @@
 ﻿program ECON26.Faturamento.Api;
 
 {$APPTYPE CONSOLE}
+{$STRONGLINKTYPES ON}
 
 uses
   Dext.MM,
@@ -79,12 +80,14 @@ begin
         Result := Results.Ok(Products);
       end)
 
-     .MapPost<TNovoPedido, IOrderService, IResult>('/api/orders',
-      function(Dto: TNovoPedido; Orders: IOrderService): IResult
-      begin
-        var Id := Orders.Place(Dto.ProductId, Dto.Qty);
-        Result := Results.Created<Integer>('/api/orders/' + IntToStr(Id), Id);
-      end)
+    { Palco, passo 2: descomente o MapPost e comente App.MapControllers.
+      Cada um publica /api/orders — os dois juntos batem na mesma rota. }
+    // .MapPost<TNovoPedido, IOrderService, IResult>('/api/orders',
+    //  function(Dto: TNovoPedido; Orders: IOrderService): IResult
+    //  begin
+    //    var Id := Orders.Place(Dto.ProductId, Dto.Qty);
+    //    Result := Results.Created<Integer>('/api/orders/' + IntToStr(Id), Id);
+    //  end)
 
     .MapGet<IResult>('/hello',
       function: IResult
@@ -92,13 +95,14 @@ begin
         Result := Results.Ok('ECON26 · Dext 1.0');
       end)
 
-    { DataAPI só leitura. RequireAuth comentado no palco (sem JWT no projetor).
+    { DataAPI só leitura. RequireAuth e RequireReadRole comentados no palco
+      (sem JWT no projetor). RequireReadRole também liga autenticação.
       A cadeia fica visível — senão DataAPI parece dump. }
     .MapDataApi<TProduct>('/api/products',
       DataApiOptions
         .Allow([amGet, amGetList])
         // .RequireAuth
-        .RequireReadRole('consulta,admin')
+        // .RequireReadRole('consulta,admin')
         // .RequireWriteRole('admin')
         .UseCamelCase
         .DbContext<TAppDbContext>

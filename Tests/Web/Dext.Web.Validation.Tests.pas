@@ -19,7 +19,7 @@ type
   private
     FName: string;
     FEmail: string;
-  published
+  public
     property Name: string read FName write FName;
     property Email: string read FEmail write FEmail;
   end;

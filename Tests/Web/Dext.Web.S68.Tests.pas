@@ -65,7 +65,7 @@ type
   TValidateModelDto = class
   private
     FName: string;
-  published
+  public
     [Required]
     property Name: string read FName write FName;
   end;

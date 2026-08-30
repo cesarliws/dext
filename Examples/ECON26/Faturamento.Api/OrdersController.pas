@@ -1,5 +1,7 @@
 unit OrdersController;
 
+{$M+}
+
 interface
 
 uses
@@ -17,8 +19,8 @@ type
   public
     constructor Create(Orders: IOrderService);
 
-    [HttpPost]
-    function PlaceOrder(Dto: TPlaceOrderDto): IResult;
+    [HttpPost('')]
+    function PlaceOrder(Dto: TPlaceOrderDto): IResult; virtual;
   end;
 
 implementation
@@ -35,8 +37,16 @@ function TOrdersController.PlaceOrder(Dto: TPlaceOrderDto): IResult;
 var
   Id: Integer;
 begin
-  Id := FOrders.Place(Dto.ProductId, Dto.Qty);
-  Result := Results.Created<Integer>('/api/orders/' + IntToStr(Id), Id);
+  try
+    Id := FOrders.Place(Dto.ProductId, Dto.Qty);
+    Result := Results.Created<Integer>('/api/orders/' + IntToStr(Id), Id);
+  except
+    on E: EDomainException do
+      Result := Results.Problem(E.Message, E.StatusCode);
+  end;
 end;
+
+initialization
+  TOrdersController.ClassName;
 
 end.

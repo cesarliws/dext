@@ -11,6 +11,8 @@ Compile o Dext (packages / Sources) **antes**, como no resto da pasta `Examples`
 | `Faturamento.Api` | `http://localhost:5000` · Swagger, `/hello`, GET `/api/products`, POST `/api/orders` |
 | `Faturamento.Tests` | Fixture `TPlaceOrderTests` no Test Explorer |
 
+Script da pipeline (ao lado do `.dproj` da API): `Test.ECON26.Faturamento.Api.ps1`. O `Scripts/run_examples.ps1` sobe o exe e roda esse arquivo.
+
 No palco: `ECON26.Faturamento.Api.dpr` (denso + `/hello`) → `Product.pas` → `OrdersController.pas` → testes verdes.
 
 `MapPost('/api/orders')` está comentado porque `MapControllers` já publica a mesma rota. `RequireAuth` no DataAPI também está comentado (sem JWT no projetor); a linha permanece no arquivo.
@@ -23,6 +25,8 @@ Cópia do `Examples/04-Advanced/WebStencilsDemo` com a busca extraída para `ICu
 |---|---|
 | `WebStencilsDemo` | `http://localhost:5000/customers` · HTMX |
 | `WebStencilsDemo.Tests` | Fixture `TCustomerSearchTests` |
+
+Script da pipeline: `Test.WebStencilsDemo.ps1` (ao lado do demo, não do projeto de testes).
 
 Slide 6: em `Startup.pas`, comente `.AddWebStencils` e ligue `.AddDextTemplating` com `wwwroot/views-native`. Rebuild **só** este demo. Não mexa em `Dext.inc`.
 

@@ -20,6 +20,8 @@ var
 begin
   SetConsoleCharset;
   try
+    SetCurrentDir(ExtractFilePath(ParamStr(0)));
+
     App := WebApplication;
     App.UseStartup(TStartup.Create);
 
