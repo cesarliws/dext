@@ -3,12 +3,6 @@ unit Order;
 interface
 
 uses
-  Dext.AI.MCP.Attributes,
-  Dext.AI.MCP.Protocol,
-  Dext.AI.MCP.Types,
-  Dext.AI.MCP.Tools,
-  Product,
-  Dext.Collections,
   Dext,
   Dext.Entity,
   Dext.Core.SmartTypes;
@@ -40,23 +34,6 @@ type
     property Quantity: IntType read FQuantity write FQuantity;
   end;
 
-
-  TDemoProvider = class(TMCPToolProvider)
-  public
-    [MCPTool('calcular-desconto',
-             'Calcula o desconto progressivo sobre um valor de venda.')]
-    [MCPParam('valor', 'Valor bruto da venda em reais', ptNumber)]
-    function CalcularDesconto(const Args: TJSONObject): TMCPToolResult; virtual;
-  end;
-
 implementation
-
-
-{ TDemoProvider }
-
-function TDemoProvider.CalcularDesconto(const Args: TJSONObject): TMCPToolResult;
-begin
-
-end;
 
 end.
