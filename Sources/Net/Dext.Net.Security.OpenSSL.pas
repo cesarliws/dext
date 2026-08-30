@@ -46,8 +46,10 @@ type
     FHandle: PSSL_CTX;
     FOptions: TDextTLSOptions;
     FMode: TDextTLSMode;
+    {$IFDEF DEXT_ENABLE_SSL}
     FALPNWire: TBytes;
     procedure Configure;
+    {$ENDIF}
     function GetHandle: PSSL_CTX;
   public
     constructor Create(const AOptions: TDextTLSOptions; AMode: TDextTLSMode);
@@ -58,9 +60,10 @@ type
   TDextOpenSSLTLSEngine = class(TInterfacedObject, IDextTLSEngine)
   private
     FOptions: TDextTLSOptions;
+    FMode: TDextTLSMode;
+    {$IFDEF DEXT_ENABLE_SSL}
     FHandshakeCompleted: Boolean;
     FNegotiatedALPN: string;
-    FMode: TDextTLSMode;
     FSSLContext: PSSL_CTX;
     FSSL: PSSL;
     FInputBIO: PBIO;
@@ -71,6 +74,7 @@ type
     procedure InitOpenSSLEngine(const AContext: IDextOpenSSLContext);
     procedure UpdateIOStatus(AReturnCode: Integer);
     procedure UpdateNegotiatedALPN;
+    {$ENDIF}
   public
     constructor Create(const AOptions: TDextTLSOptions; AMode: TDextTLSMode); overload;
     constructor Create(const AOptions: TDextTLSOptions; AMode: TDextTLSMode;
@@ -94,8 +98,10 @@ type
   TDextOpenSSLContextProvider = class(TInterfacedObject, IDextTLSContextProvider)
   private
     FOptions: TDextTLSOptions;
+    {$IFDEF DEXT_ENABLE_SSL}
     FClientContext: IDextOpenSSLContext;
     FServerContext: IDextOpenSSLContext;
+    {$ENDIF}
     FLock: TCriticalSection;
   public
     constructor Create(const AOptions: TDextTLSOptions);
@@ -698,11 +704,6 @@ begin
   Result := nil;
 end;
 
-procedure TDextOpenSSLContext.Configure;
-begin
-  RaiseOpenSSLDisabled;
-end;
-
 { TDextOpenSSLTLSEngine }
 
 constructor TDextOpenSSLTLSEngine.Create(const AOptions: TDextTLSOptions;
@@ -720,13 +721,6 @@ begin
   inherited Create;
   FOptions := AOptions;
   FMode := AMode;
-  FContext := AContext;
-  RaiseOpenSSLDisabled;
-end;
-
-procedure TDextOpenSSLTLSEngine.InitOpenSSLEngine(
-  const AContext: IDextOpenSSLContext);
-begin
   RaiseOpenSSLDisabled;
 end;
 
@@ -739,10 +733,6 @@ function TDextOpenSSLTLSEngine.EncryptedIncoming(
   const ABuffer: Pointer; ACount: Integer): Integer;
 begin
   Result := 0;
-end;
-
-procedure TDextOpenSSLTLSEngine.UpdateIOStatus(AReturnCode: Integer);
-begin
 end;
 
 function TDextOpenSSLTLSEngine.PlaintextRead(
@@ -761,10 +751,6 @@ function TDextOpenSSLTLSEngine.EncryptedOutgoing(
   const ABuffer: Pointer; ACount: Integer): Integer;
 begin
   Result := 0;
-end;
-
-procedure TDextOpenSSLTLSEngine.UpdateNegotiatedALPN;
-begin
 end;
 
 function TDextOpenSSLTLSEngine.DoHandshake: TDextTLSEngineStatus;

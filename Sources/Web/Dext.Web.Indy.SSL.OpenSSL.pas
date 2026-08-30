@@ -20,7 +20,9 @@ type
     FCertFile: string;
     FKeyFile: string;
     FRootFile: string;
+    {$IFDEF DEXT_ENABLE_SSL}
     procedure OnGetSSLPassword(var APassword: {$IF CompilerVersion < 27}AnsiString{$ELSE}string{$ENDIF});
+    {$ENDIF}
   public
     constructor Create(const ACertFile, AKeyFile, ARootFile: string); reintroduce;
     function CreateIOHandler(AServer: TIdCustomHTTPServer): TIdServerIOHandler;
@@ -41,10 +43,12 @@ begin
   FRootFile := ARootFile;
 end;
 
+{$IFDEF DEXT_ENABLE_SSL}
 procedure TDextIndyOpenSSLHandler.OnGetSSLPassword(var APassword: {$IF CompilerVersion < 27}AnsiString{$ELSE}string{$ENDIF});
 begin
   APassword := '';
 end;
+{$ENDIF}
 
 function TDextIndyOpenSSLHandler.CreateIOHandler(AServer: TIdCustomHTTPServer): TIdServerIOHandler;
 {$IFDEF DEXT_ENABLE_SSL}
