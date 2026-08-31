@@ -15,6 +15,7 @@ unit Dext.AI.Graph.Node.Tools;
 interface
 
 uses
+  Dext.AI.Graph.Contracts,
   Dext.AI.Graph.State,
   Dext.AI.Graph.Graph,
   Dext.AI.Agent.Contracts,

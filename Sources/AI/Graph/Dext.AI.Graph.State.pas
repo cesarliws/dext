@@ -60,6 +60,7 @@ type
     function AsDone(const AAnswer: string): TAgentState;
     function WithMeta(const AKey, AValue: string): TAgentState;
     function RestartAt(const ANode: string): TAgentState;
+    function ClearDone: TAgentState;
 
     function ToJson: string;
     class function FromJson(const AJson: string): TAgentState; static;
@@ -307,6 +308,13 @@ function TAgentState.RestartAt(const ANode: string): TAgentState;
 begin
   Result := TAgentState.CreateInternal(
     CloneMessages, nil, ANode, 0, False, '', CloneMetadata, FThreadId);
+end;
+
+function TAgentState.ClearDone: TAgentState;
+begin
+  Result := TAgentState.CreateInternal(
+    CloneMessages, ClonePendingCalls, FCurrentNode, FIteration, False,
+    FFinalAnswer, CloneMetadata, FThreadId);
 end;
 
 function TAgentState.HasPendingCalls: Boolean;

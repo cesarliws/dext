@@ -17,7 +17,8 @@ interface
 
 uses
   System.SysUtils,
-  Dext.AI.Agent.Contracts;
+  Dext.AI.Agent.Contracts,
+  Dext.AI.Graph.State;
 
 const
   GRAPH_END   = '__end__';
@@ -42,6 +43,21 @@ type
     PendingAction: string;
   end;
 
+  // Contexto de execução compartilhado, injetado em cada nó do grafo.
+  TNodeContext = record
+    Provider:  ILLMProvider;
+    Config:    TAgentConfig;
+    Observer:  IAgentObserver;
+  end;
+
+  // Handler de nó: recebe o estado atual e devolve o novo estado.
+  // Declarado aqui (não em Dext.AI.Graph.Graph) porque ICompiledAgent.AsNode
+  // precisa expor esse tipo, e Contracts não pode depender de Graph.
+  TNodeHandler = reference to function(
+    const AState: TAgentState;
+    const ACtx:   TNodeContext
+  ): TAgentState;
+
   ICompiledAgent = interface
     ['{C3D4E5F6-A7B8-9012-CDEF-123456789012}']
     function Run(
@@ -52,6 +68,13 @@ type
     function Resume(const AThreadId: string): TGraphRunResult;
     procedure Cancel(const AThreadId: string);
     function GetState(const AThreadId: string): TObject;
+
+    // Adapta este grafo compilado para ser usado como um nó comum de um
+    // grafo pai (subgraph-as-node). O estado é passado direto — sem
+    // tradução — pois TAgentState já é o mesmo tipo em ambos os grafos.
+    // Grafos com RequireApproval/InterruptBefore levantam EGraphCompileError
+    // aqui: aprovação humana aninhada não é suportada (v1).
+    function AsNode: TNodeHandler;
   end;
 
   ICheckpointer = interface

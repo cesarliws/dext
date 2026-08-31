@@ -24,16 +24,9 @@ uses
   Dext.AI.Agent.Contracts;
 
 type
-  TNodeContext = record
-    Provider:  ILLMProvider;
-    Config:    TAgentConfig;
-    Observer:  IAgentObserver;
-  end;
-
-  TNodeHandler = reference to function(
-    const AState: TAgentState;
-    const ACtx:   TNodeContext
-  ): TAgentState;
+  // TNodeContext e TNodeHandler agora vivem em Dext.AI.Graph.Contracts
+  // (ICompiledAgent.AsNode precisa do tipo, e Contracts não pode depender
+  // desta unit). Ficam visíveis aqui via o uses acima.
 
   TGraphNode = record
     Name:             string;
@@ -226,6 +219,7 @@ var
   Edge: TEdge;
   Route: TEdgeRoute;
   ReachedEnd: Boolean;
+  HasOutgoing: Boolean;
 
   procedure Visit(const ANode: string);
   begin
@@ -255,16 +249,24 @@ begin
     while Queue.Count > 0 do
     begin
       Current := Queue.Dequeue;
+      HasOutgoing := False;
       for Edge in FEdges do
       begin
         if Edge.SourceNode <> Current then
           Continue;
+        HasOutgoing := True;
         if Edge.Kind = ekFixed then
           Visit(Edge.TargetNode)
         else
           for Route in Edge.Routes do
             Visit(Route.TargetNode);
       end;
+      // Um nó sem nenhuma edge de saída termina implicitamente em
+      // GRAPH_END em runtime (ResolveNextNode faz esse fallback) — a
+      // validação precisa refletir o mesmo comportamento, senão rejeita
+      // grafos mínimos válidos de um único nó terminal.
+      if not HasOutgoing then
+        ReachedEnd := True;
     end;
 
     if not ReachedEnd then

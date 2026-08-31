@@ -53,6 +53,12 @@ type
     function CheckpointLoad(const AThreadId: string): TAgentState;
     function ExecuteLoop(AState: TAgentState; ASkipFirstInterrupt: Boolean): TGraphRunResult;
     function DescribePending(AState: TAgentState; const ANode: string): string;
+
+    // Executa este grafo compilado como um único nó de um grafo pai
+    // (subgraph-as-node): roda do próprio EntryPoint até o próprio
+    // GRAPH_END/IsDone e devolve o TAgentState resultante — sem produzir
+    // TGraphRunResult, sem checkpointing próprio (o pai é quem persiste).
+    function RunAsSubgraph(const AState: TAgentState): TAgentState;
   public
     constructor Create(
       ANodes:           TDictionary<string, TGraphNode>;
@@ -73,6 +79,7 @@ type
     function Resume(const AThreadId: string): TGraphRunResult;
     procedure Cancel(const AThreadId: string);
     function GetState(const AThreadId: string): TObject;
+    function AsNode: TNodeHandler;
   end;
 
 implementation
@@ -354,6 +361,79 @@ begin
     Exit(nil);
   FHeldState := CheckpointLoad(AThreadId);
   Result := FHeldState;
+end;
+
+function TCompiledAgent.RunAsSubgraph(const AState: TAgentState): TAgentState;
+var
+  State, NewState: TAgentState;
+  CurrentNode, NextNode: string;
+  I: Integer;
+  Finished: Boolean;
+begin
+  // Entra pelo próprio EntryPoint do subgrafo, preservando mensagens/
+  // metadata/threadId do estado do pai — TAgentState é o mesmo tipo
+  // concreto nos dois grafos, então não há tradução de schema a fazer.
+  State := AState.RestartAt(FEntryPoint);
+  Finished := False;
+  try
+    for I := 1 to FMaxIterations do
+    begin
+      if Assigned(FContext.Observer) then
+        FContext.Observer.OnIterationStart(I);
+
+      CurrentNode := State.CurrentNode;
+      if (CurrentNode = GRAPH_END) or (CurrentNode = '') then
+      begin
+        Finished := True;
+        Break;
+      end;
+
+      NewState := ExecuteNode(CurrentNode, State);
+      ReplaceState(State, NewState);
+
+      if State.IsDone then
+      begin
+        Finished := True;
+        Break;
+      end;
+
+      NextNode := ResolveNextNode(CurrentNode, State);
+      NewState := State.WithCurrentNode(NextNode);
+      ReplaceState(State, NewState);
+      NewState := State.NextIteration;
+      ReplaceState(State, NewState);
+    end;
+
+    if not Finished then
+      raise EGraphExecutionError.CreateFmt(
+        'Subgrafo excedeu o limite de %d iterações sem atingir GRAPH_END', [FMaxIterations]);
+
+    // IsDone aqui é um sinal interno do subgrafo, não do grafo pai — o
+    // pai decide o que acontece depois via suas próprias edges a partir
+    // do nó que envolve este subgrafo.
+    NewState := State.ClearDone;
+    ReplaceState(State, NewState);
+
+    Result := State;
+    State := nil;
+  finally
+    State.Free;
+  end;
+end;
+
+function TCompiledAgent.AsNode: TNodeHandler;
+begin
+  if Length(FInterruptBefore) > 0 then
+    raise EGraphCompileError.Create(
+      'Grafos com RequireApproval/InterruptBefore não podem ser usados como ' +
+      'subgrafo (AsNode) — aprovação humana aninhada não é suportada. ' +
+      'Configure RequireApproval no nó do grafo pai que invoca este subgrafo.');
+
+  Result :=
+    function(const AState: TAgentState; const ACtx: TNodeContext): TAgentState
+    begin
+      Result := Self.RunAsSubgraph(AState);
+    end;
 end;
 
 end.
