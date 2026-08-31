@@ -141,18 +141,46 @@ begin
   end;
 end;
 
+// Condição de roteamento do nó 'call_llm'. Igual ao DefaultShouldContinue,
+// mas manda o fluxo passar pelo subgrafo 'polish_agent' antes do GRAPH_END,
+// em vez de encerrar direto — é assim que se pluga um subgrafo no meio do
+// roteamento condicional de um grafo existente.
+function ShouldContinueOrPolish(const AState: TAgentState): string;
+begin
+  if AState.HasPendingCalls then
+    Result := 'execute_tools'
+  else
+    Result := 'polish_agent';
+end;
+
 var
-  Config:       TAgentConfig;
-  Provider:     ILLMProvider;
-  Observer:     IAgentObserver;
-  ToolsNode:    TToolsNode;
-  LLMNode:      TLLMNode;
-  Graph:        TAgentGraph;
-  Agent:        ICompiledAgent;
-  Checkpointer: ICheckpointer;
-  Input, ThreadId: string;
-  RunResult:    TGraphRunResult;
-  Confirm:      string;
+  Config:        TAgentConfig;
+  Provider:      ILLMProvider;
+  Observer:      IAgentObserver;
+  ToolsNode:     TToolsNode;
+  LLMNode:       TLLMNode;
+  Graph:         TAgentGraph;
+  Agent:         ICompiledAgent;
+  Checkpointer:  ICheckpointer;
+  Input, ThreadId, CheckpointDir: string;
+  RunResult:     TGraphRunResult;
+  Confirm:       string;
+
+  // ── Subgrafo "polish_agent" ────────────────────────────────────────────
+  // Um grafo compilado independente (seu próprio TAgentGraph, seu próprio
+  // TLLMNode, sem tools), embutido no grafo principal como um nó comum via
+  // ICompiledAgent.AsNode. Reescreve a resposta bruta do 'call_llm' de forma
+  // mais objetiva antes de virar a resposta final ao usuário.
+  //
+  // IMPORTANTE: um subgrafo não pode ter RequireApproval/InterruptBefore em
+  // nenhum nó seu — AsNode levantaria EGraphCompileError (aprovação humana
+  // aninhada não é suportada). Se o fluxo do subgrafo precisar de aprovação,
+  // ela deve ficar no nó do grafo PAI que o invoca (aqui, seria em
+  // 'polish_agent' do grafo principal, não dentro do PolishGraph).
+  PolishConfig:   TAgentConfig;
+  PolishLLMNode:  TLLMNode;
+  PolishGraph:    TAgentGraph;
+  PolishAgent:    ICompiledAgent;
 
 begin
   ReportMemoryLeaksOnShutdown := True;
@@ -184,25 +212,51 @@ begin
     end;
   end;
 
-  Observer  := TConsoleObserver.Create;
-  ToolsNode := TToolsNode.Create;
-  LLMNode   := nil;
+  Observer      := TConsoleObserver.Create;
+  ToolsNode     := TToolsNode.Create;
+  LLMNode       := nil;
+  PolishLLMNode := nil;
   try
     ToolsNode.RegisterProvider(TFileSystemTools.Create);
     LLMNode := TLLMNode.Create(ToolsNode.GetToolSchemas);
 
-    Checkpointer := TMemoryCheckpointer.Create;
+    // TFileCheckpointer em vez de TMemoryCheckpointer: o estado da thread
+    // sobrevive ao encerramento do processo — feche o GraphDemo, abra de
+    // novo, use a mesma ThreadId e o histórico continua de onde parou.
+    Checkpointer  := TFileCheckpointer.Create;
+    CheckpointDir := TPath.Combine(TPath.GetTempPath, 'dext-ai-graph');
 
+    // ── Compila o subgrafo 'polish_agent' primeiro (grafo independente) ──
+    PolishConfig := Config;
+    PolishConfig.SystemPrompt :=
+      'Reescreva a última resposta do assistente de forma mais clara e ' +
+      'objetiva para o usuário final. Mantenha os fatos exatamente como ' +
+      'estão — não invente, não adicione e não remova informação.';
+    PolishLLMNode := TLLMNode.Create(nil); // sem tools: só reescreve texto
+
+    PolishGraph := TAgentGraph.Create;
+    try
+      PolishAgent := PolishGraph
+        .AddNode('polish_llm', PolishLLMNode.AsHandler)
+        .SetEntryPoint('polish_llm')
+        .Compile(Provider, PolishConfig, Observer, nil);
+    finally
+      PolishGraph.Free;
+    end;
+
+    // ── Grafo principal: embute o subgrafo como o nó 'polish_agent' ──────
     Graph := TAgentGraph.Create;
     try
       Agent := Graph
         .AddNode('call_llm', LLMNode.AsHandler)
         .AddNode('execute_tools', ToolsNode.AsHandler)
+        .AddNode('polish_agent', PolishAgent.AsNode)
         .SetEntryPoint('call_llm')
         .AddConditionalEdge('call_llm',
-          DefaultShouldContinue,
-          [TEdgeRoute.To_('execute_tools'), TEdgeRoute.ToEnd])
+          ShouldContinueOrPolish,
+          [TEdgeRoute.To_('execute_tools'), TEdgeRoute.To_('polish_agent')])
         .AddEdge('execute_tools', 'call_llm')
+        .AddEdge('polish_agent', GRAPH_END)
         .RequireApproval('execute_tools')
         .Compile(Provider, Config, Observer, Checkpointer);
     finally
@@ -213,7 +267,9 @@ begin
     Writeln('  Dext.AI.Graph — Demo (estilo LangGraph)');
     Writeln(Format('  Provider: %s | Model: %s',
       [Provider.ProviderName, Provider.ModelName]));
-    Writeln('  Digite sua pergunta. Enter em branco para sair.');
+    Writeln('  Grafo: call_llm -> execute_tools (aprovação) -> polish_agent (subgrafo) -> fim');
+    Writeln('  Checkpoint em disco: ' + CheckpointDir);
+    Writeln('  Digite sua pergunta, ":estado" para inspecionar a thread, ou Enter em branco para sair.');
     Writeln('═══════════════════════════════════════════════════════');
     Writeln;
 
@@ -224,6 +280,20 @@ begin
       Readln(Input);
       if Input.Trim = '' then
         Break;
+
+      if SameText(Input.Trim, ':estado') then
+      begin
+        var CurState := TAgentState(Agent.GetState(ThreadId));
+        if CurState = nil then
+          Writeln('  (nenhum estado salvo ainda para esta thread)')
+        else
+          Writeln(Format(
+            '  nó atual=%s | iteração=%d | concluído=%s | mensagens=%d | pendências=%d',
+            [CurState.CurrentNode, CurState.Iteration, BoolToStr(CurState.IsDone, True),
+             Length(CurState.Messages), Length(CurState.PendingCalls)]));
+        Writeln;
+        Continue;
+      end;
 
       Writeln;
       RunResult := Agent.Run(Input, ThreadId);
@@ -258,7 +328,9 @@ begin
     until False;
   finally
     Agent := nil;
+    PolishAgent := nil;
     LLMNode.Free;
+    PolishLLMNode.Free;
     ToolsNode.Free;
   end;
 end.
