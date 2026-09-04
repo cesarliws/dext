@@ -658,7 +658,9 @@ In-process **MediatR**-style publish/subscribe (`Dext.Events`). Handlers respect
 - **Hosting Bridge** (`Dext.Hosting.Events.Bridge`) — `THostingLifecycleEventBridge` for integration with the background services builder via `AddLifecycleEvents`.
 
 ### 6.5 Testing Support (`Dext.Events.Testing`)
-- Infrastructure for testing handlers and behaviors with pipeline mocking.
+- **TEventBusTracker** — Fake `IEventBus` for tests: records every publish in a typed list. `DispatchBackground` is synchronous.
+- **DI registration** — `TEventBusTracker.Register(Services, Tracker)` instead of `AddEventBus`; chainable with `AddEventPublisher` / `AddTransient`.
+- **Assertions** — `HasPublished<T>`, `PublishedCount<T>`, `LastPublished<T>`, `GetPublished<T>`, `Clear`.
 
 ### 6.6 Aggregate Exception Handling
 - **EEventDispatchAggregate** — Aggregate exception containing `Errors: TArray<string>` with one entry per failed handler. All handlers are always invoked before raising.
@@ -667,10 +669,9 @@ In-process **MediatR**-style publish/subscribe (`Dext.Events`). Handlers respect
 
 ## 7. Testing & Quality
 
-### 7.1 Test Runner & Dashboard
-- **CLI Runner** — High-performance command-line executor (`dext test`) with support for category and priority filtering.
-- **Live Dashboard** — Built-in visual host for real-time test monitoring with failure history and stack trace analysis.
-- **Fluent Runner API** (`Dext.Testing.Fluent`) — Programmatic configuration: `TTest.Configure.Verbose.RegisterFixtures([...]).Run`.
+### 7.1 Test Runner
+- **CLI Runner** — `dext test` runs the project suite. On Windows, `--coverage` produces HTML/XML plus `dext_coverage.xml` (SonarQube coverage) via Delphi Code Coverage. The live host for the suite is **Dext Test Explorer** (S36 / section 7.7), not an embedded web dashboard.
+- **Fluent Runner API** (`Dext.Testing.Fluent`) — Programmatic configuration: `TTest.Configure.Verbose.RegisterFixtures([...]).Run`. The suite exe already reads `-filter:`, `-category:`, `-fixture:`, `-junit:`, `-html:`, `-json:`.
 
 ### 7.2 Attribute-Based Runner (`Dext.Testing.Attributes`)
 Write tests without base class inheritance using RTTI metadata.
@@ -679,13 +680,13 @@ Write tests without base class inheritance using RTTI metadata.
 - **Data-Driven Testing** —
   - `[TestCase(A, B, Expected)]` — Inline parameterized tests.
   - `[TestCaseSource('MethodName')]` — Dynamic data providers via methods.
-  - `[Values(V1, V2)]`, `[Range(Start, Stop, Step)]`, `[Random(Min, Max, Count)]` — Automatic case generation.
-  - `[Combinatorial]` — Execute all possible parameter combinations.
 - **Execution Filters & Control** —
   - `[Ignore('Reason')]`, `[Skip('Reason')]` — Skip tests.
   - `[Explicit]` — Tests run only when explicitly selected.
   - `[Category('Tag')]`, `[Trait('Name', 'Value')]` — Categorization and filtering.
-  - `[Timeout(ms)]`, `[MaxTime(ms)]`, `[Repeat(n)]`, `[Priority(n)]` — Execution and performance control.
+  - `[MaxTime(ms)]` — Warning if the test exceeds the budget (does not fail).
+  - `[Repeat(n)]` — Repeats the method n times.
+  - `[Priority(n)]` — Execution order (lower number first). Not a CLI filter.
   - `[Platform('Windows, Linux')]` — OS-specific restrictions.
 
 ### 7.3 Fluent Assertions (`Dext.Assertions`)
@@ -703,13 +704,14 @@ Fluent API based on the `Should(Value)` pattern.
 
 ### 7.4 Snapshot Testing
 - **`MatchSnapshot('name')`** — Verify complex objects and JSON payloads via disk-based baseline comparison.
+- **Folder** — Baselines live in `{ExeDir}\Snapshots\` (not `__snapshots__/`).
 - **Structural JSON Compare** — Smart comparison that ignores formatting and property order in JSON.
-- **Update Mode** — `SNAPSHOT_UPDATE=1` environment variable for automatic baseline updates.
+- **Update Mode** — `SNAPSHOT_UPDATE=1` environment variable to refresh baselines.
 
 ### 7.5 Mocking & Interception (`Dext.Mocks`, `Dext.Interception`)
 - **Dynamic Proxies** — `TProxy` (Interfaces) and `TClassProxy` (Classes with virtual methods) via `TVirtualInterface` and `TVirtualMethodInterceptor`.
 - **Fluent Mocking** — `Mock<T>.Setup.Returns(Val).When.Method(Args)`.
-- **Argument Matchers** — `Arg.Any<T>`, `Arg.Is<T>`, `Arg.IsNotNull<T>`.
+- **Argument Matchers** — `Arg.Any<T>`, `Arg.Matches<T>` (`Arg.&Is<T>`), `Arg.IsNil<T>`, `Arg.IsNotNil<T>`.
 - **Verification** — `Received(Times.Once)`, `Received(Times.AtLeast(n))`.
 - **Auto-Mocking** — `TAutoMocker` for automated mock injection into the DI container during unit tests.
 
@@ -722,11 +724,12 @@ Fluent API based on the `Should(Value)` pattern.
 - **Native DUnit Integration** (`Dext.Testing.DUnit`) — Decoupled runner adaptation for DUnit that registers custom listeners to pipe results, duration metadata, and execution streams to the Dext Test Explorer.
 - **Native DUnit2 Integration** (`Dext.Testing.DUnit2`) — Decoupled runner adaptation using proxy interfaces to pipe real-time results and suite hierarchies from DUnit2 frameworks to the Dext Test Explorer.
 - **Test Context Injection** — `ITestContext` injectable via parameter for `WriteLine`, `AttachFile` (screenshots), and execution metadata.
-- **Execution History & Regression Analysis** (`Dext.Testing.History`) — Persistence and historical tracking of test execution times and pass rates across historical runs for flaky test detection.
+- **Per-test history in Test Explorer** (`TTelemetryTracker` in `Dext.Testing.Design.DockableForm`) — `{project}\.dext\testing\history.json` (up to 1000 rows). The Details pane flags flaky tests and duration regression. This is not the suite-total JSON.
+- **`TTestHistoryManager`** (`Dext.Testing.History`, `dext_test_history.json`) — Per-**run** totals (passed/failed/skipped/duration, last 50). Only the sidecar dashboard consumes it today. Explorer does not show that series yet — S75 F-10.
 - **OpenTelemetry Test Telemetry** (`Dext.Testing.Listeners.Telemetry`) — Integrated telemetry listener piping test execution metrics (`test_duration_ms`, `test_count_passed`, `test_count_failed`) to OpenTelemetry collectors.
 
 ### 7.7 RAD Studio Expert & IDE Integration (`Dext.Testing.Design.*`)
-- **Dext Test Explorer Dockable Window** (`Dext.Testing.Design.DockableForm`) — Native dockable window in RAD Studio displaying interactive test tree, status filters, and search.
+- **Dext Test Explorer Dockable Window** (`Dext.Testing.Design.DockableForm`) — Native dockable window in RAD Studio displaying interactive test tree, status filters, and search. Per-test history in Details (flaky / duration). Suite totals across runs: S75 F-10.
 - **Gutter Margin Icons** (`Dext.Testing.Design.Gutter`) — Interactive visual icons in the left code editor margin (green checkmark for pass, red cross for failure).
 - **Embedded Local IDE HTTP/SSE Server** (`Dext.Testing.Design.Server`) — Real-time event streaming server embedded in the Expert receiving test execution streams without BPL coupling.
 - **Code Coverage Visualizer** (`Dext.Testing.Design.Coverage`) — Direct editor highlighting of lines covered by test runs via AST parsing (`Dext.Testing.Design.AST`).
@@ -738,9 +741,8 @@ Dext is continuously validated by a massive testing infrastructure to ensure int
 - **Massive Coverage** — Hundreds of test suites with thousands of individual assertions validating everything from the Core (Memory, Collections) to complex Web and ORM integrations.
 - **Multi-DB Matrix (ORM)** — The persistence engine is exhaustively tested across a real matrix of 5 databases: PostgreSQL, SQL Server, MySQL, SQLite, and Firebird.
 - **Stress & Concurrency Testing** — Validation of concurrent collections, channels, and async tasks under high load to ensure no Race Conditions.
-- **Anti-Leak Policies** — Rigorous memory monitoring in every suite; test failures are triggered if object leaks are detected.
 - **Field Evidence** — Framework validated in real-world projects deployed on **AWS and Azure**, with fiscal management systems processing peaks of **~800,000 daily requests**.
-- **CI/CD Quality Gates** — Native integration with Azure DevOps and GitHub Actions, enforcing coverage thresholds and snapshot approval.
+- **CI/CD** — JUnit / xUnit / TRX / HTML / JSON reports and SonarQube coverage (`dext_coverage.xml`) for Azure DevOps and GitHub Actions pipelines.
 
 ---
 
@@ -852,10 +854,10 @@ Dext is continuously validated by a massive testing infrastructure to ensure int
 - **Dext CLI (S01)** — Unified CLI engine (`dext.exe`) for project management and development automation.
 - **Advanced Scaffolding** — Project and file generation via smart templates: `dext new` (projects), `dext scaffold` (controllers, ORM entities, DTOs, middlewares) supporting all major relational engines (SQLite, PostgreSQL, SQL Server, Firebird, MySQL/MariaDB, Oracle) with automatic uppercase schema resolution for Oracle dictionary metadata (`MetaCurSchema`, `MetaDefSchema`).
 - **`dext dev-certs`** — Native CryptoAPI provisioner for local development X.509 certificates with SAN extension and automatic Root Certificate Store trust.
-- **`dext test --coverage`** — Automated unit test suite runner with **complete Code Coverage analysis** via `.map` files and XML export for **SonarQube** (`--sonar`).
+- **`dext test --coverage`** — Suite runner with **code coverage** via `.map` files (Windows). Produces Delphi Code Coverage HTML/XML and `dext_coverage.xml` (SonarQube coverage) automatically. No separate `--sonar` flag.
 - **`dext migrate [up|down|list|generate]`** — CLI manager for Dext ORM database schema migrations.
 - **`dext doc`** — Automated static HTML technical documentation generator with interactive route visual maps.
-- **`dext ui`** — Real-time local web dashboard for visual monitoring of test suites and metrics.
+- **`dext ui`** — Local web dashboard for **project configuration** (not a live test-suite monitor).
 - **`dext index`** — Indexing of all public symbols (classes, records, interfaces, methods) in Markdown, JSON, and CSV optimized for AI agents and NotebookLM.
 
 ---
@@ -917,4 +919,4 @@ The framework provides a native, zero-dependency implementation of the **MCP 202
 - **Provider Registration** — Automated mapping of custom providers.
 ---
 
-*Dext Framework 1.0 — Features Index. Revision: August 2026.*
+*Dext Framework 1.0 — Features Index. Revision: September 2026.*
