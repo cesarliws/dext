@@ -56,6 +56,7 @@ implementation
 uses
   System.IOUtils,
   System.JSON,
+  System.Math,
   System.Generics.Collections,
   System.Threading,
   System.UITypes,
@@ -68,6 +69,7 @@ uses
   Vcl.Dialogs,
   Vcl.FileCtrl,
   Winapi.Windows,
+  Winapi.Messages,
   Winapi.ShellAPI;
 
 var
@@ -101,6 +103,10 @@ type
     FBtnOutputPath: TButton;
     FChkOnlyProject: TCheckBox;
     FEditFilter: TEdit;
+    FPageControl: TPageControl;
+    FTabFiles: TTabSheet;
+    FTabLog: TTabSheet;
+    FMemoLog: TMemo;
     FListViewFiles: TListView;
     FBtnSelectAll: TButton;
     FBtnUnselectAll: TButton;
@@ -109,6 +115,8 @@ type
     FBtnViewDocs: TButton;
     FBtnCancel: TButton;
 
+    function ScaleValue(AValue: Integer): Integer;
+    procedure LogMsg(const AText: string);
     procedure InitializeUI;
     procedure LoadConfig;
     procedure SaveConfig;
@@ -172,37 +180,152 @@ begin
   end;
 end;
 
-// Synchronous process execution capturing execution failure/success
-function RunDocProcess(const AExePath, AParams: string; out AErrorMsg: string): Boolean;
+// Synchronous process execution capturing execution output and exit code
+function RunDocProcessWithOutput(const AExePath, AParams: string; out AErrorMsg: string;
+  AOnOutputLine: TProc<string>): Boolean;
 var
   SI: TStartupInfo;
   PI: TProcessInformation;
   CmdLine: string;
   ExitCode: DWORD;
+  SA: TSecurityAttributes;
+  HReadPipe, HWritePipe: THandle;
+  BytesRead, BytesAvail: DWORD;
+  Buffer: array[0..4095] of AnsiChar;
+  RawChunk: RawByteString;
+  OutputAccumulator: string;
+  LineBreakPos: Integer;
+  Line: string;
+  ProcessFinished: Boolean;
+  LastOutputLines: TStringList;
 begin
   Result := False;
   AErrorMsg := '';
-  FillChar(SI, SizeOf(SI), 0);
-  SI.cb := SizeOf(SI);
-  SI.dwFlags := STARTF_USESHOWWINDOW;
-  SI.wShowWindow := SW_HIDE;
+  LastOutputLines := TStringList.Create;
+  try
+    FillChar(SA, SizeOf(SA), 0);
+    SA.nLength := SizeOf(SA);
+    SA.bInheritHandle := True;
+    SA.lpSecurityDescriptor := nil;
 
-  CmdLine := Format('"%s" %s', [AExePath, AParams]);
-  UniqueString(CmdLine);
-
-  if CreateProcess(nil, PChar(CmdLine), nil, nil, True, CREATE_NO_WINDOW, nil, nil, SI, PI) then
-  begin
-    WaitForSingleObject(PI.hProcess, INFINITE);
-    if GetExitCodeProcess(PI.hProcess, ExitCode) then
+    if not CreatePipe(HReadPipe, HWritePipe, @SA, 0) then
     begin
-      Result := (ExitCode = 0);
-      if not Result then
-        AErrorMsg := 'Process exited with code ' + IntToStr(ExitCode);
-    end
-    else
-      AErrorMsg := 'Failed to get process exit code.';
-    CloseHandle(PI.hProcess);
-    CloseHandle(PI.hThread);
+      AErrorMsg := 'Failed to create output pipe (' + SysErrorMessage(GetLastError) + ')';
+      Exit;
+    end;
+
+    try
+      // Ensure read handle is not inherited by child process
+      SetHandleInformation(HReadPipe, HANDLE_FLAG_INHERIT, 0);
+
+      FillChar(SI, SizeOf(SI), 0);
+      SI.cb := SizeOf(SI);
+      SI.dwFlags := STARTF_USESHOWWINDOW or STARTF_USESTDHANDLES;
+      SI.wShowWindow := SW_HIDE;
+      SI.hStdOutput := HWritePipe;
+      SI.hStdError := HWritePipe;
+      SI.hStdInput := GetStdHandle(STD_INPUT_HANDLE);
+
+      CmdLine := Format('"%s" %s', [AExePath, AParams]);
+      UniqueString(CmdLine);
+
+      if not CreateProcess(nil, PChar(CmdLine), nil, nil, True, CREATE_NO_WINDOW, nil, nil, SI, PI) then
+      begin
+        AErrorMsg := 'Failed to execute: ' + SysErrorMessage(GetLastError);
+        Exit;
+      end;
+
+      try
+        // Close write pipe in parent so EOF can be reached when child closes it
+        CloseHandle(HWritePipe);
+        HWritePipe := 0;
+
+        OutputAccumulator := '';
+
+        repeat
+          ProcessFinished := (WaitForSingleObject(PI.hProcess, 50) = WAIT_OBJECT_0);
+
+          while PeekNamedPipe(HReadPipe, nil, 0, nil, @BytesAvail, nil) and (BytesAvail > 0) do
+          begin
+            if ReadFile(HReadPipe, Buffer, SizeOf(Buffer) - 1, BytesRead, nil) and (BytesRead > 0) then
+            begin
+              SetString(RawChunk, PAnsiChar(@Buffer[0]), BytesRead);
+              OutputAccumulator := OutputAccumulator + UTF8ToString(RawChunk);
+
+              while True do
+              begin
+                LineBreakPos := OutputAccumulator.IndexOf(#10);
+                if LineBreakPos < 0 then
+                  Break;
+
+                Line := OutputAccumulator.Substring(0, LineBreakPos);
+                if Line.EndsWith(#13) then
+                  Line := Line.Substring(0, Line.Length - 1);
+                OutputAccumulator := OutputAccumulator.Substring(LineBreakPos + 1);
+
+                if Assigned(AOnOutputLine) then
+                  AOnOutputLine(Line);
+
+                LastOutputLines.Add(Line);
+                if LastOutputLines.Count > 50 then
+                  LastOutputLines.Delete(0);
+              end;
+            end
+            else
+              Break;
+          end;
+
+          Application.ProcessMessages;
+        until ProcessFinished;
+
+        // Drain any remaining output
+        while PeekNamedPipe(HReadPipe, nil, 0, nil, @BytesAvail, nil) and (BytesAvail > 0) do
+        begin
+          if ReadFile(HReadPipe, Buffer, SizeOf(Buffer) - 1, BytesRead, nil) and (BytesRead > 0) then
+          begin
+            SetString(RawChunk, PAnsiChar(@Buffer[0]), BytesRead);
+            OutputAccumulator := OutputAccumulator + UTF8ToString(RawChunk);
+          end
+          else
+            Break;
+        end;
+
+        if OutputAccumulator <> '' then
+        begin
+          Line := OutputAccumulator.TrimRight([#13, #10]);
+          if Line <> '' then
+          begin
+            if Assigned(AOnOutputLine) then
+              AOnOutputLine(Line);
+            LastOutputLines.Add(Line);
+          end;
+        end;
+
+        if GetExitCodeProcess(PI.hProcess, ExitCode) then
+        begin
+          Result := (ExitCode = 0);
+          if not Result then
+          begin
+            if LastOutputLines.Count > 0 then
+              AErrorMsg := LastOutputLines[LastOutputLines.Count - 1]
+            else
+              AErrorMsg := 'Process exited with code ' + IntToStr(ExitCode);
+          end;
+        end
+        else
+          AErrorMsg := 'Failed to get process exit code.';
+      finally
+        CloseHandle(PI.hProcess);
+        CloseHandle(PI.hThread);
+      end;
+    finally
+      if HWritePipe <> 0 then
+        CloseHandle(HWritePipe);
+      if HReadPipe <> 0 then
+        CloseHandle(HReadPipe);
+    end;
+  finally
+    LastOutputLines.Free;
   end;
 end;
 
@@ -507,108 +630,158 @@ begin
   inherited;
 end;
 
+function TDocForm.ScaleValue(AValue: Integer): Integer;
+var
+  PPI: Integer;
+begin
+  PPI := CurrentPPI;
+  if PPI <= 0 then
+    PPI := 96;
+  Result := MulDiv(AValue, PPI, 96);
+end;
+
+procedure TDocForm.LogMsg(const AText: string);
+var
+  MsgServices: IOTAMessageServices;
+begin
+  if Assigned(FMemoLog) then
+  begin
+    FMemoLog.Lines.Add(AText);
+    SendMessage(FMemoLog.Handle, EM_LINESCROLL, 0, FMemoLog.Lines.Count);
+  end;
+
+  if Assigned(BorlandIDEServices) and Supports(BorlandIDEServices, IOTAMessageServices, MsgServices) then
+  begin
+    MsgServices.AddTitleMessage('[Dext Doc] ' + AText);
+  end;
+
+  Application.ProcessMessages;
+end;
+
 procedure TDocForm.InitializeUI;
 var
   Lbl: TLabel;
+  Pad, RowH, EditH, BtnW: Integer;
 begin
   Caption := 'Dext API Documentation';
-  Width := 650;
-  Height := 620;
+  Width := ScaleValue(720);
+  Height := ScaleValue(640);
   Position := poScreenCenter;
-  Constraints.MinWidth := 550;
-  Constraints.MinHeight := 450;
+  Constraints.MinWidth := ScaleValue(580);
+  Constraints.MinHeight := ScaleValue(480);
+
+  Pad := ScaleValue(10);
+  RowH := ScaleValue(30);
+  EditH := ScaleValue(23);
+  BtnW := ScaleValue(32);
 
   // Top Panel
   FPanelTop := TPanel.Create(Self);
   FPanelTop.Parent := Self;
   FPanelTop.Align := alTop;
-  FPanelTop.Height := 170;
+  FPanelTop.Height := ScaleValue(190);
   FPanelTop.BevelOuter := bvNone;
 
-  // Project Title
+  // Row 1: Project Title
   Lbl := TLabel.Create(Self);
   Lbl.Parent := FPanelTop;
   Lbl.Caption := 'Project Title:';
-  Lbl.Left := 10;
-  Lbl.Top := 15;
+  Lbl.Left := Pad;
+  Lbl.Top := Pad + ScaleValue(3);
 
   FEditTitle := TEdit.Create(Self);
   FEditTitle.Parent := FPanelTop;
-  FEditTitle.Left := 90;
-  FEditTitle.Top := 12;
+  FEditTitle.Left := ScaleValue(95);
+  FEditTitle.Top := Pad;
+  FEditTitle.Height := EditH;
 
-  // Search Path
+  // Row 2: Search Path
   Lbl := TLabel.Create(Self);
   Lbl.Parent := FPanelTop;
   Lbl.Caption := 'Search Path:';
-  Lbl.Left := 10;
-  Lbl.Top := 45;
+  Lbl.Left := Pad;
+  Lbl.Top := Pad + RowH + ScaleValue(3);
 
   FEditSearchPath := TEdit.Create(Self);
   FEditSearchPath.Parent := FPanelTop;
-  FEditSearchPath.Left := 90;
-  FEditSearchPath.Top := 42;
+  FEditSearchPath.Left := ScaleValue(95);
+  FEditSearchPath.Top := Pad + RowH;
+  FEditSearchPath.Height := EditH;
   FEditSearchPath.OnExit := OnSearchPathExit;
 
   FBtnSearchPath := TButton.Create(Self);
   FBtnSearchPath.Parent := FPanelTop;
   FBtnSearchPath.Caption := '...';
-  FBtnSearchPath.Top := 41;
-  FBtnSearchPath.Width := 30;
-  FBtnSearchPath.Height := 23;
+  FBtnSearchPath.Top := Pad + RowH;
+  FBtnSearchPath.Width := BtnW;
+  FBtnSearchPath.Height := EditH;
   FBtnSearchPath.OnClick := OnSearchPathClick;
 
-  // Output Path
+  // Row 3: Output Path
   Lbl := TLabel.Create(Self);
   Lbl.Parent := FPanelTop;
   Lbl.Caption := 'Output Path:';
-  Lbl.Left := 10;
-  Lbl.Top := 75;
+  Lbl.Left := Pad;
+  Lbl.Top := Pad + (RowH * 2) + ScaleValue(3);
 
   FEditOutputPath := TEdit.Create(Self);
   FEditOutputPath.Parent := FPanelTop;
-  FEditOutputPath.Left := 90;
-  FEditOutputPath.Top := 72;
+  FEditOutputPath.Left := ScaleValue(95);
+  FEditOutputPath.Top := Pad + (RowH * 2);
+  FEditOutputPath.Height := EditH;
   FEditOutputPath.OnExit := OnOutputPathExit;
 
   FBtnOutputPath := TButton.Create(Self);
   FBtnOutputPath.Parent := FPanelTop;
   FBtnOutputPath.Caption := '...';
-  FBtnOutputPath.Top := 71;
-  FBtnOutputPath.Width := 30;
-  FBtnOutputPath.Height := 23;
+  FBtnOutputPath.Top := Pad + (RowH * 2);
+  FBtnOutputPath.Width := BtnW;
+  FBtnOutputPath.Height := EditH;
   FBtnOutputPath.OnClick := OnOutputPathClick;
 
-  // Checkbox Only Project Files
+  // Row 4: Checkbox Only Project Files
   FChkOnlyProject := TCheckBox.Create(Self);
   FChkOnlyProject.Parent := FPanelTop;
   FChkOnlyProject.Caption := 'Parse only files added to the project (.dpr/.dpk)';
-  FChkOnlyProject.Left := 90;
-  FChkOnlyProject.Top := 102;
-  FChkOnlyProject.Width := 400;
+  FChkOnlyProject.Left := ScaleValue(95);
+  FChkOnlyProject.Top := Pad + (RowH * 3) + ScaleValue(2);
+  FChkOnlyProject.Width := ScaleValue(450);
+  FChkOnlyProject.Height := ScaleValue(20);
   FChkOnlyProject.OnClick := OnChkOnlyProjectClick;
 
-  // Filter Files
+  // Row 5: Filter Files
   Lbl := TLabel.Create(Self);
   Lbl.Parent := FPanelTop;
   Lbl.Caption := 'Filter files:';
-  Lbl.Left := 10;
-  Lbl.Top := 135;
+  Lbl.Left := Pad;
+  Lbl.Top := Pad + (RowH * 4) + ScaleValue(5);
 
   FEditFilter := TEdit.Create(Self);
   FEditFilter.Parent := FPanelTop;
-  FEditFilter.Left := 90;
-  FEditFilter.Top := 132;
+  FEditFilter.Left := ScaleValue(95);
+  FEditFilter.Top := Pad + (RowH * 4) + ScaleValue(2);
+  FEditFilter.Height := EditH;
   FEditFilter.TextHint := 'Type to filter files by name...';
   FEditFilter.OnChange := OnFilterChange;
 
-  // Client ListView Files
+  // PageControl for Files & Execution Log
+  FPageControl := TPageControl.Create(Self);
+  FPageControl.Parent := Self;
+  FPageControl.Align := alClient;
+  FPageControl.AlignWithMargins := True;
+  FPageControl.Margins.Left := Pad;
+  FPageControl.Margins.Right := Pad;
+  FPageControl.Margins.Top := ScaleValue(4);
+  FPageControl.Margins.Bottom := ScaleValue(4);
+
+  // Tab 1: Files
+  FTabFiles := TTabSheet.Create(Self);
+  FTabFiles.PageControl := FPageControl;
+  FTabFiles.Caption := 'Project Files';
+
   FListViewFiles := TListView.Create(Self);
-  FListViewFiles.Parent := Self;
+  FListViewFiles.Parent := FTabFiles;
   FListViewFiles.Align := alClient;
-  FListViewFiles.AlignWithMargins := True;
-  FListViewFiles.Margins.Left := 10;
-  FListViewFiles.Margins.Right := 10;
   FListViewFiles.ViewStyle := vsReport;
   FListViewFiles.Checkboxes := True;
   FListViewFiles.OnItemChecked := ListViewFilesItemChecked;
@@ -616,56 +789,69 @@ begin
   with FListViewFiles.Columns.Add do
   begin
     Caption := 'File Name';
-    Width := 150;
+    Width := ScaleValue(160);
   end;
   with FListViewFiles.Columns.Add do
   begin
     Caption := 'Relative Path';
-    Width := 220;
+    Width := ScaleValue(240);
   end;
   with FListViewFiles.Columns.Add do
   begin
     Caption := 'Last Modified';
-    Width := 130;
+    Width := ScaleValue(140);
   end;
   with FListViewFiles.Columns.Add do
   begin
     Caption := 'Size';
-    Width := 70;
+    Width := ScaleValue(80);
   end;
+
+  // Tab 2: Execution Log
+  FTabLog := TTabSheet.Create(Self);
+  FTabLog.PageControl := FPageControl;
+  FTabLog.Caption := 'Execution Log';
+
+  FMemoLog := TMemo.Create(Self);
+  FMemoLog.Parent := FTabLog;
+  FMemoLog.Align := alClient;
+  FMemoLog.ReadOnly := True;
+  FMemoLog.ScrollBars := ssBoth;
+  FMemoLog.Font.Name := 'Consolas';
+  FMemoLog.Font.Size := 9;
+  FMemoLog.WordWrap := False;
 
   // Bottom Panel
   FPanelBottom := TPanel.Create(Self);
   FPanelBottom.Parent := Self;
   FPanelBottom.Align := alBottom;
-  FPanelBottom.Height := 50;
+  FPanelBottom.Height := ScaleValue(46);
   FPanelBottom.BevelOuter := bvNone;
 
   // Select Buttons
   FBtnSelectAll := TButton.Create(Self);
   FBtnSelectAll.Parent := FPanelBottom;
   FBtnSelectAll.Caption := 'Select All';
-  FBtnSelectAll.Left := 10;
-  FBtnSelectAll.Top := 10;
-  FBtnSelectAll.Width := 80;
-  FBtnSelectAll.Height := 30;
+  FBtnSelectAll.Left := Pad;
+  FBtnSelectAll.Top := ScaleValue(8);
+  FBtnSelectAll.Width := ScaleValue(80);
+  FBtnSelectAll.Height := ScaleValue(28);
   FBtnSelectAll.OnClick := OnSelectAllClick;
 
   FBtnUnselectAll := TButton.Create(Self);
   FBtnUnselectAll.Parent := FPanelBottom;
   FBtnUnselectAll.Caption := 'Select None';
-  FBtnUnselectAll.Left := 95;
-  FBtnUnselectAll.Top := 10;
-  FBtnUnselectAll.Width := 80;
-  FBtnUnselectAll.Height := 30;
+  FBtnUnselectAll.Left := FBtnSelectAll.Left + FBtnSelectAll.Width + ScaleValue(6);
+  FBtnUnselectAll.Top := ScaleValue(8);
+  FBtnUnselectAll.Width := ScaleValue(80);
+  FBtnUnselectAll.Height := ScaleValue(28);
   FBtnUnselectAll.OnClick := OnUnselectAllClick;
 
   // Status Label
   FStatusLabel := TLabel.Create(Self);
   FStatusLabel.Parent := FPanelBottom;
-  FStatusLabel.Left := 185;
-  FStatusLabel.Top := 15;
-  FStatusLabel.Width := 180;
+  FStatusLabel.Left := FBtnUnselectAll.Left + FBtnUnselectAll.Width + ScaleValue(12);
+  FStatusLabel.Top := ScaleValue(14);
   FStatusLabel.Caption := 'Files: 0';
   FStatusLabel.Font.Style := [fsBold];
 
@@ -674,28 +860,29 @@ begin
   FBtnCancel.Parent := FPanelBottom;
   FBtnCancel.Caption := 'Cancel';
   FBtnCancel.ModalResult := mrCancel;
-  FBtnCancel.Width := 80;
-  FBtnCancel.Height := 30;
-  FBtnCancel.Top := 10;
+  FBtnCancel.Width := ScaleValue(75);
+  FBtnCancel.Height := ScaleValue(28);
+  FBtnCancel.Top := ScaleValue(8);
 
   FBtnGenerate := TButton.Create(Self);
   FBtnGenerate.Parent := FPanelBottom;
   FBtnGenerate.Caption := 'Generate Docs';
-  FBtnGenerate.Width := 120;
-  FBtnGenerate.Height := 30;
-  FBtnGenerate.Top := 10;
+  FBtnGenerate.Width := ScaleValue(110);
+  FBtnGenerate.Height := ScaleValue(28);
+  FBtnGenerate.Top := ScaleValue(8);
   FBtnGenerate.Default := True;
   FBtnGenerate.OnClick := OnGenerateClick;
 
   FBtnViewDocs := TButton.Create(Self);
   FBtnViewDocs.Parent := FPanelBottom;
   FBtnViewDocs.Caption := 'View Docs';
-  FBtnViewDocs.Width := 100;
-  FBtnViewDocs.Height := 30;
-  FBtnViewDocs.Top := 10;
+  FBtnViewDocs.Width := ScaleValue(90);
+  FBtnViewDocs.Height := ScaleValue(28);
+  FBtnViewDocs.Top := ScaleValue(8);
   FBtnViewDocs.OnClick := OnViewDocsClick;
 
   OnResize := OnFormResize;
+  OnFormResize(Self);
 end;
 
 procedure TDocForm.LoadConfig;
@@ -774,11 +961,27 @@ procedure TDocForm.StartFileScan;
 var
   SearchPath: string;
   OnlyProjectFiles: Boolean;
+  MainProjFiles: TDictionary<string, Boolean>;
+  I: Integer;
+  ModInfo: IOTAModuleInfo;
+  ScanProc: TProc;
 begin
   if FScanningTask <> nil then Exit;
 
   SearchPath := FEditSearchPath.Text;
   OnlyProjectFiles := FChkOnlyProject.Checked;
+
+  // ToolsAPI (IOTAProject / IOTAModuleInfo) must be accessed on the main UI thread
+  MainProjFiles := TDictionary<string, Boolean>.Create;
+  if OnlyProjectFiles and (FProject <> nil) then
+  begin
+    for I := 0 to FProject.GetModuleCount - 1 do
+    begin
+      ModInfo := FProject.GetModule(I);
+      if (ModInfo <> nil) and (ModInfo.FileName <> '') then
+        MainProjFiles.AddOrSetValue(TPath.GetFullPath(ModInfo.FileName).ToLower, True);
+    end;
+  end;
 
   FStatusLabel.Caption := 'Scanning files...';
   FBtnGenerate.Enabled := False;
@@ -786,31 +989,16 @@ begin
   FListViewFiles.Items.Clear;
   FListViewFiles.Items.EndUpdate;
 
-  FScanningTask := TTask.Run(
-    procedure
+  ScanProc := procedure
     var
       FileList: TList<TFileMetadata>;
       Files: TArray<string>;
       FileName: string;
       FileInfo: TFileMetadata;
-      ProjFiles: TDictionary<string, Boolean>;
-      I: Integer;
-      ModInfo: IOTAModuleInfo;
       FinishProc: TThreadProcedure;
     begin
       FileList := TList<TFileMetadata>.Create;
-      ProjFiles := TDictionary<string, Boolean>.Create;
       try
-        if OnlyProjectFiles and (FProject <> nil) then
-        begin
-          for I := 0 to FProject.GetModuleCount - 1 do
-          begin
-            ModInfo := FProject.GetModule(I);
-            if (ModInfo <> nil) and (ModInfo.FileName <> '') then
-              ProjFiles.AddOrSetValue(TPath.GetFullPath(ModInfo.FileName).ToLower, True);
-          end;
-        end;
-
         if TDirectory.Exists(SearchPath) then
         begin
           Files := TDirectory.GetFiles(SearchPath, '*.pas', TSearchOption.SoAllDirectories);
@@ -818,7 +1006,7 @@ begin
           begin
             if FileName.ToLower.Contains('\tests\') then
               Continue;
-            if OnlyProjectFiles and not ProjFiles.ContainsKey(FileName.ToLower) then
+            if OnlyProjectFiles and not MainProjFiles.ContainsKey(FileName.ToLower) then
               Continue;
 
             FileInfo.FileName := TPath.GetFileName(FileName);
@@ -856,9 +1044,11 @@ begin
         TThread.Synchronize(nil, FinishProc);
       finally
         FileList.Free;
-        ProjFiles.Free;
+        MainProjFiles.Free;
       end;
-    end);
+    end;
+
+  FScanningTask := TTask.Run(ScanProc);
 end;
 
 procedure TDocForm.FilterListView;
@@ -949,23 +1139,50 @@ end;
 
 procedure TDocForm.OnFormResize(Sender: TObject);
 var
-  W: Integer;
+  W, Pad, Spacing, RightPos: Integer;
 begin
   W := ClientWidth;
+  Pad := ScaleValue(10);
+  Spacing := ScaleValue(6);
 
-  FEditTitle.Width := W - FEditTitle.Left - 10;
+  if Assigned(FEditTitle) then
+    FEditTitle.Width := W - FEditTitle.Left - Pad;
 
-  FEditSearchPath.Width := W - FEditSearchPath.Left - 10 - FBtnSearchPath.Width - 5;
-  FBtnSearchPath.Left := FEditSearchPath.Left + FEditSearchPath.Width + 5;
+  if Assigned(FEditSearchPath) and Assigned(FBtnSearchPath) then
+  begin
+    FEditSearchPath.Width := W - FEditSearchPath.Left - Pad - FBtnSearchPath.Width - Spacing;
+    FBtnSearchPath.Left := FEditSearchPath.Left + FEditSearchPath.Width + Spacing;
+  end;
 
-  FEditOutputPath.Width := W - FEditOutputPath.Left - 10 - FBtnOutputPath.Width - 5;
-  FBtnOutputPath.Left := FEditOutputPath.Left + FEditOutputPath.Width + 5;
+  if Assigned(FEditOutputPath) and Assigned(FBtnOutputPath) then
+  begin
+    FEditOutputPath.Width := W - FEditOutputPath.Left - Pad - FBtnOutputPath.Width - Spacing;
+    FBtnOutputPath.Left := FEditOutputPath.Left + FEditOutputPath.Width + Spacing;
+  end;
 
-  FEditFilter.Width := W - FEditFilter.Left - 10;
+  if Assigned(FEditFilter) then
+    FEditFilter.Width := W - FEditFilter.Left - Pad;
 
-  FBtnCancel.Left := W - FBtnCancel.Width - 10;
-  FBtnGenerate.Left := FBtnCancel.Left - FBtnGenerate.Width - 5;
-  FBtnViewDocs.Left := FBtnGenerate.Left - FBtnViewDocs.Width - 5;
+  // Bottom action buttons: position from right margin
+  if Assigned(FBtnCancel) and Assigned(FBtnGenerate) and Assigned(FBtnViewDocs) then
+  begin
+    RightPos := W - Pad;
+
+    FBtnCancel.Left := RightPos - FBtnCancel.Width;
+    RightPos := FBtnCancel.Left - Spacing;
+
+    FBtnGenerate.Left := RightPos - FBtnGenerate.Width;
+    RightPos := FBtnGenerate.Left - Spacing;
+
+    FBtnViewDocs.Left := RightPos - FBtnViewDocs.Width;
+
+    // Status label stays between selection buttons and ViewDocs button
+    if Assigned(FStatusLabel) then
+    begin
+      if FStatusLabel.Left + FStatusLabel.Width > FBtnViewDocs.Left - Spacing then
+        FStatusLabel.Width := Max(50, FBtnViewDocs.Left - Spacing - FStatusLabel.Left);
+    end;
+  end;
 end;
 
 procedure TDocForm.OnSearchPathExit(Sender: TObject);
@@ -1062,10 +1279,18 @@ var
   DextExe: string;
   Params: string;
   ErrorMsg: string;
+  Success: Boolean;
 begin
   SaveConfig;
   DextExe := FindDextExe;
   Params := Format('doc --config "%s"', [FConfigPath]);
+
+  FMemoLog.Clear;
+  FPageControl.ActivePage := FTabLog;
+  LogMsg('Starting documentation generation...');
+  LogMsg('Executable: ' + DextExe);
+  LogMsg('Arguments: ' + Params);
+  LogMsg('------------------------------------------------------------');
 
   Screen.Cursor := crHourGlass;
   FStatusLabel.Caption := 'Generating documentation...';
@@ -1073,8 +1298,16 @@ begin
   FBtnCancel.Enabled := False;
   Application.ProcessMessages;
   try
-    if RunDocProcess(DextExe, Params, ErrorMsg) then
+    Success := RunDocProcessWithOutput(DextExe, Params, ErrorMsg,
+      procedure(Line: string)
+      begin
+        LogMsg(Line);
+      end);
+
+    if Success then
     begin
+      LogMsg('------------------------------------------------------------');
+      LogMsg('Documentation generation completed successfully!');
       FStatusLabel.Caption := 'Generation successful!';
       UpdateViewDocsButtonState;
       if MessageDlg('Documentation generated successfully!' + sLineBreak + 
@@ -1086,8 +1319,17 @@ begin
     end
     else
     begin
+      LogMsg('------------------------------------------------------------');
+      LogMsg('[ERROR] ' + ErrorMsg);
       FStatusLabel.Caption := 'Generation failed.';
-      MessageDlg('Error generating documentation: ' + ErrorMsg, mtError, [mbOK], 0);
+      FPageControl.ActivePage := FTabLog;
+
+      if ErrorMsg = '' then
+        ErrorMsg := 'Generation process failed without output. See Execution Log tab.';
+
+      MessageDlg('Error generating documentation:' + sLineBreak + sLineBreak + ErrorMsg +
+                 sLineBreak + sLineBreak + 'Check the "Execution Log" tab for full details.',
+                 mtError, [mbOK], 0);
     end;
   finally
     FBtnGenerate.Enabled := True;
