@@ -87,7 +87,10 @@ begin
   if FRequest = nil then
     Exit('');
 
-  Result := FRequest.Headers[AName];
+  if FRequest.Headers = nil then
+    Exit('');
+
+  Result := FRequest.Headers.GetValue(AName);
 end;
 
 function THtmx4Request.GetIsHtmx: Boolean;

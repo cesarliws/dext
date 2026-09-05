@@ -20,12 +20,4 @@ URL: http://localhost:5299/
 - `GET /invoices/append` — appends a row with `hx-swap="beforeend"` and refreshes
   the counter, again with two partials in one response.
 
-## Known limitation
-
-Direct navigation to `/invoices` (a request **without** `HX-Request`, e.g. typing
-the URL in the address bar) currently raises `Key not found in dictionary`
-instead of rendering the full page: `THtmx4Request.GetHeader` uses the
-`Headers[AName]` indexer, which throws for missing keys. HTMX-triggered requests
-always send `HX-Request` and `HX-Request-Type`, so all three buttons above work.
-
 Sources: <https://four.htmx.org/docs/>, <https://four.htmx.org/reference/headers/HX-Request-Type>

@@ -61,7 +61,7 @@ begin
     '<head>' + sLineBreak +
     '  <meta charset="utf-8">' + sLineBreak +
     '  <title>Dext HTMX 4 Demo</title>' + sLineBreak +
-    '  <script src="https://unpkg.com/htmx.org@4.0.0/dist/htmx.min.js"></script>' + sLineBreak +
+    '  <script src="https://cdn.jsdelivr.net/npm/htmx.org@4.0.0" integrity="sha384-BvJpBiO8Kh31EqtJe5DRIeWrHWnCGkwytKs9NKFi86Hhw96dEqdEMzDeK9iEGTc" crossorigin="anonymous"></script>' + sLineBreak +
     '  <style>' + sLineBreak +
     '    body { font-family: Segoe UI, sans-serif; margin: 2rem auto; max-width: 720px; }' + sLineBreak +
     '    button { margin-right: .5rem; padding: .4rem 1rem; }' + sLineBreak +
